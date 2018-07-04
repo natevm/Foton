@@ -4,3 +4,6 @@
 [submodule "external/gli"]
 	path = external/gli
 	url = https://github.com/g-truc/gli
+[submodule "external/bullet3"]
+	path = external/bullet3
+	url = https://github.com/bulletphysics/bullet3.git
