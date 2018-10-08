@@ -11,8 +11,14 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 if(MSVC)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17 -Wl,--no-as-needed")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 endif(MSVC)
+
+# Set the install prefix
+if(NOT DEFINED CMAKE_INSTALL_PREFIX)
+  set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/install")
+endif()
 
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Definitions                                                     │
@@ -43,34 +49,34 @@ set(GLFW_INSTALL        OFF CACHE STRING "" FORCE)
 find_package(GLFW REQUIRED)
 include_directories(SYSTEM ${GLFW_INCLUDE_DIR})
 
-# bullet
-find_package(Bullet REQUIRED)
-include_directories(SYSTEM ${BULLET_INCLUDE_DIRS})
-
 # use GLI
 find_package(GLI REQUIRED)
 include_directories(SYSTEM ${GLI_INCLUDE_DIR})
 
+# use GLM
+find_package(GLM REQUIRED)
+include_directories(SYSTEM ${GLM_INCLUDE_DIR})
+
 # swig
-find_package(SWIG 3 REQUIRED)
+find_package(SWIG 3.0.12 REQUIRED)
 include(${SWIG_USE_FILE})
 
 # vulkan
 find_package(Vulkan REQUIRED)
 include_directories(${Vulkan_INCLUDE_DIRS})
-message(${Vulkan_INCLUDE_DIRS})
 
 # python
-find_package(PythonLibs 3 REQUIRED)
+find_package(PythonLibs 3.6 REQUIRED)
 include_directories(SYSTEM ${PYTHON_INCLUDE_DIRS})
 include_directories(SYSTEM ${PYTHON_INCLUDE_PATH})
 
 # add libraries to a list for linking
-set(LIBRARIES
-    ${PYTHON_LIBRARIES}
+set (
+    LIBRARIES
+    ${PYTHON_LIBRARIES} 
     ${Vulkan_LIBRARY}
     ${GLFW_LIBRARIES}
-    ${OPENVR_LIBRARY})
+)
 
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Add source files                                                │
