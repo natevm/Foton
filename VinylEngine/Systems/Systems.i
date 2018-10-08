@@ -1,13 +1,28 @@
 %module Systems
 
 %{
-#include "VinylEngine/Systems/Bullet/Bullet.hxx"
-#include "VinylEngine/Systems/GLFW/GLFW.hxx"
-#include "VinylEngine/Systems/Vulkan/Vulkan.hxx"
+#include "VinylEngine/Systems/RenderSystem/RenderSystem.hxx"
+#include "VinylEngine/Systems/EventSystem/EventSystem.hxx"
 using namespace Systems;
 %}
 
 %include "./../Typemaps/Typemaps.i"
-%include "./Bullet/Bullet.hxx";
-%include "./GLFW/GLFW.hxx";
-%include "./Vulkan/Vulkan.hxx";
+
+%feature("autodoc", "2");
+%feature("kwargs");
+
+%include <windows.i>
+
+%nodefaultctor System;
+%nodefaultdtor System;
+
+%nodefaultctor RenderSystem;
+%nodefaultdtor RenderSystem;
+
+%nodefaultctor EventSystem;
+%nodefaultdtor EventSystem;
+
+%include "VinylEngine/BaseClasses/Singleton.hxx"
+%include "VinylEngine/BaseClasses/System.hxx"
+%include "VinylEngine/Systems/RenderSystem/RenderSystem.hxx"
+%include "VinylEngine/Systems/EventSystem/EventSystem.hxx"

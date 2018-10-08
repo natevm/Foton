@@ -1,5 +1,4 @@
 %{
-#define Err(message) {SWIG_Python_SetErrorMsg(PyExc_ValueError, message); return NULL;}
 
 inline bool String_Check(PyObject *object) {
     return PyString_Check(object) || PyUnicode_Check(object);
@@ -15,4 +14,5 @@ inline std::string String_AsString(PyObject *object) {
     else return "";
 }
 
+#define Err(message) { SWIG_Python_SetErrorMsg(PyExc_ValueError, message); return NULL; }
 %}

@@ -2,3 +2,4 @@ build
 install
 *.code-workspace
 VinylEngine.code-workspace
+*_wrap.cxx
