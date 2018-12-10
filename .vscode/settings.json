@@ -1,5 +1,4 @@
 {
-    "python.pythonPath": "/usr/bin/python3",
     "files.associations": {
         "*.i": "python",
         "array": "cpp",
@@ -50,12 +49,43 @@
         "atomic": "cpp",
         "condition_variable": "cpp",
         "list": "cpp",
-        "mutex": "cpp"
+        "mutex": "cpp",
+        "queue": "cpp",
+        "xstring": "cpp",
+        "resumable": "cpp",
+        "string": "cpp",
+        "xmemory0": "cpp",
+        "ios": "cpp",
+        "xutility": "cpp",
+        "xlocale": "cpp",
+        "map": "cpp",
+        "set": "cpp",
+        "xhash": "cpp",
+        "xtree": "cpp",
+        "algorithm": "cpp",
+        "iterator": "cpp",
+        "xthread": "cpp",
+        "xfacet": "cpp",
+        "xiosbase": "cpp",
+        "xlocinfo": "cpp",
+        "xlocnum": "cpp",
+        "xmemory": "cpp",
+        "xstddef": "cpp",
+        "xtr1common": "cpp",
+        "locale": "cpp",
+        "xlocbuf": "cpp",
+        "xlocmes": "cpp",
+        "xlocmon": "cpp",
+        "xloctime": "cpp",
+        "typeindex": "cpp",
+        "csignal": "cpp"
     },
-    "C_Cpp.intelliSenseEngineFallback": "Disabled",
+    "C_Cpp.intelliSenseEngineFallback": "Enabled",
     "python.linting.enabled": true,
 
-    "python.unitTest.pyTestEnabled": true,
+    "python.unitTest.cwd": "${workspaceFolder}",
+
+    "python.unitTest.pyTestEnabled": false,
     "python.unitTest.nosetestsEnabled": false,
     "python.unitTest.unittestEnabled": false,
     "python.unitTest.pyTestArgs": [
@@ -69,5 +99,10 @@
         "**/site-packages/**/*.py",
         "**/__init__.py",
         "**/*.i"
-    ]
+    ],
+    "C_Cpp.errorSquiggles": "Disabled",
+    "python.pythonPath": "C:\\Users\\Nathan Morrical\\AppData\\Local\\Programs\\Python\\Python36\\python.exe",
+    "cmake.configureOnOpen": true,
+    "C_Cpp.configurationWarnings": "Disabled",
+    "python.unitTest.promptToConfigure": false
 }

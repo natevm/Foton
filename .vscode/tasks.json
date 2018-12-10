@@ -4,9 +4,24 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "echo",
+            "label": "Compile Uniform Color Vertex Shader",
             "type": "shell",
-            "command": "echo Hello"
+            "command": "${workspaceFolder}/external/vulkan/glslc.exe -I ${workspaceFolder} ${workspaceFolder}/Pluto/Resources/Shaders/SurfaceMaterials/UniformColor/shader.vert -o ${workspaceFolder}/Pluto/Resources/Shaders/SurfaceMaterials/UniformColor/vert.spv"
+        },
+        {
+            "label": "Compile Uniform Color Fragment Shader",
+            "type": "shell",
+            "command": "${workspaceFolder}/external/vulkan/glslc.exe -I ${workspaceFolder} ${workspaceFolder}/Pluto/Resources/Shaders/SurfaceMaterials/UniformColor/shader.frag -o ${workspaceFolder}/Pluto/Resources/Shaders/SurfaceMaterials/UniformColor/frag.spv"
+        },
+        {
+            "label": "Compile Blinn Vertex Shader",
+            "type": "shell",
+            "command": "${workspaceFolder}/external/vulkan/glslc.exe -I ${workspaceFolder} ${workspaceFolder}/Pluto/Resources/Shaders/SurfaceMaterials/Blinn/shader.vert -o ${workspaceFolder}/Pluto/Resources/Shaders/SurfaceMaterials/Blinn/vert.spv"
+        },
+        {
+            "label": "Compile Blinn Fragment Shader",
+            "type": "shell",
+            "command": "${workspaceFolder}/external/vulkan/glslc.exe -I ${workspaceFolder} ${workspaceFolder}/Pluto/Resources/Shaders/SurfaceMaterials/Blinn/shader.frag -o ${workspaceFolder}/Pluto/Resources/Shaders/SurfaceMaterials/Blinn/frag.spv"
         }
     ]
 }

@@ -5,12 +5,29 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "(Windows) Launch",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/install/PlutoEngine.exe",
+            "args": ["-resource_path", "${workspaceFolder}/install/Resources"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": true
+        },
+        {
             "name": "Run Script",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/install/test.py",
             "cwd": "${workspaceFolder}/install",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "(Windows) Attach",
+            "type": "cppvsdbg",
+            "request": "attach",
+            "processId": "${command:pickProcess}"
         },
         { 
             "name": "Attach GDB",

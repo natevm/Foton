@@ -1,8 +1,8 @@
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Projects Settings                                               │
 # └──────────────────────────────────────────────────────────────────┘
-cmake_minimum_required (VERSION 3.12)
-project(Vinyl)
+cmake_minimum_required (VERSION 3.13)
+project(Pluto)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
@@ -16,14 +16,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 endif(MSVC)
 
 # Set the install prefix
-if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/install")
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/install/" CACHE PATH "..." FORCE)
 endif()
 
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Definitions                                                     │
 # └──────────────────────────────────────────────────────────────────┘
-add_definitions(-DResourcePath="${CMAKE_CURRENT_SOURCE_DIR}/Resources/")
 
 # Force binaries to go to build folder, not subfolders
 set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR} )
@@ -65,21 +64,28 @@ include(${SWIG_USE_FILE})
 find_package(Vulkan REQUIRED)
 include_directories(${Vulkan_INCLUDE_DIRS})
 
+# zeromq
+find_package(ZMQ REQUIRED)
+include_directories(${ZMQ_INCLUDE_DIRS})
+
 # python
-find_package(PythonLibs 3.6 REQUIRED)
-include_directories(SYSTEM ${PYTHON_INCLUDE_DIRS})
-include_directories(SYSTEM ${PYTHON_INCLUDE_PATH})
+find_package (Python3 COMPONENTS Interpreter Development REQUIRED)
+include_directories(SYSTEM ${Python3_INCLUDE_DIRS})
+
+# tiny
+include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/tiny)
 
 # add libraries to a list for linking
 set (
     LIBRARIES
-    ${PYTHON_LIBRARIES} 
+    ${Python3_LIBRARIES} 
     ${Vulkan_LIBRARY}
     ${GLFW_LIBRARIES}
+    ${ZMQ_LIBRARIES}
 )
 
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Add source files                                                │
 # └──────────────────────────────────────────────────────────────────┘
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR})
-add_subdirectory(VinylEngine)
+add_subdirectory(Pluto)

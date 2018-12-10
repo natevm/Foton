@@ -1,5 +1,0 @@
-set(Tools_SRC
-	${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt
-	${CMAKE_CURRENT_SOURCE_DIR}/Colors.hxx
-	${CMAKE_CURRENT_SOURCE_DIR}/HashCombiner.hxx
-	PARENT_SCOPE)

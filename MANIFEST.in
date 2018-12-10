@@ -1,0 +1,6 @@
+include README
+graft Pluto
+include install.py
+include Pluto.dll
+include PlutoEngine.exe
+recursive-exclude Pluto __pycache__

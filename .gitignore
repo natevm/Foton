@@ -1,5 +1,5 @@
 build
 install
 *.code-workspace
-VinylEngine.code-workspace
+PlutoEngine.code-workspace
 *_wrap.cxx
