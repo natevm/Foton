@@ -4,6 +4,7 @@
 
 #include "./Mesh.hxx"
 #include <Pluto/Tools/HashCombiner.hxx>
+#include <tiny_stl.h>
 
 Mesh Mesh::meshes[MAX_MESHES];
 std::map<std::string, uint32_t> Mesh::lookupTable;
@@ -142,6 +143,76 @@ bool Mesh::load_obj(std::string objPath)
     return true;
 }
 
+
+bool Mesh::load_stl(std::string stlPath) {
+    struct stat st;
+    if (stat(stlPath.c_str(), &st) != 0)
+    {
+        std::cout << stlPath + " does not exist!" << std::endl;
+        return false;
+    }
+
+    std::vector<float> p;
+    std::vector<float> n;
+
+    if (!read_stl(stlPath, p, n) ) {
+        std::cout << "Error: Unable to load " << stlPath << std::endl;
+        return false;
+    };
+
+    std::vector<Mesh::Vertex> vertices;
+
+    /* STLs only have points and face normals, so generate colors and UVs */
+    for (uint32_t i = 0; i < p.size() / 3; ++i) {
+        Mesh::Vertex vertex = Mesh::Vertex();
+        vertex.point = {
+            p[i * 3 + 0],
+            p[i * 3 + 1],
+            p[i * 3 + 2],
+        };
+        vertex.normal = {
+            n[i * 3 + 0],
+            n[i * 3 + 1],
+            n[i * 3 + 2],
+        };
+        vertices.push_back(vertex);
+    }
+
+    /* Eliminate duplicate points */
+    std::unordered_map<Mesh::Vertex, uint32_t> uniqueVertexMap = {};
+    std::vector<Mesh::Vertex> uniqueVertices;
+    for (int i = 0; i < vertices.size(); ++i)
+    {
+        Mesh::Vertex vertex = vertices[i];
+        if (uniqueVertexMap.count(vertex) == 0)
+        {
+            uniqueVertexMap[vertex] = static_cast<uint32_t>(uniqueVertices.size());
+            uniqueVertices.push_back(vertex);
+        }
+        indices.push_back(uniqueVertexMap[vertex]);
+    }
+
+    /* Map vertices to buffers */
+    for (int i = 0; i < uniqueVertices.size(); ++i)
+    {
+        Vertex v = uniqueVertices[i];
+        points.push_back(v.point);
+        colors.push_back(v.color);
+        normals.push_back(v.normal);
+        texcoords.push_back(v.texcoord);
+    }
+
+    cleanup();
+    compute_centroid();
+    createPointBuffer();
+    createColorBuffer();
+    createIndexBuffer();
+    createNormalBuffer();
+    createTexCoordBuffer();
+
+    return true;
+}
+
 /* Static Factory Implementations */
 Mesh* Mesh::Get(std::string name) {
     return StaticFactory::Get(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -179,6 +250,13 @@ Mesh* Mesh::CreateFromOBJ(std::string name, std::string objPath)
 {
     auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
     if (!mesh->load_obj(objPath)) return nullptr;
+    return mesh;
+}
+
+Mesh* Mesh::CreateFromSTL(std::string name, std::string stlPath)
+{
+    auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
+    if (!mesh->load_stl(stlPath)) return nullptr;
     return mesh;
 }
 
