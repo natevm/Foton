@@ -50,6 +50,7 @@ class Mesh : public StaticFactory
     static Mesh* CreatePlane(std::string name);
     static Mesh* CreateSphere(std::string name);
     static Mesh* CreateFromOBJ(std::string name, std::string objPath);
+    static Mesh* CreateFromSTL(std::string name, std::string stlPath);
     //static Mesh* Create(std::string name);
 	static Mesh* GetFront();
 	static uint32_t GetCount();
@@ -726,6 +727,8 @@ class Mesh : public StaticFactory
     }
 
     bool load_obj(std::string objPath);
+
+    bool load_stl(std::string stlPath);
 
   private:
     void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer &buffer, vk::DeviceMemory &bufferMemory)
