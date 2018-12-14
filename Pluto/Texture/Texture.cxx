@@ -1,5 +1,11 @@
 #include "./Texture.hxx"
 
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image.h>
+#include <stb_image_write.h>
+
+
 std::map<std::string, std::shared_ptr<Texture>> Texture::textures = std::map<std::string, std::shared_ptr<Texture>>();
 
 bool Texture::does_component_exist(std::string name)
