@@ -13,9 +13,11 @@ namespace Systems
             bool start();
             bool stop();
             bool should_close();
-            bool create_window(string key);
+            bool create_window(string key, uint32_t width = 512, uint32_t height = 512, bool floating = true, bool resizable = true, bool decorated = true);
             bool resize_window(string key, uint32_t width, uint32_t height);
             bool set_window_pos(string key, uint32_t x, uint32_t y);
+            bool set_window_visibility(string key, bool visible);
+
         private:
             bool close = true;
             EventSystem();

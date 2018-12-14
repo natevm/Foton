@@ -25,7 +25,7 @@ void Initialize(
 
     auto event_system = Systems::EventSystem::Get();
 
-    if (useGLFW) event_system->create_window("Window");
+    if (useGLFW) event_system->create_window("Window", 512, 512, true, true, true);
     vulkan->create_instance(validation_layers.size() > 0, validation_layers, instance_extensions);
     
     auto surface = (useGLFW) ? glfw->create_vulkan_surface(vulkan, "Window") : vk::SurfaceKHR();

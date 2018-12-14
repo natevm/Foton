@@ -68,11 +68,11 @@ namespace Systems
 
     /* These commands can be called from separate threads, but must be run on the event thread. */
 
-    bool EventSystem::create_window(string key) {
-        auto createWindow = [key]() {
+    bool EventSystem::create_window(string key, uint32_t width, uint32_t height, bool floating, bool resizable, bool decorated) {
+        auto createWindow = [key, width, height, floating, resizable, decorated]() {
             using namespace Libraries;
             auto glfw = GLFW::Get();
-            glfw->create_window(key);
+            glfw->create_window(key, width, height, floating, resizable, decorated);
         };
 
         auto future = enqueueCommand(createWindow);
@@ -103,6 +103,19 @@ namespace Systems
         future.wait();
         return true;
     }
+
+    bool EventSystem::set_window_visibility(string key, bool visible) {
+        auto setWindowVisibility = [key, visible] () {
+            using namespace Libraries;
+            auto glfw = GLFW::Get();
+            glfw->set_window_visibility(key, visible);
+        };
+
+        auto future = enqueueCommand(setWindowVisibility);
+        future.wait();
+        return true;
+    }
+
 
     bool EventSystem::stop() {
         using namespace Libraries;

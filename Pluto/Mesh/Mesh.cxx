@@ -258,12 +258,7 @@ bool Mesh::load_glb(std::string glbPath)
 
     std::vector<Mesh::Vertex> vertices;
 
-    // TODO: add support for multiple meshes per entity
-    assert(model.meshes.size() == 1);
-
     for (const auto &mesh : model.meshes) {
-        // TODO: add support for multiple primitives per mesh
-        assert(mesh.primitives.size() == 1);
         for (const auto &primitive : mesh.primitives)
         {
             const auto &idx_accessor = model.accessors[primitive.indices];
@@ -285,8 +280,6 @@ bool Mesh::load_glb(std::string glbPath)
             const float *nrm = (const float *) nrm_buffer.data.data();
             const float *tex = (const float *) tex_buffer.data.data();
             const char* idx  = (const char *) &idx_buffer.data[idx_bufferView.byteOffset];
-
-
 
             /* For each vertex */
             for (int i = 0; i < idx_accessor.count; ++ i) {

@@ -33,7 +33,7 @@ namespace Libraries {
         return windows;
     }
 
-    bool GLFW::create_window(string key) {
+    bool GLFW::create_window(string key, uint32_t width, uint32_t height, bool floating, bool resizable, bool decorated) {
         /* If uninitialized, or if window already exists, return false */
         if (initialized == false) {
             std::cout << "GLFW: Uninitialized, cannot create window."<<std::endl;
@@ -47,10 +47,12 @@ namespace Libraries {
 
         /* For Vulkan, request no OGL api */
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-        glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
+
+        glfwWindowHint(GLFW_DECORATED, (decorated) ? GLFW_TRUE : GLFW_FALSE);
+        glfwWindowHint(GLFW_RESIZABLE, (resizable) ? GLFW_TRUE : GLFW_FALSE);
+        glfwWindowHint(GLFW_FLOATING, (floating) ? GLFW_TRUE : GLFW_FALSE);
         Window window = {};
-        auto ptr = glfwCreateWindow(512, 512, key.c_str(), NULL, NULL);
+        auto ptr = glfwCreateWindow(width, height, key.c_str(), NULL, NULL);
         if (!ptr) {
             cout<<"GLFW: Failed to create GLFW window"<<endl;
             return false;
@@ -76,6 +78,25 @@ namespace Libraries {
 
         auto window = Windows()[key];
         glfwSetWindowSize(window.ptr, width, height);
+        return true;
+    }
+
+    bool GLFW::set_window_visibility(std::string key, bool visible) {
+        if (initialized == false) {
+            std::cout << "GLFW: Uninitialized, cannot set window visibility."<<std::endl;
+            return false;
+        }
+        auto ittr = Windows().find(key);
+        if ( ittr == Windows().end() ) {
+            std::cout << "GLFW: Error, window does not exists."<<std::endl;
+            return false;
+        }
+
+        auto window = Windows()[key];
+        if (visible)
+            glfwShowWindow(window.ptr);
+        else 
+            glfwHideWindow(window.ptr);
         return true;
     }
 
