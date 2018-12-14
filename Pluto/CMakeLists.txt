@@ -76,7 +76,7 @@ endif()
 # Build SWIG module 
 set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/Libraries.i PROPERTY CPLUSPLUS ON)
 set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/Libraries.i PROPERTY USE_TARGET_INCLUDE_DIRECTORIES TRUE)
-swig_add_library(Libraries TYPE SHARED LANGUAGE python OUTFILE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/Pluto_wrap.cxx SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/Libraries.i)
+swig_add_library(Libraries TYPE SHARED LANGUAGE python OUTFILE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Libraries SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/Libraries.i)
 target_link_libraries(Libraries PUBLIC ${LIBRARIES} PlutoLib)
 
 # Install
