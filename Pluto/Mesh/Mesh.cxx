@@ -1,10 +1,19 @@
+// TEMPORARY!!
+#pragma optimize("", off)
+
 #ifndef TINYOBJLOADER_IMPLEMENTATION
 #define TINYOBJLOADER_IMPLEMENTATION
 #endif
 
+#define TINYGLTF_IMPLEMENTATION
+// #define TINYGLTF_NO_FS
+// #define TINYGLTF_NO_STB_IMAGE_WRITE
+
+
 #include "./Mesh.hxx"
 #include <Pluto/Tools/HashCombiner.hxx>
 #include <tiny_stl.h>
+#include <tiny_gltf.h>
 
 Mesh Mesh::meshes[MAX_MESHES];
 std::map<std::string, uint32_t> Mesh::lookupTable;
@@ -213,6 +222,135 @@ bool Mesh::load_stl(std::string stlPath) {
     return true;
 }
 
+bool Mesh::load_glb(std::string glbPath)
+{
+    struct stat st;
+    if (stat(glbPath.c_str(), &st) != 0)
+    {
+        std::cout << glbPath + " does not exist!" << std::endl;
+        return false;
+    }
+
+    // read file
+    unsigned char *file_buffer = NULL;
+	uint32_t file_size = 0;
+	{
+		FILE *fp = fopen(glbPath.c_str(), "rb");
+		assert(fp);
+		fseek(fp, 0, SEEK_END);
+		file_size = (uint32_t)ftell(fp);
+		rewind(fp);
+		file_buffer = (unsigned char *)malloc(file_size);
+		assert(file_buffer);
+		fread(file_buffer, 1, file_size, fp);
+		fclose(fp);
+	}
+
+    tinygltf::Model model;
+    tinygltf::TinyGLTF loader;
+
+    std::string err, warn;
+    if (!loader.LoadBinaryFromMemory(&model, &err, &warn, file_buffer, file_size, "", tinygltf::REQUIRE_ALL))
+    {
+        std::cout << "Error: Unable to load " << glbPath << " " << err << std::endl;
+        return false;
+    }
+
+    std::vector<Mesh::Vertex> vertices;
+
+    // TODO: add support for multiple meshes per entity
+    assert(model.meshes.size() == 1);
+
+    for (const auto &mesh : model.meshes) {
+        // TODO: add support for multiple primitives per mesh
+        assert(mesh.primitives.size() == 1);
+        for (const auto &primitive : mesh.primitives)
+        {
+            const auto &idx_accessor = model.accessors[primitive.indices];
+            const auto &pos_accessor = model.accessors[primitive.attributes.find("POSITION")->second];
+            const auto &nrm_accessor = model.accessors[primitive.attributes.find("NORMAL")->second];
+            const auto &tex_accessor = model.accessors[primitive.attributes.find("TEXCOORD_0")->second];
+
+            const auto &idx_bufferView = model.bufferViews[idx_accessor.bufferView];
+            const auto &pos_bufferView = model.bufferViews[pos_accessor.bufferView];
+            const auto &nrm_bufferView = model.bufferViews[nrm_accessor.bufferView];
+            const auto &tex_bufferView = model.bufferViews[tex_accessor.bufferView];
+
+            const auto &idx_buffer = model.buffers[idx_bufferView.buffer]; 
+            const auto &pos_buffer = model.buffers[pos_bufferView.buffer]; 
+            const auto &nrm_buffer = model.buffers[nrm_bufferView.buffer]; 
+            const auto &tex_buffer = model.buffers[tex_bufferView.buffer]; 
+
+            const float *pos = (const float *) pos_buffer.data.data();
+            const float *nrm = (const float *) nrm_buffer.data.data();
+            const float *tex = (const float *) tex_buffer.data.data();
+            const char* idx  = (const char *) &idx_buffer.data[idx_bufferView.byteOffset];
+
+
+
+            /* For each vertex */
+            for (int i = 0; i < idx_accessor.count; ++ i) {
+                unsigned int index = -1;
+                if (idx_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
+                    index = (unsigned int) ((unsigned int*)idx)[i];
+                else 
+                    index = (unsigned int) ((unsigned short*)idx)[i];
+                
+                Mesh::Vertex vertex = Mesh::Vertex();
+                vertex.point = {
+                    pos[3 * index + 0],
+                    pos[3 * index + 1],
+                    pos[3 * index + 2]};
+
+                vertex.normal = {
+                    nrm[3 * index + 0],
+                    nrm[3 * index + 1],
+                    nrm[3 * index + 2]};
+
+                vertex.texcoord = {
+                    tex[2 * index + 0],
+                    tex[2 * index + 1]};
+                
+                vertices.push_back(vertex);
+            }
+        }
+    }
+
+    /* Eliminate duplicate points */
+    std::unordered_map<Mesh::Vertex, uint32_t> uniqueVertexMap = {};
+    std::vector<Mesh::Vertex> uniqueVertices;
+    for (int i = 0; i < vertices.size(); ++i)
+    {
+        Mesh::Vertex vertex = vertices[i];
+        if (uniqueVertexMap.count(vertex) == 0)
+        {
+            uniqueVertexMap[vertex] = static_cast<uint32_t>(uniqueVertices.size());
+            uniqueVertices.push_back(vertex);
+        }
+        indices.push_back(uniqueVertexMap[vertex]);
+    }
+
+    /* Map vertices to buffers */
+    for (int i = 0; i < uniqueVertices.size(); ++i)
+    {
+        Vertex v = uniqueVertices[i];
+        points.push_back(v.point);
+        colors.push_back(v.color);
+        normals.push_back(v.normal);
+        texcoords.push_back(v.texcoord);
+    }
+
+    cleanup();
+    compute_centroid();
+    createPointBuffer();
+    createColorBuffer();
+    createIndexBuffer();
+    createNormalBuffer();
+    createTexCoordBuffer();
+
+    return true;
+}
+
 /* Static Factory Implementations */
 Mesh* Mesh::Get(std::string name) {
     return StaticFactory::Get(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -257,6 +395,13 @@ Mesh* Mesh::CreateFromSTL(std::string name, std::string stlPath)
 {
     auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
     if (!mesh->load_stl(stlPath)) return nullptr;
+    return mesh;
+}
+
+Mesh* Mesh::CreateFromGLB(std::string name, std::string glbPath)
+{
+    auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
+    if (!mesh->load_glb(glbPath)) return nullptr;
     return mesh;
 }
 

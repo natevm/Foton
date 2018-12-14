@@ -455,7 +455,8 @@ struct Sampler {
 
   Sampler()
       : wrapS(TINYGLTF_TEXTURE_WRAP_REPEAT),
-        wrapT(TINYGLTF_TEXTURE_WRAP_REPEAT) {}
+        wrapT(TINYGLTF_TEXTURE_WRAP_REPEAT),
+        wrapR(TINYGLTF_TEXTURE_WRAP_REPEAT){}
   bool operator==(const Sampler &) const;
 };
 
@@ -924,7 +925,8 @@ class TinyGLTF {
   bool WriteGltfSceneToFile(Model *model, const std::string &filename,
                             bool embedImages,
                             bool embedBuffers,
-                            bool prettyPrint /*, bool writeBinary*/);
+                            bool prettyPrint,
+                            bool writeBinary);
 
   ///
   /// Set callback to use for loading image data
@@ -1128,8 +1130,6 @@ static bool Equals(const tinygltf::Value &one, const tinygltf::Value &other) {
       return false;
     }
   }
-
-  return false;
 }
 
 // Equals function for std::vector<double> using TINYGLTF_DOUBLE_EPSILON
@@ -2210,7 +2210,7 @@ static bool ParseStringProperty(
   }
 
   if (ret) {
-    (*ret) = it.value();
+    (*ret) = it.value().get<std::string>();
   }
 
   return true;
@@ -3479,6 +3479,30 @@ bool TinyGLTF::LoadFromString(Model *model, std::string *err, std::string *warn,
     }
   }
 
+  // Assign missing bufferView target types
+  // - Look for missing Mesh indices
+  // - Look for missing bufferView targets
+  for (auto &mesh : model->meshes)
+  {
+    for (auto &primitive : mesh.primitives)
+    {
+      if (primitive.indices > -1) // has indices from parsing step, must be Element Array Buffer
+      {
+        model->bufferViews[model->accessors[primitive.indices].bufferView]
+            .target = TINYGLTF_TARGET_ELEMENT_ARRAY_BUFFER;
+        // we could optionally check if acessors' bufferView type is Scalar, as it should be
+      }
+    }
+  }
+  // find any missing targets, must be an array buffer type if not fulfilled from previous check
+  for (auto &bufferView : model->bufferViews)
+  {
+    if (bufferView.target == 0) // missing target type
+    {
+      bufferView.target = TINYGLTF_TARGET_ARRAY_BUFFER;
+    }
+  }
+
   // 7. Parse Node
   {
     json::const_iterator rootIt = v.find("nodes");
@@ -4130,7 +4154,7 @@ static void SerializeExtensionMap(ExtensionMap &extensions, json &o) {
       extMap[extIt->first] = ret;
     }
     if(ret.is_null()) {
-      if (!(extIt->first.empty())) { // name should not be empty, but for sure 
+      if (!(extIt->first.empty())) { // name should not be empty, but for sure
         // create empty object so that an extension name is still included in json.
         extMap[extIt->first] = json({});
       }
@@ -4441,6 +4465,7 @@ static void SerializeGltfNode(Node &node, json &o) {
 static void SerializeGltfSampler(Sampler &sampler, json &o) {
   SerializeNumberProperty("magFilter", sampler.magFilter, o);
   SerializeNumberProperty("minFilter", sampler.minFilter, o);
+  SerializeNumberProperty("wrapR", sampler.wrapR, o);
   SerializeNumberProperty("wrapS", sampler.wrapS, o);
   SerializeNumberProperty("wrapT", sampler.wrapT, o);
 
@@ -4541,11 +4566,40 @@ static bool WriteGltfFile(const std::string &output,
   return true;
 }
 
+static void WriteBinaryGltfFile(const std::string &output,
+                                const std::string &content) {
+  std::ofstream gltfFile(output.c_str(), std::ios::binary);
+
+  const std::string header = "glTF";
+  const int version = 2;
+  const int padding_size = content.size() % 4;
+
+  // 12 bytes for header, JSON content length, 8 bytes for JSON chunk info, padding
+  const int length = (int) (12 + 8 + content.size() + padding_size);
+  
+  gltfFile.write(header.c_str(), header.size());
+  gltfFile.write(reinterpret_cast<const char *>(&version), sizeof(version));
+  gltfFile.write(reinterpret_cast<const char *>(&length), sizeof(length));
+
+  // JSON chunk info, then JSON data
+  const int model_length = (int) (content.size() + padding_size);
+  const int model_format = 0x4E4F534A;
+  gltfFile.write(reinterpret_cast<const char *>(&model_length), sizeof(model_length));
+  gltfFile.write(reinterpret_cast<const char *>(&model_format), sizeof(model_format));
+  gltfFile.write(content.c_str(), content.size());
+
+  // Chunk must be multiplies of 4, so pad with spaces
+  if (padding_size > 0) {
+    const std::string padding = std::string(padding_size, ' ');
+    gltfFile.write(padding.c_str(), padding.size());
+  }
+}
+
 bool TinyGLTF::WriteGltfSceneToFile(Model *model, const std::string &filename,
                                     bool embedImages = false,
                                     bool embedBuffers = false,
-                                    bool prettyPrint = true
-                                    /*, bool writeBinary*/) {
+                                    bool prettyPrint = true,
+                                    bool writeBinary = false) {
   json output;
 
   // ACCESSORS
@@ -4597,7 +4651,7 @@ bool TinyGLTF::WriteGltfSceneToFile(Model *model, const std::string &filename,
     } else {
       std::string binSavePath;
       std::string binUri;
-      if (!model->buffers[i].uri.empty() 
+      if (!model->buffers[i].uri.empty()
         && !IsDataURI(model->buffers[i].uri)) {
         binUri = model->buffers[i].uri;
       }
@@ -4654,7 +4708,7 @@ bool TinyGLTF::WriteGltfSceneToFile(Model *model, const std::string &filename,
       json image;
 
       UpdateImageObject(model->images[i], baseDir, int(i), embedImages,
-                        &this->WriteImageData, &this->write_image_user_data_);
+                        &this->WriteImageData, this->write_image_user_data_);
       SerializeGltfImage(model->images[i], image);
       images.push_back(image);
     }
@@ -4783,8 +4837,13 @@ bool TinyGLTF::WriteGltfSceneToFile(Model *model, const std::string &filename,
     SerializeValue("extras", model->extras, output);
   }
 
-  // pretty printing with spacing 2
-  return WriteGltfFile(filename, output.dump(prettyPrint ? 2 : 0));
+  if (writeBinary) {
+    WriteBinaryGltfFile(filename, output.dump());
+  } else {
+    WriteGltfFile(filename, output.dump(prettyPrint ? 2 : -1));
+  }
+
+  return true;
 }
 
 }  // namespace tinygltf
