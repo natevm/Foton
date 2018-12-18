@@ -19,6 +19,7 @@ layout(std430, binding = 4) readonly buffer LightSSBO     { LightStruct lights[]
 layout(push_constant) uniform PushConsts {
   int entity_id;
   int camera_id;
+  int light_entity_ids [MAX_LIGHTS];
 } pushConsts;
 
 layout(location = 0) in vec3 w_normal;
@@ -47,18 +48,23 @@ void main() {
   vec3 n = normalize(w_normal);
   vec3 temp = vec3(0.0, 0.0, 3.0);
   /* Forward light pass */
-  for (int i = 0; i < MAX_ENTITIES; ++i) {
-    if ( (ebo.entities[i].initialized != 1) || (ebo.entities[i].light_id == -1)  || (ebo.entities[i].transform_id == -1)) continue;
-    LightStruct light = lbo.lights[ebo.entities[i].light_id];
+  for (int i = 0; i < MAX_LIGHTS; ++i) {
+
+    int light_entity_id = pushConsts.light_entity_ids[i];
+    if (light_entity_id == -1) continue;
+
+    EntityStruct light_entity = ebo.entities[light_entity_id];
+
+    if ( (light_entity.initialized != 1) || (light_entity.transform_id == -1)) continue;
+    LightStruct light = lbo.lights[light_entity.light_id];
 
     /* Objects which are lights glow */
-    if (i == pushConsts.entity_id) {
+    if (light_entity_id == pushConsts.entity_id) {
       diffuseColor += light.diffuse.rgb;
     }
-
     else 
     {
-      TransformStruct light_transform = tbo.transforms[ebo.entities[i].transform_id];
+      TransformStruct light_transform = tbo.transforms[light_entity.transform_id];
       vec3 l_p = vec3(light_transform.localToWorld[3]);
       vec3 l = normalize(l_p - w_position);
       //   vec3 h = normalize(v + l);

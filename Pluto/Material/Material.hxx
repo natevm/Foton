@@ -101,7 +101,7 @@ class Material : public StaticFactory
         static uint32_t GetSSBOSize();
         static void CleanUp();
 
-        static bool DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity);
+        static bool DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity, int32_t &camera_id, std::vector<int32_t> &light_entity_ids);
 
         /* Instance functions */
         Material() {

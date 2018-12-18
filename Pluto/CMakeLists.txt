@@ -128,67 +128,17 @@ install(FILES ${CMAKE_BINARY_DIR}/Pluto/Systems/_Systems.so DESTINATION ${CMAKE_
 endif()
 
 # ┌──────────────────────────────────────────────────────────────────┐
-# │  Components module                                               │
+# │  Shaders                                                         │
 # └──────────────────────────────────────────────────────────────────┘
+set(GLSLC ${PROJECT_SOURCE_DIR}/external/vulkan/glslc.exe)
 
-# # Build SWIG module 
-# set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Components/Components.i PROPERTY CPLUSPLUS ON)
-# set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Components/Components.i PROPERTY USE_TARGET_INCLUDE_DIRECTORIES TRUE)
-# swig_add_library(Components TYPE SHARED LANGUAGE python OUTFILE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Components SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Components/Components.i)
-# target_link_libraries(Components PUBLIC ${LIBRARIES} PlutoLib)
-
-# # Install
-# install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/Components/__init__.py DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Components)
-# install(FILES ${CMAKE_BINARY_DIR}/Pluto/Components.py DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Components)
-
-# if (WIN32) 
-# install(FILES ${CMAKE_BINARY_DIR}/_Components.pyd DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Components)
-# install(FILES ${CMAKE_BINARY_DIR}/_Components.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Components OPTIONAL)
-# else()
-# install(FILES ${CMAKE_BINARY_DIR}/Pluto/_Components.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Components)
-# endif()
-
-# # ┌──────────────────────────────────────────────────────────────────┐
-# # │  Math module                                                     │
-# # └──────────────────────────────────────────────────────────────────┘
-
-# # Build SWIG module 
-# set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Components/Math/Math.i PROPERTY CPLUSPLUS ON)
-# set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Components/Math/Math.i PROPERTY USE_TARGET_INCLUDE_DIRECTORIES TRUE)
-# swig_add_library(Math TYPE SHARED LANGUAGE python OUTFILE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Components/Math SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Components/Math/Math.i)
-# target_link_libraries(Math PUBLIC ${LIBRARIES} PlutoLib)
-
-# # Install
-# install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/Components/Math/__init__.py DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Math)
-# install(FILES ${CMAKE_BINARY_DIR}/Pluto/Math.py DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Math)
-
-# if (WIN32) 
-# install(FILES ${CMAKE_BINARY_DIR}/_Math.pyd DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Math)
-# install(FILES ${CMAKE_BINARY_DIR}/_Math.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Math OPTIONAL)
-# else()
-# install(FILES ${CMAKE_BINARY_DIR}/Pluto/_Math.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Components)
-# endif()
-
-# # ┌──────────────────────────────────────────────────────────────────┐
-# # │  Textures module                                                  │
-# # └──────────────────────────────────────────────────────────────────┘
-
-# # Build SWIG module 
-# set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Components/Textures/Textures.i PROPERTY CPLUSPLUS ON)
-# set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Components/Textures/Textures.i PROPERTY USE_TARGET_INCLUDE_DIRECTORIES TRUE)
-# swig_add_library(Textures TYPE SHARED LANGUAGE python OUTFILE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Components/Textures SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Components/Textures/Textures.i)
-# target_link_libraries(Textures PUBLIC ${LIBRARIES} PlutoLib)
-
-# # Install
-# install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/Components/Textures/__init__.py DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Textures)
-# install(FILES ${CMAKE_BINARY_DIR}/Pluto/Textures.py DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Textures)
-
-# if (WIN32) 
-# install(FILES ${CMAKE_BINARY_DIR}/_Textures.pyd DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Textures)
-# install(FILES ${CMAKE_BINARY_DIR}/_Textures.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Textures OPTIONAL)
-# else()
-# install(FILES ${CMAKE_BINARY_DIR}/Pluto/_Textures.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Components)
-# endif()
+add_custom_target(Shaders 
+    COMMAND ${GLSLC} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/UniformColor/shader.vert -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/UniformColor/vert.spv
+    COMMAND ${GLSLC} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/UniformColor/shader.frag -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/UniformColor/frag.spv
+    
+    COMMAND ${GLSLC} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Blinn/shader.vert -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Blinn/vert.spv
+    COMMAND ${GLSLC} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Blinn/shader.frag -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Blinn/frag.spv
+    )
 
 install(FILES ${PROJECT_SOURCE_DIR}/setup.py DESTINATION ${CMAKE_INSTALL_PREFIX})
 install(FILES ${PROJECT_SOURCE_DIR}/install.py DESTINATION ${CMAKE_INSTALL_PREFIX})
@@ -196,4 +146,5 @@ install(FILES ${PROJECT_SOURCE_DIR}/MANIFEST.in DESTINATION ${CMAKE_INSTALL_PREF
 install(FILES ${PROJECT_SOURCE_DIR}/README DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/Pluto/Resources DESTINATION ${CMAKE_INSTALL_PREFIX})
+
 
