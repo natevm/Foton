@@ -55,7 +55,7 @@ void Material::CreatePipeline(
 
     vk::PushConstantRange range;
     range.offset = 0;
-    range.size = 2 * sizeof(uint32_t);
+    range.size = (2 + MAX_LIGHTS) * sizeof(uint32_t);
     range.stageFlags = vk::ShaderStageFlagBits::eAll;
 
     /* Connect things together with pipeline layout */
@@ -629,35 +629,39 @@ void Material::CreateVertexAttributeDescriptions() {
     }
 }
 
-bool Material::DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity)
+bool Material::DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity, int32_t &camera_id, std::vector<int32_t> &light_entity_ids)
 {
     auto mesh_id = entity.get_mesh();
     auto transform_id = entity.get_transform();
+    
+    /* Need a mesh and a transform to render. */
     if (mesh_id < 0 || mesh_id >= MAX_MESHES) return false;
     if (transform_id < 0 || transform_id >= MAX_TRANSFORMS) return false;
+
     auto m = Mesh::Get((uint32_t) mesh_id);
-    if (m) {
-        // Submit via push constant (rather than a UBO)
-        std::vector<uint32_t> push_constants(2);
-        push_constants[0] = entity.get_id();
-        push_constants[1] = 0; // TODO: pass camera id...
-        command_buffer.pushConstants(
-            blinn.pipelineLayout, 
-            vk::ShaderStageFlagBits::eAll,
-            0, 
-            2 * sizeof(uint32_t),
-            push_constants.data()
-            );
+    if (!m) return false;
 
-        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, Material::blinn.pipeline);
-        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, blinn.pipelineLayout, 0, 1, &blinn.descriptorSet, 0, nullptr);
-        command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
-        command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
-        command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
+    // Setup push constant data
+    std::vector<int32_t> push_constants(2 + MAX_LIGHTS);
+    push_constants[0] = entity.get_id();
+    push_constants[1] = camera_id;
+    memcpy(&push_constants[2], light_entity_ids.data(), sizeof(int32_t) * light_entity_ids.size());
 
-        return true;
-    }
-    return false;
+    command_buffer.pushConstants(
+        blinn.pipelineLayout, 
+        vk::ShaderStageFlagBits::eAll,
+        0, 
+        (2 + MAX_LIGHTS) * sizeof(int32_t),
+        push_constants.data()
+        );
+
+    command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, Material::blinn.pipeline);
+    command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, blinn.pipelineLayout, 0, 1, &blinn.descriptorSet, 0, nullptr);
+    command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
+    command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
+    command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
+
+    return true;
 }
 
 void Material::CreateSSBO()

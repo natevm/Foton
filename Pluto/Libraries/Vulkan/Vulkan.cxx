@@ -219,12 +219,14 @@ bool Vulkan::create_device(vector<string> device_extensions, vector<string> devi
 
     /* Check and see if any physical devices are suitable, since not all cards are equal */
     physicalDevice = vk::PhysicalDevice();
+    std::string devicename;
     for (const auto &device : devices)
     {
         swapChainAdequate = extensionsSupported = queuesFound = false;
         deviceProperties = device.getProperties();
         auto supportedFeatures = device.getFeatures();
         auto queueFamilyProperties = device.getQueueFamilyProperties();
+        std::cout<<"\tAvailable device: " << deviceProperties.deviceName <<std::endl;
 
         /* Look for a queue family which supports what we need (graphics, maybe also present) */
         int32_t i = 0;
@@ -273,11 +275,15 @@ bool Vulkan::create_device(vector<string> device_extensions, vector<string> devi
 
         if (queuesFound && extensionsSupported && featuresSupported && ((!surface) || swapChainAdequate))
         {
-            cout << "\tChoosing device " << std::string(deviceProperties.deviceName) << endl;
             physicalDevice = device;
-            break;
+            devicename = deviceProperties.deviceName;
+            if (deviceProperties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu) {
+                break;
+            }
         }
     }
+    
+    cout << "\tChoosing device " << std::string(deviceProperties.deviceName) << endl;
 
     if (!physicalDevice)
     {

@@ -1,6 +1,3 @@
-// TEMPORARY!!
-#pragma optimize("", off)
-
 #ifndef TINYOBJLOADER_IMPLEMENTATION
 #define TINYOBJLOADER_IMPLEMENTATION
 #endif

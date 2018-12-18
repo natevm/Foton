@@ -24,6 +24,7 @@ layout(location = 3) in vec2 texcoord;
 layout(push_constant) uniform PushConsts {
 	int entity_id;
     int camera_id;
+    int light_entity_ids [MAX_LIGHTS];
 } pushConsts;
 
 layout(location = 0) out vec4 fragColor;
