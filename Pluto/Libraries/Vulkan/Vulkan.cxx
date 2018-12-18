@@ -855,7 +855,7 @@ bool Vulkan::submit_present_commands() {
     for (int i = 0; i < presentCommandQueue.presentations.size(); ++i) {
         try {
             presentQueues[0].presentKHR(presentCommandQueue.presentations[i]);
-            presentQueues[0].waitIdle();
+            //presentQueues[0].waitIdle();
         }
         catch (...) {
             result = false;
