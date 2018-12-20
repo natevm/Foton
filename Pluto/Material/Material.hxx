@@ -50,6 +50,8 @@ class Material : public StaticFactory
         /* Uniform Color Pipeline Fields */
         static MaterialResources uniformColor;
         static MaterialResources blinn;
+        static MaterialResources texcoordsurface;
+        static MaterialResources normalsurface;
 
         static vk::DescriptorSetLayout uniformColorLayout;
         static vk::DescriptorPool uniformColorDescriptorPool;
@@ -82,6 +84,7 @@ class Material : public StaticFactory
         
         /* Instance fields*/
         MaterialStruct material_struct;
+        int renderMode = 0;
 
     public:
         /* Factory functions */
@@ -161,6 +164,22 @@ class Material : public StaticFactory
             output += "\ttransmission_roughness: \"" + std::to_string(material_struct.transmission_roughness) + "\"\n";
             output += "}";
             return output;
+        }
+
+        void show_material() {
+            renderMode = 0;
+        }
+
+        void show_normals () {
+            renderMode = 1;
+        }
+
+        void show_vertex_colors() {
+            renderMode = 2;
+        }
+
+        void show_texcoords() {
+            renderMode = 3;
         }
 
         void set_base_color(glm::vec4 color) {
