@@ -16,6 +16,8 @@ vk::DeviceMemory Material::ssboMemory;
 /* UNIFORM COLOR PIPELINE */
 Material::MaterialResources Material::uniformColor;
 Material::MaterialResources Material::blinn;
+Material::MaterialResources Material::texcoordsurface;
+Material::MaterialResources Material::normalsurface;
 
 /* Wrapper for shader module creation */
 vk::ShaderModule Material::CreateShaderModule(const std::vector<char>& code) {
@@ -160,6 +162,70 @@ void Material::SetupGraphicsPipelines(uint32_t id, vk::RenderPass renderpass)
         device.destroyShaderModule(fragShaderModule);
         device.destroyShaderModule(vertShaderModule);
     }
+
+    /* ------ NORMAL SURFACE GRAPHICS PIPELINE  ------ */
+    {
+        std::string ResourcePath = Options::GetResourcePath();
+        auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/NormalSurface/vert.spv"));
+        auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/NormalSurface/frag.spv"));
+
+        /* Create shader modules */
+        auto vertShaderModule = CreateShaderModule(vertShaderCode);
+        auto fragShaderModule = CreateShaderModule(fragShaderCode);
+
+        /* Info for shader stages */
+        vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
+        vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
+        vertShaderStageInfo.module = vertShaderModule;
+        vertShaderStageInfo.pName = "main"; // entry point here? would be nice to combine shaders into one file
+
+        vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
+        fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
+        fragShaderStageInfo.module = fragShaderModule;
+        fragShaderStageInfo.pName = "main";
+
+        std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
+        
+        CreatePipeline(shaderStages, normalsurface.vertexInputBindingDescriptions, 
+            normalsurface.vertexInputAttributeDescriptions, { normalsurface.descriptorSetLayout }, normalsurface.pipelineParameters, 
+            renderpass, 0, 
+            normalsurface.pipeline, normalsurface.pipelineLayout);
+
+        device.destroyShaderModule(fragShaderModule);
+        device.destroyShaderModule(vertShaderModule);
+    }
+
+    /* ------ TEXCOORD SURFACE GRAPHICS PIPELINE  ------ */
+    {
+        std::string ResourcePath = Options::GetResourcePath();
+        auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/TexCoordSurface/vert.spv"));
+        auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/TexCoordSurface/frag.spv"));
+
+        /* Create shader modules */
+        auto vertShaderModule = CreateShaderModule(vertShaderCode);
+        auto fragShaderModule = CreateShaderModule(fragShaderCode);
+
+        /* Info for shader stages */
+        vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
+        vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
+        vertShaderStageInfo.module = vertShaderModule;
+        vertShaderStageInfo.pName = "main"; // entry point here? would be nice to combine shaders into one file
+
+        vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
+        fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
+        fragShaderStageInfo.module = fragShaderModule;
+        fragShaderStageInfo.pName = "main";
+
+        std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
+        
+        CreatePipeline(shaderStages, texcoordsurface.vertexInputBindingDescriptions, 
+            texcoordsurface.vertexInputAttributeDescriptions, { texcoordsurface.descriptorSetLayout }, texcoordsurface.pipelineParameters, 
+            renderpass, 0, 
+            texcoordsurface.pipeline, texcoordsurface.pipelineLayout);
+
+        device.destroyShaderModule(fragShaderModule);
+        device.destroyShaderModule(vertShaderModule);
+    }
 }
 
 /* SSBO logic */
@@ -277,6 +343,106 @@ void Material::CreateDescriptorSetLayouts()
 
         blinn.descriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
     }
+
+    /* ------ TEXCOORD SURFACE LAYOUT ------ */
+    {
+        // Entity SSBO
+        vk::DescriptorSetLayoutBinding eboLayoutBinding;
+        eboLayoutBinding.binding = 0;
+        eboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
+        eboLayoutBinding.descriptorCount = 1;
+        eboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+        eboLayoutBinding.pImmutableSamplers = nullptr; // Optional
+
+        // Transform SSBO
+        vk::DescriptorSetLayoutBinding tboLayoutBinding;
+        tboLayoutBinding.binding = 1;
+        tboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
+        tboLayoutBinding.descriptorCount = 1;
+        tboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+        tboLayoutBinding.pImmutableSamplers = nullptr; // Optional
+
+        // Camera SSBO
+        vk::DescriptorSetLayoutBinding cboLayoutBinding;
+        cboLayoutBinding.binding = 2;
+        cboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
+        cboLayoutBinding.descriptorCount = 1;
+        cboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+        cboLayoutBinding.pImmutableSamplers = nullptr; // Optional
+
+        // Material SSBO
+        vk::DescriptorSetLayoutBinding mboLayoutBinding;
+        mboLayoutBinding.binding = 3;
+        mboLayoutBinding.descriptorCount = 1;
+        mboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
+        mboLayoutBinding.pImmutableSamplers = nullptr;
+        mboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+
+        // Light SSBO
+        vk::DescriptorSetLayoutBinding lboLayoutBinding;
+        lboLayoutBinding.binding = 4;
+        lboLayoutBinding.descriptorCount = 1;
+        lboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
+        lboLayoutBinding.pImmutableSamplers = nullptr;
+        lboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+
+        std::array<vk::DescriptorSetLayoutBinding, 5> bindings = { eboLayoutBinding, tboLayoutBinding, cboLayoutBinding, mboLayoutBinding, lboLayoutBinding};
+        vk::DescriptorSetLayoutCreateInfo layoutInfo;
+        layoutInfo.bindingCount = (uint32_t)bindings.size();
+        layoutInfo.pBindings = bindings.data();
+
+        texcoordsurface.descriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
+    }
+
+    /* ------ NORMAL SURFACE LAYOUT ------ */
+    {
+        // Entity SSBO
+        vk::DescriptorSetLayoutBinding eboLayoutBinding;
+        eboLayoutBinding.binding = 0;
+        eboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
+        eboLayoutBinding.descriptorCount = 1;
+        eboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+        eboLayoutBinding.pImmutableSamplers = nullptr; // Optional
+
+        // Transform SSBO
+        vk::DescriptorSetLayoutBinding tboLayoutBinding;
+        tboLayoutBinding.binding = 1;
+        tboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
+        tboLayoutBinding.descriptorCount = 1;
+        tboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+        tboLayoutBinding.pImmutableSamplers = nullptr; // Optional
+
+        // Camera SSBO
+        vk::DescriptorSetLayoutBinding cboLayoutBinding;
+        cboLayoutBinding.binding = 2;
+        cboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
+        cboLayoutBinding.descriptorCount = 1;
+        cboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+        cboLayoutBinding.pImmutableSamplers = nullptr; // Optional
+
+        // Material SSBO
+        vk::DescriptorSetLayoutBinding mboLayoutBinding;
+        mboLayoutBinding.binding = 3;
+        mboLayoutBinding.descriptorCount = 1;
+        mboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
+        mboLayoutBinding.pImmutableSamplers = nullptr;
+        mboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+
+        // Light SSBO
+        vk::DescriptorSetLayoutBinding lboLayoutBinding;
+        lboLayoutBinding.binding = 4;
+        lboLayoutBinding.descriptorCount = 1;
+        lboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
+        lboLayoutBinding.pImmutableSamplers = nullptr;
+        lboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+
+        std::array<vk::DescriptorSetLayoutBinding, 5> bindings = { eboLayoutBinding, tboLayoutBinding, cboLayoutBinding, mboLayoutBinding, lboLayoutBinding};
+        vk::DescriptorSetLayoutCreateInfo layoutInfo;
+        layoutInfo.bindingCount = (uint32_t)bindings.size();
+        layoutInfo.pBindings = bindings.data();
+
+        normalsurface.descriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
+    }
 }
 
 void Material::CreateDescriptorPools()
@@ -348,6 +514,72 @@ void Material::CreateDescriptorPools()
         poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 
         blinn.descriptorPool = device.createDescriptorPool(poolInfo);
+    }
+
+    /* ------ TEXCOORD SURFACE DESCRIPTOR POOL  ------ */
+    {
+        std::array<vk::DescriptorPoolSize, 5> poolSizes = {};
+    
+        // Entity SSBO
+        poolSizes[0].type = vk::DescriptorType::eStorageBuffer;
+        poolSizes[0].descriptorCount = MAX_MATERIALS;
+        
+        // Transform SSBO
+        poolSizes[1].type = vk::DescriptorType::eStorageBuffer;
+        poolSizes[1].descriptorCount = MAX_MATERIALS;
+        
+        // Camera SSBO
+        poolSizes[2].type = vk::DescriptorType::eStorageBuffer;
+        poolSizes[2].descriptorCount = MAX_MATERIALS;
+        
+        // Material SSBO
+        poolSizes[3].type = vk::DescriptorType::eStorageBuffer;
+        poolSizes[3].descriptorCount = MAX_MATERIALS;
+        
+        // Light SSBO
+        poolSizes[4].type = vk::DescriptorType::eStorageBuffer;
+        poolSizes[4].descriptorCount = MAX_MATERIALS;
+
+        vk::DescriptorPoolCreateInfo poolInfo;
+        poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
+        poolInfo.pPoolSizes = poolSizes.data();
+        poolInfo.maxSets = MAX_MATERIALS;
+        poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
+
+        texcoordsurface.descriptorPool = device.createDescriptorPool(poolInfo);
+    }
+
+    /* ------ NORMAL SURFACE DESCRIPTOR POOL  ------ */
+    {
+        std::array<vk::DescriptorPoolSize, 5> poolSizes = {};
+    
+        // Entity SSBO
+        poolSizes[0].type = vk::DescriptorType::eStorageBuffer;
+        poolSizes[0].descriptorCount = MAX_MATERIALS;
+        
+        // Transform SSBO
+        poolSizes[1].type = vk::DescriptorType::eStorageBuffer;
+        poolSizes[1].descriptorCount = MAX_MATERIALS;
+        
+        // Camera SSBO
+        poolSizes[2].type = vk::DescriptorType::eStorageBuffer;
+        poolSizes[2].descriptorCount = MAX_MATERIALS;
+        
+        // Material SSBO
+        poolSizes[3].type = vk::DescriptorType::eStorageBuffer;
+        poolSizes[3].descriptorCount = MAX_MATERIALS;
+        
+        // Light SSBO
+        poolSizes[4].type = vk::DescriptorType::eStorageBuffer;
+        poolSizes[4].descriptorCount = MAX_MATERIALS;
+
+        vk::DescriptorPoolCreateInfo poolInfo;
+        poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
+        poolInfo.pPoolSizes = poolSizes.data();
+        poolInfo.maxSets = MAX_MATERIALS;
+        poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
+
+        normalsurface.descriptorPool = device.createDescriptorPool(poolInfo);
     }
 }
 
@@ -517,8 +749,165 @@ void Material::CreateDescriptorSets()
         device.updateDescriptorSets((uint32_t)descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
     }
 
+    /* ------ TEXCOORD SURFACE DESCRIPTOR SET  ------ */
+    {
+        /* This is experimental. Typically descriptor sets aren't static. */
+        vk::DescriptorSetLayout layouts[] = { texcoordsurface.descriptorSetLayout };
+        std::array<vk::WriteDescriptorSet, 5> descriptorWrites = {};
+        vk::DescriptorSetAllocateInfo allocInfo;
+        allocInfo.descriptorPool = texcoordsurface.descriptorPool;
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts = layouts;
 
+        texcoordsurface.descriptorSet = device.allocateDescriptorSets(allocInfo)[0];
 
+        // Entity SSBO
+        vk::DescriptorBufferInfo entityBufferInfo;
+        entityBufferInfo.buffer = Entity::GetSSBO();
+        entityBufferInfo.offset = 0;
+        entityBufferInfo.range = Entity::GetSSBOSize();
+
+        descriptorWrites[0].dstSet = texcoordsurface.descriptorSet;
+        descriptorWrites[0].dstBinding = 0;
+        descriptorWrites[0].dstArrayElement = 0;
+        descriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
+        descriptorWrites[0].descriptorCount = 1;
+        descriptorWrites[0].pBufferInfo = &entityBufferInfo;
+
+        // Transform SSBO
+        vk::DescriptorBufferInfo transformBufferInfo;
+        transformBufferInfo.buffer = Transform::GetSSBO();
+        transformBufferInfo.offset = 0;
+        transformBufferInfo.range = Transform::GetSSBOSize();
+
+        descriptorWrites[1].dstSet = texcoordsurface.descriptorSet;
+        descriptorWrites[1].dstBinding = 1;
+        descriptorWrites[1].dstArrayElement = 0;
+        descriptorWrites[1].descriptorType = vk::DescriptorType::eStorageBuffer;
+        descriptorWrites[1].descriptorCount = 1;
+        descriptorWrites[1].pBufferInfo = &transformBufferInfo;
+
+        // Camera SSBO
+        vk::DescriptorBufferInfo cameraBufferInfo;
+        cameraBufferInfo.buffer = Camera::GetSSBO();
+        cameraBufferInfo.offset = 0;
+        cameraBufferInfo.range = Camera::GetSSBOSize();
+
+        descriptorWrites[2].dstSet = texcoordsurface.descriptorSet;
+        descriptorWrites[2].dstBinding = 2;
+        descriptorWrites[2].dstArrayElement = 0;
+        descriptorWrites[2].descriptorType = vk::DescriptorType::eStorageBuffer;
+        descriptorWrites[2].descriptorCount = 1;
+        descriptorWrites[2].pBufferInfo = &cameraBufferInfo;
+
+        // Material SSBO
+        vk::DescriptorBufferInfo materialBufferInfo;
+        materialBufferInfo.buffer = Material::GetSSBO();
+        materialBufferInfo.offset = 0;
+        materialBufferInfo.range = Material::GetSSBOSize();
+
+        descriptorWrites[3].dstSet = texcoordsurface.descriptorSet;
+        descriptorWrites[3].dstBinding = 3;
+        descriptorWrites[3].dstArrayElement = 0;
+        descriptorWrites[3].descriptorType = vk::DescriptorType::eStorageBuffer;
+        descriptorWrites[3].descriptorCount = 1;
+        descriptorWrites[3].pBufferInfo = &materialBufferInfo;
+
+        // Light SSBO
+        vk::DescriptorBufferInfo lightBufferInfo;
+        lightBufferInfo.buffer = Light::GetSSBO();
+        lightBufferInfo.offset = 0;
+        lightBufferInfo.range = Light::GetSSBOSize();
+
+        descriptorWrites[4].dstSet = texcoordsurface.descriptorSet;
+        descriptorWrites[4].dstBinding = 4;
+        descriptorWrites[4].dstArrayElement = 0;
+        descriptorWrites[4].descriptorType = vk::DescriptorType::eStorageBuffer;
+        descriptorWrites[4].descriptorCount = 1;
+        descriptorWrites[4].pBufferInfo = &lightBufferInfo;
+        
+        device.updateDescriptorSets((uint32_t)descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+    }
+
+    /* ------ NORMAL SURFACE DESCRIPTOR SET  ------ */
+    {
+        /* This is experimental. Typically descriptor sets aren't static. */
+        vk::DescriptorSetLayout layouts[] = { normalsurface.descriptorSetLayout };
+        std::array<vk::WriteDescriptorSet, 5> descriptorWrites = {};
+        vk::DescriptorSetAllocateInfo allocInfo;
+        allocInfo.descriptorPool = normalsurface.descriptorPool;
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts = layouts;
+
+        normalsurface.descriptorSet = device.allocateDescriptorSets(allocInfo)[0];
+
+        // Entity SSBO
+        vk::DescriptorBufferInfo entityBufferInfo;
+        entityBufferInfo.buffer = Entity::GetSSBO();
+        entityBufferInfo.offset = 0;
+        entityBufferInfo.range = Entity::GetSSBOSize();
+
+        descriptorWrites[0].dstSet = normalsurface.descriptorSet;
+        descriptorWrites[0].dstBinding = 0;
+        descriptorWrites[0].dstArrayElement = 0;
+        descriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
+        descriptorWrites[0].descriptorCount = 1;
+        descriptorWrites[0].pBufferInfo = &entityBufferInfo;
+
+        // Transform SSBO
+        vk::DescriptorBufferInfo transformBufferInfo;
+        transformBufferInfo.buffer = Transform::GetSSBO();
+        transformBufferInfo.offset = 0;
+        transformBufferInfo.range = Transform::GetSSBOSize();
+
+        descriptorWrites[1].dstSet = normalsurface.descriptorSet;
+        descriptorWrites[1].dstBinding = 1;
+        descriptorWrites[1].dstArrayElement = 0;
+        descriptorWrites[1].descriptorType = vk::DescriptorType::eStorageBuffer;
+        descriptorWrites[1].descriptorCount = 1;
+        descriptorWrites[1].pBufferInfo = &transformBufferInfo;
+
+        // Camera SSBO
+        vk::DescriptorBufferInfo cameraBufferInfo;
+        cameraBufferInfo.buffer = Camera::GetSSBO();
+        cameraBufferInfo.offset = 0;
+        cameraBufferInfo.range = Camera::GetSSBOSize();
+
+        descriptorWrites[2].dstSet = normalsurface.descriptorSet;
+        descriptorWrites[2].dstBinding = 2;
+        descriptorWrites[2].dstArrayElement = 0;
+        descriptorWrites[2].descriptorType = vk::DescriptorType::eStorageBuffer;
+        descriptorWrites[2].descriptorCount = 1;
+        descriptorWrites[2].pBufferInfo = &cameraBufferInfo;
+
+        // Material SSBO
+        vk::DescriptorBufferInfo materialBufferInfo;
+        materialBufferInfo.buffer = Material::GetSSBO();
+        materialBufferInfo.offset = 0;
+        materialBufferInfo.range = Material::GetSSBOSize();
+
+        descriptorWrites[3].dstSet = normalsurface.descriptorSet;
+        descriptorWrites[3].dstBinding = 3;
+        descriptorWrites[3].dstArrayElement = 0;
+        descriptorWrites[3].descriptorType = vk::DescriptorType::eStorageBuffer;
+        descriptorWrites[3].descriptorCount = 1;
+        descriptorWrites[3].pBufferInfo = &materialBufferInfo;
+
+        // Light SSBO
+        vk::DescriptorBufferInfo lightBufferInfo;
+        lightBufferInfo.buffer = Light::GetSSBO();
+        lightBufferInfo.offset = 0;
+        lightBufferInfo.range = Light::GetSSBOSize();
+
+        descriptorWrites[4].dstSet = normalsurface.descriptorSet;
+        descriptorWrites[4].dstBinding = 4;
+        descriptorWrites[4].dstArrayElement = 0;
+        descriptorWrites[4].descriptorType = vk::DescriptorType::eStorageBuffer;
+        descriptorWrites[4].descriptorCount = 1;
+        descriptorWrites[4].pBufferInfo = &lightBufferInfo;
+        
+        device.updateDescriptorSets((uint32_t)descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+    }
 }
 
 void Material::CreateVertexInputBindingDescriptions() {
@@ -570,6 +959,56 @@ void Material::CreateVertexInputBindingDescriptions() {
         texcoordBindingDescription.inputRate = vk::VertexInputRate::eVertex;
 
         blinn.vertexInputBindingDescriptions = { pointBindingDescription, colorBindingDescription, normalBindingDescription, texcoordBindingDescription };
+    }
+
+    /* TEXCOORD SURFACE */
+    {
+        vk::VertexInputBindingDescription pointBindingDescription;
+        pointBindingDescription.binding = 0;
+        pointBindingDescription.stride = 3 * sizeof(float);
+        pointBindingDescription.inputRate = vk::VertexInputRate::eVertex;
+
+        vk::VertexInputBindingDescription colorBindingDescription;
+        colorBindingDescription.binding = 1;
+        colorBindingDescription.stride = 4 * sizeof(float);
+        colorBindingDescription.inputRate = vk::VertexInputRate::eVertex;
+
+        vk::VertexInputBindingDescription normalBindingDescription;
+        normalBindingDescription.binding = 2;
+        normalBindingDescription.stride = 3 * sizeof(float);
+        normalBindingDescription.inputRate = vk::VertexInputRate::eVertex;
+
+        vk::VertexInputBindingDescription texcoordBindingDescription;
+        texcoordBindingDescription.binding = 3;
+        texcoordBindingDescription.stride = 2 * sizeof(float);
+        texcoordBindingDescription.inputRate = vk::VertexInputRate::eVertex;
+
+        texcoordsurface.vertexInputBindingDescriptions = { pointBindingDescription, colorBindingDescription, normalBindingDescription, texcoordBindingDescription };
+    }
+
+    /* NORMAL SURFACE */
+    {
+        vk::VertexInputBindingDescription pointBindingDescription;
+        pointBindingDescription.binding = 0;
+        pointBindingDescription.stride = 3 * sizeof(float);
+        pointBindingDescription.inputRate = vk::VertexInputRate::eVertex;
+
+        vk::VertexInputBindingDescription colorBindingDescription;
+        colorBindingDescription.binding = 1;
+        colorBindingDescription.stride = 4 * sizeof(float);
+        colorBindingDescription.inputRate = vk::VertexInputRate::eVertex;
+
+        vk::VertexInputBindingDescription normalBindingDescription;
+        normalBindingDescription.binding = 2;
+        normalBindingDescription.stride = 3 * sizeof(float);
+        normalBindingDescription.inputRate = vk::VertexInputRate::eVertex;
+
+        vk::VertexInputBindingDescription texcoordBindingDescription;
+        texcoordBindingDescription.binding = 3;
+        texcoordBindingDescription.stride = 2 * sizeof(float);
+        texcoordBindingDescription.inputRate = vk::VertexInputRate::eVertex;
+
+        normalsurface.vertexInputBindingDescriptions = { pointBindingDescription, colorBindingDescription, normalBindingDescription, texcoordBindingDescription };
     }
 }
 
@@ -627,16 +1066,72 @@ void Material::CreateVertexAttributeDescriptions() {
 
         blinn.vertexInputAttributeDescriptions = attributeDescriptions;
     }
+
+    /* NORMAL SURFACE */
+    {
+        std::vector<vk::VertexInputAttributeDescription> attributeDescriptions(4);
+
+        attributeDescriptions[0].binding = 0;
+        attributeDescriptions[0].location = 0;
+        attributeDescriptions[0].format = vk::Format::eR32G32B32Sfloat;
+        attributeDescriptions[0].offset = 0;
+
+        attributeDescriptions[1].binding = 1;
+        attributeDescriptions[1].location = 1;
+        attributeDescriptions[1].format = vk::Format::eR32G32B32A32Sfloat;
+        attributeDescriptions[1].offset = 0;
+
+        attributeDescriptions[2].binding = 2;
+        attributeDescriptions[2].location = 2;
+        attributeDescriptions[2].format = vk::Format::eR32G32B32Sfloat;
+        attributeDescriptions[2].offset = 0;
+
+        attributeDescriptions[3].binding = 3;
+        attributeDescriptions[3].location = 3;
+        attributeDescriptions[3].format = vk::Format::eR32G32Sfloat;
+        attributeDescriptions[3].offset = 0;
+
+        normalsurface.vertexInputAttributeDescriptions = attributeDescriptions;
+    }
+
+    /* TEXCOORD SURFACE */
+    {
+        std::vector<vk::VertexInputAttributeDescription> attributeDescriptions(4);
+
+        attributeDescriptions[0].binding = 0;
+        attributeDescriptions[0].location = 0;
+        attributeDescriptions[0].format = vk::Format::eR32G32B32Sfloat;
+        attributeDescriptions[0].offset = 0;
+
+        attributeDescriptions[1].binding = 1;
+        attributeDescriptions[1].location = 1;
+        attributeDescriptions[1].format = vk::Format::eR32G32B32A32Sfloat;
+        attributeDescriptions[1].offset = 0;
+
+        attributeDescriptions[2].binding = 2;
+        attributeDescriptions[2].location = 2;
+        attributeDescriptions[2].format = vk::Format::eR32G32B32Sfloat;
+        attributeDescriptions[2].offset = 0;
+
+        attributeDescriptions[3].binding = 3;
+        attributeDescriptions[3].location = 3;
+        attributeDescriptions[3].format = vk::Format::eR32G32Sfloat;
+        attributeDescriptions[3].offset = 0;
+
+        texcoordsurface.vertexInputAttributeDescriptions = attributeDescriptions;
+    }
 }
 
 bool Material::DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity, int32_t &camera_id, std::vector<int32_t> &light_entity_ids)
 {
     auto mesh_id = entity.get_mesh();
     auto transform_id = entity.get_transform();
+    auto material_id = entity.get_material();
     
     /* Need a mesh and a transform to render. */
     if (mesh_id < 0 || mesh_id >= MAX_MESHES) return false;
     if (transform_id < 0 || transform_id >= MAX_TRANSFORMS) return false;
+    if (material_id < 0 || material_id >= MAX_MATERIALS) return false;
 
     auto m = Mesh::Get((uint32_t) mesh_id);
     if (!m) return false;
@@ -655,11 +1150,39 @@ bool Material::DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity, int
         push_constants.data()
         );
 
-    command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, Material::blinn.pipeline);
-    command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, blinn.pipelineLayout, 0, 1, &blinn.descriptorSet, 0, nullptr);
-    command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
-    command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
-    command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
+    auto material = Material::Get(material_id);
+    // Render normal
+    if (material->renderMode == 1) {
+        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, Material::normalsurface.pipeline);
+        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, normalsurface.pipelineLayout, 0, 1, &normalsurface.descriptorSet, 0, nullptr);
+        command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
+        command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
+        command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
+    }
+    // Render Vertex Colors
+    else if (material->renderMode == 2) {
+        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, Material::blinn.pipeline);
+        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, blinn.pipelineLayout, 0, 1, &blinn.descriptorSet, 0, nullptr);
+        command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
+        command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
+        command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
+    }
+    // Render UVs
+    else if (material->renderMode == 3) {
+        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, Material::texcoordsurface.pipeline);
+        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, texcoordsurface.pipelineLayout, 0, 1, &texcoordsurface.descriptorSet, 0, nullptr);
+        command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
+        command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
+        command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
+    }
+    // Render material
+    else {
+        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, Material::blinn.pipeline);
+        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, blinn.pipelineLayout, 0, 1, &blinn.descriptorSet, 0, nullptr);
+        command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
+        command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
+        command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
+    }
 
     return true;
 }
@@ -726,9 +1249,15 @@ void Material::CleanUp()
 
     device.destroyDescriptorSetLayout(uniformColor.descriptorSetLayout);
     device.destroyDescriptorPool(uniformColor.descriptorPool);
-//     vk::DescriptorSetLayout Material::uniformColor.descriptorSetLayout;
-// vk::DescriptorPool Material::uniformColor.descriptorPool;
-// vk::DescriptorSet Material::uniformColor.descriptorSet;
+
+    device.destroyDescriptorSetLayout(blinn.descriptorSetLayout);
+    device.destroyDescriptorPool(blinn.descriptorPool);
+
+    device.destroyDescriptorSetLayout(texcoordsurface.descriptorSetLayout);
+    device.destroyDescriptorPool(texcoordsurface.descriptorPool);
+
+    device.destroyDescriptorSetLayout(normalsurface.descriptorSetLayout);
+    device.destroyDescriptorPool(normalsurface.descriptorPool);
 }	
 
 /* Static Factory Implementations */
