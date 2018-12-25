@@ -44,10 +44,20 @@ namespace Libraries {
         std::string get_key_from_ptr(GLFWwindow* ptr);
         void set_swapchain_out_of_date(std::string key);
         bool is_swapchain_out_of_date(std::string key);
-        
+        bool set_cursor_pos(std::string key, double xpos, double ypos);
+        std::vector<double> get_cursor_pos(std::string key);
+        bool set_button_data(std::string key, int button, int action, int mods);
+        int get_button_action(std::string key, int button);
+        int get_button_mods(std::string key, int button);
+
         private:
         GLFW();
         ~GLFW();    
+
+        struct Button {
+            int action;
+            int mods;
+        };
 
         struct Window {
             GLFWwindow* ptr;
@@ -60,6 +70,9 @@ namespace Libraries {
             std::vector<vk::Image> swapchainColorImages;
             std::vector<std::shared_ptr<Texture>> textures; 
             bool swapchain_out_of_date;
+            double xpos;
+            double ypos;
+            Button buttons[8];
         };
 
         static unordered_map<string, Window> &Windows();
