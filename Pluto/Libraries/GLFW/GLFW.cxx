@@ -8,6 +8,21 @@ void resize_window_callback(GLFWwindow * ptr, int width, int height) {
     }
 }
 
+void cursor_position_callback(GLFWwindow * ptr, double xpos, double ypos) {
+    auto key = Libraries::GLFW::Get()->get_key_from_ptr(ptr);
+    if (key.size() > 0) {
+        Libraries::GLFW::Get()->set_cursor_pos(key, xpos, ypos);
+    }
+}
+
+void mouse_button_callback(GLFWwindow * ptr, int button, int action, int mods)
+{
+    auto key = Libraries::GLFW::Get()->get_key_from_ptr(ptr);
+    if (key.size() > 0) {
+        Libraries::GLFW::Get()->set_button_data(key, button, action, mods);
+    }
+}
+
 namespace Libraries {
     GLFW::GLFW() { }
     GLFW::~GLFW() { }
@@ -59,9 +74,12 @@ namespace Libraries {
         }
 
         glfwSetWindowSizeCallback(ptr, &resize_window_callback);
+        glfwSetCursorPosCallback(ptr, &cursor_position_callback);
+        glfwSetMouseButtonCallback(ptr, &mouse_button_callback);
 
         window.ptr = ptr;
         Windows()[key] = window;
+        return true;
     }
 
     bool GLFW::resize_window(std::string key, uint32_t width, uint32_t height) {
@@ -492,5 +510,98 @@ namespace Libraries {
         if (window.textures.size() > index)
             return window.textures[index];
         return nullptr;
+    }
+
+    bool GLFW::set_cursor_pos(std::string key, double xpos, double ypos) {
+        if (initialized == false) {
+            std::cout << "GLFW: Uninitialized, cannot set cursor position."<<std::endl;
+            return false;
+        }
+        auto ittr = Windows().find(key);
+        if ( ittr == Windows().end() ) {
+            std::cout << "GLFW: Error, window does not exists."<<std::endl;
+            return false;
+        }
+
+        auto window = &Windows()[key];
+        window->xpos = xpos;
+        window->ypos = ypos;
+        return true;
+    }
+
+    std::vector<double> GLFW::get_cursor_pos(std::string key) {
+        if (initialized == false) {
+            std::cout << "GLFW: Uninitialized, cannot get cursor position."<<std::endl;
+            return {0.0,0.0};
+        }
+        auto ittr = Windows().find(key);
+        if ( ittr == Windows().end() ) {
+            std::cout << "GLFW: Error, window does not exists."<<std::endl;
+            return {0.0,0.0};
+        }
+        auto window = &Windows()[key];
+        return {window->xpos, window->ypos};
+    }
+
+    bool GLFW::set_button_data(std::string key, int button, int action, int mods) {
+        if (initialized == false) {
+            std::cout << "GLFW: Uninitialized, cannot set button data."<<std::endl;
+            return false;
+        }
+        auto ittr = Windows().find(key);
+        if ( ittr == Windows().end() ) {
+            std::cout << "GLFW: Error, window does not exists."<<std::endl;
+            return false;
+        }
+        
+        if ((button >= 7) || (button < 0)) {
+            std::cout << "GLFW: Error, Button must be between 0 and 7."<<std::endl;
+            return false;
+        }
+
+        auto window = &Windows()[key];
+        window->buttons[button].action = action;
+        window->buttons[button].mods = mods;
+        return true;
+    }
+
+    int GLFW::get_button_action(std::string key, int button) {
+        if (initialized == false) {
+            std::cout << "GLFW: Uninitialized, cannot get button action."<<std::endl;
+            return false;
+        }
+        auto ittr = Windows().find(key);
+        if ( ittr == Windows().end() ) {
+            std::cout << "GLFW: Error, window does not exists."<<std::endl;
+            return false;
+        }
+        
+        if ((button >= 7) || (button < 0)) {
+            std::cout << "GLFW: Error, Button must be between 0 and 7."<<std::endl;
+            return false;
+        }
+
+        auto window = &Windows()[key];
+        return window->buttons[button].action;
+    }
+
+    int GLFW::get_button_mods(std::string key, int button) {
+        if (initialized == false) {
+            std::cout << "GLFW: Uninitialized, cannot get button mods."<<std::endl;
+            return false;
+        }
+        auto ittr = Windows().find(key);
+        if ( ittr == Windows().end() ) {
+            std::cout << "GLFW: Error, window does not exists."<<std::endl;
+            return false;
+        }
+        
+        if ((button >= 7) || (button < 0)) {
+            std::cout << "GLFW: Error, Button must be between 0 and 7."<<std::endl;
+            return false;
+        }
+
+        auto window = &Windows()[key];
+        return window->buttons[button].mods;
     }
 }
