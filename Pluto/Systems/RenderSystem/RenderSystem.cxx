@@ -100,9 +100,13 @@ bool RenderSystem::start()
 
         std::cout << "Starting RenderSystem, thread id: " << std::this_thread::get_id() << std::endl;
 
-        while (futureObj.wait_for(std::chrono::milliseconds((uint32_t)(100 * (.16 - (currentTime - lastTime))))) == future_status::timeout)
+        while (futureObj.wait_for(std::chrono::seconds(0)) != future_status::ready)
         {
+            auto currentTime = glfwGetTime();
+            if ((currentTime - lastTime) < .008) continue;
+            
             lastTime = currentTime;
+
             if (!vulkan->is_initialized())
                 continue;
 
