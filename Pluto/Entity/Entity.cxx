@@ -1,11 +1,32 @@
 #include "./Entity.hxx"
 
+#pragma optimize("", off)
+
+
 Entity Entity::entities[MAX_ENTITIES];
 EntityStruct* Entity::pinnedMemory;
 std::map<std::string, uint32_t> Entity::lookupTable;
 vk::Buffer Entity::ssbo;
 vk::DeviceMemory Entity::ssboMemory;
+std::map<std::string, uint32_t> Entity::windowToEntity;
 
+    
+int32_t Entity::GetEntityFromWindow(std::string key)
+{
+    auto it = windowToEntity.find(key);
+    bool doesConnectionExist = (it != windowToEntity.end());
+
+    if (!doesConnectionExist) 
+        return -1;
+    
+    return (int32_t) windowToEntity[key];
+}
+
+bool Entity::connect_to_window(std::string key) {
+    if (!initialized) return false;
+    windowToEntity[key] = this->id;
+    return true;
+}
 
 void Entity::setParent(uint32_t parent) {
     this->parent = parent;

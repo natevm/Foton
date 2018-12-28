@@ -13,6 +13,7 @@
 #include "Pluto/Mesh/Mesh.hxx"
 #include "Pluto/Entity/EntityStruct.hxx"
 
+#include <string>
 class Entity : public StaticFactory {
 private:
 	/* If an entity isn't active, its callbacks arent called */
@@ -31,6 +32,8 @@ private:
     static std::map<std::string, uint32_t> lookupTable;
     static vk::Buffer ssbo;
     static vk::DeviceMemory ssboMemory;
+
+	static std::map<std::string, uint32_t> windowToEntity;
 
 public:
 	static Entity* Create(std::string name);
@@ -89,6 +92,10 @@ public:
 	{
 		return id;
 	}
+
+	bool connect_to_window(std::string key);
+
+	static int32_t GetEntityFromWindow(std::string key);
 
 	void set_transform(uint32_t transform_id) 
 	{

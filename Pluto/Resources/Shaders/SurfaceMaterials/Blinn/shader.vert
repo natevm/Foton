@@ -22,9 +22,9 @@ layout(location = 2) in vec3 normal;
 layout(location = 3) in vec2 texcoord;
 
 layout(push_constant) uniform PushConsts {
-	int entity_id;
+	int target_id;
     int camera_id;
-    int light_entity_ids [MAX_LIGHTS];
+    int light_ids [MAX_LIGHTS];
 } pushConsts;
 
 layout(location = 0) out vec3 w_normal;
@@ -37,23 +37,27 @@ out gl_PerVertex {
 };
 
 void main() {
-    EntityStruct entity = ebo.entities[pushConsts.entity_id];
-    CameraStruct camera = cbo.cameras[pushConsts.camera_id];
-    MaterialStruct material = mbo.materials[entity.material_id];
-    TransformStruct transform = tbo.transforms[entity.transform_id];
+    EntityStruct target_entity = ebo.entities[pushConsts.target_id];
+    EntityStruct camera_entity = ebo.entities[pushConsts.camera_id];
+    
+    CameraStruct camera = cbo.cameras[camera_entity.camera_id];
+    TransformStruct camera_transform = tbo.transforms[camera_entity.transform_id];
 
-    w_position = vec3(transform.localToWorld * vec4(point.xyz, 1.0));
-    vec3 w_cameraPos = vec3(camera.multiviews[gl_ViewIndex].viewinv[3]);
+    MaterialStruct material = mbo.materials[target_entity.material_id];
+    TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
+
+    w_position = vec3(target_transform.localToWorld * vec4(point.xyz, 1.0));
+    vec3 w_cameraPos = vec3(camera.multiviews[gl_ViewIndex].viewinv[3]) + vec3(camera_transform.localToWorld[3]); // could be wrong.
     vec3 w_viewDir = w_position - w_cameraPos;
     
-    w_normal = normalize(vec3(transform.localToWorld * vec4(normal, 0)));
+    w_normal = normalize(vec3(target_transform.localToWorld * vec4(normal, 0)));
     vec3 reflection = reflect(w_viewDir, normalize(normal));
     
-    /* From z up to y up */
+    /* From z up to y up */ // why am i doing this?...
     w_reflection.x = reflection.x;
     w_reflection.y = reflection.z;
     w_reflection.z = reflection.y;
 
-    gl_Position = camera.multiviews[gl_ViewIndex].proj * camera.multiviews[gl_ViewIndex].view * vec4(w_position, 1.0);
+    gl_Position = camera.multiviews[gl_ViewIndex].proj * camera.multiviews[gl_ViewIndex].view * camera_transform.worldToLocal * vec4(w_position, 1.0);
     fragTexCoord = texcoord;
 }

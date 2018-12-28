@@ -1,34 +1,11 @@
 #include "./Camera.hxx"
 
-#pragma optimize("", off)
 
-int32_t Camera::current_camera = -1;
 Camera Camera::cameras[MAX_CAMERAS];
 CameraStruct* Camera::pinnedMemory;
 std::map<std::string, uint32_t> Camera::lookupTable;
 vk::Buffer Camera::ssbo;
 vk::DeviceMemory Camera::ssboMemory;
-
-bool Camera::MakeCurrent(std::string name) {
-    if (StaticFactory::DoesItemExist(lookupTable, name)) {
-        current_camera = lookupTable[name];
-        return true;
-    }
-
-    std::cout << "Error, Camera \"" << name << "\" does not exist." << std::endl;
-    return false;
-}
-
-Camera* Camera::GetCurrent()
-{
-    if ((current_camera < 0) || (current_camera >= MAX_CAMERAS))
-        return nullptr;
-    
-    if (cameras[current_camera].initialized == false)
-        return nullptr;
-
-    return &cameras[current_camera];
-}
 
 /* SSBO Logic */
 void Camera::Initialize()
