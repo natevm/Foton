@@ -1,4 +1,5 @@
 #pragma once
+#pragma optimize("", off)
 
 #ifndef MAX_TRANSFORMS
 #define MAX_TRANSFORMS 1024
@@ -190,7 +191,7 @@ class Transform : public StaticFactory
         glm::quat newRotation = glm::angleAxis(radians(angle), axis) * get_rotation();
         newPosition = newPosition - direction * glm::angleAxis(radians(-angle), axis);
 
-        rotation = newRotation;
+        rotation = glm::normalize(newRotation);
         localToParentRotation = glm::toMat4(rotation);
         parentToLocalRotation = glm::inverse(localToParentRotation);
 
@@ -208,7 +209,7 @@ class Transform : public StaticFactory
         glm::quat newRotation = rot * get_rotation();
         newPosition = newPosition - direction * glm::inverse(rot);
 
-        rotation = newRotation;
+        rotation = glm::normalize(newRotation);
         localToParentRotation = glm::toMat4(rotation);
         parentToLocalRotation = glm::inverse(localToParentRotation);
 
@@ -234,7 +235,7 @@ class Transform : public StaticFactory
 
     void set_rotation(quat newRotation)
     {
-        rotation = newRotation;
+        rotation = glm::normalize(newRotation);
         update_rotation();
     }
 
@@ -264,6 +265,21 @@ class Transform : public StaticFactory
     vec3 get_position()
     {
         return position;
+    }
+
+    vec3 get_right()
+    {
+        return right;
+    }
+
+    vec3 get_up()
+    {
+        return up;
+    }
+
+    vec3 get_forward()
+    {
+        return forward;
     }
 
     void set_position(vec3 newPosition)

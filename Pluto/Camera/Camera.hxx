@@ -28,7 +28,6 @@ class Camera : public StaticFactory
     uint32_t clearStencil = 0;
 
     /* Static fields */
-    static int32_t current_camera;
     static Camera cameras[MAX_CAMERAS];
 	static CameraStruct* pinnedMemory;
     static std::map<std::string, uint32_t> lookupTable;
@@ -199,8 +198,6 @@ class Camera : public StaticFactory
 	static uint32_t GetCount();
     static bool Delete(std::string name);
     static bool Delete(uint32_t id);
-    static bool MakeCurrent(std::string name);
-    static Camera* GetCurrent();
 
     static void Initialize();
     static void UploadSSBO();

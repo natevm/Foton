@@ -22,9 +22,9 @@ layout(location = 2) in vec3 normal;
 layout(location = 3) in vec2 texcoord;
 
 layout(push_constant) uniform PushConsts {
-	int entity_id;
-    int camera_id;
-    int light_entity_ids [MAX_LIGHTS];
+  int target_id;
+  int camera_id;
+  int light_ids [MAX_LIGHTS];
 } pushConsts;
 
 layout(location = 0) out vec4 fragColor;
@@ -35,12 +35,16 @@ out gl_PerVertex {
 };
 
 void main() {
-    EntityStruct entity = ebo.entities[pushConsts.entity_id];
-    CameraStruct camera = cbo.cameras[pushConsts.camera_id];
-    MaterialStruct material = mbo.materials[entity.material_id];
-    TransformStruct transform = tbo.transforms[entity.transform_id];
+    EntityStruct target_entity = ebo.entities[pushConsts.target_id];
+    EntityStruct camera_entity = ebo.entities[pushConsts.camera_id];
+    
+    CameraStruct camera = cbo.cameras[camera_entity.camera_id];
+    TransformStruct camera_transform = tbo.transforms[camera_entity.transform_id];
 
-    gl_Position =  camera.multiviews[gl_ViewIndex].proj * camera.multiviews[gl_ViewIndex].view * transform.localToWorld * vec4(point, 1.0);
+    MaterialStruct material = mbo.materials[target_entity.material_id];
+    TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
+
+    gl_Position = camera.multiviews[gl_ViewIndex].proj * camera.multiviews[gl_ViewIndex].view * camera_transform.worldToLocal * vec4(point, 1.0);
     gl_PointSize = 1.0;
     fragColor = vec4(normalize(normal), 1.0f);
 }

@@ -103,8 +103,9 @@ bool RenderSystem::start()
         while (futureObj.wait_for(std::chrono::seconds(0)) != future_status::ready)
         {
             auto currentTime = glfwGetTime();
-            if ((currentTime - lastTime) < .008) continue;
-            
+            if ((currentTime - lastTime) < .008)
+                continue;
+
             lastTime = currentTime;
 
             if (!vulkan->is_initialized())
@@ -153,44 +154,56 @@ bool RenderSystem::start()
             maincmd.begin(beginInfo);
 
             /* Render cameras (one renderpass for now) */
-            auto current_camera = Camera::GetCurrent();
-            if (current_camera)
+            auto id = Entity::GetEntityFromWindow("Window");
+            Camera* current_camera = nullptr;
+            if (id != -1)
             {
-                if (!Options::IsClient())
+                auto entity = Entity::Get(id);
+                auto cam_id = entity->get_camera();
+                if (cam_id != -1)
                 {
-                    auto entities = Entity::GetFront();
-                    
-                    /* Get light list */
-                    std::vector<int32_t> light_entity_ids(MAX_LIGHTS, -1);
-                    int32_t light_count = 0;
-                    for (uint32_t i = 0; i < Entity::GetCount(); ++i) 
+                    current_camera = Camera::Get(cam_id);
+                    if (current_camera)
                     {
-                        if (entities[i].is_initialized() && (entities[i].get_light() != -1))
-                            light_entity_ids[light_count] = i;
-                        light_count++;
-                        if (light_count == MAX_LIGHTS) break;
-                    }
-
-                    int32_t camera_id = current_camera->get_id();
-                    current_camera->begin_renderpass(maincmd);
-                    
-                    for (uint32_t i = 0; i < Entity::GetCount(); ++i)
-                    {
-                        if (entities[i].is_initialized())
+                        if (!Options::IsClient())
                         {
-                            Material::DrawEntity(maincmd, entities[i], camera_id, light_entity_ids);
+                            auto entities = Entity::GetFront();
+
+                            /* Get light list */
+                            std::vector<int32_t> light_entity_ids(MAX_LIGHTS, -1);
+                            int32_t light_count = 0;
+                            for (uint32_t i = 0; i < Entity::GetCount(); ++i)
+                            {
+                                if (entities[i].is_initialized() && (entities[i].get_light() != -1))
+                                    light_entity_ids[light_count] = i;
+                                light_count++;
+                                if (light_count == MAX_LIGHTS)
+                                    break;
+                            }
+
+                            int32_t camera_id = current_camera->get_id();
+                            current_camera->begin_renderpass(maincmd);
+
+                            for (uint32_t i = 0; i < Entity::GetCount(); ++i)
+                            {
+                                if (entities[i].is_initialized())
+                                {
+                                    Material::DrawEntity(maincmd, entities[i], id, light_entity_ids);
+                                }
+                            }
+
+                            current_camera->end_renderpass(maincmd);
+                        }
+
+                        /* 3. Optionally blit main camera to swapchain image. */
+                        if (current_camera && swapchain && swapchain_texture && current_camera->get_texture())
+                        {
+                            current_camera->get_texture()->record_blit_to(maincmd, swapchain_texture);
                         }
                     }
-
-                    current_camera->end_renderpass(maincmd);
-                }
-
-                /* 3. Optionally blit main camera to swapchain image. */
-                if (current_camera && swapchain && swapchain_texture && current_camera->get_texture())
-                {
-                    current_camera->get_texture()->record_blit_to(maincmd, swapchain_texture);
                 }
             }
+
             maincmd.end();
 
             /* 4. Wait on image available. Enqueue graphics commands. Optionally signal render complete semaphore. */

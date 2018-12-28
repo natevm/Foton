@@ -17,9 +17,9 @@ layout(std430, binding = 3) readonly buffer MaterialSSBO  { MaterialStruct mater
 layout(std430, binding = 4) readonly buffer LightSSBO     { LightStruct lights[]; } lbo;
 
 layout(push_constant) uniform PushConsts {
-  int entity_id;
+  int target_id;
   int camera_id;
-  int light_entity_ids [MAX_LIGHTS];
+  int light_ids [MAX_LIGHTS];
 } pushConsts;
 
 layout(location = 0) in vec3 w_normal;
@@ -30,9 +30,12 @@ layout(location = 3) in vec3 w_reflection;
 layout(location = 0) out vec4 outColor;
 
 void main() {
-  EntityStruct entity = ebo.entities[pushConsts.entity_id];
+  EntityStruct entity = ebo.entities[pushConsts.target_id];
   MaterialStruct material = mbo.materials[entity.material_id];
-  CameraStruct camera = cbo.cameras[pushConsts.camera_id];
+
+  // EntityStruct camera_entity = ebo.entities[pushConsts.camera_id];
+  // CameraStruct camera = cbo.cameras[camera_entity.camera_id];
+  // TransformStruct camera_transform = tbo.transforms[camera_entity.transform_id];
 
   
   /*Blinn-Phong shading model
@@ -50,7 +53,7 @@ void main() {
   /* Forward light pass */
   for (int i = 0; i < MAX_LIGHTS; ++i) {
 
-    int light_entity_id = pushConsts.light_entity_ids[i];
+    int light_entity_id = pushConsts.light_ids[i];
     if (light_entity_id == -1) continue;
 
     EntityStruct light_entity = ebo.entities[light_entity_id];
@@ -59,7 +62,7 @@ void main() {
     LightStruct light = lbo.lights[light_entity.light_id];
 
     /* Objects which are lights glow */
-    if (light_entity_id == pushConsts.entity_id) {
+    if (light_entity_id == pushConsts.target_id) {
       diffuseColor += light.diffuse.rgb;
     }
     else 
