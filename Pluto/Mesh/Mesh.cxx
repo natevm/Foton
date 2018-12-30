@@ -232,7 +232,8 @@ bool Mesh::load_glb(std::string glbPath)
     unsigned char *file_buffer = NULL;
 	uint32_t file_size = 0;
 	{
-		FILE *fp = fopen(glbPath.c_str(), "rb");
+        FILE *fp;
+        if (0 != fopen_s(&fp, glbPath.c_str(), "rb")) fp=0;
 		assert(fp);
 		fseek(fp, 0, SEEK_END);
 		file_size = (uint32_t)ftell(fp);

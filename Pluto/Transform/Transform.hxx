@@ -1,10 +1,6 @@
 #pragma once
 #pragma optimize("", off)
 
-#ifndef MAX_TRANSFORMS
-#define MAX_TRANSFORMS 1024
-#endif
-
 #ifndef GLM_ENABLE_EXPERIMENTAL
 #define GLM_ENABLE_EXPERIMENTAL
 #endif

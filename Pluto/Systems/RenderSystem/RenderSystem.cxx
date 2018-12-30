@@ -88,7 +88,7 @@ bool RenderSystem::start()
         auto vulkan = Vulkan::Get();
         auto lastTime = glfwGetTime();
         auto currentTime = glfwGetTime();
-        std::shared_ptr<Texture> swapchain_texture = nullptr;
+        Texture* swapchain_texture = nullptr;
         Bucket bucket = {};
         vk::SwapchainKHR swapchain;
         uint32_t index;

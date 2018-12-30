@@ -20,7 +20,7 @@ class Camera : public StaticFactory
     vk::RenderPass renderpass;
     vk::Framebuffer framebuffer;
 
-    std::shared_ptr<Texture> renderTexture = nullptr;
+    Texture* renderTexture = nullptr;
     bool allow_recording = false;
 
     glm::vec4 clearColor = glm::vec4(0.0); 
@@ -293,7 +293,7 @@ class Camera : public StaticFactory
         return true;
     };
 
-    std::shared_ptr<Texture> get_texture()
+    Texture* get_texture()
     {
         return renderTexture;
     }

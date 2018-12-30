@@ -501,7 +501,7 @@ namespace Libraries {
         return window.swapchain;
     }
 
-    std::shared_ptr<Texture> GLFW::get_texture(std::string key, uint32_t index) {
+    Texture* GLFW::get_texture(std::string key, uint32_t index) {
         auto it = Windows().find(key);
         if (it == Windows().end())
             return nullptr;

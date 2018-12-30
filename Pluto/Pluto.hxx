@@ -38,6 +38,7 @@ void Initialize(
     Camera::Initialize();
     Entity::Initialize();
     Material::Initialize();
+    Texture::Initialize();
 }
 
 void CleanUp()
