@@ -2,50 +2,96 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+#define STBI_MSC_SECURE_CRT
 #include <stb_image.h>
 #include <stb_image_write.h>
 
+Texture Texture::textures[MAX_TEXTURES];
+std::map<std::string, uint32_t> Texture::lookupTable;
 
-std::map<std::string, std::shared_ptr<Texture>> Texture::textures = std::map<std::string, std::shared_ptr<Texture>>();
-
-bool Texture::does_component_exist(std::string name)
+// TODO
+void Texture::Initialize()
 {
-    auto it = textures.find(name);
-    if (it != textures.end())
-    {
-        return true;
-    }
-    return false;
+    auto vulkan = Libraries::Vulkan::Get();
+    auto device = vulkan->get_device();
+    auto physical_device = vulkan->get_physical_device();
+
+    // Create the default texture here
+    std::string resource_path = Options::GetResourcePath();
+    auto result = CreateFromKTX("DefaultTex2D", resource_path + "/Defaults/missing-texture.ktx");
+    
+    // fatal error here if result is nullptr...
 }
 
-/* Constructors */
-std::shared_ptr<Texture> Texture::CreateFromKTX(std::string name, std::string filepath)
+void Texture::CleanUp()
 {
-    if (does_component_exist(name))
-    {
-        std::cout << "Error, Texture \"" << name << "\" already exists." << std::endl;
-        return nullptr;
+    for (int i = 0; i < MAX_TEXTURES; ++i)
+        textures[i].cleanup();
+}
+
+std::vector<vk::ImageView> Texture::Get2DImageViews() 
+{
+    // Get the default 2D texture
+    auto DefaultTex2D = Get("DefaultTex2D");
+
+    std::vector<vk::ImageView> image_views(MAX_TEXTURES);
+
+    // For each texture
+    for (int i = 0; i < MAX_TEXTURES; ++i) {
+        // if the texture is a 2D texture
+        if (textures[i].data.viewType == vk::ImageViewType::e2D) {
+            // then add it's image view to the vector
+            image_views[i] = textures[i].data.colorImageView;
+        }
+        // otherwise, add the default 2D texture image view
+        else {
+            image_views[i] = DefaultTex2D->data.colorImageView;
+        }
     }
-    std::cout << "Adding Texture \"" << name << "\"" << std::endl;
-    auto tex = std::make_shared<Texture>(name);
-    if (!tex->loadKTX(filepath))
-    {
-        return nullptr;
+    
+    // finally, return the image view vector
+    return image_views;
+}
+
+std::vector<vk::Sampler> Texture::Get2DSamplers() 
+{
+    // Get the default 2D texture
+    auto DefaultTex2D = Get("DefaultTex2D");
+
+    std::vector<vk::Sampler> samplers(MAX_TEXTURES);
+
+    // For each texture
+    for (int i = 0; i < MAX_TEXTURES; ++i) {
+        // if the texture is a 2D texture
+        if (textures[i].data.viewType == vk::ImageViewType::e2D) {
+            // then add it's sampler to the vector
+            samplers[i] = textures[i].data.colorSampler;
+        }
+        // otherwise, add the default 2D texture sampler
+        else {
+            samplers[i] = DefaultTex2D->data.colorSampler;
+        }
     }
-    textures[name] = tex;
+    
+    // finally, return the sampler vector
+    return samplers;
+}
+
+/* Static Factory Implementations */
+Texture *Texture::CreateFromKTX(std::string name, std::string filepath)
+{
+    auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+    if (!tex) return nullptr;
+    if (!tex->loadKTX(filepath)) return nullptr;
     return tex;
 }
 
-std::shared_ptr<Texture> Texture::CreateCubemap(
+Texture* Texture::CreateCubemap(
     std::string name, uint32_t width, uint32_t height, bool hasColor, bool hasDepth) 
 {
-    if (does_component_exist(name))
-    {
-        std::cout << "Error, Texture \"" << name << "\" already exists." << std::endl;
-        return nullptr;
-    }
-    std::cout << "Adding Texture \"" << name << "\"" << std::endl;
-    auto tex = std::make_shared<Texture>(name);
+    auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+    if (!tex) return nullptr;
+
     tex->data.width = width;
     tex->data.height = height;
     tex->data.layers = 6;
@@ -53,20 +99,16 @@ std::shared_ptr<Texture> Texture::CreateCubemap(
     tex->data.viewType  = vk::ImageViewType::eCube;
     if (hasColor) tex->create_color_image_resources();
     if (hasDepth) tex->create_depth_stencil_resources();
-    textures[name] = tex;
     return tex;
 }
 
-std::shared_ptr<Texture> Texture::Create2D(
+Texture* Texture::Create2D(
     std::string name, uint32_t width, uint32_t height, bool hasColor, bool hasDepth)
 {
-    if (does_component_exist(name))
-    {
-        std::cout << "Error, Texture \"" << name << "\" already exists." << std::endl;
-        return nullptr;
-    }
-    std::cout << "Adding Texture \"" << name << "\"" << std::endl;
-    auto tex = std::make_shared<Texture>(name);
+    auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+    if (!tex) return nullptr;
+
+
     tex->data.width = width;
     tex->data.height = height;
     tex->data.layers = 1;
@@ -74,20 +116,14 @@ std::shared_ptr<Texture> Texture::Create2D(
     tex->data.imageType = vk::ImageType::e2D;
     if (hasColor) tex->create_color_image_resources();
     if (hasDepth) tex->create_depth_stencil_resources();
-    textures[name] = tex;
     return tex;
 }
 
-std::shared_ptr<Texture> Texture::Create2DFromColorData (
+Texture* Texture::Create2DFromColorData (
     std::string name, uint32_t width, uint32_t height, std::vector<float> data)
 {
-    if (does_component_exist(name))
-    {
-        std::cout << "Error, Texture \"" << name << "\" already exists." << std::endl;
-        return nullptr;
-    }
-    std::cout << "Adding Texture \"" << name << "\"" << std::endl;
-    auto tex = std::make_shared<Texture>(name);
+    auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+    if (!tex) return nullptr;
     tex->data.width = width;
     tex->data.height = height;
     tex->data.layers = 1;
@@ -95,29 +131,37 @@ std::shared_ptr<Texture> Texture::Create2DFromColorData (
     tex->data.imageType = vk::ImageType::e2D;
     tex->create_color_image_resources();
     tex->upload_color_data(width, height, 1, data);
-    textures[name] = tex;
     return tex;
 }
 
-std::shared_ptr<Texture> Texture::CreateFromExternalData(std::string name, Data data)
+Texture* Texture::CreateFromExternalData(std::string name, Data data)
 {
-    if (does_component_exist(name))
-    {
-        std::cout << "Error, Texture \"" << name << "\" already exists." << std::endl;
-        return nullptr;
-    }
-    std::cout << "Adding Texture \"" << name << "\"" << std::endl;
-    auto tex = std::make_shared<Texture>(name);
-    textures[name] = tex;
+    auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+    if (!tex) return nullptr;
     tex->setData(data);
     return tex;
 }
 
-std::shared_ptr<Texture> Texture::Get(std::string name)
-{
-    if (does_component_exist(name))
-        return textures[name];
+Texture* Texture::Get(std::string name) {
+    return StaticFactory::Get(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+}
 
-    std::cout << "Error: Texture \"" << name << "\" does not exist." << std::endl;
-    return nullptr;
+Texture* Texture::Get(uint32_t id) {
+    return StaticFactory::Get(id, "Texture", lookupTable, textures, MAX_TEXTURES);
+}
+
+bool Texture::Delete(std::string name) {
+    return StaticFactory::Delete(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+}
+
+bool Texture::Delete(uint32_t id) {
+    return StaticFactory::Delete(id, "Texture", lookupTable, textures, MAX_TEXTURES);
+}
+
+Texture* Texture::GetFront() {
+    return textures;
+}
+
+uint32_t Texture::GetCount() {
+    return MAX_TEXTURES;
 }

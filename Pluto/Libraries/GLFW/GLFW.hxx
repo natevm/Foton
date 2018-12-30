@@ -40,7 +40,7 @@ namespace Libraries {
         vk::SwapchainKHR get_swapchain(std::string key);
         vk::SurfaceKHR create_vulkan_surface(const Libraries::Vulkan *vulkan, std::string key);
         bool create_vulkan_swapchain(std::string key);
-        std::shared_ptr<Texture> get_texture(std::string key, uint32_t index);
+        Texture* get_texture(std::string key, uint32_t index);
         std::string get_key_from_ptr(GLFWwindow* ptr);
         void set_swapchain_out_of_date(std::string key);
         bool is_swapchain_out_of_date(std::string key);
@@ -68,7 +68,7 @@ namespace Libraries {
             vk::Extent2D surfaceExtent;
             vk::SwapchainKHR swapchain;
             std::vector<vk::Image> swapchainColorImages;
-            std::vector<std::shared_ptr<Texture>> textures; 
+            std::vector<Texture*> textures; 
             bool swapchain_out_of_date;
             double xpos;
             double ypos;
