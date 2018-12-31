@@ -168,8 +168,8 @@ void Material::SetupGraphicsPipelines(uint32_t id, vk::RenderPass renderpass)
     /* ------ PBR GRAPHICS PIPELINE  ------ */
     {
         std::string ResourcePath = Options::GetResourcePath();
-        auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Blinn/vert.spv"));
-        auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Blinn/frag.spv"));
+        auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/PBRSurface/vert.spv"));
+        auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/PBRSurface/frag.spv"));
 
         /* Create shader modules */
         auto vertShaderModule = CreateShaderModule(vertShaderCode);

@@ -175,8 +175,10 @@ bool RenderSystem::start()
                             for (uint32_t i = 0; i < Entity::GetCount(); ++i)
                             {
                                 if (entities[i].is_initialized() && (entities[i].get_light() != -1))
+                                {
                                     light_entity_ids[light_count] = i;
-                                light_count++;
+                                    light_count++;
+                                }
                                 if (light_count == MAX_LIGHTS)
                                     break;
                             }

@@ -1,70 +1,40 @@
-//
-// This fragment shader defines a reference implementation for Physically Based Shading of
-// a microfacet surface material defined by a glTF model.
-//
-// References:
-// [1] Real Shading in Unreal Engine 4
-//     http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf
-// [2] Physically Based Shading at Disney
-//     http://blog.selfshadow.com/publications/s2012-shading-course/burley/s2012_pbs_disney_brdf_notes_v3.pdf
-// [3] README.md - Environment Maps
-//     https://github.com/KhronosGroup/glTF-WebGL-PBR/#environment-maps
-// [4] "An Inexpensive BRDF Model for Physically based Rendering" by Christophe Schlick
-//     https://www.cs.virginia.edu/~jdl/bib/appearance/analytic%20models/schlick94b.pdf
-#extension GL_EXT_shader_texture_lod: enable
-#extension GL_OES_standard_derivatives : enable
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_EXT_multiview : enable
 
-precision highp float;
+#define GLSL
+#include "Pluto/Entity/EntityStruct.hxx"
+#include "Pluto/Material/MaterialStruct.hxx"
+#include "Pluto/Light/LightStruct.hxx"
+#include "Pluto/Transform/TransformStruct.hxx"
+#include "Pluto/Camera/CameraStruct.hxx"
+#include "Pluto/Texture/TextureStruct.hxx"
 
-uniform vec3 u_LightDirection;
-uniform vec3 u_LightColor;
+#define MAX_MULTIVIEW 6
+layout(std430, set = 0, binding = 0) readonly buffer EntitySSBO    { EntityStruct entities[]; } ebo;
+layout(std430, set = 0, binding = 1) readonly buffer TransformSSBO { TransformStruct transforms[]; } tbo;
+layout(std430, set = 0, binding = 2) readonly buffer CameraSSBO    { CameraStruct cameras[]; } cbo;
+layout(std430, set = 0, binding = 3) readonly buffer MaterialSSBO  { MaterialStruct materials[]; } mbo;
+layout(std430, set = 0, binding = 4) readonly buffer LightSSBO     { LightStruct lights[]; } lbo;
 
-#ifdef USE_IBL
-uniform samplerCube u_DiffuseEnvSampler;
-uniform samplerCube u_SpecularEnvSampler;
-uniform sampler2D u_brdfLUT;
-#endif
+layout(set = 1, binding = 0) uniform sampler samplers[MAX_TEXTURES];
+layout(set = 1, binding = 1) uniform texture2D textures[MAX_TEXTURES];
 
-#ifdef HAS_BASECOLORMAP
-uniform sampler2D u_BaseColorSampler;
-#endif
-#ifdef HAS_NORMALMAP
-uniform sampler2D u_NormalSampler;
-uniform float u_NormalScale;
-#endif
-#ifdef HAS_EMISSIVEMAP
-uniform sampler2D u_EmissiveSampler;
-uniform vec3 u_EmissiveFactor;
-#endif
-#ifdef HAS_METALROUGHNESSMAP
-uniform sampler2D u_MetallicRoughnessSampler;
-#endif
-#ifdef HAS_OCCLUSIONMAP
-uniform sampler2D u_OcclusionSampler;
-uniform float u_OcclusionStrength;
-#endif
+layout(push_constant) uniform PushConsts {
+  int target_id;
+  int camera_id;
+  int light_ids [MAX_LIGHTS];
+} pushConsts;
 
-uniform vec2 u_MetallicRoughnessValues;
-uniform vec4 u_BaseColorFactor;
+#define HAS_NORMALS
 
-uniform vec3 u_Camera;
+layout(location = 0) in vec3 w_normal;
+layout(location = 1) in vec3 w_position;
+layout(location = 2) in vec2 fragTexCoord;
+layout(location = 3) in vec3 w_reflection;
+layout(location = 4) in vec3 w_viewDir;
 
-// debugging flags used for shader output of intermediate PBR variables
-uniform vec4 u_ScaleDiffBaseMR;
-uniform vec4 u_ScaleFGDSpec;
-uniform vec4 u_ScaleIBLAmbient;
-
-varying vec3 v_Position;
-
-varying vec2 v_UV;
-
-#ifdef HAS_NORMALS
-#ifdef HAS_TANGENTS
-varying mat3 v_TBN;
-#else
-varying vec3 v_Normal;
-#endif
-#endif
+layout(location = 0) out vec4 outColor;
 
 // Encapsulate the various inputs used by the various functions in the shading equation
 // We store values in this struct to simplify the integration of alternative implementations
@@ -88,6 +58,7 @@ struct PBRInfo
 const float M_PI = 3.141592653589793;
 const float c_MinRoughness = 0.04;
 
+
 vec4 SRGBtoLINEAR(vec4 srgbIn)
 {
     #ifdef MANUAL_SRGB
@@ -109,14 +80,14 @@ vec3 getNormal()
 {
     // Retrieve the tangent space matrix
 #ifndef HAS_TANGENTS
-    vec3 pos_dx = dFdx(v_Position);
-    vec3 pos_dy = dFdy(v_Position);
-    vec3 tex_dx = dFdx(vec3(v_UV, 0.0));
-    vec3 tex_dy = dFdy(vec3(v_UV, 0.0));
+    vec3 pos_dx = dFdx(w_position);
+    vec3 pos_dy = dFdy(w_position);
+    vec3 tex_dx = dFdx(vec3(fragTexCoord, 0.0));
+    vec3 tex_dy = dFdy(vec3(fragTexCoord, 0.0));
     vec3 t = (tex_dy.t * pos_dx - tex_dx.t * pos_dy) / (tex_dx.s * tex_dy.t - tex_dy.s * tex_dx.t);
 
 #ifdef HAS_NORMALS
-    vec3 ng = normalize(v_Normal);
+    vec3 ng = normalize(w_normal);
 #else
     vec3 ng = cross(pos_dx, pos_dy);
 #endif
@@ -129,7 +100,7 @@ vec3 getNormal()
 #endif
 
 #ifdef HAS_NORMALMAP
-    vec3 n = texture2D(u_NormalSampler, v_UV).rgb;
+    vec3 n = texture2D(u_NormalSampler, fragTexCoord).rgb;
     n = normalize(tbn * ((2.0 * n - 1.0) * vec3(u_NormalScale, u_NormalScale, 1.0)));
 #else
     // The tbn matrix is linearly interpolated, so we need to re-normalize
@@ -142,6 +113,7 @@ vec3 getNormal()
 // Calculation of the lighting contribution from an optional Image Based Light source.
 // Precomputed Environment Maps are required uniform inputs and are computed as outlined in [1].
 // See our README.md on Environment Maps [3] for additional discussion.
+#ifdef USE_IBL
 vec3 getIBLContribution(PBRInfo pbrInputs, vec3 n, vec3 reflection)
 {
     float mipCount = 9.0; // resolution of 512x512
@@ -165,6 +137,7 @@ vec3 getIBLContribution(PBRInfo pbrInputs, vec3 n, vec3 reflection)
 
     return diffuse + specular;
 }
+#endif
 
 // Basic Lambertian diffuse
 // Implementation from Lambert's Photometria https://archive.org/details/lambertsphotome00lambgoog
@@ -206,17 +179,19 @@ float microfacetDistribution(PBRInfo pbrInputs)
     return roughnessSq / (M_PI * f * f);
 }
 
-void main()
-{
+void main() {
+    EntityStruct entity = ebo.entities[pushConsts.target_id];
+    MaterialStruct material = mbo.materials[entity.material_id];
+
     // Metallic and Roughness material properties are packed together
     // In glTF, these factors can be specified by fixed scalar values
     // or from a metallic-roughness map
-    float perceptualRoughness = u_MetallicRoughnessValues.y;
-    float metallic = u_MetallicRoughnessValues.x;
+    float perceptualRoughness = material.roughness;//u_MetallicRoughnessValues.y;
+    float metallic = material.metallic;//u_MetallicRoughnessValues.x;
 #ifdef HAS_METALROUGHNESSMAP
     // Roughness is stored in the 'g' channel, metallic is stored in the 'b' channel.
     // This layout intentionally reserves the 'r' channel for (optional) occlusion map data
-    vec4 mrSample = texture2D(u_MetallicRoughnessSampler, v_UV);
+    vec4 mrSample = texture2D(u_MetallicRoughnessSampler, fragTexCoord);
     perceptualRoughness = mrSample.g * perceptualRoughness;
     metallic = mrSample.b * metallic;
 #endif
@@ -228,9 +203,9 @@ void main()
 
     // The albedo may be defined from a base texture or a flat color
 #ifdef HAS_BASECOLORMAP
-    vec4 baseColor = SRGBtoLINEAR(texture2D(u_BaseColorSampler, v_UV)) * u_BaseColorFactor;
+    vec4 baseColor = SRGBtoLINEAR(texture2D(u_BaseColorSampler, fragTexCoord)) * u_BaseColorFactor;
 #else
-    vec4 baseColor = u_BaseColorFactor;
+    vec4 baseColor = material.base_color;//u_BaseColorFactor;
 #endif
 
     vec3 f0 = vec3(0.04);
@@ -248,13 +223,24 @@ void main()
     vec3 specularEnvironmentR90 = vec3(1.0, 1.0, 1.0) * reflectance90;
 
     vec3 n = getNormal();                             // normal at surface point
-    vec3 v = normalize(u_Camera - v_Position);        // Vector from surface point to camera
-    vec3 l = normalize(u_LightDirection);             // Vector from surface point to light
+
+    // TODO: get working with more than one light
+    int light_entity_id = pushConsts.light_ids[0];
+    // if (light_entity_id == -1) continue;
+    EntityStruct light_entity = ebo.entities[light_entity_id];
+    //if ( (light_entity.initialized != 1) || (light_entity.transform_id == -1)) continue;
+    LightStruct light = lbo.lights[light_entity.light_id];
+    TransformStruct light_transform = tbo.transforms[light_entity.transform_id];
+    vec3 l_p = vec3(light_transform.localToWorld[3]);
+    
+
+    vec3 v = normalize(-w_viewDir);                   // Vector from surface point to camera
+    vec3 l = normalize(l_p - w_position);             // Vector from surface point to light
     vec3 h = normalize(l+v);                          // Half vector between both l and v
     vec3 reflection = -normalize(reflect(v, n));
 
     float NdotL = clamp(dot(n, l), 0.001, 1.0);
-    float NdotV = abs(dot(n, v)) + 0.001;
+    float NdotV = clamp(abs(dot(n, v)), 0.001, 1.0);
     float NdotH = clamp(dot(n, h), 0.0, 1.0);
     float LdotH = clamp(dot(l, h), 0.0, 1.0);
     float VdotH = clamp(dot(v, h), 0.0, 1.0);
@@ -283,7 +269,7 @@ void main()
     vec3 diffuseContrib = (1.0 - F) * diffuse(pbrInputs);
     vec3 specContrib = F * G * D / (4.0 * NdotL * NdotV);
     // Obtain final intensity as reflectance (BRDF) scaled by the energy of the light (cosine law)
-    vec3 color = NdotL * u_LightColor * (diffuseContrib + specContrib);
+    vec3 color = NdotL * light.diffuse.rgb * (diffuseContrib + specContrib);
 
     // Calculate lighting contribution from image based lighting source (IBL)
 #ifdef USE_IBL
@@ -292,26 +278,26 @@ void main()
 
     // Apply optional PBR terms for additional (optional) shading
 #ifdef HAS_OCCLUSIONMAP
-    float ao = texture2D(u_OcclusionSampler, v_UV).r;
+    float ao = texture2D(u_OcclusionSampler, fragTexCoord).r;
     color = mix(color, color * ao, u_OcclusionStrength);
 #endif
 
 #ifdef HAS_EMISSIVEMAP
-    vec3 emissive = SRGBtoLINEAR(texture2D(u_EmissiveSampler, v_UV)).rgb * u_EmissiveFactor;
+    vec3 emissive = SRGBtoLINEAR(texture2D(u_EmissiveSampler, fragTexCoord)).rgb * u_EmissiveFactor;
     color += emissive;
 #endif
 
     // This section uses mix to override final color for reference app visualization
     // of various parameters in the lighting equation.
-    color = mix(color, F, u_ScaleFGDSpec.x);
-    color = mix(color, vec3(G), u_ScaleFGDSpec.y);
-    color = mix(color, vec3(D), u_ScaleFGDSpec.z);
-    color = mix(color, specContrib, u_ScaleFGDSpec.w);
+    // color = mix(color, F, u_ScaleFGDSpec.x);
+    // color = mix(color, vec3(G), u_ScaleFGDSpec.y);
+    // color = mix(color, vec3(D), u_ScaleFGDSpec.z);
+    // color = mix(color, specContrib, u_ScaleFGDSpec.w);
 
-    color = mix(color, diffuseContrib, u_ScaleDiffBaseMR.x);
-    color = mix(color, baseColor.rgb, u_ScaleDiffBaseMR.y);
-    color = mix(color, vec3(metallic), u_ScaleDiffBaseMR.z);
-    color = mix(color, vec3(perceptualRoughness), u_ScaleDiffBaseMR.w);
+    // color = mix(color, diffuseContrib, u_ScaleDiffBaseMR.x);
+    // color = mix(color, baseColor.rgb, u_ScaleDiffBaseMR.y);
+    // color = mix(color, vec3(metallic), u_ScaleDiffBaseMR.z);
+    // color = mix(color, vec3(perceptualRoughness), u_ScaleDiffBaseMR.w);
 
-    gl_FragColor = vec4(pow(color,vec3(1.0/2.2)), baseColor.a);
+    outColor = vec4(pow(color,vec3(1.0/2.2)), baseColor.a);
 }
