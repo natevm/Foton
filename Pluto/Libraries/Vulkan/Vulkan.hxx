@@ -7,6 +7,7 @@
 #include <condition_variable>
 
 #include "Pluto/Tools/Singleton.hxx"
+#include "threadsafe_queue.hpp"
 
 
 namespace Libraries {
@@ -93,15 +94,24 @@ namespace Libraries {
         std::vector<vk::Queue> graphicsQueues;
         std::vector<vk::Queue> presentQueues;	
 
-        struct CommandQueue {
-            std::vector<vk::PresentInfoKHR> presentations;
-            std::vector<vk::SubmitInfo> submissions;
-            std::vector<vk::Fence> fences;
-            std::vector<std::promise<void>> promises;
-            std::vector<bool> should_free;
+        struct CommandQueueItem {
+            vk::PresentInfoKHR presentation;
+            vk::SubmitInfo submission;
+            vk::Fence fence;
+            std::shared_ptr<std::promise<void>> promise;
+            bool should_free;
         };
-        CommandQueue graphicsCommandQueue;
-        CommandQueue presentCommandQueue;
+
+        // struct CommandQueue {
+        //     std::vector<> presentations;
+        //     std::vector<vk::SubmitInfo> submissions;
+        //     std::vector<vk::Fence> fences;
+        //     threadsafe_queue<std::shared_ptr<std::promise<void>>> promises;
+        //     std::vector<bool> should_free;
+        // };
+
+        threadsafe_queue<CommandQueueItem> graphicsCommandQueue;
+        threadsafe_queue<CommandQueueItem> presentCommandQueue;
         
         vk::DebugReportCallbackEXT internalCallback;
         function<void()> externalCallback;

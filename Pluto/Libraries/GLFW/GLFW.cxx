@@ -1,25 +1,56 @@
 #include "GLFW.hxx"
 
+int windowed_xpos, windowed_ypos, windowed_width, windowed_height;
 
-void resize_window_callback(GLFWwindow * ptr, int width, int height) {
-    auto key = Libraries::GLFW::Get()->get_key_from_ptr(ptr);
+void resize_window_callback(GLFWwindow * window, int width, int height) {
+    auto key = Libraries::GLFW::Get()->get_key_from_ptr(window);
     if (key.size() > 0 && (width > 0) && (height > 0)) {
         Libraries::GLFW::Get()->set_swapchain_out_of_date(key);
     }
 }
 
-void cursor_position_callback(GLFWwindow * ptr, double xpos, double ypos) {
-    auto key = Libraries::GLFW::Get()->get_key_from_ptr(ptr);
+void cursor_position_callback(GLFWwindow * window, double xpos, double ypos) {
+    auto key = Libraries::GLFW::Get()->get_key_from_ptr(window);
     if (key.size() > 0) {
         Libraries::GLFW::Get()->set_cursor_pos(key, xpos, ypos);
     }
 }
 
-void mouse_button_callback(GLFWwindow * ptr, int button, int action, int mods)
+void mouse_button_callback(GLFWwindow * window, int button, int action, int mods)
 {
-    auto key = Libraries::GLFW::Get()->get_key_from_ptr(ptr);
+    auto key = Libraries::GLFW::Get()->get_key_from_ptr(window);
     if (key.size() > 0) {
         Libraries::GLFW::Get()->set_button_data(key, button, action, mods);
+    }
+}
+
+void key_callback( GLFWwindow* window, int key, int scancode, int action, int mods )
+{
+    if (action != GLFW_PRESS)
+        return;
+
+    if (key == GLFW_KEY_ESCAPE && mods == 0)
+        glfwSetWindowShouldClose(window, GLFW_TRUE);
+    if ((key == GLFW_KEY_ENTER && mods == GLFW_MOD_ALT) ||
+        (key == GLFW_KEY_F11 && mods == GLFW_MOD_ALT))
+    {
+        if (glfwGetWindowMonitor(window))
+        {
+            glfwSetWindowMonitor(window, NULL,
+                                 windowed_xpos, windowed_ypos,
+                                 windowed_width, windowed_height, 0);
+        }
+        else
+        {
+            GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+            if (monitor)
+            {
+                const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+                glfwGetWindowPos(window, &windowed_xpos, &windowed_ypos);
+                glfwGetWindowSize(window, &windowed_width, &windowed_height);
+                glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+            }
+        }
     }
 }
 
@@ -62,7 +93,7 @@ namespace Libraries {
 
         /* For Vulkan, request no OGL api */
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-
+        glfwWindowHint(GLFW_AUTO_ICONIFY, GLFW_FALSE);
         glfwWindowHint(GLFW_DECORATED, (decorated) ? GLFW_TRUE : GLFW_FALSE);
         glfwWindowHint(GLFW_RESIZABLE, (resizable) ? GLFW_TRUE : GLFW_FALSE);
         glfwWindowHint(GLFW_FLOATING, (floating) ? GLFW_TRUE : GLFW_FALSE);
@@ -76,8 +107,10 @@ namespace Libraries {
         glfwSetWindowSizeCallback(ptr, &resize_window_callback);
         glfwSetCursorPosCallback(ptr, &cursor_position_callback);
         glfwSetMouseButtonCallback(ptr, &mouse_button_callback);
+        glfwSetKeyCallback(ptr, &key_callback);
 
         window.ptr = ptr;
+        window.swapchain_ready = false;
         Windows()[key] = window;
         return true;
     }
@@ -275,7 +308,7 @@ namespace Libraries {
         return psurf;
     }
 
-    bool GLFW::create_vulkan_swapchain(std::string key)
+    bool GLFW::create_vulkan_swapchain(std::string key, bool submit_immediately)
     {
         auto vulkan = Libraries::Vulkan::Get();
 
@@ -462,12 +495,13 @@ namespace Libraries {
             subresourceRange.baseArrayLayer = 0;
             subresourceRange.layerCount = 1;
 
-            vk::CommandBuffer cmdBuffer = vulkan->begin_one_time_graphics_command(0);
+            vk::CommandBuffer cmdBuffer = vulkan->begin_one_time_graphics_command(1);
             window.textures[i]->setImageLayout( cmdBuffer, data.colorImage, vk::ImageLayout::eUndefined, vk::ImageLayout::ePresentSrcKHR, subresourceRange);
-            vulkan->end_one_time_graphics_command(cmdBuffer, 0, true, true);
+            auto fut = vulkan->end_one_time_graphics_command(cmdBuffer, submit_immediately == true ? 0 : 1, true, submit_immediately);
         }
         
         window.swapchain_out_of_date = false;
+        window.swapchain_ready = true;
         return true;
     }
 
@@ -498,6 +532,8 @@ namespace Libraries {
             return vk::SwapchainKHR();
 
         auto window = Windows()[key];
+        if (window.swapchain_ready == false) 
+            return vk::SwapchainKHR();
         return window.swapchain;
     }
 

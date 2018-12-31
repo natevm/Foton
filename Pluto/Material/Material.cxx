@@ -6,6 +6,7 @@
 #include "Pluto/Transform/Transform.hxx"
 #include "Pluto/Camera/Camera.hxx"
 #include "Pluto/Light/Light.hxx"
+#include "Pluto/Texture/Texture.hxx"
 
 Material Material::materials[MAX_MATERIALS];
 MaterialStruct* Material::pinnedMemory;
@@ -38,7 +39,7 @@ void Material::CreatePipeline(
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages, // yes
     std::vector<vk::VertexInputBindingDescription> bindingDescriptions, // yes
     std::vector<vk::VertexInputAttributeDescription> attributeDescriptions, // yes
-    std::vector<vk::DescriptorSetLayout> descriptorSetLayouts, // yes
+    std::vector<vk::DescriptorSetLayout> componentDescriptorSetLayouts, // yes
     PipelineParameters parameters,
     vk::RenderPass renderpass,
     uint32 subpass,
@@ -62,8 +63,8 @@ void Material::CreatePipeline(
 
     /* Connect things together with pipeline layout */
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
-    pipelineLayoutInfo.setLayoutCount = (uint32_t)descriptorSetLayouts.size();
-    pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
+    pipelineLayoutInfo.setLayoutCount = (uint32_t)componentDescriptorSetLayouts.size();
+    pipelineLayoutInfo.pSetLayouts = componentDescriptorSetLayouts.data();
     pipelineLayoutInfo.pushConstantRangeCount = 1; // TODO: this needs to account for entity id
     pipelineLayoutInfo.pPushConstantRanges = &range; // TODO: this needs to account for entity id
 
@@ -122,7 +123,7 @@ void Material::SetupGraphicsPipelines(uint32_t id, vk::RenderPass renderpass)
         std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
         
         CreatePipeline(shaderStages, uniformColor.vertexInputBindingDescriptions, 
-            uniformColor.vertexInputAttributeDescriptions, { uniformColor.descriptorSetLayout }, uniformColor.pipelineParameters, 
+            uniformColor.vertexInputAttributeDescriptions, { uniformColor.componentDescriptorSetLayout, uniformColor.textureDescriptorSetLayout }, uniformColor.pipelineParameters, 
             renderpass, 0, 
             uniformColor.pipeline, uniformColor.pipelineLayout);
 
@@ -155,7 +156,7 @@ void Material::SetupGraphicsPipelines(uint32_t id, vk::RenderPass renderpass)
         std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
         
         CreatePipeline(shaderStages, blinn.vertexInputBindingDescriptions, 
-            blinn.vertexInputAttributeDescriptions, { blinn.descriptorSetLayout }, blinn.pipelineParameters, 
+            blinn.vertexInputAttributeDescriptions, { blinn.componentDescriptorSetLayout, blinn.textureDescriptorSetLayout }, blinn.pipelineParameters, 
             renderpass, 0, 
             blinn.pipeline, blinn.pipelineLayout);
 
@@ -187,7 +188,7 @@ void Material::SetupGraphicsPipelines(uint32_t id, vk::RenderPass renderpass)
         std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
         
         CreatePipeline(shaderStages, normalsurface.vertexInputBindingDescriptions, 
-            normalsurface.vertexInputAttributeDescriptions, { normalsurface.descriptorSetLayout }, normalsurface.pipelineParameters, 
+            normalsurface.vertexInputAttributeDescriptions, { normalsurface.componentDescriptorSetLayout, normalsurface.textureDescriptorSetLayout }, normalsurface.pipelineParameters, 
             renderpass, 0, 
             normalsurface.pipeline, normalsurface.pipelineLayout);
 
@@ -219,7 +220,7 @@ void Material::SetupGraphicsPipelines(uint32_t id, vk::RenderPass renderpass)
         std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
         
         CreatePipeline(shaderStages, texcoordsurface.vertexInputBindingDescriptions, 
-            texcoordsurface.vertexInputAttributeDescriptions, { texcoordsurface.descriptorSetLayout }, texcoordsurface.pipelineParameters, 
+            texcoordsurface.vertexInputAttributeDescriptions, { texcoordsurface.componentDescriptorSetLayout, texcoordsurface.textureDescriptorSetLayout }, texcoordsurface.pipelineParameters, 
             renderpass, 0, 
             texcoordsurface.pipeline, texcoordsurface.pipelineLayout);
 
@@ -291,7 +292,32 @@ void Material::CreateDescriptorSetLayouts()
         layoutInfo.bindingCount = (uint32_t)bindings.size();
         layoutInfo.pBindings = bindings.data();
 
-        uniformColor.descriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
+        uniformColor.componentDescriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
+    }
+
+    {
+        // 2D Texture samplers
+        vk::DescriptorSetLayoutBinding sampler2DBinding;
+        sampler2DBinding.descriptorCount = MAX_TEXTURES;
+        sampler2DBinding.binding = 0;
+        sampler2DBinding.descriptorType = vk::DescriptorType::eSampler;
+        sampler2DBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+        sampler2DBinding.pImmutableSamplers = 0;
+
+        // 2D Textures
+        vk::DescriptorSetLayoutBinding texture2DBinding;
+        texture2DBinding.descriptorCount = MAX_TEXTURES;
+        texture2DBinding.binding = 1;
+        texture2DBinding.descriptorType = vk::DescriptorType::eSampledImage;
+        texture2DBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+        texture2DBinding.pImmutableSamplers = 0;
+
+        std::array<vk::DescriptorSetLayoutBinding, 2> bindings = {sampler2DBinding, texture2DBinding};
+        vk::DescriptorSetLayoutCreateInfo layoutInfo;
+        layoutInfo.bindingCount = (uint32_t)bindings.size();
+        layoutInfo.pBindings = bindings.data();
+
+        uniformColor.textureDescriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
     }
 
     /* ------ BLINN LAYOUT ------ */
@@ -341,7 +367,32 @@ void Material::CreateDescriptorSetLayouts()
         layoutInfo.bindingCount = (uint32_t)bindings.size();
         layoutInfo.pBindings = bindings.data();
 
-        blinn.descriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
+        blinn.componentDescriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
+    }
+
+    {
+        // 2D Texture samplers
+        vk::DescriptorSetLayoutBinding sampler2DBinding;
+        sampler2DBinding.descriptorCount = MAX_TEXTURES;
+        sampler2DBinding.binding = 0;
+        sampler2DBinding.descriptorType = vk::DescriptorType::eSampler;
+        sampler2DBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+        sampler2DBinding.pImmutableSamplers = 0;
+
+        // 2D Textures
+        vk::DescriptorSetLayoutBinding texture2DBinding;
+        texture2DBinding.descriptorCount = MAX_TEXTURES;
+        texture2DBinding.binding = 1;
+        texture2DBinding.descriptorType = vk::DescriptorType::eSampledImage;
+        texture2DBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+        texture2DBinding.pImmutableSamplers = 0;
+
+        std::array<vk::DescriptorSetLayoutBinding, 2> bindings = {sampler2DBinding, texture2DBinding};
+        vk::DescriptorSetLayoutCreateInfo layoutInfo;
+        layoutInfo.bindingCount = (uint32_t)bindings.size();
+        layoutInfo.pBindings = bindings.data();
+
+        blinn.textureDescriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
     }
 
     /* ------ TEXCOORD SURFACE LAYOUT ------ */
@@ -391,7 +442,32 @@ void Material::CreateDescriptorSetLayouts()
         layoutInfo.bindingCount = (uint32_t)bindings.size();
         layoutInfo.pBindings = bindings.data();
 
-        texcoordsurface.descriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
+        texcoordsurface.componentDescriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
+    }
+
+    {
+        // 2D Texture samplers
+        vk::DescriptorSetLayoutBinding sampler2DBinding;
+        sampler2DBinding.descriptorCount = MAX_TEXTURES;
+        sampler2DBinding.binding = 0;
+        sampler2DBinding.descriptorType = vk::DescriptorType::eSampler;
+        sampler2DBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+        sampler2DBinding.pImmutableSamplers = 0;
+
+        // 2D Textures
+        vk::DescriptorSetLayoutBinding texture2DBinding;
+        texture2DBinding.descriptorCount = MAX_TEXTURES;
+        texture2DBinding.binding = 1;
+        texture2DBinding.descriptorType = vk::DescriptorType::eSampledImage;
+        texture2DBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+        texture2DBinding.pImmutableSamplers = 0;
+
+        std::array<vk::DescriptorSetLayoutBinding, 2> bindings = {sampler2DBinding, texture2DBinding};
+        vk::DescriptorSetLayoutCreateInfo layoutInfo;
+        layoutInfo.bindingCount = (uint32_t)bindings.size();
+        layoutInfo.pBindings = bindings.data();
+
+        texcoordsurface.textureDescriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
     }
 
     /* ------ NORMAL SURFACE LAYOUT ------ */
@@ -441,7 +517,32 @@ void Material::CreateDescriptorSetLayouts()
         layoutInfo.bindingCount = (uint32_t)bindings.size();
         layoutInfo.pBindings = bindings.data();
 
-        normalsurface.descriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
+        normalsurface.componentDescriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
+    }
+
+    {
+        // 2D Texture samplers
+        vk::DescriptorSetLayoutBinding sampler2DBinding;
+        sampler2DBinding.descriptorCount = MAX_TEXTURES;
+        sampler2DBinding.binding = 0;
+        sampler2DBinding.descriptorType = vk::DescriptorType::eSampler;
+        sampler2DBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+        sampler2DBinding.pImmutableSamplers = 0;
+
+        // 2D Textures
+        vk::DescriptorSetLayoutBinding texture2DBinding;
+        texture2DBinding.descriptorCount = MAX_TEXTURES;
+        texture2DBinding.binding = 1;
+        texture2DBinding.descriptorType = vk::DescriptorType::eSampledImage;
+        texture2DBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+        texture2DBinding.pImmutableSamplers = 0;
+
+        std::array<vk::DescriptorSetLayoutBinding, 2> bindings = {sampler2DBinding, texture2DBinding};
+        vk::DescriptorSetLayoutCreateInfo layoutInfo;
+        layoutInfo.bindingCount = (uint32_t)bindings.size();
+        layoutInfo.pBindings = bindings.data();
+
+        normalsurface.textureDescriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
     }
 }
 
@@ -480,7 +581,27 @@ void Material::CreateDescriptorPools()
         poolInfo.maxSets = MAX_MATERIALS;
         poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 
-        uniformColor.descriptorPool = device.createDescriptorPool(poolInfo);
+        uniformColor.componentDescriptorPool = device.createDescriptorPool(poolInfo);
+    }
+
+    {
+        std::array<vk::DescriptorPoolSize, 2> poolSizes = {};
+    
+        // Sampler
+        poolSizes[0].type = vk::DescriptorType::eSampler;
+        poolSizes[0].descriptorCount = MAX_MATERIALS;
+        
+        // Texture array
+        poolSizes[1].type = vk::DescriptorType::eSampledImage;
+        poolSizes[1].descriptorCount = MAX_MATERIALS;
+        
+        vk::DescriptorPoolCreateInfo poolInfo;
+        poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
+        poolInfo.pPoolSizes = poolSizes.data();
+        poolInfo.maxSets = MAX_MATERIALS;
+        poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
+
+        uniformColor.textureDescriptorPool = device.createDescriptorPool(poolInfo);
     }
     
     /* ------ BLINN DESCRIPTOR POOL  ------ */
@@ -513,7 +634,27 @@ void Material::CreateDescriptorPools()
         poolInfo.maxSets = MAX_MATERIALS;
         poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 
-        blinn.descriptorPool = device.createDescriptorPool(poolInfo);
+        blinn.componentDescriptorPool = device.createDescriptorPool(poolInfo);
+    }
+
+    {
+        std::array<vk::DescriptorPoolSize, 2> poolSizes = {};
+    
+        // Sampler
+        poolSizes[0].type = vk::DescriptorType::eSampler;
+        poolSizes[0].descriptorCount = MAX_MATERIALS;
+        
+        // Texture array
+        poolSizes[1].type = vk::DescriptorType::eSampledImage;
+        poolSizes[1].descriptorCount = MAX_MATERIALS;
+        
+        vk::DescriptorPoolCreateInfo poolInfo;
+        poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
+        poolInfo.pPoolSizes = poolSizes.data();
+        poolInfo.maxSets = MAX_MATERIALS;
+        poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
+
+        blinn.textureDescriptorPool = device.createDescriptorPool(poolInfo);
     }
 
     /* ------ TEXCOORD SURFACE DESCRIPTOR POOL  ------ */
@@ -546,7 +687,27 @@ void Material::CreateDescriptorPools()
         poolInfo.maxSets = MAX_MATERIALS;
         poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 
-        texcoordsurface.descriptorPool = device.createDescriptorPool(poolInfo);
+        texcoordsurface.componentDescriptorPool = device.createDescriptorPool(poolInfo);
+    }
+
+    {
+        std::array<vk::DescriptorPoolSize, 2> poolSizes = {};
+    
+        // Sampler
+        poolSizes[0].type = vk::DescriptorType::eSampler;
+        poolSizes[0].descriptorCount = MAX_MATERIALS;
+        
+        // Texture array
+        poolSizes[1].type = vk::DescriptorType::eSampledImage;
+        poolSizes[1].descriptorCount = MAX_MATERIALS;
+        
+        vk::DescriptorPoolCreateInfo poolInfo;
+        poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
+        poolInfo.pPoolSizes = poolSizes.data();
+        poolInfo.maxSets = MAX_MATERIALS;
+        poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
+
+        texcoordsurface.textureDescriptorPool = device.createDescriptorPool(poolInfo);
     }
 
     /* ------ NORMAL SURFACE DESCRIPTOR POOL  ------ */
@@ -579,7 +740,27 @@ void Material::CreateDescriptorPools()
         poolInfo.maxSets = MAX_MATERIALS;
         poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 
-        normalsurface.descriptorPool = device.createDescriptorPool(poolInfo);
+        normalsurface.componentDescriptorPool = device.createDescriptorPool(poolInfo);
+    }
+
+    {
+        std::array<vk::DescriptorPoolSize, 2> poolSizes = {};
+    
+        // Sampler
+        poolSizes[0].type = vk::DescriptorType::eSampler;
+        poolSizes[0].descriptorCount = MAX_MATERIALS;
+        
+        // Texture array
+        poolSizes[1].type = vk::DescriptorType::eSampledImage;
+        poolSizes[1].descriptorCount = MAX_MATERIALS;
+        
+        vk::DescriptorPoolCreateInfo poolInfo;
+        poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
+        poolInfo.pPoolSizes = poolSizes.data();
+        poolInfo.maxSets = MAX_MATERIALS;
+        poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
+
+        normalsurface.textureDescriptorPool = device.createDescriptorPool(poolInfo);
     }
 }
 
@@ -592,14 +773,16 @@ void Material::CreateDescriptorSets()
     {
 
         /* This is experimental. Typically descriptor sets aren't static. */
-        vk::DescriptorSetLayout layouts[] = { uniformColor.descriptorSetLayout };
+        vk::DescriptorSetLayout layouts[] = { uniformColor.componentDescriptorSetLayout };
         std::array<vk::WriteDescriptorSet, 5> descriptorWrites = {};
-        vk::DescriptorSetAllocateInfo allocInfo;
-        allocInfo.descriptorPool = uniformColor.descriptorPool;
-        allocInfo.descriptorSetCount = 1;
-        allocInfo.pSetLayouts = layouts;
-
-        uniformColor.descriptorSet = device.allocateDescriptorSets(allocInfo)[0];
+        if (uniformColor.componentDescriptorSet == vk::DescriptorSet())
+        {
+            vk::DescriptorSetAllocateInfo allocInfo;
+            allocInfo.descriptorPool = uniformColor.componentDescriptorPool;
+            allocInfo.descriptorSetCount = 1;
+            allocInfo.pSetLayouts = layouts;
+            uniformColor.componentDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
+        }
 
         // Entity SSBO
         vk::DescriptorBufferInfo entityBufferInfo;
@@ -607,7 +790,7 @@ void Material::CreateDescriptorSets()
         entityBufferInfo.offset = 0;
         entityBufferInfo.range = Entity::GetSSBOSize();
 
-        descriptorWrites[0].dstSet = uniformColor.descriptorSet;
+        descriptorWrites[0].dstSet = uniformColor.componentDescriptorSet;
         descriptorWrites[0].dstBinding = 0;
         descriptorWrites[0].dstArrayElement = 0;
         descriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
@@ -620,7 +803,7 @@ void Material::CreateDescriptorSets()
         transformBufferInfo.offset = 0;
         transformBufferInfo.range = Transform::GetSSBOSize();
 
-        descriptorWrites[1].dstSet = uniformColor.descriptorSet;
+        descriptorWrites[1].dstSet = uniformColor.componentDescriptorSet;
         descriptorWrites[1].dstBinding = 1;
         descriptorWrites[1].dstArrayElement = 0;
         descriptorWrites[1].descriptorType = vk::DescriptorType::eStorageBuffer;
@@ -633,7 +816,7 @@ void Material::CreateDescriptorSets()
         cameraBufferInfo.offset = 0;
         cameraBufferInfo.range = Camera::GetSSBOSize();
 
-        descriptorWrites[2].dstSet = uniformColor.descriptorSet;
+        descriptorWrites[2].dstSet = uniformColor.componentDescriptorSet;
         descriptorWrites[2].dstBinding = 2;
         descriptorWrites[2].dstArrayElement = 0;
         descriptorWrites[2].descriptorType = vk::DescriptorType::eStorageBuffer;
@@ -646,7 +829,7 @@ void Material::CreateDescriptorSets()
         materialBufferInfo.offset = 0;
         materialBufferInfo.range = Material::GetSSBOSize();
 
-        descriptorWrites[3].dstSet = uniformColor.descriptorSet;
+        descriptorWrites[3].dstSet = uniformColor.componentDescriptorSet;
         descriptorWrites[3].dstBinding = 3;
         descriptorWrites[3].dstArrayElement = 0;
         descriptorWrites[3].descriptorType = vk::DescriptorType::eStorageBuffer;
@@ -659,12 +842,63 @@ void Material::CreateDescriptorSets()
         lightBufferInfo.offset = 0;
         lightBufferInfo.range = Light::GetSSBOSize();
 
-        descriptorWrites[4].dstSet = uniformColor.descriptorSet;
+        descriptorWrites[4].dstSet = uniformColor.componentDescriptorSet;
         descriptorWrites[4].dstBinding = 4;
         descriptorWrites[4].dstArrayElement = 0;
         descriptorWrites[4].descriptorType = vk::DescriptorType::eStorageBuffer;
         descriptorWrites[4].descriptorCount = 1;
         descriptorWrites[4].pBufferInfo = &lightBufferInfo;
+        
+        device.updateDescriptorSets((uint32_t)descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+    }
+
+    {
+        vk::DescriptorSetLayout layouts[] = { uniformColor.textureDescriptorSetLayout };
+        std::array<vk::WriteDescriptorSet, 2> descriptorWrites = {};
+        
+        if (uniformColor.textureDescriptorSet == vk::DescriptorSet())
+        {
+            vk::DescriptorSetAllocateInfo allocInfo;
+            allocInfo.descriptorPool = uniformColor.textureDescriptorPool;
+            allocInfo.descriptorSetCount = 1;
+            allocInfo.pSetLayouts = layouts;
+
+            uniformColor.textureDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
+        }
+
+        auto imageLayouts = Texture::Get2DLayouts();
+        auto imageViews = Texture::Get2DImageViews();
+        auto samplers = Texture::Get2DSamplers();
+
+        // Samplers
+        vk::DescriptorImageInfo samplerDescriptorInfos[MAX_TEXTURES];
+        for (int i = 0; i < MAX_TEXTURES; ++i) 
+        {
+            samplerDescriptorInfos[i].sampler = samplers[i];
+        }
+
+        descriptorWrites[0].dstSet = uniformColor.textureDescriptorSet;
+        descriptorWrites[0].dstBinding = 0;
+        descriptorWrites[0].dstArrayElement = 0;
+        descriptorWrites[0].descriptorType = vk::DescriptorType::eSampler;
+        descriptorWrites[0].descriptorCount = MAX_TEXTURES;
+        descriptorWrites[0].pImageInfo = samplerDescriptorInfos;
+
+        // Textures
+        vk::DescriptorImageInfo textureDescriptorInfos[MAX_TEXTURES];
+        for (int i = 0; i < MAX_TEXTURES; ++i) 
+        {
+            textureDescriptorInfos[i].sampler = nullptr;
+            textureDescriptorInfos[i].imageLayout = imageLayouts[i];
+            textureDescriptorInfos[i].imageView = imageViews[i];
+        }
+
+        descriptorWrites[1].dstSet = uniformColor.textureDescriptorSet;
+        descriptorWrites[1].dstBinding = 1;
+        descriptorWrites[1].dstArrayElement = 0;
+        descriptorWrites[1].descriptorType = vk::DescriptorType::eSampledImage;
+        descriptorWrites[1].descriptorCount = MAX_TEXTURES;
+        descriptorWrites[1].pImageInfo = textureDescriptorInfos;
         
         device.updateDescriptorSets((uint32_t)descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
     }
@@ -672,14 +906,16 @@ void Material::CreateDescriptorSets()
     /* ------ BLINN DESCRIPTOR SET  ------ */
     {
         /* This is experimental. Typically descriptor sets aren't static. */
-        vk::DescriptorSetLayout layouts[] = { blinn.descriptorSetLayout };
+        vk::DescriptorSetLayout layouts[] = { blinn.componentDescriptorSetLayout };
         std::array<vk::WriteDescriptorSet, 5> descriptorWrites = {};
-        vk::DescriptorSetAllocateInfo allocInfo;
-        allocInfo.descriptorPool = blinn.descriptorPool;
-        allocInfo.descriptorSetCount = 1;
-        allocInfo.pSetLayouts = layouts;
-
-        blinn.descriptorSet = device.allocateDescriptorSets(allocInfo)[0];
+        if (blinn.componentDescriptorSet == vk::DescriptorSet())
+        {
+            vk::DescriptorSetAllocateInfo allocInfo;
+            allocInfo.descriptorPool = blinn.componentDescriptorPool;
+            allocInfo.descriptorSetCount = 1;
+            allocInfo.pSetLayouts = layouts;
+            blinn.componentDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
+        }
 
         // Entity SSBO
         vk::DescriptorBufferInfo entityBufferInfo;
@@ -687,7 +923,7 @@ void Material::CreateDescriptorSets()
         entityBufferInfo.offset = 0;
         entityBufferInfo.range = Entity::GetSSBOSize();
 
-        descriptorWrites[0].dstSet = blinn.descriptorSet;
+        descriptorWrites[0].dstSet = blinn.componentDescriptorSet;
         descriptorWrites[0].dstBinding = 0;
         descriptorWrites[0].dstArrayElement = 0;
         descriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
@@ -700,7 +936,7 @@ void Material::CreateDescriptorSets()
         transformBufferInfo.offset = 0;
         transformBufferInfo.range = Transform::GetSSBOSize();
 
-        descriptorWrites[1].dstSet = blinn.descriptorSet;
+        descriptorWrites[1].dstSet = blinn.componentDescriptorSet;
         descriptorWrites[1].dstBinding = 1;
         descriptorWrites[1].dstArrayElement = 0;
         descriptorWrites[1].descriptorType = vk::DescriptorType::eStorageBuffer;
@@ -713,7 +949,7 @@ void Material::CreateDescriptorSets()
         cameraBufferInfo.offset = 0;
         cameraBufferInfo.range = Camera::GetSSBOSize();
 
-        descriptorWrites[2].dstSet = blinn.descriptorSet;
+        descriptorWrites[2].dstSet = blinn.componentDescriptorSet;
         descriptorWrites[2].dstBinding = 2;
         descriptorWrites[2].dstArrayElement = 0;
         descriptorWrites[2].descriptorType = vk::DescriptorType::eStorageBuffer;
@@ -726,7 +962,7 @@ void Material::CreateDescriptorSets()
         materialBufferInfo.offset = 0;
         materialBufferInfo.range = Material::GetSSBOSize();
 
-        descriptorWrites[3].dstSet = blinn.descriptorSet;
+        descriptorWrites[3].dstSet = blinn.componentDescriptorSet;
         descriptorWrites[3].dstBinding = 3;
         descriptorWrites[3].dstArrayElement = 0;
         descriptorWrites[3].descriptorType = vk::DescriptorType::eStorageBuffer;
@@ -739,12 +975,62 @@ void Material::CreateDescriptorSets()
         lightBufferInfo.offset = 0;
         lightBufferInfo.range = Light::GetSSBOSize();
 
-        descriptorWrites[4].dstSet = blinn.descriptorSet;
+        descriptorWrites[4].dstSet = blinn.componentDescriptorSet;
         descriptorWrites[4].dstBinding = 4;
         descriptorWrites[4].dstArrayElement = 0;
         descriptorWrites[4].descriptorType = vk::DescriptorType::eStorageBuffer;
         descriptorWrites[4].descriptorCount = 1;
         descriptorWrites[4].pBufferInfo = &lightBufferInfo;
+        
+        device.updateDescriptorSets((uint32_t)descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+    }
+
+    {
+        vk::DescriptorSetLayout layouts[] = { blinn.textureDescriptorSetLayout };
+        std::array<vk::WriteDescriptorSet, 2> descriptorWrites = {};
+        if (blinn.textureDescriptorSet == vk::DescriptorSet())
+        {
+            vk::DescriptorSetAllocateInfo allocInfo;
+            allocInfo.descriptorPool = blinn.textureDescriptorPool;
+            allocInfo.descriptorSetCount = 1;
+            allocInfo.pSetLayouts = layouts;
+
+            blinn.textureDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
+        }
+
+        auto imageLayouts = Texture::Get2DLayouts();
+        auto imageViews = Texture::Get2DImageViews();
+        auto samplers = Texture::Get2DSamplers();
+
+        // Samplers
+        vk::DescriptorImageInfo samplerDescriptorInfos[MAX_TEXTURES];
+        for (int i = 0; i < MAX_TEXTURES; ++i) 
+        {
+            samplerDescriptorInfos[i].sampler = samplers[i];
+        }
+
+        descriptorWrites[0].dstSet = blinn.textureDescriptorSet;
+        descriptorWrites[0].dstBinding = 0;
+        descriptorWrites[0].dstArrayElement = 0;
+        descriptorWrites[0].descriptorType = vk::DescriptorType::eSampler;
+        descriptorWrites[0].descriptorCount = MAX_TEXTURES;
+        descriptorWrites[0].pImageInfo = samplerDescriptorInfos;
+
+        // Textures
+        vk::DescriptorImageInfo textureDescriptorInfos[MAX_TEXTURES];
+        for (int i = 0; i < MAX_TEXTURES; ++i) 
+        {
+            textureDescriptorInfos[i].sampler = nullptr;
+            textureDescriptorInfos[i].imageLayout = imageLayouts[i];
+            textureDescriptorInfos[i].imageView = imageViews[i];
+        }
+
+        descriptorWrites[1].dstSet = blinn.textureDescriptorSet;
+        descriptorWrites[1].dstBinding = 1;
+        descriptorWrites[1].dstArrayElement = 0;
+        descriptorWrites[1].descriptorType = vk::DescriptorType::eSampledImage;
+        descriptorWrites[1].descriptorCount = MAX_TEXTURES;
+        descriptorWrites[1].pImageInfo = textureDescriptorInfos;
         
         device.updateDescriptorSets((uint32_t)descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
     }
@@ -752,14 +1038,16 @@ void Material::CreateDescriptorSets()
     /* ------ TEXCOORD SURFACE DESCRIPTOR SET  ------ */
     {
         /* This is experimental. Typically descriptor sets aren't static. */
-        vk::DescriptorSetLayout layouts[] = { texcoordsurface.descriptorSetLayout };
+        vk::DescriptorSetLayout layouts[] = { texcoordsurface.componentDescriptorSetLayout };
         std::array<vk::WriteDescriptorSet, 5> descriptorWrites = {};
-        vk::DescriptorSetAllocateInfo allocInfo;
-        allocInfo.descriptorPool = texcoordsurface.descriptorPool;
-        allocInfo.descriptorSetCount = 1;
-        allocInfo.pSetLayouts = layouts;
-
-        texcoordsurface.descriptorSet = device.allocateDescriptorSets(allocInfo)[0];
+        if (texcoordsurface.componentDescriptorSet == vk::DescriptorSet())
+        {
+            vk::DescriptorSetAllocateInfo allocInfo;
+            allocInfo.descriptorPool = texcoordsurface.componentDescriptorPool;
+            allocInfo.descriptorSetCount = 1;
+            allocInfo.pSetLayouts = layouts;
+            texcoordsurface.componentDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
+        }
 
         // Entity SSBO
         vk::DescriptorBufferInfo entityBufferInfo;
@@ -767,7 +1055,7 @@ void Material::CreateDescriptorSets()
         entityBufferInfo.offset = 0;
         entityBufferInfo.range = Entity::GetSSBOSize();
 
-        descriptorWrites[0].dstSet = texcoordsurface.descriptorSet;
+        descriptorWrites[0].dstSet = texcoordsurface.componentDescriptorSet;
         descriptorWrites[0].dstBinding = 0;
         descriptorWrites[0].dstArrayElement = 0;
         descriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
@@ -780,7 +1068,7 @@ void Material::CreateDescriptorSets()
         transformBufferInfo.offset = 0;
         transformBufferInfo.range = Transform::GetSSBOSize();
 
-        descriptorWrites[1].dstSet = texcoordsurface.descriptorSet;
+        descriptorWrites[1].dstSet = texcoordsurface.componentDescriptorSet;
         descriptorWrites[1].dstBinding = 1;
         descriptorWrites[1].dstArrayElement = 0;
         descriptorWrites[1].descriptorType = vk::DescriptorType::eStorageBuffer;
@@ -793,7 +1081,7 @@ void Material::CreateDescriptorSets()
         cameraBufferInfo.offset = 0;
         cameraBufferInfo.range = Camera::GetSSBOSize();
 
-        descriptorWrites[2].dstSet = texcoordsurface.descriptorSet;
+        descriptorWrites[2].dstSet = texcoordsurface.componentDescriptorSet;
         descriptorWrites[2].dstBinding = 2;
         descriptorWrites[2].dstArrayElement = 0;
         descriptorWrites[2].descriptorType = vk::DescriptorType::eStorageBuffer;
@@ -806,7 +1094,7 @@ void Material::CreateDescriptorSets()
         materialBufferInfo.offset = 0;
         materialBufferInfo.range = Material::GetSSBOSize();
 
-        descriptorWrites[3].dstSet = texcoordsurface.descriptorSet;
+        descriptorWrites[3].dstSet = texcoordsurface.componentDescriptorSet;
         descriptorWrites[3].dstBinding = 3;
         descriptorWrites[3].dstArrayElement = 0;
         descriptorWrites[3].descriptorType = vk::DescriptorType::eStorageBuffer;
@@ -819,7 +1107,7 @@ void Material::CreateDescriptorSets()
         lightBufferInfo.offset = 0;
         lightBufferInfo.range = Light::GetSSBOSize();
 
-        descriptorWrites[4].dstSet = texcoordsurface.descriptorSet;
+        descriptorWrites[4].dstSet = texcoordsurface.componentDescriptorSet;
         descriptorWrites[4].dstBinding = 4;
         descriptorWrites[4].dstArrayElement = 0;
         descriptorWrites[4].descriptorType = vk::DescriptorType::eStorageBuffer;
@@ -829,17 +1117,69 @@ void Material::CreateDescriptorSets()
         device.updateDescriptorSets((uint32_t)descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
     }
 
+    {
+        vk::DescriptorSetLayout layouts[] = { texcoordsurface.textureDescriptorSetLayout };
+        std::array<vk::WriteDescriptorSet, 2> descriptorWrites = {};
+        if (texcoordsurface.textureDescriptorSet == vk::DescriptorSet())
+        {
+            vk::DescriptorSetAllocateInfo allocInfo;
+            allocInfo.descriptorPool = texcoordsurface.textureDescriptorPool;
+            allocInfo.descriptorSetCount = 1;
+            allocInfo.pSetLayouts = layouts;
+
+            texcoordsurface.textureDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
+        }
+
+        auto imageLayouts = Texture::Get2DLayouts();
+        auto imageViews = Texture::Get2DImageViews();
+        auto samplers = Texture::Get2DSamplers();
+
+        // Samplers
+        vk::DescriptorImageInfo samplerDescriptorInfos[MAX_TEXTURES];
+        for (int i = 0; i < MAX_TEXTURES; ++i) 
+        {
+            samplerDescriptorInfos[i].sampler = samplers[i];
+        }
+
+        descriptorWrites[0].dstSet = texcoordsurface.textureDescriptorSet;
+        descriptorWrites[0].dstBinding = 0;
+        descriptorWrites[0].dstArrayElement = 0;
+        descriptorWrites[0].descriptorType = vk::DescriptorType::eSampler;
+        descriptorWrites[0].descriptorCount = MAX_TEXTURES;
+        descriptorWrites[0].pImageInfo = samplerDescriptorInfos;
+
+        // Textures
+        vk::DescriptorImageInfo textureDescriptorInfos[MAX_TEXTURES];
+        for (int i = 0; i < MAX_TEXTURES; ++i) 
+        {
+            textureDescriptorInfos[i].sampler = nullptr;
+            textureDescriptorInfos[i].imageLayout = imageLayouts[i];
+            textureDescriptorInfos[i].imageView = imageViews[i];
+        }
+
+        descriptorWrites[1].dstSet = texcoordsurface.textureDescriptorSet;
+        descriptorWrites[1].dstBinding = 1;
+        descriptorWrites[1].dstArrayElement = 0;
+        descriptorWrites[1].descriptorType = vk::DescriptorType::eSampledImage;
+        descriptorWrites[1].descriptorCount = MAX_TEXTURES;
+        descriptorWrites[1].pImageInfo = textureDescriptorInfos;
+        
+        device.updateDescriptorSets((uint32_t)descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+    }
+
     /* ------ NORMAL SURFACE DESCRIPTOR SET  ------ */
     {
         /* This is experimental. Typically descriptor sets aren't static. */
-        vk::DescriptorSetLayout layouts[] = { normalsurface.descriptorSetLayout };
+        vk::DescriptorSetLayout layouts[] = { normalsurface.componentDescriptorSetLayout };
         std::array<vk::WriteDescriptorSet, 5> descriptorWrites = {};
-        vk::DescriptorSetAllocateInfo allocInfo;
-        allocInfo.descriptorPool = normalsurface.descriptorPool;
-        allocInfo.descriptorSetCount = 1;
-        allocInfo.pSetLayouts = layouts;
-
-        normalsurface.descriptorSet = device.allocateDescriptorSets(allocInfo)[0];
+        if (normalsurface.componentDescriptorSet == vk::DescriptorSet())
+        {
+            vk::DescriptorSetAllocateInfo allocInfo;
+            allocInfo.descriptorPool = normalsurface.componentDescriptorPool;
+            allocInfo.descriptorSetCount = 1;
+            allocInfo.pSetLayouts = layouts;
+            normalsurface.componentDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
+        }
 
         // Entity SSBO
         vk::DescriptorBufferInfo entityBufferInfo;
@@ -847,7 +1187,7 @@ void Material::CreateDescriptorSets()
         entityBufferInfo.offset = 0;
         entityBufferInfo.range = Entity::GetSSBOSize();
 
-        descriptorWrites[0].dstSet = normalsurface.descriptorSet;
+        descriptorWrites[0].dstSet = normalsurface.componentDescriptorSet;
         descriptorWrites[0].dstBinding = 0;
         descriptorWrites[0].dstArrayElement = 0;
         descriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
@@ -860,7 +1200,7 @@ void Material::CreateDescriptorSets()
         transformBufferInfo.offset = 0;
         transformBufferInfo.range = Transform::GetSSBOSize();
 
-        descriptorWrites[1].dstSet = normalsurface.descriptorSet;
+        descriptorWrites[1].dstSet = normalsurface.componentDescriptorSet;
         descriptorWrites[1].dstBinding = 1;
         descriptorWrites[1].dstArrayElement = 0;
         descriptorWrites[1].descriptorType = vk::DescriptorType::eStorageBuffer;
@@ -873,7 +1213,7 @@ void Material::CreateDescriptorSets()
         cameraBufferInfo.offset = 0;
         cameraBufferInfo.range = Camera::GetSSBOSize();
 
-        descriptorWrites[2].dstSet = normalsurface.descriptorSet;
+        descriptorWrites[2].dstSet = normalsurface.componentDescriptorSet;
         descriptorWrites[2].dstBinding = 2;
         descriptorWrites[2].dstArrayElement = 0;
         descriptorWrites[2].descriptorType = vk::DescriptorType::eStorageBuffer;
@@ -886,7 +1226,7 @@ void Material::CreateDescriptorSets()
         materialBufferInfo.offset = 0;
         materialBufferInfo.range = Material::GetSSBOSize();
 
-        descriptorWrites[3].dstSet = normalsurface.descriptorSet;
+        descriptorWrites[3].dstSet = normalsurface.componentDescriptorSet;
         descriptorWrites[3].dstBinding = 3;
         descriptorWrites[3].dstArrayElement = 0;
         descriptorWrites[3].descriptorType = vk::DescriptorType::eStorageBuffer;
@@ -899,12 +1239,62 @@ void Material::CreateDescriptorSets()
         lightBufferInfo.offset = 0;
         lightBufferInfo.range = Light::GetSSBOSize();
 
-        descriptorWrites[4].dstSet = normalsurface.descriptorSet;
+        descriptorWrites[4].dstSet = normalsurface.componentDescriptorSet;
         descriptorWrites[4].dstBinding = 4;
         descriptorWrites[4].dstArrayElement = 0;
         descriptorWrites[4].descriptorType = vk::DescriptorType::eStorageBuffer;
         descriptorWrites[4].descriptorCount = 1;
         descriptorWrites[4].pBufferInfo = &lightBufferInfo;
+        
+        device.updateDescriptorSets((uint32_t)descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+    }
+
+    {
+        vk::DescriptorSetLayout layouts[] = { normalsurface.textureDescriptorSetLayout };
+        std::array<vk::WriteDescriptorSet, 2> descriptorWrites = {};
+        if (normalsurface.textureDescriptorSet == vk::DescriptorSet())
+        {
+            vk::DescriptorSetAllocateInfo allocInfo;
+            allocInfo.descriptorPool = normalsurface.textureDescriptorPool;
+            allocInfo.descriptorSetCount = 1;
+            allocInfo.pSetLayouts = layouts;
+
+            normalsurface.textureDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
+        }
+
+        auto imageLayouts = Texture::Get2DLayouts();
+        auto imageViews = Texture::Get2DImageViews();
+        auto samplers = Texture::Get2DSamplers();
+
+        // Samplers
+        vk::DescriptorImageInfo samplerDescriptorInfos[MAX_TEXTURES];
+        for (int i = 0; i < MAX_TEXTURES; ++i) 
+        {
+            samplerDescriptorInfos[i].sampler = samplers[i];
+        }
+
+        descriptorWrites[0].dstSet = normalsurface.textureDescriptorSet;
+        descriptorWrites[0].dstBinding = 0;
+        descriptorWrites[0].dstArrayElement = 0;
+        descriptorWrites[0].descriptorType = vk::DescriptorType::eSampler;
+        descriptorWrites[0].descriptorCount = MAX_TEXTURES;
+        descriptorWrites[0].pImageInfo = samplerDescriptorInfos;
+
+        // Textures
+        vk::DescriptorImageInfo textureDescriptorInfos[MAX_TEXTURES];
+        for (int i = 0; i < MAX_TEXTURES; ++i) 
+        {
+            textureDescriptorInfos[i].sampler = nullptr;
+            textureDescriptorInfos[i].imageLayout = imageLayouts[i];
+            textureDescriptorInfos[i].imageView = imageViews[i];
+        }
+
+        descriptorWrites[1].dstSet = normalsurface.textureDescriptorSet;
+        descriptorWrites[1].dstBinding = 1;
+        descriptorWrites[1].dstArrayElement = 0;
+        descriptorWrites[1].descriptorType = vk::DescriptorType::eSampledImage;
+        descriptorWrites[1].descriptorCount = MAX_TEXTURES;
+        descriptorWrites[1].pImageInfo = textureDescriptorInfos;
         
         device.updateDescriptorSets((uint32_t)descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
     }
@@ -1153,32 +1543,40 @@ bool Material::DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity, int
     auto material = Material::Get(material_id);
     // Render normal
     if (material->renderMode == 1) {
+        std::vector<vk::DescriptorSet> descriptorSets = {normalsurface.componentDescriptorSet, normalsurface.textureDescriptorSet};
+
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, Material::normalsurface.pipeline);
-        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, normalsurface.pipelineLayout, 0, 1, &normalsurface.descriptorSet, 0, nullptr);
+        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, normalsurface.pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
         command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
         command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
         command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
     }
     // Render Vertex Colors
     else if (material->renderMode == 2) {
+        std::vector<vk::DescriptorSet> descriptorSets = {blinn.componentDescriptorSet, blinn.textureDescriptorSet};
+
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, Material::blinn.pipeline);
-        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, blinn.pipelineLayout, 0, 1, &blinn.descriptorSet, 0, nullptr);
+        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, blinn.pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
         command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
         command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
         command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
     }
     // Render UVs
     else if (material->renderMode == 3) {
+        std::vector<vk::DescriptorSet> descriptorSets = {texcoordsurface.componentDescriptorSet, texcoordsurface.textureDescriptorSet};
+
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, Material::texcoordsurface.pipeline);
-        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, texcoordsurface.pipelineLayout, 0, 1, &texcoordsurface.descriptorSet, 0, nullptr);
+        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, texcoordsurface.pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
         command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
         command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
         command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
     }
     // Render material
     else {
+        std::vector<vk::DescriptorSet> descriptorSets = {blinn.componentDescriptorSet, blinn.textureDescriptorSet};
+
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, Material::blinn.pipeline);
-        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, blinn.pipelineLayout, 0, 1, &blinn.descriptorSet, 0, nullptr);
+        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, blinn.pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
         command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
         command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
         command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
@@ -1247,17 +1645,29 @@ void Material::CleanUp()
     device.unmapMemory(ssboMemory);
     device.freeMemory(ssboMemory);
 
-    device.destroyDescriptorSetLayout(uniformColor.descriptorSetLayout);
-    device.destroyDescriptorPool(uniformColor.descriptorPool);
+    device.destroyDescriptorSetLayout(uniformColor.componentDescriptorSetLayout);
+    device.destroyDescriptorPool(uniformColor.componentDescriptorPool);
 
-    device.destroyDescriptorSetLayout(blinn.descriptorSetLayout);
-    device.destroyDescriptorPool(blinn.descriptorPool);
+    device.destroyDescriptorSetLayout(blinn.componentDescriptorSetLayout);
+    device.destroyDescriptorPool(blinn.componentDescriptorPool);
 
-    device.destroyDescriptorSetLayout(texcoordsurface.descriptorSetLayout);
-    device.destroyDescriptorPool(texcoordsurface.descriptorPool);
+    device.destroyDescriptorSetLayout(texcoordsurface.componentDescriptorSetLayout);
+    device.destroyDescriptorPool(texcoordsurface.componentDescriptorPool);
 
-    device.destroyDescriptorSetLayout(normalsurface.descriptorSetLayout);
-    device.destroyDescriptorPool(normalsurface.descriptorPool);
+    device.destroyDescriptorSetLayout(normalsurface.componentDescriptorSetLayout);
+    device.destroyDescriptorPool(normalsurface.componentDescriptorPool);
+
+    device.destroyDescriptorSetLayout(uniformColor.textureDescriptorSetLayout);
+    device.destroyDescriptorPool(uniformColor.textureDescriptorPool);
+
+    device.destroyDescriptorSetLayout(blinn.textureDescriptorSetLayout);
+    device.destroyDescriptorPool(blinn.textureDescriptorPool);
+
+    device.destroyDescriptorSetLayout(texcoordsurface.textureDescriptorSetLayout);
+    device.destroyDescriptorPool(texcoordsurface.textureDescriptorPool);
+
+    device.destroyDescriptorSetLayout(normalsurface.textureDescriptorSetLayout);
+    device.destroyDescriptorPool(normalsurface.textureDescriptorPool);
 }	
 
 /* Static Factory Implementations */
@@ -1287,4 +1697,31 @@ Material* Material::GetFront() {
 
 uint32_t Material::GetCount() {
     return MAX_MATERIALS;
+}
+
+
+
+void Material::use_base_color_texture(uint32_t texture_id) 
+{
+    this->baseColorTextureID = texture_id;
+    this->useBaseColorTexture = true;
+    this->material_struct.base_color_texture_id = texture_id;
+}
+
+void Material::use_base_color_texture(Texture *texture) 
+{
+    if (!texture) return;
+    this->baseColorTextureID = texture->get_id();
+    this->useBaseColorTexture = true;
+    this->material_struct.base_color_texture_id = this->baseColorTextureID;
+}
+
+void Material::use_base_color_texture(bool use_texture) {
+    if (use_texture) {
+        this->material_struct.base_color_texture_id = baseColorTextureID;
+    }
+    else {
+        this->material_struct.base_color_texture_id = -1;
+    }
+    this->useBaseColorTexture = use_texture;
 }
