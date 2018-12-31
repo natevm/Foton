@@ -55,17 +55,9 @@ class Material : public StaticFactory
         /* Uniform Color Pipeline Fields */
         static MaterialResources uniformColor;
         static MaterialResources blinn;
+        static MaterialResources pbr;
         static MaterialResources texcoordsurface;
         static MaterialResources normalsurface;
-
-        static vk::DescriptorSetLayout uniformColorLayout;
-        static vk::DescriptorPool uniformColorDescriptorPool;
-        static vk::DescriptorSet uniformColorDescriptorSet;
-        static std::vector<vk::VertexInputBindingDescription> uniformColorVertexInputBindingDescriptions;
-        static std::vector<vk::VertexInputAttributeDescription> uniformColorAttributeDescriptions;
-        static PipelineParameters uniformColorPipelineParameters;
-        static vk::Pipeline uniformColorPipeline;
-        static vk::PipelineLayout uniformColorPipelineLayout;
 
         static vk::ShaderModule CreateShaderModule(const std::vector<char>& code);
         static void CreatePipeline(
@@ -190,6 +182,10 @@ class Material : public StaticFactory
 
         void show_texcoords() {
             renderMode = 3;
+        }
+
+        void show_pbr() {
+            renderMode = 4;
         }
 
         void set_base_color(glm::vec4 color) {

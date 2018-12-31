@@ -495,7 +495,7 @@ namespace Libraries {
             subresourceRange.baseArrayLayer = 0;
             subresourceRange.layerCount = 1;
 
-            vk::CommandBuffer cmdBuffer = vulkan->begin_one_time_graphics_command(1);
+            vk::CommandBuffer cmdBuffer = vulkan->begin_one_time_graphics_command(submit_immediately == true ? 0 : 1);
             window.textures[i]->setImageLayout( cmdBuffer, data.colorImage, vk::ImageLayout::eUndefined, vk::ImageLayout::ePresentSrcKHR, subresourceRange);
             auto fut = vulkan->end_one_time_graphics_command(cmdBuffer, submit_immediately == true ? 0 : 1, true, submit_immediately);
         }
