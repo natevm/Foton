@@ -196,6 +196,14 @@ class Material : public StaticFactory
             this->material_struct.base_color = glm::vec4(r, g, b, a);
         }
 
+        void set_roughness(float roughness) {
+            this->material_struct.roughness = roughness;
+        }
+
+        void set_metallic(float metallic) {
+            this->material_struct.metallic = metallic;
+        }
+
         void use_base_color_texture(uint32_t texture_id);
 
         void use_base_color_texture(Texture *texture);
