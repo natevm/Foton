@@ -75,6 +75,11 @@ include_directories(SYSTEM ${Python3_INCLUDE_DIRS})
 # tiny
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/tiny)
 
+# openvr
+set(OPENVR_SDK "${CMAKE_CURRENT_SOURCE_DIR}/external/openvr")
+find_package(OpenVRSDK REQUIRED)
+include_directories(SYSTEM ${OPENVR_SDK_INCLUDE_DIR})
+
 # add libraries to a list for linking
 set (
     LIBRARIES
@@ -82,6 +87,7 @@ set (
     ${Vulkan_LIBRARY}
     ${GLFW_LIBRARIES}
     ${ZMQ_LIBRARIES}
+    ${OPENVR_SDK_LIBRARY}
 )
 
 # ┌──────────────────────────────────────────────────────────────────┐

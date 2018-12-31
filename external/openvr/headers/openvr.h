@@ -1363,7 +1363,7 @@ enum EVRSkeletalMotionRange
 
 enum EVRSkeletalTrackingLevel
 {
-	// body part location can’t be directly determined by the device. Any skeletal pose provided by 
+	// body part location canï¿½t be directly determined by the device. Any skeletal pose provided by 
 	// the device is estimated by assuming the position required to active buttons, triggers, joysticks, 
 	// or other input sensors. 
 	// E.g. Vive Controller, Gamepad
@@ -1629,27 +1629,30 @@ struct ImuSample_t
 
 #pragma pack( pop )
 
+
 // figure out how to import from the VR API dll
-#if defined(_WIN32)
+// #if defined(_WIN32)
 
-#ifdef VR_API_EXPORT
-#define VR_INTERFACE extern "C" __declspec( dllexport )
-#else
-#define VR_INTERFACE extern "C" __declspec( dllimport )
-#endif
+// // #ifdef VR_API_EXPORT
+// // #define VR_INTERFACE extern "C" __declspec( dllexport )
+// // #else
+// // #define VR_INTERFACE extern "C" __declspec( dllimport )
+// // #endif
 
-#elif defined(__GNUC__) || defined(COMPILER_GCC) || defined(__APPLE__)
+// // #elif defined(__GNUC__) || defined(COMPILER_GCC) || defined(__APPLE__)
 
-#ifdef VR_API_EXPORT
-#define VR_INTERFACE extern "C" __attribute__((visibility("default")))
-#else
-#define VR_INTERFACE extern "C" 
-#endif
+// // #ifdef VR_API_EXPORT
+// // #define VR_INTERFACE extern "C" __attribute__((visibility("default")))
+// // #else
+// // #define VR_INTERFACE extern "C" 
+// // #endif
 
-#else
-#error "Unsupported Platform."
-#endif
+// // #else
+// // #error "Unsupported Platform."
+// // #endif
 
+// This is super stupid. 
+#define VR_INTERFACE extern "C"
 
 #if defined( _WIN32 )
 #define VR_CALLTYPE __cdecl
