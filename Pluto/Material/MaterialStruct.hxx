@@ -28,8 +28,8 @@ struct MaterialStruct {
     float transmission;
     float transmission_roughness;
     
-    float ph1;
-    float ph2;
+    int base_color_texture_id;
+    int metalic_roughness_texture_id;
     float ph3;
     float ph4;
     float ph5;

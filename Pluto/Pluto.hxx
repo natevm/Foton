@@ -30,15 +30,15 @@ void Initialize(
     
     auto surface = (useGLFW) ? glfw->create_vulkan_surface(vulkan, "Window") : vk::SurfaceKHR();
     vulkan->create_device(device_extensions, device_features, 8, surface);
-    if (useGLFW) glfw->create_vulkan_swapchain("Window");
+    if (useGLFW) glfw->create_vulkan_swapchain("Window", false);
 
     /* Initialize Component Factories */
     Transform::Initialize();
     Light::Initialize();
     Camera::Initialize();
     Entity::Initialize();
-    Material::Initialize();
     Texture::Initialize();
+    Material::Initialize();
 }
 
 void CleanUp()

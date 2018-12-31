@@ -181,6 +181,8 @@ bool RenderSystem::start()
                                     break;
                             }
 
+                            Material::CreateDescriptorSets();
+
                             int32_t camera_id = current_camera->get_id();
                             current_camera->begin_renderpass(maincmd);
 
@@ -281,7 +283,7 @@ bool RenderSystem::start()
                 if (!vulkan->submit_present_commands() || glfw->is_swapchain_out_of_date("Window"))
                 {
                     /* Conditionally recreate the swapchain resources if out of date. */
-                    glfw->create_vulkan_swapchain("Window");
+                    glfw->create_vulkan_swapchain("Window", true);
                     swapchain = glfw->get_swapchain("Window");
                 }
             }

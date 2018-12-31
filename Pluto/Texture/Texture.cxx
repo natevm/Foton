@@ -39,7 +39,10 @@ std::vector<vk::ImageView> Texture::Get2DImageViews()
     // For each texture
     for (int i = 0; i < MAX_TEXTURES; ++i) {
         // if the texture is a 2D texture
-        if (textures[i].data.viewType == vk::ImageViewType::e2D) {
+        if (textures[i].initialized 
+            && (textures[i].data.colorImageView != vk::ImageView())
+            && (textures[i].data.colorImageLayout == vk::ImageLayout::eShaderReadOnlyOptimal) 
+            && (textures[i].data.viewType == vk::ImageViewType::e2D)) {
             // then add it's image view to the vector
             image_views[i] = textures[i].data.colorImageView;
         }
@@ -63,7 +66,10 @@ std::vector<vk::Sampler> Texture::Get2DSamplers()
     // For each texture
     for (int i = 0; i < MAX_TEXTURES; ++i) {
         // if the texture is a 2D texture
-        if (textures[i].data.viewType == vk::ImageViewType::e2D) {
+        if (textures[i].initialized 
+            && (textures[i].data.colorImageView != vk::ImageView())
+            && (textures[i].data.colorImageLayout == vk::ImageLayout::eShaderReadOnlyOptimal) 
+            && (textures[i].data.viewType == vk::ImageViewType::e2D)) {
             // then add it's sampler to the vector
             samplers[i] = textures[i].data.colorSampler;
         }
@@ -75,6 +81,33 @@ std::vector<vk::Sampler> Texture::Get2DSamplers()
     
     // finally, return the sampler vector
     return samplers;
+}
+
+std::vector<vk::ImageLayout> Texture::Get2DLayouts() 
+{
+    // Get the default 2D texture
+    auto DefaultTex2D = Get("DefaultTex2D");
+
+    std::vector<vk::ImageLayout> layouts(MAX_TEXTURES);
+
+    // For each texture
+    for (int i = 0; i < MAX_TEXTURES; ++i) {
+        // if the texture is a 2D texture
+        if (textures[i].initialized 
+            && (textures[i].data.colorImageView != vk::ImageView())
+            && (textures[i].data.colorImageLayout == vk::ImageLayout::eShaderReadOnlyOptimal) 
+            && (textures[i].data.viewType == vk::ImageViewType::e2D)) {
+            // then add it's layout to the vector
+            layouts[i] = textures[i].data.colorImageLayout;
+        }
+        // otherwise, add the default 2D texture layout
+        else {
+            layouts[i] = DefaultTex2D->data.colorImageLayout;
+        }
+    }
+    
+    // finally, return the layout vector
+    return layouts;
 }
 
 /* Static Factory Implementations */

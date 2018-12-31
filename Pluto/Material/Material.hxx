@@ -26,6 +26,8 @@
 
 class Entity;
 
+class Texture;
+
 class Material : public StaticFactory
 {
     private:
@@ -37,9 +39,12 @@ class Material : public StaticFactory
         static vk::DeviceMemory ssboMemory;
 
         struct MaterialResources {
-            vk::DescriptorSetLayout descriptorSetLayout;
-            vk::DescriptorPool descriptorPool;
-            vk::DescriptorSet descriptorSet;
+            vk::DescriptorSetLayout componentDescriptorSetLayout;
+            vk::DescriptorSetLayout textureDescriptorSetLayout;
+            vk::DescriptorPool componentDescriptorPool;
+            vk::DescriptorPool textureDescriptorPool;
+            vk::DescriptorSet componentDescriptorSet;
+            vk::DescriptorSet textureDescriptorSet;
             std::vector<vk::VertexInputBindingDescription> vertexInputBindingDescriptions;
             std::vector<vk::VertexInputAttributeDescription> vertexInputAttributeDescriptions;
             PipelineParameters pipelineParameters;
@@ -67,7 +72,7 @@ class Material : public StaticFactory
             std::vector<vk::PipelineShaderStageCreateInfo> shaderStages, // yes
             std::vector<vk::VertexInputBindingDescription> bindingDescriptions, // yes
             std::vector<vk::VertexInputAttributeDescription> attributeDescriptions, // yes
-            std::vector<vk::DescriptorSetLayout> descriptorSetLayouts, // yes
+            std::vector<vk::DescriptorSetLayout> componentDescriptorSetLayouts, // yes
             PipelineParameters parameters,
             vk::RenderPass renderpass,
             uint32 subpass,
@@ -77,7 +82,10 @@ class Material : public StaticFactory
 
         static void CreateDescriptorSetLayouts();
         static void CreateDescriptorPools();
+        
+        public: 
         static void CreateDescriptorSets();
+        private:
         static void CreateVertexInputBindingDescriptions();
         static void CreateVertexAttributeDescriptions();
         static void CreateSSBO();
@@ -85,6 +93,9 @@ class Material : public StaticFactory
         /* Instance fields*/
         MaterialStruct material_struct;
         int renderMode = 0;
+        
+        bool useBaseColorTexture = false;
+        int baseColorTextureID = -1;
 
     public:
         /* Factory functions */
@@ -135,11 +146,10 @@ class Material : public StaticFactory
             material_struct.ior = 1.45f;
             material_struct.transmission = 0.0;
             material_struct.transmission_roughness = 0.0;
+            material_struct.base_color_texture_id = -1;
+            material_struct.metalic_roughness_texture_id = -1;
         }
 
- 
-
-    
         std::string to_string() {
             std::string output;
             output += "{\n";
@@ -189,4 +199,10 @@ class Material : public StaticFactory
         void set_base_color(float r, float g, float b, float a) {
             this->material_struct.base_color = glm::vec4(r, g, b, a);
         }
+
+        void use_base_color_texture(uint32_t texture_id);
+
+        void use_base_color_texture(Texture *texture);
+
+        void use_base_color_texture(bool use_texture);
 };

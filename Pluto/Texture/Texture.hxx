@@ -53,6 +53,7 @@ class Texture : public StaticFactory
     static void Initialize();
     static std::vector<vk::ImageView> Get2DImageViews();
     static std::vector<vk::Sampler> Get2DSamplers();
+    static std::vector<vk::ImageLayout> Get2DLayouts();
     static void CleanUp();
 
     Texture()
@@ -866,7 +867,30 @@ class Texture : public StaticFactory
         /* Clean up staging resources */
         device.destroyBuffer(stagingBuffer);
         device.freeMemory(stagingBufferMemory);
+        
+        /* Create the image view */
+        vk::ImageViewCreateInfo vInfo;
+        vInfo.viewType = data.viewType;
+        vInfo.format = data.colorFormat;
+        vInfo.subresourceRange = subresourceRange;
+        vInfo.image = data.colorImage;
+        data.colorImageView = device.createImageView(vInfo);
 
+        /* Create a sampler to sample from the attachment in the fragment shader */
+        vk::SamplerCreateInfo sInfo;
+        sInfo.magFilter = vk::Filter::eNearest;
+        sInfo.minFilter = vk::Filter::eNearest;
+        sInfo.mipmapMode = vk::SamplerMipmapMode::eLinear;
+        sInfo.addressModeU = vk::SamplerAddressMode::eClampToEdge;
+        sInfo.addressModeV = vk::SamplerAddressMode::eClampToEdge;
+        sInfo.addressModeW = vk::SamplerAddressMode::eClampToEdge;
+        sInfo.mipLodBias = 0.0;
+        sInfo.maxAnisotropy = 1.0;
+        sInfo.minLod = 0.0;
+        sInfo.maxLod = 1.0;
+        sInfo.borderColor = vk::BorderColor::eFloatOpaqueBlack;
+        data.colorSampler = device.createSampler(sInfo);
+        
         return true;
     }
 

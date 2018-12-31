@@ -812,12 +812,14 @@ bool Vulkan::end_one_time_graphics_command(vk::CommandBuffer command_buffer, uin
     
     vk::FenceCreateInfo fenceInfo;
     vk::Fence fence = device.createFence(fenceInfo);
+
     std::future<void> fut = enqueue_graphics_commands(submit_info, fence);
 
     if (submit_immediately || pool_id == 0) submit_graphics_commands();
 
     fut.wait();
 
+    
     device.waitForFences(fence, true, 100000000000);
 
     if (free_after_use)
@@ -826,44 +828,58 @@ bool Vulkan::end_one_time_graphics_command(vk::CommandBuffer command_buffer, uin
     return true;
 }
 
+// This could probably use a mutex...
 std::future<void> Vulkan::enqueue_graphics_commands(vk::SubmitInfo submit_info, vk::Fence fence) {
-    graphicsCommandQueue.submissions.push_back(submit_info);
-    graphicsCommandQueue.fences.push_back(fence);
-    graphicsCommandQueue.promises.push_back(std::promise<void>());
-    return graphicsCommandQueue.promises[graphicsCommandQueue.promises.size() - 1].get_future();
+    CommandQueueItem item;
+    item.submission = submit_info;
+    item.fence = fence;
+    item.promise = std::make_shared<std::promise<void>>();
+    auto new_future = item.promise->get_future();
+    graphicsCommandQueue.push(item);
+    return new_future;
 }
 
 std::future<void> Vulkan::enqueue_present_commands(vk::PresentInfoKHR present_info) {
-    presentCommandQueue.presentations.push_back(present_info);
-    presentCommandQueue.promises.push_back(std::promise<void>());
-    return presentCommandQueue.promises[presentCommandQueue.promises.size() - 1].get_future();
+    CommandQueueItem item;
+    item.presentation = present_info;
+    item.promise = std::make_shared<std::promise<void>>();
+    auto new_future = item.promise->get_future();
+    presentCommandQueue.push(item);
+    return new_future;
 }
 
 bool Vulkan::submit_graphics_commands() {
-    for (int i = 0; i < graphicsCommandQueue.submissions.size(); ++i) {
-        graphicsQueues[0].submit(graphicsCommandQueue.submissions[i], graphicsCommandQueue.fences[i]);
-        graphicsCommandQueue.promises[i].set_value();
+    size_t size = graphicsCommandQueue.size();
+    for (size_t i = 0; i < size; ++i) {
+        auto item = graphicsCommandQueue.pop();
+        graphicsQueues[0].submit(item.submission, item.fence);
+        try {
+            item.promise->set_value();
+        }
+        catch (std::future_error& e) {
+            if (e.code() == std::make_error_condition(std::future_errc::promise_already_satisfied))
+                std::cout << "[promise already satisfied]\n";
+            else
+                std::cout << "[unknown exception]\n";
+        }
     }
-    graphicsCommandQueue.submissions.clear();
-    graphicsCommandQueue.fences.clear();
-    graphicsCommandQueue.promises.clear();
     return true;
 }
 
 bool Vulkan::submit_present_commands() {
     bool result = true;
-    for (int i = 0; i < presentCommandQueue.presentations.size(); ++i) {
+    size_t size = presentCommandQueue.size();
+    for (size_t i = 0; i < size; ++i) {
+        auto item = presentCommandQueue.pop();
         try {
-            presentQueues[0].presentKHR(presentCommandQueue.presentations[i]);
+            presentQueues[0].presentKHR(item.presentation);
             //presentQueues[0].waitIdle();
         }
         catch (...) {
             result = false;
         }
-        presentCommandQueue.promises[i].set_value();
+        item.promise->set_value();
     }
-    presentCommandQueue.presentations.clear();
-    presentCommandQueue.promises.clear();
     return result;
 }
 
