@@ -18,7 +18,9 @@ void Texture::Initialize()
 
     // Create the default texture here
     std::string resource_path = Options::GetResourcePath();
-    auto result = CreateFromKTX("DefaultTex2D", resource_path + "/Defaults/missing-texture.ktx");
+    CreateFromKTX("DefaultTex2D", resource_path + "/Defaults/missing-texture.ktx");
+    CreateFromKTX("DefaultTexCube", resource_path + "/Defaults/missing-texcube.ktx");
+    CreateFromKTX("DefaultTex3D", resource_path + "/Defaults/missing-volume.ktx");
     
     // fatal error here if result is nullptr...
 }
@@ -29,26 +31,29 @@ void Texture::CleanUp()
         textures[i].cleanup();
 }
 
-std::vector<vk::ImageView> Texture::Get2DImageViews() 
+std::vector<vk::ImageView> Texture::GetImageViews(vk::ImageViewType view_type) 
 {
-    // Get the default 2D texture
-    auto DefaultTex2D = Get("DefaultTex2D");
+    // Get the default texture
+    Texture *DefaultTex;
+    if (view_type == vk::ImageViewType::e2D) DefaultTex = Get("DefaultTex2D");
+    else if (view_type == vk::ImageViewType::e3D) DefaultTex = Get("DefaultTex3D");
+    else if (view_type == vk::ImageViewType::eCube) DefaultTex = Get("DefaultTexCube");
+    else return {};
 
     std::vector<vk::ImageView> image_views(MAX_TEXTURES);
 
     // For each texture
     for (int i = 0; i < MAX_TEXTURES; ++i) {
-        // if the texture is a 2D texture
         if (textures[i].initialized 
             && (textures[i].data.colorImageView != vk::ImageView())
             && (textures[i].data.colorImageLayout == vk::ImageLayout::eShaderReadOnlyOptimal) 
-            && (textures[i].data.viewType == vk::ImageViewType::e2D)) {
+            && (textures[i].data.viewType == view_type)) {
             // then add it's image view to the vector
             image_views[i] = textures[i].data.colorImageView;
         }
-        // otherwise, add the default 2D texture image view
+        // otherwise, add the default texture image view
         else {
-            image_views[i] = DefaultTex2D->data.colorImageView;
+            image_views[i] = DefaultTex->data.colorImageView;
         }
     }
     
@@ -56,26 +61,24 @@ std::vector<vk::ImageView> Texture::Get2DImageViews()
     return image_views;
 }
 
-std::vector<vk::Sampler> Texture::Get2DSamplers() 
+std::vector<vk::Sampler> Texture::GetSamplers() 
 {
-    // Get the default 2D texture
-    auto DefaultTex2D = Get("DefaultTex2D");
-
+    // Get the default texture (for now, just use the default 2D texture)
+    auto DefaultTex = Get("DefaultTex2D");
+    
     std::vector<vk::Sampler> samplers(MAX_TEXTURES);
 
     // For each texture
     for (int i = 0; i < MAX_TEXTURES; ++i) {
-        // if the texture is a 2D texture
         if (textures[i].initialized 
             && (textures[i].data.colorImageView != vk::ImageView())
-            && (textures[i].data.colorImageLayout == vk::ImageLayout::eShaderReadOnlyOptimal) 
-            && (textures[i].data.viewType == vk::ImageViewType::e2D)) {
+            && (textures[i].data.colorImageLayout == vk::ImageLayout::eShaderReadOnlyOptimal)) {
             // then add it's sampler to the vector
             samplers[i] = textures[i].data.colorSampler;
         }
-        // otherwise, add the default 2D texture sampler
+        // otherwise, add the default texture sampler
         else {
-            samplers[i] = DefaultTex2D->data.colorSampler;
+            samplers[i] = DefaultTex->data.colorSampler;
         }
     }
     
@@ -83,26 +86,29 @@ std::vector<vk::Sampler> Texture::Get2DSamplers()
     return samplers;
 }
 
-std::vector<vk::ImageLayout> Texture::Get2DLayouts() 
+std::vector<vk::ImageLayout> Texture::GetLayouts(vk::ImageViewType view_type) 
 {
-    // Get the default 2D texture
-    auto DefaultTex2D = Get("DefaultTex2D");
+    // Get the default texture
+    Texture *DefaultTex;
+    if (view_type == vk::ImageViewType::e2D) DefaultTex = Get("DefaultTex2D");
+    else if (view_type == vk::ImageViewType::e3D) DefaultTex = Get("DefaultTex3D");
+    else if (view_type == vk::ImageViewType::eCube) DefaultTex = Get("DefaultTexCube");
+    else return {};
 
     std::vector<vk::ImageLayout> layouts(MAX_TEXTURES);
 
     // For each texture
     for (int i = 0; i < MAX_TEXTURES; ++i) {
-        // if the texture is a 2D texture
         if (textures[i].initialized 
             && (textures[i].data.colorImageView != vk::ImageView())
             && (textures[i].data.colorImageLayout == vk::ImageLayout::eShaderReadOnlyOptimal) 
-            && (textures[i].data.viewType == vk::ImageViewType::e2D)) {
+            && (textures[i].data.viewType == view_type)) {
             // then add it's layout to the vector
             layouts[i] = textures[i].data.colorImageLayout;
         }
         // otherwise, add the default 2D texture layout
         else {
-            layouts[i] = DefaultTex2D->data.colorImageLayout;
+            layouts[i] = DefaultTex->data.colorImageLayout;
         }
     }
     

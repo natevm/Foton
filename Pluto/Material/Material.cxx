@@ -276,7 +276,6 @@ void Material::SetupGraphicsPipelines(uint32_t id, vk::RenderPass renderpass)
     }
 }
 
-/* SSBO logic */
 void Material::Initialize()
 {
     Material::CreateDescriptorSetLayouts();
@@ -359,23 +358,23 @@ void Material::CreateDescriptorSetLayouts()
     texture2DsBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
     texture2DsBinding.pImmutableSamplers = 0;
 
-    // // Texture Cubes
-    // vk::DescriptorSetLayoutBinding textureCubesBinding;
-    // textureCubesBinding.descriptorCount = MAX_TEXTURES;
-    // textureCubesBinding.binding = 2;
-    // textureCubesBinding.descriptorType = vk::DescriptorType::eSampledImage;
-    // textureCubesBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-    // textureCubesBinding.pImmutableSamplers = 0;
+    // Texture Cubes
+    vk::DescriptorSetLayoutBinding textureCubesBinding;
+    textureCubesBinding.descriptorCount = MAX_TEXTURES;
+    textureCubesBinding.binding = 2;
+    textureCubesBinding.descriptorType = vk::DescriptorType::eSampledImage;
+    textureCubesBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+    textureCubesBinding.pImmutableSamplers = 0;
 
-    // // 3D Textures
-    // vk::DescriptorSetLayoutBinding texture3DsBinding;
-    // texture3DsBinding.descriptorCount = MAX_TEXTURES;
-    // texture3DsBinding.binding = 3;
-    // texture3DsBinding.descriptorType = vk::DescriptorType::eSampledImage;
-    // texture3DsBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-    // texture3DsBinding.pImmutableSamplers = 0;
+    // 3D Textures
+    vk::DescriptorSetLayoutBinding texture3DsBinding;
+    texture3DsBinding.descriptorCount = MAX_TEXTURES;
+    texture3DsBinding.binding = 3;
+    texture3DsBinding.descriptorType = vk::DescriptorType::eSampledImage;
+    texture3DsBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+    texture3DsBinding.pImmutableSamplers = 0;
 
-    std::array<vk::DescriptorSetLayoutBinding, 2> bindings = {samplerBinding, texture2DsBinding /*, textureCubesBinding, texture3DsBinding */ };
+    std::array<vk::DescriptorSetLayoutBinding, 4> bindings = {samplerBinding, texture2DsBinding, textureCubesBinding, texture3DsBinding };
     vk::DescriptorSetLayoutCreateInfo textureLayoutInfo;
     textureLayoutInfo.bindingCount = (uint32_t)bindings.size();
     textureLayoutInfo.pBindings = bindings.data();
@@ -423,15 +422,23 @@ void Material::CreateDescriptorPool()
     ssboPoolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 
     /* Texture Descriptor Pool Info */
-    std::array<vk::DescriptorPoolSize, 2> texturePoolSizes = {};
+    std::array<vk::DescriptorPoolSize, 4> texturePoolSizes = {};
     
     // Sampler
     texturePoolSizes[0].type = vk::DescriptorType::eSampler;
     texturePoolSizes[0].descriptorCount = MAX_MATERIALS;
     
-    // Texture array
+    // 2D Texture array
     texturePoolSizes[1].type = vk::DescriptorType::eSampledImage;
     texturePoolSizes[1].descriptorCount = MAX_MATERIALS;
+
+    // Texture Cube array
+    texturePoolSizes[2].type = vk::DescriptorType::eSampledImage;
+    texturePoolSizes[2].descriptorCount = MAX_MATERIALS;
+
+    // 3D Texture array
+    texturePoolSizes[3].type = vk::DescriptorType::eSampledImage;
+    texturePoolSizes[3].descriptorCount = MAX_MATERIALS;
     
     vk::DescriptorPoolCreateInfo texturePoolInfo;
     texturePoolInfo.poolSizeCount = (uint32_t)texturePoolSizes.size();
@@ -530,7 +537,7 @@ void Material::CreateDescriptorSets()
     
     /* ------ Texture Descriptor Set  ------ */
     vk::DescriptorSetLayout textureLayouts[] = { textureDescriptorSetLayout };
-    std::array<vk::WriteDescriptorSet, 2> textureDescriptorWrites = {};
+    std::array<vk::WriteDescriptorSet, 4> textureDescriptorWrites = {};
     
     if (textureDescriptorSet == vk::DescriptorSet())
     {
@@ -542,9 +549,13 @@ void Material::CreateDescriptorSets()
         textureDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
     }
 
-    auto imageLayouts = Texture::Get2DLayouts();
-    auto imageViews = Texture::Get2DImageViews();
-    auto samplers = Texture::Get2DSamplers();
+    auto texture2DLayouts = Texture::GetLayouts(vk::ImageViewType::e2D);
+    auto texture2DViews = Texture::GetImageViews(vk::ImageViewType::e2D);
+    auto textureCubeLayouts = Texture::GetLayouts(vk::ImageViewType::eCube);
+    auto textureCubeViews = Texture::GetImageViews(vk::ImageViewType::eCube);
+    auto texture3DLayouts = Texture::GetLayouts(vk::ImageViewType::e3D);
+    auto texture3DViews = Texture::GetImageViews(vk::ImageViewType::e3D);
+    auto samplers = Texture::GetSamplers();
 
     // Samplers
     vk::DescriptorImageInfo samplerDescriptorInfos[MAX_TEXTURES];
@@ -560,13 +571,13 @@ void Material::CreateDescriptorSets()
     textureDescriptorWrites[0].descriptorCount = MAX_TEXTURES;
     textureDescriptorWrites[0].pImageInfo = samplerDescriptorInfos;
 
-    // Textures
-    vk::DescriptorImageInfo textureDescriptorInfos[MAX_TEXTURES];
+    // 2D Textures
+    vk::DescriptorImageInfo texture2DDescriptorInfos[MAX_TEXTURES];
     for (int i = 0; i < MAX_TEXTURES; ++i) 
     {
-        textureDescriptorInfos[i].sampler = nullptr;
-        textureDescriptorInfos[i].imageLayout = imageLayouts[i];
-        textureDescriptorInfos[i].imageView = imageViews[i];
+        texture2DDescriptorInfos[i].sampler = nullptr;
+        texture2DDescriptorInfos[i].imageLayout = texture2DLayouts[i];
+        texture2DDescriptorInfos[i].imageView = texture2DViews[i];
     }
 
     textureDescriptorWrites[1].dstSet = textureDescriptorSet;
@@ -574,7 +585,40 @@ void Material::CreateDescriptorSets()
     textureDescriptorWrites[1].dstArrayElement = 0;
     textureDescriptorWrites[1].descriptorType = vk::DescriptorType::eSampledImage;
     textureDescriptorWrites[1].descriptorCount = MAX_TEXTURES;
-    textureDescriptorWrites[1].pImageInfo = textureDescriptorInfos;
+    textureDescriptorWrites[1].pImageInfo = texture2DDescriptorInfos;
+
+    // Texture Cubes
+    vk::DescriptorImageInfo textureCubeDescriptorInfos[MAX_TEXTURES];
+    for (int i = 0; i < MAX_TEXTURES; ++i) 
+    {
+        textureCubeDescriptorInfos[i].sampler = nullptr;
+        textureCubeDescriptorInfos[i].imageLayout = textureCubeLayouts[i];
+        textureCubeDescriptorInfos[i].imageView = textureCubeViews[i];
+    }
+
+    textureDescriptorWrites[2].dstSet = textureDescriptorSet;
+    textureDescriptorWrites[2].dstBinding = 2;
+    textureDescriptorWrites[2].dstArrayElement = 0;
+    textureDescriptorWrites[2].descriptorType = vk::DescriptorType::eSampledImage;
+    textureDescriptorWrites[2].descriptorCount = MAX_TEXTURES;
+    textureDescriptorWrites[2].pImageInfo = textureCubeDescriptorInfos;
+
+
+    // 3D Textures
+    vk::DescriptorImageInfo texture3DDescriptorInfos[MAX_TEXTURES];
+    for (int i = 0; i < MAX_TEXTURES; ++i) 
+    {
+        texture3DDescriptorInfos[i].sampler = nullptr;
+        texture3DDescriptorInfos[i].imageLayout = texture3DLayouts[i];
+        texture3DDescriptorInfos[i].imageView = texture3DViews[i];
+    }
+
+    textureDescriptorWrites[3].dstSet = textureDescriptorSet;
+    textureDescriptorWrites[3].dstBinding = 3;
+    textureDescriptorWrites[3].dstArrayElement = 0;
+    textureDescriptorWrites[3].descriptorType = vk::DescriptorType::eSampledImage;
+    textureDescriptorWrites[3].descriptorCount = MAX_TEXTURES;
+    textureDescriptorWrites[3].pImageInfo = texture3DDescriptorInfos;
     
     device.updateDescriptorSets((uint32_t)textureDescriptorWrites.size(), textureDescriptorWrites.data(), 0, nullptr);
 }
