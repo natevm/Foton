@@ -14,7 +14,16 @@ std::map<std::string, uint32_t> Material::lookupTable;
 vk::Buffer Material::ssbo;
 vk::DeviceMemory Material::ssboMemory;
 
-/* UNIFORM COLOR PIPELINE */
+
+vk::DescriptorSetLayout Material::componentDescriptorSetLayout;
+vk::DescriptorSetLayout Material::textureDescriptorSetLayout;
+vk::DescriptorPool Material::componentDescriptorPool;
+vk::DescriptorPool Material::textureDescriptorPool;
+std::vector<vk::VertexInputBindingDescription> Material::vertexInputBindingDescriptions;
+std::vector<vk::VertexInputAttributeDescription> Material::vertexInputAttributeDescriptions;
+vk::DescriptorSet Material::componentDescriptorSet;
+vk::DescriptorSet Material::textureDescriptorSet;
+
 Material::MaterialResources Material::uniformColor;
 Material::MaterialResources Material::blinn;
 Material::MaterialResources Material::pbr;
@@ -123,8 +132,9 @@ void Material::SetupGraphicsPipelines(uint32_t id, vk::RenderPass renderpass)
 
         std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
         
-        CreatePipeline(shaderStages, uniformColor.vertexInputBindingDescriptions, 
-            uniformColor.vertexInputAttributeDescriptions, { uniformColor.componentDescriptorSetLayout, uniformColor.textureDescriptorSetLayout }, uniformColor.pipelineParameters, 
+        CreatePipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+            { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
+            uniformColor.pipelineParameters, 
             renderpass, 0, 
             uniformColor.pipeline, uniformColor.pipelineLayout);
 
@@ -156,8 +166,9 @@ void Material::SetupGraphicsPipelines(uint32_t id, vk::RenderPass renderpass)
 
         std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
         
-        CreatePipeline(shaderStages, blinn.vertexInputBindingDescriptions, 
-            blinn.vertexInputAttributeDescriptions, { blinn.componentDescriptorSetLayout, blinn.textureDescriptorSetLayout }, blinn.pipelineParameters, 
+        CreatePipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+            { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
+            blinn.pipelineParameters, 
             renderpass, 0, 
             blinn.pipeline, blinn.pipelineLayout);
 
@@ -188,8 +199,9 @@ void Material::SetupGraphicsPipelines(uint32_t id, vk::RenderPass renderpass)
 
         std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
         
-        CreatePipeline(shaderStages, pbr.vertexInputBindingDescriptions, 
-            pbr.vertexInputAttributeDescriptions, { pbr.componentDescriptorSetLayout, pbr.textureDescriptorSetLayout }, pbr.pipelineParameters, 
+        CreatePipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+            { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
+            pbr.pipelineParameters, 
             renderpass, 0, 
             pbr.pipeline, pbr.pipelineLayout);
 
@@ -220,8 +232,9 @@ void Material::SetupGraphicsPipelines(uint32_t id, vk::RenderPass renderpass)
 
         std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
         
-        CreatePipeline(shaderStages, normalsurface.vertexInputBindingDescriptions, 
-            normalsurface.vertexInputAttributeDescriptions, { normalsurface.componentDescriptorSetLayout, normalsurface.textureDescriptorSetLayout }, normalsurface.pipelineParameters, 
+        CreatePipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+            { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
+            normalsurface.pipelineParameters, 
             renderpass, 0, 
             normalsurface.pipeline, normalsurface.pipelineLayout);
 
@@ -252,8 +265,9 @@ void Material::SetupGraphicsPipelines(uint32_t id, vk::RenderPass renderpass)
 
         std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
         
-        CreatePipeline(shaderStages, texcoordsurface.vertexInputBindingDescriptions, 
-            texcoordsurface.vertexInputAttributeDescriptions, { texcoordsurface.componentDescriptorSetLayout, texcoordsurface.textureDescriptorSetLayout }, texcoordsurface.pipelineParameters, 
+        CreatePipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+            { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
+            texcoordsurface.pipelineParameters, 
             renderpass, 0, 
             texcoordsurface.pipeline, texcoordsurface.pipelineLayout);
 
@@ -266,7 +280,7 @@ void Material::SetupGraphicsPipelines(uint32_t id, vk::RenderPass renderpass)
 void Material::Initialize()
 {
     Material::CreateDescriptorSetLayouts();
-    Material::CreateDescriptorPools();
+    Material::CreateDescriptorPool();
     Material::CreateVertexInputBindingDescriptions();
     Material::CreateVertexAttributeDescriptions();
     Material::CreateSSBO();
@@ -275,654 +289,159 @@ void Material::Initialize()
 
 void Material::CreateDescriptorSetLayouts()
 {
+    /* Descriptor set layouts are standardized across shaders for optimized runtime binding */
+
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
 
-    /* ------ UNIFORM COLOR LAYOUT ------ */
-    {
-        // Entity SSBO
-        vk::DescriptorSetLayoutBinding eboLayoutBinding;
-        eboLayoutBinding.binding = 0;
-        eboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        eboLayoutBinding.descriptorCount = 1;
-        eboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        eboLayoutBinding.pImmutableSamplers = nullptr; // Optional
+    /* SSBO descriptor bindings */
 
-        // Transform SSBO
-        vk::DescriptorSetLayoutBinding tboLayoutBinding;
-        tboLayoutBinding.binding = 1;
-        tboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        tboLayoutBinding.descriptorCount = 1;
-        tboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        tboLayoutBinding.pImmutableSamplers = nullptr; // Optional
+    // Entity SSBO
+    vk::DescriptorSetLayoutBinding eboLayoutBinding;
+    eboLayoutBinding.binding = 0;
+    eboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
+    eboLayoutBinding.descriptorCount = 1;
+    eboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+    eboLayoutBinding.pImmutableSamplers = nullptr; // Optional
 
-        // Camera SSBO
-        vk::DescriptorSetLayoutBinding cboLayoutBinding;
-        cboLayoutBinding.binding = 2;
-        cboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        cboLayoutBinding.descriptorCount = 1;
-        cboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        cboLayoutBinding.pImmutableSamplers = nullptr; // Optional
+    // Transform SSBO
+    vk::DescriptorSetLayoutBinding tboLayoutBinding;
+    tboLayoutBinding.binding = 1;
+    tboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
+    tboLayoutBinding.descriptorCount = 1;
+    tboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+    tboLayoutBinding.pImmutableSamplers = nullptr; // Optional
 
-        // Material SSBO
-        vk::DescriptorSetLayoutBinding mboLayoutBinding;
-        mboLayoutBinding.binding = 3;
-        mboLayoutBinding.descriptorCount = 1;
-        mboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        mboLayoutBinding.pImmutableSamplers = nullptr;
-        mboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+    // Camera SSBO
+    vk::DescriptorSetLayoutBinding cboLayoutBinding;
+    cboLayoutBinding.binding = 2;
+    cboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
+    cboLayoutBinding.descriptorCount = 1;
+    cboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+    cboLayoutBinding.pImmutableSamplers = nullptr; // Optional
 
-        // Light SSBO
-        vk::DescriptorSetLayoutBinding lboLayoutBinding;
-        lboLayoutBinding.binding = 4;
-        lboLayoutBinding.descriptorCount = 1;
-        lboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        lboLayoutBinding.pImmutableSamplers = nullptr;
-        lboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+    // Material SSBO
+    vk::DescriptorSetLayoutBinding mboLayoutBinding;
+    mboLayoutBinding.binding = 3;
+    mboLayoutBinding.descriptorCount = 1;
+    mboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
+    mboLayoutBinding.pImmutableSamplers = nullptr;
+    mboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
 
-        std::array<vk::DescriptorSetLayoutBinding, 5> bindings = { eboLayoutBinding, tboLayoutBinding, cboLayoutBinding, mboLayoutBinding, lboLayoutBinding};
-        vk::DescriptorSetLayoutCreateInfo layoutInfo;
-        layoutInfo.bindingCount = (uint32_t)bindings.size();
-        layoutInfo.pBindings = bindings.data();
+    // Light SSBO
+    vk::DescriptorSetLayoutBinding lboLayoutBinding;
+    lboLayoutBinding.binding = 4;
+    lboLayoutBinding.descriptorCount = 1;
+    lboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
+    lboLayoutBinding.pImmutableSamplers = nullptr;
+    lboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
 
-        uniformColor.componentDescriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
-    }
+    std::array<vk::DescriptorSetLayoutBinding, 5> ssbobindings = { eboLayoutBinding, tboLayoutBinding, cboLayoutBinding, mboLayoutBinding, lboLayoutBinding};
+    vk::DescriptorSetLayoutCreateInfo ssboLayoutInfo;
+    ssboLayoutInfo.bindingCount = (uint32_t)ssbobindings.size();
+    ssboLayoutInfo.pBindings = ssbobindings.data();
+    
+    /* Texture descriptor bindings */
+    
+    // Texture samplers
+    vk::DescriptorSetLayoutBinding samplerBinding;
+    samplerBinding.descriptorCount = MAX_TEXTURES;
+    samplerBinding.binding = 0;
+    samplerBinding.descriptorType = vk::DescriptorType::eSampler;
+    samplerBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+    samplerBinding.pImmutableSamplers = 0;
 
-    {
-        // 2D Texture samplers
-        vk::DescriptorSetLayoutBinding sampler2DBinding;
-        sampler2DBinding.descriptorCount = MAX_TEXTURES;
-        sampler2DBinding.binding = 0;
-        sampler2DBinding.descriptorType = vk::DescriptorType::eSampler;
-        sampler2DBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        sampler2DBinding.pImmutableSamplers = 0;
+    // 2D Textures
+    vk::DescriptorSetLayoutBinding texture2DsBinding;
+    texture2DsBinding.descriptorCount = MAX_TEXTURES;
+    texture2DsBinding.binding = 1;
+    texture2DsBinding.descriptorType = vk::DescriptorType::eSampledImage;
+    texture2DsBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+    texture2DsBinding.pImmutableSamplers = 0;
 
-        // 2D Textures
-        vk::DescriptorSetLayoutBinding texture2DBinding;
-        texture2DBinding.descriptorCount = MAX_TEXTURES;
-        texture2DBinding.binding = 1;
-        texture2DBinding.descriptorType = vk::DescriptorType::eSampledImage;
-        texture2DBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        texture2DBinding.pImmutableSamplers = 0;
+    // // Texture Cubes
+    // vk::DescriptorSetLayoutBinding textureCubesBinding;
+    // textureCubesBinding.descriptorCount = MAX_TEXTURES;
+    // textureCubesBinding.binding = 2;
+    // textureCubesBinding.descriptorType = vk::DescriptorType::eSampledImage;
+    // textureCubesBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+    // textureCubesBinding.pImmutableSamplers = 0;
 
-        std::array<vk::DescriptorSetLayoutBinding, 2> bindings = {sampler2DBinding, texture2DBinding};
-        vk::DescriptorSetLayoutCreateInfo layoutInfo;
-        layoutInfo.bindingCount = (uint32_t)bindings.size();
-        layoutInfo.pBindings = bindings.data();
+    // // 3D Textures
+    // vk::DescriptorSetLayoutBinding texture3DsBinding;
+    // texture3DsBinding.descriptorCount = MAX_TEXTURES;
+    // texture3DsBinding.binding = 3;
+    // texture3DsBinding.descriptorType = vk::DescriptorType::eSampledImage;
+    // texture3DsBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+    // texture3DsBinding.pImmutableSamplers = 0;
 
-        uniformColor.textureDescriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
-    }
+    std::array<vk::DescriptorSetLayoutBinding, 2> bindings = {samplerBinding, texture2DsBinding /*, textureCubesBinding, texture3DsBinding */ };
+    vk::DescriptorSetLayoutCreateInfo textureLayoutInfo;
+    textureLayoutInfo.bindingCount = (uint32_t)bindings.size();
+    textureLayoutInfo.pBindings = bindings.data();
 
-    /* ------ BLINN LAYOUT ------ */
-    {
-        // Entity SSBO
-        vk::DescriptorSetLayoutBinding eboLayoutBinding;
-        eboLayoutBinding.binding = 0;
-        eboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        eboLayoutBinding.descriptorCount = 1;
-        eboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        eboLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-        // Transform SSBO
-        vk::DescriptorSetLayoutBinding tboLayoutBinding;
-        tboLayoutBinding.binding = 1;
-        tboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        tboLayoutBinding.descriptorCount = 1;
-        tboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        tboLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-        // Camera SSBO
-        vk::DescriptorSetLayoutBinding cboLayoutBinding;
-        cboLayoutBinding.binding = 2;
-        cboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        cboLayoutBinding.descriptorCount = 1;
-        cboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        cboLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-        // Material SSBO
-        vk::DescriptorSetLayoutBinding mboLayoutBinding;
-        mboLayoutBinding.binding = 3;
-        mboLayoutBinding.descriptorCount = 1;
-        mboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        mboLayoutBinding.pImmutableSamplers = nullptr;
-        mboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-
-        // Light SSBO
-        vk::DescriptorSetLayoutBinding lboLayoutBinding;
-        lboLayoutBinding.binding = 4;
-        lboLayoutBinding.descriptorCount = 1;
-        lboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        lboLayoutBinding.pImmutableSamplers = nullptr;
-        lboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-
-        std::array<vk::DescriptorSetLayoutBinding, 5> bindings = { eboLayoutBinding, tboLayoutBinding, cboLayoutBinding, mboLayoutBinding, lboLayoutBinding};
-        vk::DescriptorSetLayoutCreateInfo layoutInfo;
-        layoutInfo.bindingCount = (uint32_t)bindings.size();
-        layoutInfo.pBindings = bindings.data();
-
-        blinn.componentDescriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
-    }
-
-    {
-        // 2D Texture samplers
-        vk::DescriptorSetLayoutBinding sampler2DBinding;
-        sampler2DBinding.descriptorCount = MAX_TEXTURES;
-        sampler2DBinding.binding = 0;
-        sampler2DBinding.descriptorType = vk::DescriptorType::eSampler;
-        sampler2DBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        sampler2DBinding.pImmutableSamplers = 0;
-
-        // 2D Textures
-        vk::DescriptorSetLayoutBinding texture2DBinding;
-        texture2DBinding.descriptorCount = MAX_TEXTURES;
-        texture2DBinding.binding = 1;
-        texture2DBinding.descriptorType = vk::DescriptorType::eSampledImage;
-        texture2DBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        texture2DBinding.pImmutableSamplers = 0;
-
-        std::array<vk::DescriptorSetLayoutBinding, 2> bindings = {sampler2DBinding, texture2DBinding};
-        vk::DescriptorSetLayoutCreateInfo layoutInfo;
-        layoutInfo.bindingCount = (uint32_t)bindings.size();
-        layoutInfo.pBindings = bindings.data();
-
-        blinn.textureDescriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
-    }
-
-    /* ------ PBR LAYOUT ------ */
-    {
-        // Entity SSBO
-        vk::DescriptorSetLayoutBinding eboLayoutBinding;
-        eboLayoutBinding.binding = 0;
-        eboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        eboLayoutBinding.descriptorCount = 1;
-        eboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        eboLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-        // Transform SSBO
-        vk::DescriptorSetLayoutBinding tboLayoutBinding;
-        tboLayoutBinding.binding = 1;
-        tboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        tboLayoutBinding.descriptorCount = 1;
-        tboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        tboLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-        // Camera SSBO
-        vk::DescriptorSetLayoutBinding cboLayoutBinding;
-        cboLayoutBinding.binding = 2;
-        cboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        cboLayoutBinding.descriptorCount = 1;
-        cboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        cboLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-        // Material SSBO
-        vk::DescriptorSetLayoutBinding mboLayoutBinding;
-        mboLayoutBinding.binding = 3;
-        mboLayoutBinding.descriptorCount = 1;
-        mboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        mboLayoutBinding.pImmutableSamplers = nullptr;
-        mboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-
-        // Light SSBO
-        vk::DescriptorSetLayoutBinding lboLayoutBinding;
-        lboLayoutBinding.binding = 4;
-        lboLayoutBinding.descriptorCount = 1;
-        lboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        lboLayoutBinding.pImmutableSamplers = nullptr;
-        lboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-
-        std::array<vk::DescriptorSetLayoutBinding, 5> bindings = { eboLayoutBinding, tboLayoutBinding, cboLayoutBinding, mboLayoutBinding, lboLayoutBinding};
-        vk::DescriptorSetLayoutCreateInfo layoutInfo;
-        layoutInfo.bindingCount = (uint32_t)bindings.size();
-        layoutInfo.pBindings = bindings.data();
-
-        pbr.componentDescriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
-    }
-
-    {
-        // 2D Texture samplers
-        vk::DescriptorSetLayoutBinding sampler2DBinding;
-        sampler2DBinding.descriptorCount = MAX_TEXTURES;
-        sampler2DBinding.binding = 0;
-        sampler2DBinding.descriptorType = vk::DescriptorType::eSampler;
-        sampler2DBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        sampler2DBinding.pImmutableSamplers = 0;
-
-        // 2D Textures
-        vk::DescriptorSetLayoutBinding texture2DBinding;
-        texture2DBinding.descriptorCount = MAX_TEXTURES;
-        texture2DBinding.binding = 1;
-        texture2DBinding.descriptorType = vk::DescriptorType::eSampledImage;
-        texture2DBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        texture2DBinding.pImmutableSamplers = 0;
-
-        std::array<vk::DescriptorSetLayoutBinding, 2> bindings = {sampler2DBinding, texture2DBinding};
-        vk::DescriptorSetLayoutCreateInfo layoutInfo;
-        layoutInfo.bindingCount = (uint32_t)bindings.size();
-        layoutInfo.pBindings = bindings.data();
-
-        pbr.textureDescriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
-    }
-
-    /* ------ TEXCOORD SURFACE LAYOUT ------ */
-    {
-        // Entity SSBO
-        vk::DescriptorSetLayoutBinding eboLayoutBinding;
-        eboLayoutBinding.binding = 0;
-        eboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        eboLayoutBinding.descriptorCount = 1;
-        eboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        eboLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-        // Transform SSBO
-        vk::DescriptorSetLayoutBinding tboLayoutBinding;
-        tboLayoutBinding.binding = 1;
-        tboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        tboLayoutBinding.descriptorCount = 1;
-        tboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        tboLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-        // Camera SSBO
-        vk::DescriptorSetLayoutBinding cboLayoutBinding;
-        cboLayoutBinding.binding = 2;
-        cboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        cboLayoutBinding.descriptorCount = 1;
-        cboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        cboLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-        // Material SSBO
-        vk::DescriptorSetLayoutBinding mboLayoutBinding;
-        mboLayoutBinding.binding = 3;
-        mboLayoutBinding.descriptorCount = 1;
-        mboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        mboLayoutBinding.pImmutableSamplers = nullptr;
-        mboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-
-        // Light SSBO
-        vk::DescriptorSetLayoutBinding lboLayoutBinding;
-        lboLayoutBinding.binding = 4;
-        lboLayoutBinding.descriptorCount = 1;
-        lboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        lboLayoutBinding.pImmutableSamplers = nullptr;
-        lboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-
-        std::array<vk::DescriptorSetLayoutBinding, 5> bindings = { eboLayoutBinding, tboLayoutBinding, cboLayoutBinding, mboLayoutBinding, lboLayoutBinding};
-        vk::DescriptorSetLayoutCreateInfo layoutInfo;
-        layoutInfo.bindingCount = (uint32_t)bindings.size();
-        layoutInfo.pBindings = bindings.data();
-
-        texcoordsurface.componentDescriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
-    }
-
-    {
-        // 2D Texture samplers
-        vk::DescriptorSetLayoutBinding sampler2DBinding;
-        sampler2DBinding.descriptorCount = MAX_TEXTURES;
-        sampler2DBinding.binding = 0;
-        sampler2DBinding.descriptorType = vk::DescriptorType::eSampler;
-        sampler2DBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        sampler2DBinding.pImmutableSamplers = 0;
-
-        // 2D Textures
-        vk::DescriptorSetLayoutBinding texture2DBinding;
-        texture2DBinding.descriptorCount = MAX_TEXTURES;
-        texture2DBinding.binding = 1;
-        texture2DBinding.descriptorType = vk::DescriptorType::eSampledImage;
-        texture2DBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        texture2DBinding.pImmutableSamplers = 0;
-
-        std::array<vk::DescriptorSetLayoutBinding, 2> bindings = {sampler2DBinding, texture2DBinding};
-        vk::DescriptorSetLayoutCreateInfo layoutInfo;
-        layoutInfo.bindingCount = (uint32_t)bindings.size();
-        layoutInfo.pBindings = bindings.data();
-
-        texcoordsurface.textureDescriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
-    }
-
-    /* ------ NORMAL SURFACE LAYOUT ------ */
-    {
-        // Entity SSBO
-        vk::DescriptorSetLayoutBinding eboLayoutBinding;
-        eboLayoutBinding.binding = 0;
-        eboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        eboLayoutBinding.descriptorCount = 1;
-        eboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        eboLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-        // Transform SSBO
-        vk::DescriptorSetLayoutBinding tboLayoutBinding;
-        tboLayoutBinding.binding = 1;
-        tboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        tboLayoutBinding.descriptorCount = 1;
-        tboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        tboLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-        // Camera SSBO
-        vk::DescriptorSetLayoutBinding cboLayoutBinding;
-        cboLayoutBinding.binding = 2;
-        cboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        cboLayoutBinding.descriptorCount = 1;
-        cboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        cboLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-        // Material SSBO
-        vk::DescriptorSetLayoutBinding mboLayoutBinding;
-        mboLayoutBinding.binding = 3;
-        mboLayoutBinding.descriptorCount = 1;
-        mboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        mboLayoutBinding.pImmutableSamplers = nullptr;
-        mboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-
-        // Light SSBO
-        vk::DescriptorSetLayoutBinding lboLayoutBinding;
-        lboLayoutBinding.binding = 4;
-        lboLayoutBinding.descriptorCount = 1;
-        lboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-        lboLayoutBinding.pImmutableSamplers = nullptr;
-        lboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-
-        std::array<vk::DescriptorSetLayoutBinding, 5> bindings = { eboLayoutBinding, tboLayoutBinding, cboLayoutBinding, mboLayoutBinding, lboLayoutBinding};
-        vk::DescriptorSetLayoutCreateInfo layoutInfo;
-        layoutInfo.bindingCount = (uint32_t)bindings.size();
-        layoutInfo.pBindings = bindings.data();
-
-        normalsurface.componentDescriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
-    }
-
-    {
-        // 2D Texture samplers
-        vk::DescriptorSetLayoutBinding sampler2DBinding;
-        sampler2DBinding.descriptorCount = MAX_TEXTURES;
-        sampler2DBinding.binding = 0;
-        sampler2DBinding.descriptorType = vk::DescriptorType::eSampler;
-        sampler2DBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        sampler2DBinding.pImmutableSamplers = 0;
-
-        // 2D Textures
-        vk::DescriptorSetLayoutBinding texture2DBinding;
-        texture2DBinding.descriptorCount = MAX_TEXTURES;
-        texture2DBinding.binding = 1;
-        texture2DBinding.descriptorType = vk::DescriptorType::eSampledImage;
-        texture2DBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        texture2DBinding.pImmutableSamplers = 0;
-
-        std::array<vk::DescriptorSetLayoutBinding, 2> bindings = {sampler2DBinding, texture2DBinding};
-        vk::DescriptorSetLayoutCreateInfo layoutInfo;
-        layoutInfo.bindingCount = (uint32_t)bindings.size();
-        layoutInfo.pBindings = bindings.data();
-
-        normalsurface.textureDescriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
-    }
+    // Create the layouts
+    componentDescriptorSetLayout = device.createDescriptorSetLayout(ssboLayoutInfo);
+    textureDescriptorSetLayout = device.createDescriptorSetLayout(textureLayoutInfo);
 }
 
-void Material::CreateDescriptorPools()
+void Material::CreateDescriptorPool()
 {
+    /* Since the descriptor layout is consistent across shaders, the descriptor
+        pool can be shared. */
+
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
 
-    /* ------ UNIFORM COLOR DESCRIPTOR POOL  ------ */
-    {
-        std::array<vk::DescriptorPoolSize, 5> poolSizes = {};
+    /* SSBO Descriptor Pool Info */
+    std::array<vk::DescriptorPoolSize, 5> ssboPoolSizes = {};
     
-        // Entity SSBO
-        poolSizes[0].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[0].descriptorCount = MAX_MATERIALS;
-        
-        // Transform SSBO
-        poolSizes[1].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[1].descriptorCount = MAX_MATERIALS;
-        
-        // Camera SSBO
-        poolSizes[2].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[2].descriptorCount = MAX_MATERIALS;
-        
-        // Material SSBO
-        poolSizes[3].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[3].descriptorCount = MAX_MATERIALS;
-        
-        // Light SSBO
-        poolSizes[4].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[4].descriptorCount = MAX_MATERIALS;
-
-        vk::DescriptorPoolCreateInfo poolInfo;
-        poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
-        poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = MAX_MATERIALS;
-        poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
-
-        uniformColor.componentDescriptorPool = device.createDescriptorPool(poolInfo);
-    }
-
-    {
-        std::array<vk::DescriptorPoolSize, 2> poolSizes = {};
+    // Entity SSBO
+    ssboPoolSizes[0].type = vk::DescriptorType::eStorageBuffer;
+    ssboPoolSizes[0].descriptorCount = MAX_MATERIALS;
     
-        // Sampler
-        poolSizes[0].type = vk::DescriptorType::eSampler;
-        poolSizes[0].descriptorCount = MAX_MATERIALS;
-        
-        // Texture array
-        poolSizes[1].type = vk::DescriptorType::eSampledImage;
-        poolSizes[1].descriptorCount = MAX_MATERIALS;
-        
-        vk::DescriptorPoolCreateInfo poolInfo;
-        poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
-        poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = MAX_MATERIALS;
-        poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
-
-        uniformColor.textureDescriptorPool = device.createDescriptorPool(poolInfo);
-    }
+    // Transform SSBO
+    ssboPoolSizes[1].type = vk::DescriptorType::eStorageBuffer;
+    ssboPoolSizes[1].descriptorCount = MAX_MATERIALS;
     
-    /* ------ BLINN DESCRIPTOR POOL  ------ */
-    {
-        std::array<vk::DescriptorPoolSize, 5> poolSizes = {};
+    // Camera SSBO
+    ssboPoolSizes[2].type = vk::DescriptorType::eStorageBuffer;
+    ssboPoolSizes[2].descriptorCount = MAX_MATERIALS;
     
-        // Entity SSBO
-        poolSizes[0].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[0].descriptorCount = MAX_MATERIALS;
-        
-        // Transform SSBO
-        poolSizes[1].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[1].descriptorCount = MAX_MATERIALS;
-        
-        // Camera SSBO
-        poolSizes[2].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[2].descriptorCount = MAX_MATERIALS;
-        
-        // Material SSBO
-        poolSizes[3].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[3].descriptorCount = MAX_MATERIALS;
-        
-        // Light SSBO
-        poolSizes[4].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[4].descriptorCount = MAX_MATERIALS;
-
-        vk::DescriptorPoolCreateInfo poolInfo;
-        poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
-        poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = MAX_MATERIALS;
-        poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
-
-        blinn.componentDescriptorPool = device.createDescriptorPool(poolInfo);
-    }
-
-    {
-        std::array<vk::DescriptorPoolSize, 2> poolSizes = {};
+    // Material SSBO
+    ssboPoolSizes[3].type = vk::DescriptorType::eStorageBuffer;
+    ssboPoolSizes[3].descriptorCount = MAX_MATERIALS;
     
-        // Sampler
-        poolSizes[0].type = vk::DescriptorType::eSampler;
-        poolSizes[0].descriptorCount = MAX_MATERIALS;
-        
-        // Texture array
-        poolSizes[1].type = vk::DescriptorType::eSampledImage;
-        poolSizes[1].descriptorCount = MAX_MATERIALS;
-        
-        vk::DescriptorPoolCreateInfo poolInfo;
-        poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
-        poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = MAX_MATERIALS;
-        poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
+    // Light SSBO
+    ssboPoolSizes[4].type = vk::DescriptorType::eStorageBuffer;
+    ssboPoolSizes[4].descriptorCount = MAX_MATERIALS;
 
-        blinn.textureDescriptorPool = device.createDescriptorPool(poolInfo);
-    }
+    vk::DescriptorPoolCreateInfo ssboPoolInfo;
+    ssboPoolInfo.poolSizeCount = (uint32_t)ssboPoolSizes.size();
+    ssboPoolInfo.pPoolSizes = ssboPoolSizes.data();
+    ssboPoolInfo.maxSets = MAX_MATERIALS;
+    ssboPoolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 
-    /* ------ PBR DESCRIPTOR POOL  ------ */
-    {
-        std::array<vk::DescriptorPoolSize, 5> poolSizes = {};
+    /* Texture Descriptor Pool Info */
+    std::array<vk::DescriptorPoolSize, 2> texturePoolSizes = {};
     
-        // Entity SSBO
-        poolSizes[0].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[0].descriptorCount = MAX_MATERIALS;
-        
-        // Transform SSBO
-        poolSizes[1].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[1].descriptorCount = MAX_MATERIALS;
-        
-        // Camera SSBO
-        poolSizes[2].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[2].descriptorCount = MAX_MATERIALS;
-        
-        // Material SSBO
-        poolSizes[3].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[3].descriptorCount = MAX_MATERIALS;
-        
-        // Light SSBO
-        poolSizes[4].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[4].descriptorCount = MAX_MATERIALS;
-
-        vk::DescriptorPoolCreateInfo poolInfo;
-        poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
-        poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = MAX_MATERIALS;
-        poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
-
-        pbr.componentDescriptorPool = device.createDescriptorPool(poolInfo);
-    }
-
-    {
-        std::array<vk::DescriptorPoolSize, 2> poolSizes = {};
+    // Sampler
+    texturePoolSizes[0].type = vk::DescriptorType::eSampler;
+    texturePoolSizes[0].descriptorCount = MAX_MATERIALS;
     
-        // Sampler
-        poolSizes[0].type = vk::DescriptorType::eSampler;
-        poolSizes[0].descriptorCount = MAX_MATERIALS;
-        
-        // Texture array
-        poolSizes[1].type = vk::DescriptorType::eSampledImage;
-        poolSizes[1].descriptorCount = MAX_MATERIALS;
-        
-        vk::DescriptorPoolCreateInfo poolInfo;
-        poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
-        poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = MAX_MATERIALS;
-        poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
-
-        pbr.textureDescriptorPool = device.createDescriptorPool(poolInfo);
-    }
-
-    /* ------ TEXCOORD SURFACE DESCRIPTOR POOL  ------ */
-    {
-        std::array<vk::DescriptorPoolSize, 5> poolSizes = {};
+    // Texture array
+    texturePoolSizes[1].type = vk::DescriptorType::eSampledImage;
+    texturePoolSizes[1].descriptorCount = MAX_MATERIALS;
     
-        // Entity SSBO
-        poolSizes[0].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[0].descriptorCount = MAX_MATERIALS;
-        
-        // Transform SSBO
-        poolSizes[1].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[1].descriptorCount = MAX_MATERIALS;
-        
-        // Camera SSBO
-        poolSizes[2].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[2].descriptorCount = MAX_MATERIALS;
-        
-        // Material SSBO
-        poolSizes[3].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[3].descriptorCount = MAX_MATERIALS;
-        
-        // Light SSBO
-        poolSizes[4].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[4].descriptorCount = MAX_MATERIALS;
+    vk::DescriptorPoolCreateInfo texturePoolInfo;
+    texturePoolInfo.poolSizeCount = (uint32_t)texturePoolSizes.size();
+    texturePoolInfo.pPoolSizes = texturePoolSizes.data();
+    texturePoolInfo.maxSets = MAX_MATERIALS;
+    texturePoolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 
-        vk::DescriptorPoolCreateInfo poolInfo;
-        poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
-        poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = MAX_MATERIALS;
-        poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
-
-        texcoordsurface.componentDescriptorPool = device.createDescriptorPool(poolInfo);
-    }
-
-    {
-        std::array<vk::DescriptorPoolSize, 2> poolSizes = {};
-    
-        // Sampler
-        poolSizes[0].type = vk::DescriptorType::eSampler;
-        poolSizes[0].descriptorCount = MAX_MATERIALS;
-        
-        // Texture array
-        poolSizes[1].type = vk::DescriptorType::eSampledImage;
-        poolSizes[1].descriptorCount = MAX_MATERIALS;
-        
-        vk::DescriptorPoolCreateInfo poolInfo;
-        poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
-        poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = MAX_MATERIALS;
-        poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
-
-        texcoordsurface.textureDescriptorPool = device.createDescriptorPool(poolInfo);
-    }
-
-    /* ------ NORMAL SURFACE DESCRIPTOR POOL  ------ */
-    {
-        std::array<vk::DescriptorPoolSize, 5> poolSizes = {};
-    
-        // Entity SSBO
-        poolSizes[0].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[0].descriptorCount = MAX_MATERIALS;
-        
-        // Transform SSBO
-        poolSizes[1].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[1].descriptorCount = MAX_MATERIALS;
-        
-        // Camera SSBO
-        poolSizes[2].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[2].descriptorCount = MAX_MATERIALS;
-        
-        // Material SSBO
-        poolSizes[3].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[3].descriptorCount = MAX_MATERIALS;
-        
-        // Light SSBO
-        poolSizes[4].type = vk::DescriptorType::eStorageBuffer;
-        poolSizes[4].descriptorCount = MAX_MATERIALS;
-
-        vk::DescriptorPoolCreateInfo poolInfo;
-        poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
-        poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = MAX_MATERIALS;
-        poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
-
-        normalsurface.componentDescriptorPool = device.createDescriptorPool(poolInfo);
-    }
-
-    {
-        std::array<vk::DescriptorPoolSize, 2> poolSizes = {};
-    
-        // Sampler
-        poolSizes[0].type = vk::DescriptorType::eSampler;
-        poolSizes[0].descriptorCount = MAX_MATERIALS;
-        
-        // Texture array
-        poolSizes[1].type = vk::DescriptorType::eSampledImage;
-        poolSizes[1].descriptorCount = MAX_MATERIALS;
-        
-        vk::DescriptorPoolCreateInfo poolInfo;
-        poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
-        poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = MAX_MATERIALS;
-        poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
-
-        normalsurface.textureDescriptorPool = device.createDescriptorPool(poolInfo);
-    }
+    // Create the pools
+    componentDescriptorPool = device.createDescriptorPool(ssboPoolInfo);
+    textureDescriptorPool = device.createDescriptorPool(texturePoolInfo);
 }
 
 void Material::CreateDescriptorSets()
@@ -930,1012 +449,257 @@ void Material::CreateDescriptorSets()
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
     
-    /* ------ UNIFORM COLOR DESCRIPTOR SET  ------ */
+    /* ------ Component Descriptor Set  ------ */
+    vk::DescriptorSetLayout ssboLayouts[] = { componentDescriptorSetLayout };
+    std::array<vk::WriteDescriptorSet, 5> ssboDescriptorWrites = {};
+    if (componentDescriptorSet == vk::DescriptorSet())
     {
-
-        /* This is experimental. Typically descriptor sets aren't static. */
-        vk::DescriptorSetLayout layouts[] = { uniformColor.componentDescriptorSetLayout };
-        std::array<vk::WriteDescriptorSet, 5> descriptorWrites = {};
-        if (uniformColor.componentDescriptorSet == vk::DescriptorSet())
-        {
-            vk::DescriptorSetAllocateInfo allocInfo;
-            allocInfo.descriptorPool = uniformColor.componentDescriptorPool;
-            allocInfo.descriptorSetCount = 1;
-            allocInfo.pSetLayouts = layouts;
-            uniformColor.componentDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
-        }
-
-        // Entity SSBO
-        vk::DescriptorBufferInfo entityBufferInfo;
-        entityBufferInfo.buffer = Entity::GetSSBO();
-        entityBufferInfo.offset = 0;
-        entityBufferInfo.range = Entity::GetSSBOSize();
-
-        descriptorWrites[0].dstSet = uniformColor.componentDescriptorSet;
-        descriptorWrites[0].dstBinding = 0;
-        descriptorWrites[0].dstArrayElement = 0;
-        descriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[0].descriptorCount = 1;
-        descriptorWrites[0].pBufferInfo = &entityBufferInfo;
-
-        // Transform SSBO
-        vk::DescriptorBufferInfo transformBufferInfo;
-        transformBufferInfo.buffer = Transform::GetSSBO();
-        transformBufferInfo.offset = 0;
-        transformBufferInfo.range = Transform::GetSSBOSize();
-
-        descriptorWrites[1].dstSet = uniformColor.componentDescriptorSet;
-        descriptorWrites[1].dstBinding = 1;
-        descriptorWrites[1].dstArrayElement = 0;
-        descriptorWrites[1].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[1].descriptorCount = 1;
-        descriptorWrites[1].pBufferInfo = &transformBufferInfo;
-
-        // Camera SSBO
-        vk::DescriptorBufferInfo cameraBufferInfo;
-        cameraBufferInfo.buffer = Camera::GetSSBO();
-        cameraBufferInfo.offset = 0;
-        cameraBufferInfo.range = Camera::GetSSBOSize();
-
-        descriptorWrites[2].dstSet = uniformColor.componentDescriptorSet;
-        descriptorWrites[2].dstBinding = 2;
-        descriptorWrites[2].dstArrayElement = 0;
-        descriptorWrites[2].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[2].descriptorCount = 1;
-        descriptorWrites[2].pBufferInfo = &cameraBufferInfo;
-
-        // Material SSBO
-        vk::DescriptorBufferInfo materialBufferInfo;
-        materialBufferInfo.buffer = Material::GetSSBO();
-        materialBufferInfo.offset = 0;
-        materialBufferInfo.range = Material::GetSSBOSize();
-
-        descriptorWrites[3].dstSet = uniformColor.componentDescriptorSet;
-        descriptorWrites[3].dstBinding = 3;
-        descriptorWrites[3].dstArrayElement = 0;
-        descriptorWrites[3].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[3].descriptorCount = 1;
-        descriptorWrites[3].pBufferInfo = &materialBufferInfo;
-
-        // Light SSBO
-        vk::DescriptorBufferInfo lightBufferInfo;
-        lightBufferInfo.buffer = Light::GetSSBO();
-        lightBufferInfo.offset = 0;
-        lightBufferInfo.range = Light::GetSSBOSize();
-
-        descriptorWrites[4].dstSet = uniformColor.componentDescriptorSet;
-        descriptorWrites[4].dstBinding = 4;
-        descriptorWrites[4].dstArrayElement = 0;
-        descriptorWrites[4].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[4].descriptorCount = 1;
-        descriptorWrites[4].pBufferInfo = &lightBufferInfo;
-        
-        device.updateDescriptorSets((uint32_t)descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+        vk::DescriptorSetAllocateInfo allocInfo;
+        allocInfo.descriptorPool = componentDescriptorPool;
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts = ssboLayouts;
+        componentDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
     }
 
+    // Entity SSBO
+    vk::DescriptorBufferInfo entityBufferInfo;
+    entityBufferInfo.buffer = Entity::GetSSBO();
+    entityBufferInfo.offset = 0;
+    entityBufferInfo.range = Entity::GetSSBOSize();
+
+    ssboDescriptorWrites[0].dstSet = componentDescriptorSet;
+    ssboDescriptorWrites[0].dstBinding = 0;
+    ssboDescriptorWrites[0].dstArrayElement = 0;
+    ssboDescriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
+    ssboDescriptorWrites[0].descriptorCount = 1;
+    ssboDescriptorWrites[0].pBufferInfo = &entityBufferInfo;
+
+    // Transform SSBO
+    vk::DescriptorBufferInfo transformBufferInfo;
+    transformBufferInfo.buffer = Transform::GetSSBO();
+    transformBufferInfo.offset = 0;
+    transformBufferInfo.range = Transform::GetSSBOSize();
+
+    ssboDescriptorWrites[1].dstSet = componentDescriptorSet;
+    ssboDescriptorWrites[1].dstBinding = 1;
+    ssboDescriptorWrites[1].dstArrayElement = 0;
+    ssboDescriptorWrites[1].descriptorType = vk::DescriptorType::eStorageBuffer;
+    ssboDescriptorWrites[1].descriptorCount = 1;
+    ssboDescriptorWrites[1].pBufferInfo = &transformBufferInfo;
+
+    // Camera SSBO
+    vk::DescriptorBufferInfo cameraBufferInfo;
+    cameraBufferInfo.buffer = Camera::GetSSBO();
+    cameraBufferInfo.offset = 0;
+    cameraBufferInfo.range = Camera::GetSSBOSize();
+
+    ssboDescriptorWrites[2].dstSet = componentDescriptorSet;
+    ssboDescriptorWrites[2].dstBinding = 2;
+    ssboDescriptorWrites[2].dstArrayElement = 0;
+    ssboDescriptorWrites[2].descriptorType = vk::DescriptorType::eStorageBuffer;
+    ssboDescriptorWrites[2].descriptorCount = 1;
+    ssboDescriptorWrites[2].pBufferInfo = &cameraBufferInfo;
+
+    // Material SSBO
+    vk::DescriptorBufferInfo materialBufferInfo;
+    materialBufferInfo.buffer = Material::GetSSBO();
+    materialBufferInfo.offset = 0;
+    materialBufferInfo.range = Material::GetSSBOSize();
+
+    ssboDescriptorWrites[3].dstSet = componentDescriptorSet;
+    ssboDescriptorWrites[3].dstBinding = 3;
+    ssboDescriptorWrites[3].dstArrayElement = 0;
+    ssboDescriptorWrites[3].descriptorType = vk::DescriptorType::eStorageBuffer;
+    ssboDescriptorWrites[3].descriptorCount = 1;
+    ssboDescriptorWrites[3].pBufferInfo = &materialBufferInfo;
+
+    // Light SSBO
+    vk::DescriptorBufferInfo lightBufferInfo;
+    lightBufferInfo.buffer = Light::GetSSBO();
+    lightBufferInfo.offset = 0;
+    lightBufferInfo.range = Light::GetSSBOSize();
+
+    ssboDescriptorWrites[4].dstSet = componentDescriptorSet;
+    ssboDescriptorWrites[4].dstBinding = 4;
+    ssboDescriptorWrites[4].dstArrayElement = 0;
+    ssboDescriptorWrites[4].descriptorType = vk::DescriptorType::eStorageBuffer;
+    ssboDescriptorWrites[4].descriptorCount = 1;
+    ssboDescriptorWrites[4].pBufferInfo = &lightBufferInfo;
+    
+    device.updateDescriptorSets((uint32_t)ssboDescriptorWrites.size(), ssboDescriptorWrites.data(), 0, nullptr);
+    
+    /* ------ Texture Descriptor Set  ------ */
+    vk::DescriptorSetLayout textureLayouts[] = { textureDescriptorSetLayout };
+    std::array<vk::WriteDescriptorSet, 2> textureDescriptorWrites = {};
+    
+    if (textureDescriptorSet == vk::DescriptorSet())
     {
-        vk::DescriptorSetLayout layouts[] = { uniformColor.textureDescriptorSetLayout };
-        std::array<vk::WriteDescriptorSet, 2> descriptorWrites = {};
-        
-        if (uniformColor.textureDescriptorSet == vk::DescriptorSet())
-        {
-            vk::DescriptorSetAllocateInfo allocInfo;
-            allocInfo.descriptorPool = uniformColor.textureDescriptorPool;
-            allocInfo.descriptorSetCount = 1;
-            allocInfo.pSetLayouts = layouts;
+        vk::DescriptorSetAllocateInfo allocInfo;
+        allocInfo.descriptorPool = textureDescriptorPool;
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts = textureLayouts;
 
-            uniformColor.textureDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
-        }
-
-        auto imageLayouts = Texture::Get2DLayouts();
-        auto imageViews = Texture::Get2DImageViews();
-        auto samplers = Texture::Get2DSamplers();
-
-        // Samplers
-        vk::DescriptorImageInfo samplerDescriptorInfos[MAX_TEXTURES];
-        for (int i = 0; i < MAX_TEXTURES; ++i) 
-        {
-            samplerDescriptorInfos[i].sampler = samplers[i];
-        }
-
-        descriptorWrites[0].dstSet = uniformColor.textureDescriptorSet;
-        descriptorWrites[0].dstBinding = 0;
-        descriptorWrites[0].dstArrayElement = 0;
-        descriptorWrites[0].descriptorType = vk::DescriptorType::eSampler;
-        descriptorWrites[0].descriptorCount = MAX_TEXTURES;
-        descriptorWrites[0].pImageInfo = samplerDescriptorInfos;
-
-        // Textures
-        vk::DescriptorImageInfo textureDescriptorInfos[MAX_TEXTURES];
-        for (int i = 0; i < MAX_TEXTURES; ++i) 
-        {
-            textureDescriptorInfos[i].sampler = nullptr;
-            textureDescriptorInfos[i].imageLayout = imageLayouts[i];
-            textureDescriptorInfos[i].imageView = imageViews[i];
-        }
-
-        descriptorWrites[1].dstSet = uniformColor.textureDescriptorSet;
-        descriptorWrites[1].dstBinding = 1;
-        descriptorWrites[1].dstArrayElement = 0;
-        descriptorWrites[1].descriptorType = vk::DescriptorType::eSampledImage;
-        descriptorWrites[1].descriptorCount = MAX_TEXTURES;
-        descriptorWrites[1].pImageInfo = textureDescriptorInfos;
-        
-        device.updateDescriptorSets((uint32_t)descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+        textureDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
     }
 
-    /* ------ BLINN DESCRIPTOR SET  ------ */
+    auto imageLayouts = Texture::Get2DLayouts();
+    auto imageViews = Texture::Get2DImageViews();
+    auto samplers = Texture::Get2DSamplers();
+
+    // Samplers
+    vk::DescriptorImageInfo samplerDescriptorInfos[MAX_TEXTURES];
+    for (int i = 0; i < MAX_TEXTURES; ++i) 
     {
-        /* This is experimental. Typically descriptor sets aren't static. */
-        vk::DescriptorSetLayout layouts[] = { blinn.componentDescriptorSetLayout };
-        std::array<vk::WriteDescriptorSet, 5> descriptorWrites = {};
-        if (blinn.componentDescriptorSet == vk::DescriptorSet())
-        {
-            vk::DescriptorSetAllocateInfo allocInfo;
-            allocInfo.descriptorPool = blinn.componentDescriptorPool;
-            allocInfo.descriptorSetCount = 1;
-            allocInfo.pSetLayouts = layouts;
-            blinn.componentDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
-        }
-
-        // Entity SSBO
-        vk::DescriptorBufferInfo entityBufferInfo;
-        entityBufferInfo.buffer = Entity::GetSSBO();
-        entityBufferInfo.offset = 0;
-        entityBufferInfo.range = Entity::GetSSBOSize();
-
-        descriptorWrites[0].dstSet = blinn.componentDescriptorSet;
-        descriptorWrites[0].dstBinding = 0;
-        descriptorWrites[0].dstArrayElement = 0;
-        descriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[0].descriptorCount = 1;
-        descriptorWrites[0].pBufferInfo = &entityBufferInfo;
-
-        // Transform SSBO
-        vk::DescriptorBufferInfo transformBufferInfo;
-        transformBufferInfo.buffer = Transform::GetSSBO();
-        transformBufferInfo.offset = 0;
-        transformBufferInfo.range = Transform::GetSSBOSize();
-
-        descriptorWrites[1].dstSet = blinn.componentDescriptorSet;
-        descriptorWrites[1].dstBinding = 1;
-        descriptorWrites[1].dstArrayElement = 0;
-        descriptorWrites[1].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[1].descriptorCount = 1;
-        descriptorWrites[1].pBufferInfo = &transformBufferInfo;
-
-        // Camera SSBO
-        vk::DescriptorBufferInfo cameraBufferInfo;
-        cameraBufferInfo.buffer = Camera::GetSSBO();
-        cameraBufferInfo.offset = 0;
-        cameraBufferInfo.range = Camera::GetSSBOSize();
-
-        descriptorWrites[2].dstSet = blinn.componentDescriptorSet;
-        descriptorWrites[2].dstBinding = 2;
-        descriptorWrites[2].dstArrayElement = 0;
-        descriptorWrites[2].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[2].descriptorCount = 1;
-        descriptorWrites[2].pBufferInfo = &cameraBufferInfo;
-
-        // Material SSBO
-        vk::DescriptorBufferInfo materialBufferInfo;
-        materialBufferInfo.buffer = Material::GetSSBO();
-        materialBufferInfo.offset = 0;
-        materialBufferInfo.range = Material::GetSSBOSize();
-
-        descriptorWrites[3].dstSet = blinn.componentDescriptorSet;
-        descriptorWrites[3].dstBinding = 3;
-        descriptorWrites[3].dstArrayElement = 0;
-        descriptorWrites[3].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[3].descriptorCount = 1;
-        descriptorWrites[3].pBufferInfo = &materialBufferInfo;
-
-        // Light SSBO
-        vk::DescriptorBufferInfo lightBufferInfo;
-        lightBufferInfo.buffer = Light::GetSSBO();
-        lightBufferInfo.offset = 0;
-        lightBufferInfo.range = Light::GetSSBOSize();
-
-        descriptorWrites[4].dstSet = blinn.componentDescriptorSet;
-        descriptorWrites[4].dstBinding = 4;
-        descriptorWrites[4].dstArrayElement = 0;
-        descriptorWrites[4].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[4].descriptorCount = 1;
-        descriptorWrites[4].pBufferInfo = &lightBufferInfo;
-        
-        device.updateDescriptorSets((uint32_t)descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+        samplerDescriptorInfos[i].sampler = samplers[i];
     }
 
+    textureDescriptorWrites[0].dstSet = textureDescriptorSet;
+    textureDescriptorWrites[0].dstBinding = 0;
+    textureDescriptorWrites[0].dstArrayElement = 0;
+    textureDescriptorWrites[0].descriptorType = vk::DescriptorType::eSampler;
+    textureDescriptorWrites[0].descriptorCount = MAX_TEXTURES;
+    textureDescriptorWrites[0].pImageInfo = samplerDescriptorInfos;
+
+    // Textures
+    vk::DescriptorImageInfo textureDescriptorInfos[MAX_TEXTURES];
+    for (int i = 0; i < MAX_TEXTURES; ++i) 
     {
-        vk::DescriptorSetLayout layouts[] = { blinn.textureDescriptorSetLayout };
-        std::array<vk::WriteDescriptorSet, 2> descriptorWrites = {};
-        if (blinn.textureDescriptorSet == vk::DescriptorSet())
-        {
-            vk::DescriptorSetAllocateInfo allocInfo;
-            allocInfo.descriptorPool = blinn.textureDescriptorPool;
-            allocInfo.descriptorSetCount = 1;
-            allocInfo.pSetLayouts = layouts;
-
-            blinn.textureDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
-        }
-
-        auto imageLayouts = Texture::Get2DLayouts();
-        auto imageViews = Texture::Get2DImageViews();
-        auto samplers = Texture::Get2DSamplers();
-
-        // Samplers
-        vk::DescriptorImageInfo samplerDescriptorInfos[MAX_TEXTURES];
-        for (int i = 0; i < MAX_TEXTURES; ++i) 
-        {
-            samplerDescriptorInfos[i].sampler = samplers[i];
-        }
-
-        descriptorWrites[0].dstSet = blinn.textureDescriptorSet;
-        descriptorWrites[0].dstBinding = 0;
-        descriptorWrites[0].dstArrayElement = 0;
-        descriptorWrites[0].descriptorType = vk::DescriptorType::eSampler;
-        descriptorWrites[0].descriptorCount = MAX_TEXTURES;
-        descriptorWrites[0].pImageInfo = samplerDescriptorInfos;
-
-        // Textures
-        vk::DescriptorImageInfo textureDescriptorInfos[MAX_TEXTURES];
-        for (int i = 0; i < MAX_TEXTURES; ++i) 
-        {
-            textureDescriptorInfos[i].sampler = nullptr;
-            textureDescriptorInfos[i].imageLayout = imageLayouts[i];
-            textureDescriptorInfos[i].imageView = imageViews[i];
-        }
-
-        descriptorWrites[1].dstSet = blinn.textureDescriptorSet;
-        descriptorWrites[1].dstBinding = 1;
-        descriptorWrites[1].dstArrayElement = 0;
-        descriptorWrites[1].descriptorType = vk::DescriptorType::eSampledImage;
-        descriptorWrites[1].descriptorCount = MAX_TEXTURES;
-        descriptorWrites[1].pImageInfo = textureDescriptorInfos;
-        
-        device.updateDescriptorSets((uint32_t)descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+        textureDescriptorInfos[i].sampler = nullptr;
+        textureDescriptorInfos[i].imageLayout = imageLayouts[i];
+        textureDescriptorInfos[i].imageView = imageViews[i];
     }
 
-    /* ------ PBR DESCRIPTOR SET  ------ */
-    {
-        /* This is experimental. Typically descriptor sets aren't static. */
-        vk::DescriptorSetLayout layouts[] = { pbr.componentDescriptorSetLayout };
-        std::array<vk::WriteDescriptorSet, 5> descriptorWrites = {};
-        if (pbr.componentDescriptorSet == vk::DescriptorSet())
-        {
-            vk::DescriptorSetAllocateInfo allocInfo;
-            allocInfo.descriptorPool = pbr.componentDescriptorPool;
-            allocInfo.descriptorSetCount = 1;
-            allocInfo.pSetLayouts = layouts;
-            pbr.componentDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
-        }
-
-        // Entity SSBO
-        vk::DescriptorBufferInfo entityBufferInfo;
-        entityBufferInfo.buffer = Entity::GetSSBO();
-        entityBufferInfo.offset = 0;
-        entityBufferInfo.range = Entity::GetSSBOSize();
-
-        descriptorWrites[0].dstSet = pbr.componentDescriptorSet;
-        descriptorWrites[0].dstBinding = 0;
-        descriptorWrites[0].dstArrayElement = 0;
-        descriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[0].descriptorCount = 1;
-        descriptorWrites[0].pBufferInfo = &entityBufferInfo;
-
-        // Transform SSBO
-        vk::DescriptorBufferInfo transformBufferInfo;
-        transformBufferInfo.buffer = Transform::GetSSBO();
-        transformBufferInfo.offset = 0;
-        transformBufferInfo.range = Transform::GetSSBOSize();
-
-        descriptorWrites[1].dstSet = pbr.componentDescriptorSet;
-        descriptorWrites[1].dstBinding = 1;
-        descriptorWrites[1].dstArrayElement = 0;
-        descriptorWrites[1].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[1].descriptorCount = 1;
-        descriptorWrites[1].pBufferInfo = &transformBufferInfo;
-
-        // Camera SSBO
-        vk::DescriptorBufferInfo cameraBufferInfo;
-        cameraBufferInfo.buffer = Camera::GetSSBO();
-        cameraBufferInfo.offset = 0;
-        cameraBufferInfo.range = Camera::GetSSBOSize();
-
-        descriptorWrites[2].dstSet = pbr.componentDescriptorSet;
-        descriptorWrites[2].dstBinding = 2;
-        descriptorWrites[2].dstArrayElement = 0;
-        descriptorWrites[2].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[2].descriptorCount = 1;
-        descriptorWrites[2].pBufferInfo = &cameraBufferInfo;
-
-        // Material SSBO
-        vk::DescriptorBufferInfo materialBufferInfo;
-        materialBufferInfo.buffer = Material::GetSSBO();
-        materialBufferInfo.offset = 0;
-        materialBufferInfo.range = Material::GetSSBOSize();
-
-        descriptorWrites[3].dstSet = pbr.componentDescriptorSet;
-        descriptorWrites[3].dstBinding = 3;
-        descriptorWrites[3].dstArrayElement = 0;
-        descriptorWrites[3].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[3].descriptorCount = 1;
-        descriptorWrites[3].pBufferInfo = &materialBufferInfo;
-
-        // Light SSBO
-        vk::DescriptorBufferInfo lightBufferInfo;
-        lightBufferInfo.buffer = Light::GetSSBO();
-        lightBufferInfo.offset = 0;
-        lightBufferInfo.range = Light::GetSSBOSize();
-
-        descriptorWrites[4].dstSet = pbr.componentDescriptorSet;
-        descriptorWrites[4].dstBinding = 4;
-        descriptorWrites[4].dstArrayElement = 0;
-        descriptorWrites[4].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[4].descriptorCount = 1;
-        descriptorWrites[4].pBufferInfo = &lightBufferInfo;
-        
-        device.updateDescriptorSets((uint32_t)descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
-    }
-
-    {
-        vk::DescriptorSetLayout layouts[] = { pbr.textureDescriptorSetLayout };
-        std::array<vk::WriteDescriptorSet, 2> descriptorWrites = {};
-        if (pbr.textureDescriptorSet == vk::DescriptorSet())
-        {
-            vk::DescriptorSetAllocateInfo allocInfo;
-            allocInfo.descriptorPool = pbr.textureDescriptorPool;
-            allocInfo.descriptorSetCount = 1;
-            allocInfo.pSetLayouts = layouts;
-
-            pbr.textureDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
-        }
-
-        auto imageLayouts = Texture::Get2DLayouts();
-        auto imageViews = Texture::Get2DImageViews();
-        auto samplers = Texture::Get2DSamplers();
-
-        // Samplers
-        vk::DescriptorImageInfo samplerDescriptorInfos[MAX_TEXTURES];
-        for (int i = 0; i < MAX_TEXTURES; ++i) 
-        {
-            samplerDescriptorInfos[i].sampler = samplers[i];
-        }
-
-        descriptorWrites[0].dstSet = pbr.textureDescriptorSet;
-        descriptorWrites[0].dstBinding = 0;
-        descriptorWrites[0].dstArrayElement = 0;
-        descriptorWrites[0].descriptorType = vk::DescriptorType::eSampler;
-        descriptorWrites[0].descriptorCount = MAX_TEXTURES;
-        descriptorWrites[0].pImageInfo = samplerDescriptorInfos;
-
-        // Textures
-        vk::DescriptorImageInfo textureDescriptorInfos[MAX_TEXTURES];
-        for (int i = 0; i < MAX_TEXTURES; ++i) 
-        {
-            textureDescriptorInfos[i].sampler = nullptr;
-            textureDescriptorInfos[i].imageLayout = imageLayouts[i];
-            textureDescriptorInfos[i].imageView = imageViews[i];
-        }
-
-        descriptorWrites[1].dstSet = pbr.textureDescriptorSet;
-        descriptorWrites[1].dstBinding = 1;
-        descriptorWrites[1].dstArrayElement = 0;
-        descriptorWrites[1].descriptorType = vk::DescriptorType::eSampledImage;
-        descriptorWrites[1].descriptorCount = MAX_TEXTURES;
-        descriptorWrites[1].pImageInfo = textureDescriptorInfos;
-        
-        device.updateDescriptorSets((uint32_t)descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
-    }
-
-    /* ------ TEXCOORD SURFACE DESCRIPTOR SET  ------ */
-    {
-        /* This is experimental. Typically descriptor sets aren't static. */
-        vk::DescriptorSetLayout layouts[] = { texcoordsurface.componentDescriptorSetLayout };
-        std::array<vk::WriteDescriptorSet, 5> descriptorWrites = {};
-        if (texcoordsurface.componentDescriptorSet == vk::DescriptorSet())
-        {
-            vk::DescriptorSetAllocateInfo allocInfo;
-            allocInfo.descriptorPool = texcoordsurface.componentDescriptorPool;
-            allocInfo.descriptorSetCount = 1;
-            allocInfo.pSetLayouts = layouts;
-            texcoordsurface.componentDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
-        }
-
-        // Entity SSBO
-        vk::DescriptorBufferInfo entityBufferInfo;
-        entityBufferInfo.buffer = Entity::GetSSBO();
-        entityBufferInfo.offset = 0;
-        entityBufferInfo.range = Entity::GetSSBOSize();
-
-        descriptorWrites[0].dstSet = texcoordsurface.componentDescriptorSet;
-        descriptorWrites[0].dstBinding = 0;
-        descriptorWrites[0].dstArrayElement = 0;
-        descriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[0].descriptorCount = 1;
-        descriptorWrites[0].pBufferInfo = &entityBufferInfo;
-
-        // Transform SSBO
-        vk::DescriptorBufferInfo transformBufferInfo;
-        transformBufferInfo.buffer = Transform::GetSSBO();
-        transformBufferInfo.offset = 0;
-        transformBufferInfo.range = Transform::GetSSBOSize();
-
-        descriptorWrites[1].dstSet = texcoordsurface.componentDescriptorSet;
-        descriptorWrites[1].dstBinding = 1;
-        descriptorWrites[1].dstArrayElement = 0;
-        descriptorWrites[1].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[1].descriptorCount = 1;
-        descriptorWrites[1].pBufferInfo = &transformBufferInfo;
-
-        // Camera SSBO
-        vk::DescriptorBufferInfo cameraBufferInfo;
-        cameraBufferInfo.buffer = Camera::GetSSBO();
-        cameraBufferInfo.offset = 0;
-        cameraBufferInfo.range = Camera::GetSSBOSize();
-
-        descriptorWrites[2].dstSet = texcoordsurface.componentDescriptorSet;
-        descriptorWrites[2].dstBinding = 2;
-        descriptorWrites[2].dstArrayElement = 0;
-        descriptorWrites[2].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[2].descriptorCount = 1;
-        descriptorWrites[2].pBufferInfo = &cameraBufferInfo;
-
-        // Material SSBO
-        vk::DescriptorBufferInfo materialBufferInfo;
-        materialBufferInfo.buffer = Material::GetSSBO();
-        materialBufferInfo.offset = 0;
-        materialBufferInfo.range = Material::GetSSBOSize();
-
-        descriptorWrites[3].dstSet = texcoordsurface.componentDescriptorSet;
-        descriptorWrites[3].dstBinding = 3;
-        descriptorWrites[3].dstArrayElement = 0;
-        descriptorWrites[3].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[3].descriptorCount = 1;
-        descriptorWrites[3].pBufferInfo = &materialBufferInfo;
-
-        // Light SSBO
-        vk::DescriptorBufferInfo lightBufferInfo;
-        lightBufferInfo.buffer = Light::GetSSBO();
-        lightBufferInfo.offset = 0;
-        lightBufferInfo.range = Light::GetSSBOSize();
-
-        descriptorWrites[4].dstSet = texcoordsurface.componentDescriptorSet;
-        descriptorWrites[4].dstBinding = 4;
-        descriptorWrites[4].dstArrayElement = 0;
-        descriptorWrites[4].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[4].descriptorCount = 1;
-        descriptorWrites[4].pBufferInfo = &lightBufferInfo;
-        
-        device.updateDescriptorSets((uint32_t)descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
-    }
-
-    {
-        vk::DescriptorSetLayout layouts[] = { texcoordsurface.textureDescriptorSetLayout };
-        std::array<vk::WriteDescriptorSet, 2> descriptorWrites = {};
-        if (texcoordsurface.textureDescriptorSet == vk::DescriptorSet())
-        {
-            vk::DescriptorSetAllocateInfo allocInfo;
-            allocInfo.descriptorPool = texcoordsurface.textureDescriptorPool;
-            allocInfo.descriptorSetCount = 1;
-            allocInfo.pSetLayouts = layouts;
-
-            texcoordsurface.textureDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
-        }
-
-        auto imageLayouts = Texture::Get2DLayouts();
-        auto imageViews = Texture::Get2DImageViews();
-        auto samplers = Texture::Get2DSamplers();
-
-        // Samplers
-        vk::DescriptorImageInfo samplerDescriptorInfos[MAX_TEXTURES];
-        for (int i = 0; i < MAX_TEXTURES; ++i) 
-        {
-            samplerDescriptorInfos[i].sampler = samplers[i];
-        }
-
-        descriptorWrites[0].dstSet = texcoordsurface.textureDescriptorSet;
-        descriptorWrites[0].dstBinding = 0;
-        descriptorWrites[0].dstArrayElement = 0;
-        descriptorWrites[0].descriptorType = vk::DescriptorType::eSampler;
-        descriptorWrites[0].descriptorCount = MAX_TEXTURES;
-        descriptorWrites[0].pImageInfo = samplerDescriptorInfos;
-
-        // Textures
-        vk::DescriptorImageInfo textureDescriptorInfos[MAX_TEXTURES];
-        for (int i = 0; i < MAX_TEXTURES; ++i) 
-        {
-            textureDescriptorInfos[i].sampler = nullptr;
-            textureDescriptorInfos[i].imageLayout = imageLayouts[i];
-            textureDescriptorInfos[i].imageView = imageViews[i];
-        }
-
-        descriptorWrites[1].dstSet = texcoordsurface.textureDescriptorSet;
-        descriptorWrites[1].dstBinding = 1;
-        descriptorWrites[1].dstArrayElement = 0;
-        descriptorWrites[1].descriptorType = vk::DescriptorType::eSampledImage;
-        descriptorWrites[1].descriptorCount = MAX_TEXTURES;
-        descriptorWrites[1].pImageInfo = textureDescriptorInfos;
-        
-        device.updateDescriptorSets((uint32_t)descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
-    }
-
-    /* ------ NORMAL SURFACE DESCRIPTOR SET  ------ */
-    {
-        /* This is experimental. Typically descriptor sets aren't static. */
-        vk::DescriptorSetLayout layouts[] = { normalsurface.componentDescriptorSetLayout };
-        std::array<vk::WriteDescriptorSet, 5> descriptorWrites = {};
-        if (normalsurface.componentDescriptorSet == vk::DescriptorSet())
-        {
-            vk::DescriptorSetAllocateInfo allocInfo;
-            allocInfo.descriptorPool = normalsurface.componentDescriptorPool;
-            allocInfo.descriptorSetCount = 1;
-            allocInfo.pSetLayouts = layouts;
-            normalsurface.componentDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
-        }
-
-        // Entity SSBO
-        vk::DescriptorBufferInfo entityBufferInfo;
-        entityBufferInfo.buffer = Entity::GetSSBO();
-        entityBufferInfo.offset = 0;
-        entityBufferInfo.range = Entity::GetSSBOSize();
-
-        descriptorWrites[0].dstSet = normalsurface.componentDescriptorSet;
-        descriptorWrites[0].dstBinding = 0;
-        descriptorWrites[0].dstArrayElement = 0;
-        descriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[0].descriptorCount = 1;
-        descriptorWrites[0].pBufferInfo = &entityBufferInfo;
-
-        // Transform SSBO
-        vk::DescriptorBufferInfo transformBufferInfo;
-        transformBufferInfo.buffer = Transform::GetSSBO();
-        transformBufferInfo.offset = 0;
-        transformBufferInfo.range = Transform::GetSSBOSize();
-
-        descriptorWrites[1].dstSet = normalsurface.componentDescriptorSet;
-        descriptorWrites[1].dstBinding = 1;
-        descriptorWrites[1].dstArrayElement = 0;
-        descriptorWrites[1].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[1].descriptorCount = 1;
-        descriptorWrites[1].pBufferInfo = &transformBufferInfo;
-
-        // Camera SSBO
-        vk::DescriptorBufferInfo cameraBufferInfo;
-        cameraBufferInfo.buffer = Camera::GetSSBO();
-        cameraBufferInfo.offset = 0;
-        cameraBufferInfo.range = Camera::GetSSBOSize();
-
-        descriptorWrites[2].dstSet = normalsurface.componentDescriptorSet;
-        descriptorWrites[2].dstBinding = 2;
-        descriptorWrites[2].dstArrayElement = 0;
-        descriptorWrites[2].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[2].descriptorCount = 1;
-        descriptorWrites[2].pBufferInfo = &cameraBufferInfo;
-
-        // Material SSBO
-        vk::DescriptorBufferInfo materialBufferInfo;
-        materialBufferInfo.buffer = Material::GetSSBO();
-        materialBufferInfo.offset = 0;
-        materialBufferInfo.range = Material::GetSSBOSize();
-
-        descriptorWrites[3].dstSet = normalsurface.componentDescriptorSet;
-        descriptorWrites[3].dstBinding = 3;
-        descriptorWrites[3].dstArrayElement = 0;
-        descriptorWrites[3].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[3].descriptorCount = 1;
-        descriptorWrites[3].pBufferInfo = &materialBufferInfo;
-
-        // Light SSBO
-        vk::DescriptorBufferInfo lightBufferInfo;
-        lightBufferInfo.buffer = Light::GetSSBO();
-        lightBufferInfo.offset = 0;
-        lightBufferInfo.range = Light::GetSSBOSize();
-
-        descriptorWrites[4].dstSet = normalsurface.componentDescriptorSet;
-        descriptorWrites[4].dstBinding = 4;
-        descriptorWrites[4].dstArrayElement = 0;
-        descriptorWrites[4].descriptorType = vk::DescriptorType::eStorageBuffer;
-        descriptorWrites[4].descriptorCount = 1;
-        descriptorWrites[4].pBufferInfo = &lightBufferInfo;
-        
-        device.updateDescriptorSets((uint32_t)descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
-    }
-
-    {
-        vk::DescriptorSetLayout layouts[] = { normalsurface.textureDescriptorSetLayout };
-        std::array<vk::WriteDescriptorSet, 2> descriptorWrites = {};
-        if (normalsurface.textureDescriptorSet == vk::DescriptorSet())
-        {
-            vk::DescriptorSetAllocateInfo allocInfo;
-            allocInfo.descriptorPool = normalsurface.textureDescriptorPool;
-            allocInfo.descriptorSetCount = 1;
-            allocInfo.pSetLayouts = layouts;
-
-            normalsurface.textureDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
-        }
-
-        auto imageLayouts = Texture::Get2DLayouts();
-        auto imageViews = Texture::Get2DImageViews();
-        auto samplers = Texture::Get2DSamplers();
-
-        // Samplers
-        vk::DescriptorImageInfo samplerDescriptorInfos[MAX_TEXTURES];
-        for (int i = 0; i < MAX_TEXTURES; ++i) 
-        {
-            samplerDescriptorInfos[i].sampler = samplers[i];
-        }
-
-        descriptorWrites[0].dstSet = normalsurface.textureDescriptorSet;
-        descriptorWrites[0].dstBinding = 0;
-        descriptorWrites[0].dstArrayElement = 0;
-        descriptorWrites[0].descriptorType = vk::DescriptorType::eSampler;
-        descriptorWrites[0].descriptorCount = MAX_TEXTURES;
-        descriptorWrites[0].pImageInfo = samplerDescriptorInfos;
-
-        // Textures
-        vk::DescriptorImageInfo textureDescriptorInfos[MAX_TEXTURES];
-        for (int i = 0; i < MAX_TEXTURES; ++i) 
-        {
-            textureDescriptorInfos[i].sampler = nullptr;
-            textureDescriptorInfos[i].imageLayout = imageLayouts[i];
-            textureDescriptorInfos[i].imageView = imageViews[i];
-        }
-
-        descriptorWrites[1].dstSet = normalsurface.textureDescriptorSet;
-        descriptorWrites[1].dstBinding = 1;
-        descriptorWrites[1].dstArrayElement = 0;
-        descriptorWrites[1].descriptorType = vk::DescriptorType::eSampledImage;
-        descriptorWrites[1].descriptorCount = MAX_TEXTURES;
-        descriptorWrites[1].pImageInfo = textureDescriptorInfos;
-        
-        device.updateDescriptorSets((uint32_t)descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
-    }
+    textureDescriptorWrites[1].dstSet = textureDescriptorSet;
+    textureDescriptorWrites[1].dstBinding = 1;
+    textureDescriptorWrites[1].dstArrayElement = 0;
+    textureDescriptorWrites[1].descriptorType = vk::DescriptorType::eSampledImage;
+    textureDescriptorWrites[1].descriptorCount = MAX_TEXTURES;
+    textureDescriptorWrites[1].pImageInfo = textureDescriptorInfos;
+    
+    device.updateDescriptorSets((uint32_t)textureDescriptorWrites.size(), textureDescriptorWrites.data(), 0, nullptr);
 }
 
 void Material::CreateVertexInputBindingDescriptions() {
-    /* UNIFORM COLOR */
-    {
-        vk::VertexInputBindingDescription pointBindingDescription;
-        pointBindingDescription.binding = 0;
-        pointBindingDescription.stride = 3 * sizeof(float);
-        pointBindingDescription.inputRate = vk::VertexInputRate::eVertex;
+    /* Vertex input bindings are consistent across shaders */
+    vk::VertexInputBindingDescription pointBindingDescription;
+    pointBindingDescription.binding = 0;
+    pointBindingDescription.stride = 3 * sizeof(float);
+    pointBindingDescription.inputRate = vk::VertexInputRate::eVertex;
 
-        vk::VertexInputBindingDescription colorBindingDescription;
-        colorBindingDescription.binding = 1;
-        colorBindingDescription.stride = 4 * sizeof(float);
-        colorBindingDescription.inputRate = vk::VertexInputRate::eVertex;
+    vk::VertexInputBindingDescription colorBindingDescription;
+    colorBindingDescription.binding = 1;
+    colorBindingDescription.stride = 4 * sizeof(float);
+    colorBindingDescription.inputRate = vk::VertexInputRate::eVertex;
 
-        vk::VertexInputBindingDescription normalBindingDescription;
-        normalBindingDescription.binding = 2;
-        normalBindingDescription.stride = 3 * sizeof(float);
-        normalBindingDescription.inputRate = vk::VertexInputRate::eVertex;
+    vk::VertexInputBindingDescription normalBindingDescription;
+    normalBindingDescription.binding = 2;
+    normalBindingDescription.stride = 3 * sizeof(float);
+    normalBindingDescription.inputRate = vk::VertexInputRate::eVertex;
 
-        vk::VertexInputBindingDescription texcoordBindingDescription;
-        texcoordBindingDescription.binding = 3;
-        texcoordBindingDescription.stride = 2 * sizeof(float);
-        texcoordBindingDescription.inputRate = vk::VertexInputRate::eVertex;
+    vk::VertexInputBindingDescription texcoordBindingDescription;
+    texcoordBindingDescription.binding = 3;
+    texcoordBindingDescription.stride = 2 * sizeof(float);
+    texcoordBindingDescription.inputRate = vk::VertexInputRate::eVertex;
 
-        uniformColor.vertexInputBindingDescriptions = { pointBindingDescription, colorBindingDescription, normalBindingDescription, texcoordBindingDescription };
-    }
-
-    /* BLINN */
-    {
-        vk::VertexInputBindingDescription pointBindingDescription;
-        pointBindingDescription.binding = 0;
-        pointBindingDescription.stride = 3 * sizeof(float);
-        pointBindingDescription.inputRate = vk::VertexInputRate::eVertex;
-
-        vk::VertexInputBindingDescription colorBindingDescription;
-        colorBindingDescription.binding = 1;
-        colorBindingDescription.stride = 4 * sizeof(float);
-        colorBindingDescription.inputRate = vk::VertexInputRate::eVertex;
-
-        vk::VertexInputBindingDescription normalBindingDescription;
-        normalBindingDescription.binding = 2;
-        normalBindingDescription.stride = 3 * sizeof(float);
-        normalBindingDescription.inputRate = vk::VertexInputRate::eVertex;
-
-        vk::VertexInputBindingDescription texcoordBindingDescription;
-        texcoordBindingDescription.binding = 3;
-        texcoordBindingDescription.stride = 2 * sizeof(float);
-        texcoordBindingDescription.inputRate = vk::VertexInputRate::eVertex;
-
-        blinn.vertexInputBindingDescriptions = { pointBindingDescription, colorBindingDescription, normalBindingDescription, texcoordBindingDescription };
-    }
-
-    /* PBR */
-    {
-        vk::VertexInputBindingDescription pointBindingDescription;
-        pointBindingDescription.binding = 0;
-        pointBindingDescription.stride = 3 * sizeof(float);
-        pointBindingDescription.inputRate = vk::VertexInputRate::eVertex;
-
-        vk::VertexInputBindingDescription colorBindingDescription;
-        colorBindingDescription.binding = 1;
-        colorBindingDescription.stride = 4 * sizeof(float);
-        colorBindingDescription.inputRate = vk::VertexInputRate::eVertex;
-
-        vk::VertexInputBindingDescription normalBindingDescription;
-        normalBindingDescription.binding = 2;
-        normalBindingDescription.stride = 3 * sizeof(float);
-        normalBindingDescription.inputRate = vk::VertexInputRate::eVertex;
-
-        vk::VertexInputBindingDescription texcoordBindingDescription;
-        texcoordBindingDescription.binding = 3;
-        texcoordBindingDescription.stride = 2 * sizeof(float);
-        texcoordBindingDescription.inputRate = vk::VertexInputRate::eVertex;
-
-        pbr.vertexInputBindingDescriptions = { pointBindingDescription, colorBindingDescription, normalBindingDescription, texcoordBindingDescription };
-    }
-
-    /* TEXCOORD SURFACE */
-    {
-        vk::VertexInputBindingDescription pointBindingDescription;
-        pointBindingDescription.binding = 0;
-        pointBindingDescription.stride = 3 * sizeof(float);
-        pointBindingDescription.inputRate = vk::VertexInputRate::eVertex;
-
-        vk::VertexInputBindingDescription colorBindingDescription;
-        colorBindingDescription.binding = 1;
-        colorBindingDescription.stride = 4 * sizeof(float);
-        colorBindingDescription.inputRate = vk::VertexInputRate::eVertex;
-
-        vk::VertexInputBindingDescription normalBindingDescription;
-        normalBindingDescription.binding = 2;
-        normalBindingDescription.stride = 3 * sizeof(float);
-        normalBindingDescription.inputRate = vk::VertexInputRate::eVertex;
-
-        vk::VertexInputBindingDescription texcoordBindingDescription;
-        texcoordBindingDescription.binding = 3;
-        texcoordBindingDescription.stride = 2 * sizeof(float);
-        texcoordBindingDescription.inputRate = vk::VertexInputRate::eVertex;
-
-        texcoordsurface.vertexInputBindingDescriptions = { pointBindingDescription, colorBindingDescription, normalBindingDescription, texcoordBindingDescription };
-    }
-
-    /* NORMAL SURFACE */
-    {
-        vk::VertexInputBindingDescription pointBindingDescription;
-        pointBindingDescription.binding = 0;
-        pointBindingDescription.stride = 3 * sizeof(float);
-        pointBindingDescription.inputRate = vk::VertexInputRate::eVertex;
-
-        vk::VertexInputBindingDescription colorBindingDescription;
-        colorBindingDescription.binding = 1;
-        colorBindingDescription.stride = 4 * sizeof(float);
-        colorBindingDescription.inputRate = vk::VertexInputRate::eVertex;
-
-        vk::VertexInputBindingDescription normalBindingDescription;
-        normalBindingDescription.binding = 2;
-        normalBindingDescription.stride = 3 * sizeof(float);
-        normalBindingDescription.inputRate = vk::VertexInputRate::eVertex;
-
-        vk::VertexInputBindingDescription texcoordBindingDescription;
-        texcoordBindingDescription.binding = 3;
-        texcoordBindingDescription.stride = 2 * sizeof(float);
-        texcoordBindingDescription.inputRate = vk::VertexInputRate::eVertex;
-
-        normalsurface.vertexInputBindingDescriptions = { pointBindingDescription, colorBindingDescription, normalBindingDescription, texcoordBindingDescription };
-    }
+    vertexInputBindingDescriptions = { pointBindingDescription, colorBindingDescription, normalBindingDescription, texcoordBindingDescription };
 }
 
 void Material::CreateVertexAttributeDescriptions() {
-    /* UNIFORM COLOR */
-    {
-        std::vector<vk::VertexInputAttributeDescription> attributeDescriptions(4);
+    /* Vertex attribute descriptions are consistent across shaders */
+    std::vector<vk::VertexInputAttributeDescription> attributeDescriptions(4);
 
-        attributeDescriptions[0].binding = 0;
-        attributeDescriptions[0].location = 0;
-        attributeDescriptions[0].format = vk::Format::eR32G32B32Sfloat;
-        attributeDescriptions[0].offset = 0;
+    attributeDescriptions[0].binding = 0;
+    attributeDescriptions[0].location = 0;
+    attributeDescriptions[0].format = vk::Format::eR32G32B32Sfloat;
+    attributeDescriptions[0].offset = 0;
 
-        attributeDescriptions[1].binding = 1;
-        attributeDescriptions[1].location = 1;
-        attributeDescriptions[1].format = vk::Format::eR32G32B32A32Sfloat;
-        attributeDescriptions[1].offset = 0;
+    attributeDescriptions[1].binding = 1;
+    attributeDescriptions[1].location = 1;
+    attributeDescriptions[1].format = vk::Format::eR32G32B32A32Sfloat;
+    attributeDescriptions[1].offset = 0;
 
-        attributeDescriptions[2].binding = 2;
-        attributeDescriptions[2].location = 2;
-        attributeDescriptions[2].format = vk::Format::eR32G32B32Sfloat;
-        attributeDescriptions[2].offset = 0;
+    attributeDescriptions[2].binding = 2;
+    attributeDescriptions[2].location = 2;
+    attributeDescriptions[2].format = vk::Format::eR32G32B32Sfloat;
+    attributeDescriptions[2].offset = 0;
 
-        attributeDescriptions[3].binding = 3;
-        attributeDescriptions[3].location = 3;
-        attributeDescriptions[3].format = vk::Format::eR32G32Sfloat;
-        attributeDescriptions[3].offset = 0;
+    attributeDescriptions[3].binding = 3;
+    attributeDescriptions[3].location = 3;
+    attributeDescriptions[3].format = vk::Format::eR32G32Sfloat;
+    attributeDescriptions[3].offset = 0;
 
-        uniformColor.vertexInputAttributeDescriptions = attributeDescriptions;
-    }
+    vertexInputAttributeDescriptions = attributeDescriptions;
+}
 
-    /* BLINN */
-    {
-        std::vector<vk::VertexInputAttributeDescription> attributeDescriptions(4);
-
-        attributeDescriptions[0].binding = 0;
-        attributeDescriptions[0].location = 0;
-        attributeDescriptions[0].format = vk::Format::eR32G32B32Sfloat;
-        attributeDescriptions[0].offset = 0;
-
-        attributeDescriptions[1].binding = 1;
-        attributeDescriptions[1].location = 1;
-        attributeDescriptions[1].format = vk::Format::eR32G32B32A32Sfloat;
-        attributeDescriptions[1].offset = 0;
-
-        attributeDescriptions[2].binding = 2;
-        attributeDescriptions[2].location = 2;
-        attributeDescriptions[2].format = vk::Format::eR32G32B32Sfloat;
-        attributeDescriptions[2].offset = 0;
-
-        attributeDescriptions[3].binding = 3;
-        attributeDescriptions[3].location = 3;
-        attributeDescriptions[3].format = vk::Format::eR32G32Sfloat;
-        attributeDescriptions[3].offset = 0;
-
-        blinn.vertexInputAttributeDescriptions = attributeDescriptions;
-    }
-
-    /* PBR */
-    {
-        std::vector<vk::VertexInputAttributeDescription> attributeDescriptions(4);
-
-        attributeDescriptions[0].binding = 0;
-        attributeDescriptions[0].location = 0;
-        attributeDescriptions[0].format = vk::Format::eR32G32B32Sfloat;
-        attributeDescriptions[0].offset = 0;
-
-        attributeDescriptions[1].binding = 1;
-        attributeDescriptions[1].location = 1;
-        attributeDescriptions[1].format = vk::Format::eR32G32B32A32Sfloat;
-        attributeDescriptions[1].offset = 0;
-
-        attributeDescriptions[2].binding = 2;
-        attributeDescriptions[2].location = 2;
-        attributeDescriptions[2].format = vk::Format::eR32G32B32Sfloat;
-        attributeDescriptions[2].offset = 0;
-
-        attributeDescriptions[3].binding = 3;
-        attributeDescriptions[3].location = 3;
-        attributeDescriptions[3].format = vk::Format::eR32G32Sfloat;
-        attributeDescriptions[3].offset = 0;
-
-        pbr.vertexInputAttributeDescriptions = attributeDescriptions;
-    }
-
-    /* NORMAL SURFACE */
-    {
-        std::vector<vk::VertexInputAttributeDescription> attributeDescriptions(4);
-
-        attributeDescriptions[0].binding = 0;
-        attributeDescriptions[0].location = 0;
-        attributeDescriptions[0].format = vk::Format::eR32G32B32Sfloat;
-        attributeDescriptions[0].offset = 0;
-
-        attributeDescriptions[1].binding = 1;
-        attributeDescriptions[1].location = 1;
-        attributeDescriptions[1].format = vk::Format::eR32G32B32A32Sfloat;
-        attributeDescriptions[1].offset = 0;
-
-        attributeDescriptions[2].binding = 2;
-        attributeDescriptions[2].location = 2;
-        attributeDescriptions[2].format = vk::Format::eR32G32B32Sfloat;
-        attributeDescriptions[2].offset = 0;
-
-        attributeDescriptions[3].binding = 3;
-        attributeDescriptions[3].location = 3;
-        attributeDescriptions[3].format = vk::Format::eR32G32Sfloat;
-        attributeDescriptions[3].offset = 0;
-
-        normalsurface.vertexInputAttributeDescriptions = attributeDescriptions;
-    }
-
-    /* TEXCOORD SURFACE */
-    {
-        std::vector<vk::VertexInputAttributeDescription> attributeDescriptions(4);
-
-        attributeDescriptions[0].binding = 0;
-        attributeDescriptions[0].location = 0;
-        attributeDescriptions[0].format = vk::Format::eR32G32B32Sfloat;
-        attributeDescriptions[0].offset = 0;
-
-        attributeDescriptions[1].binding = 1;
-        attributeDescriptions[1].location = 1;
-        attributeDescriptions[1].format = vk::Format::eR32G32B32A32Sfloat;
-        attributeDescriptions[1].offset = 0;
-
-        attributeDescriptions[2].binding = 2;
-        attributeDescriptions[2].location = 2;
-        attributeDescriptions[2].format = vk::Format::eR32G32B32Sfloat;
-        attributeDescriptions[2].offset = 0;
-
-        attributeDescriptions[3].binding = 3;
-        attributeDescriptions[3].location = 3;
-        attributeDescriptions[3].format = vk::Format::eR32G32Sfloat;
-        attributeDescriptions[3].offset = 0;
-
-        texcoordsurface.vertexInputAttributeDescriptions = attributeDescriptions;
-    }
+bool Material::BindDescriptorSets(vk::CommandBuffer &command_buffer) 
+{
+    std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet};
+    command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, normalsurface.pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
+    command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, blinn.pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
+    command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, texcoordsurface.pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
+    command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pbr.pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
+    command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, blinn.pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
+    return true;
 }
 
 bool Material::DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity, int32_t &camera_id, std::vector<int32_t> &light_entity_ids)
 {
+    /* Need a mesh to render. */
     auto mesh_id = entity.get_mesh();
-    auto transform_id = entity.get_transform();
-    auto material_id = entity.get_material();
-    
-    /* Need a mesh and a transform to render. */
     if (mesh_id < 0 || mesh_id >= MAX_MESHES) return false;
-    if (transform_id < 0 || transform_id >= MAX_TRANSFORMS) return false;
-    if (material_id < 0 || material_id >= MAX_MATERIALS) return false;
-
     auto m = Mesh::Get((uint32_t) mesh_id);
     if (!m) return false;
 
-    // Setup push constant data
-    std::vector<int32_t> push_constants(2 + MAX_LIGHTS);
-    push_constants[0] = entity.get_id();
-    push_constants[1] = camera_id;
-    memcpy(&push_constants[2], light_entity_ids.data(), sizeof(int32_t) * light_entity_ids.size());
+    /* Need a transform to render. */
+    auto transform_id = entity.get_transform();
+    if (transform_id < 0 || transform_id >= MAX_TRANSFORMS) return false;
 
-    command_buffer.pushConstants(
-        blinn.pipelineLayout, 
-        vk::ShaderStageFlagBits::eAll,
-        0, 
-        (2 + MAX_LIGHTS) * sizeof(int32_t),
-        push_constants.data()
-        );
-
+    /* Need a material to render. */
+    auto material_id = entity.get_material();
+    if (material_id < 0 || material_id >= MAX_MATERIALS) return false;
     auto material = Material::Get(material_id);
+    if (!material) return false;
+
+
+    // Push constants
+    {
+        std::vector<int32_t> push_constants(2 + MAX_LIGHTS);
+        push_constants[0] = entity.get_id();
+        push_constants[1] = camera_id;
+        memcpy(&push_constants[2], light_entity_ids.data(), sizeof(int32_t) * light_entity_ids.size());
+        command_buffer.pushConstants(
+            blinn.pipelineLayout, 
+            vk::ShaderStageFlagBits::eAll,
+            0, 
+            (2 + MAX_LIGHTS) * sizeof(int32_t),
+            push_constants.data()
+            );
+    }
+
     // Render normal
     if (material->renderMode == 1) {
-        std::vector<vk::DescriptorSet> descriptorSets = {normalsurface.componentDescriptorSet, normalsurface.textureDescriptorSet};
-
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, Material::normalsurface.pipeline);
-        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, normalsurface.pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
-        command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
-        command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
-        command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
     }
     // Render Vertex Colors
     else if (material->renderMode == 2) {
-        std::vector<vk::DescriptorSet> descriptorSets = {blinn.componentDescriptorSet, blinn.textureDescriptorSet};
-
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, Material::blinn.pipeline);
-        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, blinn.pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
-        command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
-        command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
-        command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
     }
     // Render UVs
     else if (material->renderMode == 3) {
-        std::vector<vk::DescriptorSet> descriptorSets = {texcoordsurface.componentDescriptorSet, texcoordsurface.textureDescriptorSet};
-
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, Material::texcoordsurface.pipeline);
-        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, texcoordsurface.pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
-        command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
-        command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
-        command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
     }
     // Render PBR
     if (material->renderMode == 4) {
-        std::vector<vk::DescriptorSet> descriptorSets = {pbr.componentDescriptorSet, pbr.textureDescriptorSet};
-
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, Material::pbr.pipeline);
-        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pbr.pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
-        command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
-        command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
-        command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
     }
     // Render material
     else {
-        std::vector<vk::DescriptorSet> descriptorSets = {blinn.componentDescriptorSet, blinn.textureDescriptorSet};
-
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, Material::blinn.pipeline);
-        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, blinn.pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
-        command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
-        command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
-        command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
     }
+
+    command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
+    command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
+    command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
 
     return true;
 }
@@ -2000,29 +764,11 @@ void Material::CleanUp()
     device.unmapMemory(ssboMemory);
     device.freeMemory(ssboMemory);
 
-    device.destroyDescriptorSetLayout(uniformColor.componentDescriptorSetLayout);
-    device.destroyDescriptorPool(uniformColor.componentDescriptorPool);
+    device.destroyDescriptorSetLayout(componentDescriptorSetLayout);
+    device.destroyDescriptorPool(componentDescriptorPool);
 
-    device.destroyDescriptorSetLayout(blinn.componentDescriptorSetLayout);
-    device.destroyDescriptorPool(blinn.componentDescriptorPool);
-
-    device.destroyDescriptorSetLayout(texcoordsurface.componentDescriptorSetLayout);
-    device.destroyDescriptorPool(texcoordsurface.componentDescriptorPool);
-
-    device.destroyDescriptorSetLayout(normalsurface.componentDescriptorSetLayout);
-    device.destroyDescriptorPool(normalsurface.componentDescriptorPool);
-
-    device.destroyDescriptorSetLayout(uniformColor.textureDescriptorSetLayout);
-    device.destroyDescriptorPool(uniformColor.textureDescriptorPool);
-
-    device.destroyDescriptorSetLayout(blinn.textureDescriptorSetLayout);
-    device.destroyDescriptorPool(blinn.textureDescriptorPool);
-
-    device.destroyDescriptorSetLayout(texcoordsurface.textureDescriptorSetLayout);
-    device.destroyDescriptorPool(texcoordsurface.textureDescriptorPool);
-
-    device.destroyDescriptorSetLayout(normalsurface.textureDescriptorSetLayout);
-    device.destroyDescriptorPool(normalsurface.textureDescriptorPool);
+    device.destroyDescriptorSetLayout(textureDescriptorSetLayout);
+    device.destroyDescriptorPool(textureDescriptorPool);
 }	
 
 /* Static Factory Implementations */

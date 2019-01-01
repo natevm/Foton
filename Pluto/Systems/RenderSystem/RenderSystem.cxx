@@ -184,6 +184,7 @@ bool RenderSystem::start()
                             }
 
                             Material::CreateDescriptorSets();
+                            Material::BindDescriptorSets(maincmd) ;
 
                             int32_t camera_id = current_camera->get_id();
                             current_camera->begin_renderpass(maincmd);

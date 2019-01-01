@@ -38,21 +38,22 @@ class Material : public StaticFactory
         static vk::Buffer ssbo;
         static vk::DeviceMemory ssboMemory;
 
+        static std::vector<vk::VertexInputBindingDescription> vertexInputBindingDescriptions;
+        static std::vector<vk::VertexInputAttributeDescription> vertexInputAttributeDescriptions;
+        
         struct MaterialResources {
-            vk::DescriptorSetLayout componentDescriptorSetLayout;
-            vk::DescriptorSetLayout textureDescriptorSetLayout;
-            vk::DescriptorPool componentDescriptorPool;
-            vk::DescriptorPool textureDescriptorPool;
-            vk::DescriptorSet componentDescriptorSet;
-            vk::DescriptorSet textureDescriptorSet;
-            std::vector<vk::VertexInputBindingDescription> vertexInputBindingDescriptions;
-            std::vector<vk::VertexInputAttributeDescription> vertexInputAttributeDescriptions;
             PipelineParameters pipelineParameters;
             vk::Pipeline pipeline;
             vk::PipelineLayout pipelineLayout;
         };
         
-        /* Uniform Color Pipeline Fields */
+        static vk::DescriptorSetLayout componentDescriptorSetLayout;
+        static vk::DescriptorSetLayout textureDescriptorSetLayout;
+        static vk::DescriptorPool componentDescriptorPool;
+        static vk::DescriptorPool textureDescriptorPool;
+        static vk::DescriptorSet componentDescriptorSet;
+        static vk::DescriptorSet textureDescriptorSet;
+
         static MaterialResources uniformColor;
         static MaterialResources blinn;
         static MaterialResources pbr;
@@ -73,7 +74,7 @@ class Material : public StaticFactory
         );
 
         static void CreateDescriptorSetLayouts();
-        static void CreateDescriptorPools();
+        static void CreateDescriptorPool();
         
         public: 
         static void CreateDescriptorSets();
@@ -107,6 +108,7 @@ class Material : public StaticFactory
         static uint32_t GetSSBOSize();
         static void CleanUp();
 
+        static bool BindDescriptorSets(vk::CommandBuffer &command_buffer);
         static bool DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity, int32_t &camera_id, std::vector<int32_t> &light_entity_ids);
 
         /* Instance functions */
