@@ -51,9 +51,9 @@ class Texture : public StaticFactory
     static bool Delete(uint32_t id);
 
     static void Initialize();
-    static std::vector<vk::ImageView> Get2DImageViews();
-    static std::vector<vk::Sampler> Get2DSamplers();
-    static std::vector<vk::ImageLayout> Get2DLayouts();
+    static std::vector<vk::Sampler> GetSamplers();
+    static std::vector<vk::ImageView> GetImageViews(vk::ImageViewType view_type);
+    static std::vector<vk::ImageLayout> GetLayouts(vk::ImageViewType view_type);
     static void CleanUp();
 
     Texture()
@@ -712,7 +712,7 @@ class Texture : public StaticFactory
                 textureMipHeights.push_back(tex3D[i].extent().y);
                 textureMipDepths.push_back(tex3D[i].extent().z);
             }
-            data.imageType = vk::ImageType::e2D;
+            data.imageType = vk::ImageType::e3D;
         }
         else if (texture.target() == gli::target::TARGET_CUBE)
         {
@@ -728,6 +728,7 @@ class Texture : public StaticFactory
             data.height = (uint32_t)(texCube.extent().y);
             data.depth = 1;
             data.viewType = vk::ImageViewType::eCube;
+            data.layers = 6;
 
             data.colorMipLevels = (uint32_t)(texCube.levels());
             data.colorFormat = (vk::Format)texCube.format();
@@ -736,11 +737,13 @@ class Texture : public StaticFactory
 
             for (uint32_t i = 0; i < data.colorMipLevels; ++i)
             {
-                textureMipSizes.push_back((uint32_t)texCube[i].size());
-                textureMipWidths.push_back(texCube[i].extent().x);
-                textureMipHeights.push_back(texCube[i].extent().y);
+                // Assuming all faces have the same extent...
+                textureMipSizes.push_back((uint32_t)texCube[0][i].size());
+                textureMipWidths.push_back(texCube[0][i].extent().x);
+                textureMipHeights.push_back(texCube[0][i].extent().y);
                 textureMipDepths.push_back(1);
             }
+            
             data.imageType = vk::ImageType::e2D;
         }
         else
@@ -788,19 +791,38 @@ class Texture : public StaticFactory
         /* Setup buffer copy regions for each mip level */
         std::vector<vk::BufferImageCopy> bufferCopyRegions;
         uint32_t offset = 0;
-        for (uint32_t i = 0; i < data.colorMipLevels; i++)
-        {
-            vk::BufferImageCopy bufferCopyRegion;
-            bufferCopyRegion.imageSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
-            bufferCopyRegion.imageSubresource.mipLevel = i;
-            bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
-            bufferCopyRegion.imageSubresource.layerCount = 1;
-            bufferCopyRegion.imageExtent.width = textureMipWidths[i];
-            bufferCopyRegion.imageExtent.height = textureMipHeights[i];
-            bufferCopyRegion.imageExtent.depth = textureMipDepths[i];
-            bufferCopyRegion.bufferOffset = offset;
-            bufferCopyRegions.push_back(bufferCopyRegion);
-            offset += textureMipSizes[i];
+
+        if (data.viewType == vk::ImageViewType::eCube) {
+            for (uint32_t face = 0; face < 6; ++face) {
+                for (uint32_t i = 0; i < data.colorMipLevels; i++) {
+                    vk::BufferImageCopy bufferCopyRegion;
+                    bufferCopyRegion.imageSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+                    bufferCopyRegion.imageSubresource.mipLevel = i;
+                    bufferCopyRegion.imageSubresource.baseArrayLayer = face;
+                    bufferCopyRegion.imageSubresource.layerCount = 1;
+                    bufferCopyRegion.imageExtent.width = textureMipWidths[i];
+                    bufferCopyRegion.imageExtent.height = textureMipHeights[i];
+                    bufferCopyRegion.imageExtent.depth = textureMipDepths[i];
+                    bufferCopyRegions.push_back(bufferCopyRegion);
+                    offset += textureMipSizes[i];
+                }
+            }
+        }
+        else {
+            for (uint32_t i = 0; i < data.colorMipLevels; i++)
+            {
+                vk::BufferImageCopy bufferCopyRegion;
+                bufferCopyRegion.imageSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+                bufferCopyRegion.imageSubresource.mipLevel = i;
+                bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
+                bufferCopyRegion.imageSubresource.layerCount = 1;
+                bufferCopyRegion.imageExtent.width = textureMipWidths[i];
+                bufferCopyRegion.imageExtent.height = textureMipHeights[i];
+                bufferCopyRegion.imageExtent.depth = textureMipDepths[i];
+                bufferCopyRegion.bufferOffset = offset;
+                bufferCopyRegions.push_back(bufferCopyRegion);
+                offset += textureMipSizes[i];
+            }
         }
 
         /* Create optimal tiled target image */
@@ -808,13 +830,16 @@ class Texture : public StaticFactory
         imageCreateInfo.imageType = data.imageType;
         imageCreateInfo.format = data.colorFormat;
         imageCreateInfo.mipLevels = data.colorMipLevels;
-        imageCreateInfo.arrayLayers = 1; // .......
+        imageCreateInfo.arrayLayers = data.layers;
         imageCreateInfo.samples = vk::SampleCountFlagBits::e1;
         imageCreateInfo.tiling = vk::ImageTiling::eOptimal;
         imageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
         imageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
         imageCreateInfo.extent = {data.width, data.height, data.depth};
         imageCreateInfo.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eSampled;
+        if (data.viewType == vk::ImageViewType::eCube) {
+            imageCreateInfo.flags |= vk::ImageCreateFlagBits::eCubeCompatible;
+        }
         data.colorImage = device.createImage(imageCreateInfo);
 
         /* Allocate and bind memory for the texture */
@@ -835,7 +860,7 @@ class Texture : public StaticFactory
         subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
         subresourceRange.baseMipLevel = 0;
         subresourceRange.levelCount = data.colorMipLevels;
-        subresourceRange.layerCount = 1; //.............
+        subresourceRange.layerCount = data.layers;
 
         /* Transition to transfer destination optimal */
         setImageLayout(
