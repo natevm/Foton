@@ -22,6 +22,7 @@
 #include "Pluto/Tools/StaticFactory.hxx"
 
 #include "./MaterialStruct.hxx"
+#include "./PushConstants.hxx"
 #include "Pluto/Material/PipelineParameters.hxx"
 
 class Entity;
@@ -109,7 +110,7 @@ class Material : public StaticFactory
         static void CleanUp();
 
         static bool BindDescriptorSets(vk::CommandBuffer &command_buffer);
-        static bool DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity, int32_t &camera_id, std::vector<int32_t> &light_entity_ids);
+        static bool DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity, int32_t &camera_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids);
 
         /* Instance functions */
         Material() {

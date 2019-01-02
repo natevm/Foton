@@ -12,8 +12,12 @@ namespace Systems
             bool stop();
             void *socket;
             std::string ip;
+            void set_gamma(float gamma);
+            void set_exposure(float exposure);
         private:
             void *zmq_context;
+            float gamma = 1.0;
+            float exposure = 1.0;
             RenderSystem();
             ~RenderSystem();            
     };

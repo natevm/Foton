@@ -68,7 +68,7 @@ void Material::CreatePipeline(
 
     vk::PushConstantRange range;
     range.offset = 0;
-    range.size = (2 + MAX_LIGHTS) * sizeof(uint32_t);
+    range.size = sizeof(PushConsts);
     range.stageFlags = vk::ShaderStageFlagBits::eAll;
 
     /* Connect things together with pipeline layout */
@@ -686,7 +686,7 @@ bool Material::BindDescriptorSets(vk::CommandBuffer &command_buffer)
     return true;
 }
 
-bool Material::DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity, int32_t &camera_id, std::vector<int32_t> &light_entity_ids)
+bool Material::DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity, int32_t &camera_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids)
 {
     /* Need a mesh to render. */
     auto mesh_id = entity.get_mesh();
@@ -707,17 +707,21 @@ bool Material::DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity, int
 
     // Push constants
     {
-        std::vector<int32_t> push_constants(2 + MAX_LIGHTS);
-        push_constants[0] = entity.get_id();
-        push_constants[1] = camera_id;
-        memcpy(&push_constants[2], light_entity_ids.data(), sizeof(int32_t) * light_entity_ids.size());
+        PushConsts push_constants = {};
+        push_constants.target_id = entity.get_id();entity.get_id();
+        push_constants.camera_id = camera_id;
+        push_constants.brdf_lut_id = Texture::Get("BRDF")->get_id();
+        push_constants.diffuse_environment_id = -1;
+        push_constants.specular_environment_id = -1;
+        push_constants.environment_id = -1;
+        push_constants.exposure = exposure;
+        push_constants.gamma = gamma;
+
+        memcpy(push_constants.light_entity_ids, light_entity_ids.data(), sizeof(push_constants.light_entity_ids)/*sizeof(int32_t) * light_entity_ids.size()*/);
         command_buffer.pushConstants(
             blinn.pipelineLayout, 
             vk::ShaderStageFlagBits::eAll,
-            0, 
-            (2 + MAX_LIGHTS) * sizeof(int32_t),
-            push_constants.data()
-            );
+            0, sizeof(PushConsts), &push_constants);
     }
 
     // Render normal

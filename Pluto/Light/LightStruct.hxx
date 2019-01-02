@@ -1,3 +1,6 @@
+#ifndef LIGHTSTRUCT_HXX
+#define LIGHTSTRUCT_HXX
+
 #ifndef MAX_LIGHTS
 #define MAX_LIGHTS 8
 #endif
@@ -16,3 +19,5 @@ struct LightStruct {
 	float ambientContribution, constantAttenuation, linearAttenuation, quadraticAttenuation;
 	float spotCutoff, spotExponent, pad1, pad2;
 };
+
+#endif

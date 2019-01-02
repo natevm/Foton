@@ -12,10 +12,10 @@ layout(location = 3) in vec3 w_reflection;
 layout(location = 0) out vec4 outColor;
 
 void main() {
-  EntityStruct entity = ebo.entities[pushConsts.target_id];
+  EntityStruct entity = ebo.entities[push.consts.target_id];
   MaterialStruct material = mbo.materials[entity.material_id];
 
-  // EntityStruct camera_entity = ebo.entities[pushConsts.camera_id];
+  // EntityStruct camera_entity = ebo.entities[push.consts.camera_id];
   // CameraStruct camera = cbo.cameras[camera_entity.camera_id];
   // TransformStruct camera_transform = tbo.transforms[camera_entity.transform_id];
 
@@ -37,7 +37,7 @@ void main() {
   /* Forward light pass */
   for (int i = 0; i < MAX_LIGHTS; ++i) {
 
-    int light_entity_id = pushConsts.light_entity_ids[i];
+    int light_entity_id = push.consts.light_entity_ids[i];
     if (light_entity_id == -1) continue;
 
     EntityStruct light_entity = ebo.entities[light_entity_id];
@@ -46,7 +46,7 @@ void main() {
     LightStruct light = lbo.lights[light_entity.light_id];
 
     /* Objects which are lights glow */
-    if (light_entity_id == pushConsts.target_id) {
+    if (light_entity_id == push.consts.target_id) {
       diffuseColor += light.diffuse.rgb;
     }
     else 
