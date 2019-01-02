@@ -18,8 +18,8 @@ out gl_PerVertex {
 };
 
 void main() {
-    EntityStruct entity = ebo.entities[pushConsts.target_id];
-    CameraStruct camera = cbo.cameras[pushConsts.camera_id];
+    EntityStruct entity = ebo.entities[push.consts.target_id];
+    CameraStruct camera = cbo.cameras[push.consts.camera_id];
     MaterialStruct material = mbo.materials[entity.material_id];
     TransformStruct transform = tbo.transforms[entity.transform_id];
     

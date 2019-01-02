@@ -12,6 +12,8 @@
 #include "Pluto/Tools/Options.hxx"
 #include "Pluto/Material/Material.hxx"
 
+#include "Pluto/Material/PushConstants.hxx"
+
 // #ifndef _WIN32
 // #include <unistd.h>
 // #else
@@ -82,7 +84,7 @@ bool RenderSystem::start()
     if (running)
         return false;
 
-    auto loop = [](future<void> futureObj) {
+    auto loop = [this](future<void> futureObj) {
         using namespace Libraries;
         auto glfw = GLFW::Get();
         auto vulkan = Vulkan::Get();
@@ -193,7 +195,7 @@ bool RenderSystem::start()
                             {
                                 if (entities[i].is_initialized())
                                 {
-                                    Material::DrawEntity(maincmd, entities[i], id, light_entity_ids);
+                                    Material::DrawEntity(maincmd, entities[i], id, gamma, exposure, light_entity_ids);
                                 }
                             }
 
@@ -338,5 +340,16 @@ bool RenderSystem::stop()
 
 RenderSystem::RenderSystem() {}
 RenderSystem::~RenderSystem() {}
+
+
+void RenderSystem::set_gamma(float gamma)
+{
+    this->gamma = gamma;
+}
+
+void RenderSystem::set_exposure(float exposure)
+{
+    this->exposure = exposure;
+}
 
 } // namespace Systems

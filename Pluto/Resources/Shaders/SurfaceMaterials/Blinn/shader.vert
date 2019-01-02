@@ -19,8 +19,8 @@ out gl_PerVertex {
 };
 
 void main() {
-    EntityStruct target_entity = ebo.entities[pushConsts.target_id];
-    EntityStruct camera_entity = ebo.entities[pushConsts.camera_id];
+    EntityStruct target_entity = ebo.entities[push.consts.target_id];
+    EntityStruct camera_entity = ebo.entities[push.consts.camera_id];
     
     CameraStruct camera = cbo.cameras[camera_entity.camera_id];
     TransformStruct camera_transform = tbo.transforms[camera_entity.transform_id];
