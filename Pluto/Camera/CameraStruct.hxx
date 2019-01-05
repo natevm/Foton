@@ -19,6 +19,7 @@ struct CameraObject
     mat4 proj;
     mat4 viewinv;
     mat4 projinv;
+    mat4 viewproj;
     float near_pos;
     float far_pos;
     float fov;

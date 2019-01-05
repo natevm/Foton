@@ -1,6 +1,6 @@
 /* File shared by both GLSL and C++ */
 #ifndef MAX_MATERIALS
-#define MAX_MATERIALS 1024
+#define MAX_MATERIALS 256
 #endif
 
 #ifndef GLSL
