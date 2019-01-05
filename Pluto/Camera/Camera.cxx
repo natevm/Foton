@@ -47,6 +47,7 @@ void Camera::UploadSSBO()
         for (int j = 0; j < MAX_MULTIVIEW; ++j) {
             pinnedMemory[i].multiviews[j].viewinv = glm::inverse(pinnedMemory[i].multiviews[j].view);
             pinnedMemory[i].multiviews[j].projinv = glm::inverse(pinnedMemory[i].multiviews[j].proj);
+            pinnedMemory[i].multiviews[j].viewproj = pinnedMemory[i].multiviews[j].proj * pinnedMemory[i].multiviews[j].view;
         }
     };
 }

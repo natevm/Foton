@@ -498,6 +498,7 @@ void Material::CreateDescriptorPool()
 
 void Material::CreateDescriptorSets()
 {
+    if (  (componentDescriptorPool == vk::DescriptorPool()) || (textureDescriptorPool == vk::DescriptorPool())) return;
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
     
@@ -732,6 +733,8 @@ bool Material::BindDescriptorSets(vk::CommandBuffer &command_buffer)
 }
 
 bool Material::DrawSkyBox(vk::CommandBuffer &command_buffer, int32_t camera_id, int32_t environment_id, float gamma, float exposure) {
+    if (environment_id == -1) return false;
+
     /* Get the default plane mesh */
     auto skybox_entity = Entity::Get("Skybox");
     auto mesh_id = skybox_entity->get_mesh();

@@ -93,12 +93,23 @@ bool RenderSystem::start()
         Texture* swapchain_texture = nullptr;
         Bucket bucket = {};
         vk::SwapchainKHR swapchain;
-        uint32_t index;
+        uint32_t frame_index;
+        uint32_t currentFrame = 0;
+        
+        std::vector<vk::CommandBuffer> maincmds;
+        std::vector<vk::Fence> maincmd_fences;
+        vk::Fence acquireFence;
+        std::vector<vk::Semaphore> imageAvailableSemaphores;
+        std::vector<vk::Semaphore> renderCompleteSemaphores;
         vk::CommandBuffer maincmd;
+        vk::Fence main_fence;
+        uint32_t MAX_FRAMES_IN_FLIGHT = 3;
+
+
         vk::SemaphoreCreateInfo semaphoreInfo;
-        vk::Semaphore imageAvailableSemaphore;
-        vk::Semaphore renderCompleteSemaphore;
-        vk::Semaphore presentCompleteSemaphore;
+        // vk::Semaphore imageAvailableSemaphore;
+        // vk::Semaphore renderCompleteSemaphore;
+        // vk::Semaphore presentCompleteSemaphore;
 
         std::cout << "Starting RenderSystem, thread id: " << std::this_thread::get_id() << std::endl;
 
@@ -108,6 +119,8 @@ bool RenderSystem::start()
             if ((currentTime - lastTime) < .008)
                 continue;
 
+            std::cout<<"\r time: " << std::to_string(currentTime - lastTime);
+
             lastTime = currentTime;
 
             if (!vulkan->is_initialized())
@@ -116,21 +129,39 @@ bool RenderSystem::start()
             auto device = vulkan->get_device();
 
             /* Create a main command buffer if one does not already exist */
-            if (maincmd == vk::CommandBuffer())
+            if (maincmds.size() == 0)
             {
                 vk::CommandBufferAllocateInfo mainCmdAllocInfo;
                 mainCmdAllocInfo.level = vk::CommandBufferLevel::ePrimary;
                 mainCmdAllocInfo.commandPool = vulkan->get_command_pool(2);
-                mainCmdAllocInfo.commandBufferCount = 1;
-                maincmd = device.allocateCommandBuffers(mainCmdAllocInfo)[0];
+                mainCmdAllocInfo.commandBufferCount = MAX_FRAMES_IN_FLIGHT;
+                maincmds = device.allocateCommandBuffers(mainCmdAllocInfo);
             }
+            if (imageAvailableSemaphores.size() == 0) {
+                imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+                renderCompleteSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+                for (uint32_t idx = 0; idx < MAX_FRAMES_IN_FLIGHT; ++idx) {
+                    imageAvailableSemaphores[idx] = device.createSemaphore(semaphoreInfo);
+                    renderCompleteSemaphores[idx] = device.createSemaphore(semaphoreInfo);
+                }
+            }
+
             /* Likewise, create semaphores if they do not already exist */
-            if (imageAvailableSemaphore == vk::Semaphore())
-                imageAvailableSemaphore = device.createSemaphore(semaphoreInfo);
-            if (renderCompleteSemaphore == vk::Semaphore())
-                renderCompleteSemaphore = device.createSemaphore(semaphoreInfo);
-            if (presentCompleteSemaphore == vk::Semaphore())
-                presentCompleteSemaphore = device.createSemaphore(semaphoreInfo);
+            if (maincmd_fences.size() == 0)
+            {
+                maincmd_fences.resize(MAX_FRAMES_IN_FLIGHT);
+                for (uint32_t idx = 0; idx < MAX_FRAMES_IN_FLIGHT; ++idx) {
+                    vk::FenceCreateInfo fenceInfo;
+                    fenceInfo.flags |= vk::FenceCreateFlagBits::eSignaled;
+                    maincmd_fences[idx] = device.createFence(fenceInfo);
+                }
+            }
+
+            if (acquireFence == vk::Fence())
+            {
+                vk::FenceCreateInfo fenceInfo;
+                acquireFence = device.createFence(fenceInfo);
+            }
 
             /* Upload SSBO data */
             Material::UploadSSBO();
@@ -138,6 +169,8 @@ bool RenderSystem::start()
             Light::UploadSSBO();
             Camera::UploadSSBO();
             Entity::UploadSSBO();
+            Material::CreateDescriptorSets();
+
 
             /* 1. Optionally aquire swapchain image. Signal image available semaphore. */
             if (glfw->does_window_exist("Window"))
@@ -145,14 +178,20 @@ bool RenderSystem::start()
                 swapchain = glfw->get_swapchain("Window");
                 if (swapchain)
                 {
-                    index = device.acquireNextImageKHR(swapchain, std::numeric_limits<uint32_t>::max(), imageAvailableSemaphore, vk::Fence()).value;
-                    swapchain_texture = glfw->get_texture("Window", index);
+                    frame_index = device.acquireNextImageKHR(swapchain, std::numeric_limits<uint32_t>::max(), imageAvailableSemaphores[currentFrame], acquireFence).value;
+                    swapchain_texture = glfw->get_texture("Window", frame_index);
+                    
+                    device.waitForFences(acquireFence, true, 100000000000);
+                    device.resetFences(acquireFence);
                 }
             }
 
+            maincmd = maincmds[currentFrame];
+
             /* 2. Record render commands. */
             vk::CommandBufferBeginInfo beginInfo;
-            beginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
+            // beginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
+            beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
             maincmd.begin(beginInfo);
 
             /* Render cameras (one renderpass for now) */
@@ -185,7 +224,6 @@ bool RenderSystem::start()
                                     break;
                             }
 
-                            Material::CreateDescriptorSets();
                             Material::BindDescriptorSets(maincmd) ;
 
                             int32_t camera_id = current_camera->get_id();
@@ -221,16 +259,14 @@ bool RenderSystem::start()
 
             vk::SubmitInfo submit_info;
             submit_info.waitSemaphoreCount = (swapchain && swapchain_texture) ? 1 : 0;
-            submit_info.pWaitSemaphores = &imageAvailableSemaphore;
+            submit_info.pWaitSemaphores = &imageAvailableSemaphores[currentFrame];
             submit_info.pWaitDstStageMask = &submitPipelineStages;
             submit_info.commandBufferCount = 1;
             submit_info.pCommandBuffers = &maincmd;
             submit_info.signalSemaphoreCount = (swapchain && swapchain_texture) ? 1 : 0;
-            submit_info.pSignalSemaphores = &renderCompleteSemaphore;
+            submit_info.pSignalSemaphores = &renderCompleteSemaphores[currentFrame];
 
-            vk::FenceCreateInfo fenceInfo;
-            vk::Fence fence = device.createFence(fenceInfo);
-            vulkan->enqueue_graphics_commands(submit_info, fence);
+            vulkan->enqueue_graphics_commands(submit_info, maincmd_fences[currentFrame]);
 
             /* If doing network rendering... */
             if (Options::IsServer() || Options::IsClient())
@@ -273,8 +309,9 @@ bool RenderSystem::start()
             vulkan->submit_graphics_commands();
 
             // /* Wait for GPU to finish execution */
-            device.waitForFences(fence, true, 100000000000);
-            device.destroyFence(fence);
+            // If i don't fence here, triangles seem to spread apart. I think this is an issue with using the SSBO from frame to frame...
+            device.waitForFences(maincmd_fences[currentFrame], true, 100000000000);
+            device.resetFences(maincmd_fences[currentFrame]);
 
             /* 5. Optional: Wait on render complete. Present a frame. */
             if (swapchain && swapchain_texture)
@@ -282,8 +319,8 @@ bool RenderSystem::start()
                 vk::PresentInfoKHR presentInfo;
                 presentInfo.swapchainCount = 1;
                 presentInfo.pSwapchains = &swapchain;
-                presentInfo.pImageIndices = &index;
-                presentInfo.pWaitSemaphores = &renderCompleteSemaphore;
+                presentInfo.pImageIndices = &frame_index;
+                presentInfo.pWaitSemaphores = &renderCompleteSemaphores[currentFrame];
                 presentInfo.waitSemaphoreCount = 1;
 
                 vulkan->enqueue_present_commands(presentInfo);
@@ -294,20 +331,28 @@ bool RenderSystem::start()
                     swapchain = glfw->get_swapchain("Window");
                 }
             }
+
+            currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
         }
 
         /* Release vulkan resources */
         auto device = vulkan->get_device();
         if (device != vk::Device())
         {
-            if (maincmd != vk::CommandBuffer())
-                device.freeCommandBuffers(vulkan->get_command_pool(2), maincmd);
-            if (imageAvailableSemaphore != vk::Semaphore())
-                device.destroySemaphore(imageAvailableSemaphore);
-            if (renderCompleteSemaphore != vk::Semaphore())
-                device.destroySemaphore(renderCompleteSemaphore);
-            if (presentCompleteSemaphore != vk::Semaphore())
-                device.destroySemaphore(presentCompleteSemaphore);
+            if (maincmds.size() != 0)
+                device.freeCommandBuffers(vulkan->get_command_pool(2), maincmds);
+            
+            for (int idx = 0; idx < maincmd_fences.size(); ++idx) {
+                device.destroyFence(maincmd_fences[idx]);
+            }
+
+            for (int idx = 0; idx < imageAvailableSemaphores.size(); ++idx) {
+                device.destroySemaphore(imageAvailableSemaphores[idx]);
+            }
+
+            for (int idx = 0; idx < renderCompleteSemaphores.size(); ++idx) {
+                device.destroySemaphore(renderCompleteSemaphores[idx]);
+            }
         }
     };
 

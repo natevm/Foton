@@ -901,7 +901,7 @@ bool Texture::loadKTX(std::string imagePath)
     sInfo.addressModeV = vk::SamplerAddressMode::eClampToEdge;
     sInfo.addressModeW = vk::SamplerAddressMode::eClampToEdge;
     sInfo.mipLodBias = 0.0;
-    sInfo.maxAnisotropy = 4.0; // todo, get limit here.
+    sInfo.maxAnisotropy = 16.0; // todo, get limit here.
     sInfo.anisotropyEnable = VK_TRUE;
     sInfo.minLod = 0.0;
     sInfo.maxLod = (float) data.colorMipLevels;
@@ -992,7 +992,7 @@ bool Texture::create_color_image_resources()
     sInfo.addressModeV = vk::SamplerAddressMode::eClampToEdge;
     sInfo.addressModeW = vk::SamplerAddressMode::eClampToEdge;
     sInfo.mipLodBias = 0.0;
-    sInfo.maxAnisotropy = 4.0; // todo, get limit here.
+    sInfo.maxAnisotropy = 16.0; // todo, get limit here.
     sInfo.anisotropyEnable = VK_TRUE;
     sInfo.minLod = 0.0;
     sInfo.maxLod = (float) data.colorMipLevels;
