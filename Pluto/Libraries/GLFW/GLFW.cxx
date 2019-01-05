@@ -33,10 +33,8 @@ void key_callback( GLFWwindow* window, int key, int scancode, int action, int mo
         Libraries::GLFW::Get()->set_key_data(window_key, key, scancode, action, mods);
     }
 
-    if (key == GLFW_KEY_ESCAPE && mods == 0)
-        glfwSetWindowShouldClose(window, GLFW_TRUE);
-    if ((key == GLFW_KEY_ENTER && mods == GLFW_MOD_ALT) ||
-        (key == GLFW_KEY_F11 && mods == GLFW_MOD_ALT))
+    if (action == GLFW_PRESS && ((key == GLFW_KEY_ENTER && mods == GLFW_MOD_ALT) ||
+        (key == GLFW_KEY_F11 && mods == GLFW_MOD_ALT)))
     {
         if (glfwGetWindowMonitor(window))
         {
