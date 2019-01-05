@@ -52,7 +52,7 @@ class Camera : public StaticFactory
             }
             create_render_pass(tex_width, tex_height, (cubemap) ? 6 : 1);
             create_frame_buffer();
-            Material::SetupGraphicsPipelines(id, renderpass);
+            Material::SetupGraphicsPipelines(renderpass);
         }
     }
 

@@ -31,43 +31,156 @@ class Texture;
 
 class Material : public StaticFactory
 {
+    public:
+        /* Creates a new material component */
+        static Material* Create(std::string name);
+
+        /* Retrieves a material component by name*/
+        static Material* Get(std::string name);
+
+        /* Retrieves a material component by id */
+        static Material* Get(uint32_t id);
+
+        /* Retrieves a pointer to the list of material components */
+        static Material* GetFront();
+
+        /* Returns the total number of reserved materials */
+	    static uint32_t GetCount();
+
+        /* Deallocates a material with the given name */
+        static bool Delete(std::string name);
+
+        /* Deallocates a material with the given id */
+        static bool Delete(uint32_t id);
+
+        /* Initializes the vulkan resources required to render during the specified renderpass */
+        static void SetupGraphicsPipelines(vk::RenderPass renderpass);
+    
+        /* Initializes all vulkan descriptor resources, as well as the Mesh factory. */
+        static void Initialize();
+
+        /* Transfers all material components to an SSBO */
+        static void UploadSSBO();
+
+        /* Copies SSBO / texture handles into the texture and component descriptor sets. 
+            Also, allocates the descriptor sets if not yet allocated. */
+        static void UpdateDescriptorSets();
+
+        /* Returns the SSBO vulkan buffer handle */
+        static vk::Buffer GetSSBO();
+
+        /* Returns the size in bytes of the current material SSBO */
+        static uint32_t GetSSBOSize();
+
+        /* Releases vulkan resources */
+        static void CleanUp();
+
+        /* Records a bind of all descriptor sets to each possible pipeline to the given command buffer. Call this at the beginning of a renderpass. */
+        static bool BindDescriptorSets(vk::CommandBuffer &command_buffer);
+
+        /* Records a draw of the skybox to the current command buffer. Call this at the end of a renderpass. */
+        static bool DrawSkyBox(vk::CommandBuffer &command_buffer, int32_t camera_id, int32_t environment_id, float gamma, float exposure);
+
+        /* Records a draw of the supplied entity to the current command buffer. Call this during a renderpass. */
+        static bool DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity, int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids);
+
+        /* Creates an uninitialized material. Useful for preallocation. */
+        Material();
+
+        /* Creates a material with the given name and id. */
+        Material(std::string name, uint32_t id);
+
+        /* Returns a json string summarizing the material */
+        std::string to_string();
+
+        /* These methods choose which pipeline a material should use when drawing an entity */
+        void show_pbr();
+        void show_normals();
+        void show_base_color();
+        void show_texcoords();
+        void show_blinn();
+
+        /* Accessors / Mutators */
+        void set_base_color(glm::vec4 color);
+        void set_base_color(float r, float g, float b, float a);
+        void set_roughness(float roughness);
+        void set_metallic(float metallic);
+        void set_transmission(float transmission);
+        void set_transmission_roughness(float transmission_roughness);
+        void set_ior(float ior);
+
+        /* Certain constant material properties can be replaced with texture lookups. */
+        void use_base_color_texture(uint32_t texture_id);
+        void use_base_color_texture(Texture *texture);
+        void clear_base_color_texture();
+
+
     private:
-        /* Factory fields */
+    
+        /*  A list of the material components, allocated statically */
         static Material materials[MAX_MATERIALS];
-        static MaterialStruct* pinnedMemory;
+
+        /* A lookup table of name to material id */
         static std::map<std::string, uint32_t> lookupTable;
+        
+        /* A pointer to the mapped material SSBO. This memory is shared between the GPU and CPU. */
+        static MaterialStruct* pinnedMemory;
+
+        /* A vulkan buffer handle corresponding to the material SSBO  */
         static vk::Buffer ssbo;
+
+        /* The corresponding material SSBO memory */
         static vk::DeviceMemory ssboMemory;
 
+        /* A vector of vertex input binding descriptions, describing binding and stride of per vertex data. */
         static std::vector<vk::VertexInputBindingDescription> vertexInputBindingDescriptions;
+
+        /* A vector of vertex input attribute descriptions, describing location, format, and offset of each binding */
         static std::vector<vk::VertexInputAttributeDescription> vertexInputAttributeDescriptions;
         
-        struct MaterialResources {
+        /* A struct aggregating pipeline parameters, which configure each stage within a graphics pipeline 
+            (rasterizer, input assembly, etc), with their corresponding graphics pipeline. */
+        struct PipelineResources {
             PipelineParameters pipelineParameters;
             vk::Pipeline pipeline;
             vk::PipelineLayout pipelineLayout;
         };
         
+        /* The descriptor set layout describing where component SSBOs are bound */
         static vk::DescriptorSetLayout componentDescriptorSetLayout;
+
+        /* The descriptor set layout describing where the array of textures are bound */
         static vk::DescriptorSetLayout textureDescriptorSetLayout;
+
+        /* The descriptor pool used to allocate the component descriptor set. */
         static vk::DescriptorPool componentDescriptorPool;
+
+        /* The descriptor pool used to allocate the texture descriptor set. */
         static vk::DescriptorPool textureDescriptorPool;
+
+        /* The descriptor set containing references to all component SSBO buffers to be used as uniforms. */
         static vk::DescriptorSet componentDescriptorSet;
+
+        /* The descriptor set containing references to all array of textues to be used as uniforms. */
         static vk::DescriptorSet textureDescriptorSet;
 
-        static MaterialResources uniformColor;
-        static MaterialResources blinn;
-        static MaterialResources pbr;
-        static MaterialResources texcoordsurface;
-        static MaterialResources normalsurface;
-        static MaterialResources skybox;
+        /* The pipeline resources for each of the possible material types */
+        static PipelineResources uniformColor;
+        static PipelineResources blinn;
+        static PipelineResources pbr;
+        static PipelineResources texcoordsurface;
+        static PipelineResources normalsurface;
+        static PipelineResources skybox;
 
+        /* Wrapper for shader module creation.  */
         static vk::ShaderModule CreateShaderModule(const std::vector<char>& code);
+
+        /* Wraps the vulkan boilerplate for creation of a graphics pipeline */
         static void CreatePipeline(
-            std::vector<vk::PipelineShaderStageCreateInfo> shaderStages, // yes
-            std::vector<vk::VertexInputBindingDescription> bindingDescriptions, // yes
-            std::vector<vk::VertexInputAttributeDescription> attributeDescriptions, // yes
-            std::vector<vk::DescriptorSetLayout> componentDescriptorSetLayouts, // yes
+            std::vector<vk::PipelineShaderStageCreateInfo> shaderStages,
+            std::vector<vk::VertexInputBindingDescription> bindingDescriptions,
+            std::vector<vk::VertexInputAttributeDescription> attributeDescriptions,
+            std::vector<vk::DescriptorSetLayout> componentDescriptorSetLayouts,
             PipelineParameters parameters,
             vk::RenderPass renderpass,
             uint32 subpass,
@@ -75,156 +188,25 @@ class Material : public StaticFactory
             vk::PipelineLayout &layout 
         );
 
+        /* Creates all possible descriptor set layout combinations */
         static void CreateDescriptorSetLayouts();
+
+        /* Creates the descriptor pool where the descriptor sets will be allocated from. */
         static void CreateDescriptorPool();
-        
-        public: 
-        static void CreateDescriptorSets();
-        private:
-        static void CreateSkyBoxEntity();
+
+        /* Creates the vulkan vertex input binding descriptions required to create a pipeline. */
         static void CreateVertexInputBindingDescriptions();
+
+        /* Creates the vulkan vertex attribute binding descriptions required to create a pipeline. */
         static void CreateVertexAttributeDescriptions();
+
+        /* Creates the SSBO which will contain all material components, and maps that SSBO to a pinned memory pointer */
         static void CreateSSBO();
         
-        /* Instance fields*/
+        /* The structure containing all shader material properties. This is what's coppied into the SSBO per instance */
         MaterialStruct material_struct;
-        int renderMode = 4;
-        
-        bool useBaseColorTexture = false;
-        int baseColorTextureID = -1;
 
-    public:
-        /* Factory functions */
-        static Material* Create(std::string name);
-        static Material* Get(std::string name);
-        static Material* Get(uint32_t id);
-        static Material* GetFront();
-	    static uint32_t GetCount();
-        static bool Delete(std::string name);
-        static bool Delete(uint32_t id);
-
-        static void SetupGraphicsPipelines(uint32_t id, vk::RenderPass renderpass);
-    
-        static void Initialize();
-        static void UploadSSBO();
-        static vk::Buffer GetSSBO();
-        static uint32_t GetSSBOSize();
-        static void CleanUp();
-
-        static bool BindDescriptorSets(vk::CommandBuffer &command_buffer);
-        static bool DrawSkyBox(vk::CommandBuffer &command_buffer, int32_t camera_id, int32_t environment_id, float gamma, float exposure);
-        static bool DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity, int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids);
-
-        /* Instance functions */
-        Material() {
-            this->initialized = false;
-        }
-
-        Material(std::string name, uint32_t id)
-        {
-            this->initialized = true;
-            this->name = name;
-            this->id = id;
-
-            /* Working off blender's principled BSDF */
-            material_struct.base_color = vec4(.8, .8, .8, 1.0);
-            material_struct.subsurface = 0.0;
-            material_struct.subsurface_radius = vec4(1.0, .2, .1, 1.0);
-            material_struct.subsurface_color = vec4(.8, .8, .8, 1.0);
-            material_struct.metallic = 0.0;
-            material_struct.specular = .5;
-            material_struct.specular_tint = 0.0;
-            material_struct.roughness = .5;
-            material_struct.anisotropic = 0.0;
-            material_struct.anisotropic_rotation = 0.0;
-            material_struct.sheen = 0.0;
-            material_struct.sheen_tint = 0.5;
-            material_struct.clearcoat = 0.0;
-            material_struct.clearcoat_roughness = .03f;
-            material_struct.ior = 1.45f;
-            material_struct.transmission = 0.0;
-            material_struct.transmission_roughness = 0.0;
-            material_struct.base_color_texture_id = -1;
-            material_struct.metalic_roughness_texture_id = -1;
-        }
-
-        std::string to_string() {
-            std::string output;
-            output += "{\n";
-            output += "\ttype: \"Material\",\n";
-            output += "\tname: \"" + name + "\"\n";
-            output += "\tbase_color: \"" + glm::to_string(material_struct.base_color) + "\"\n";
-            output += "\tsubsurface: \"" + std::to_string(material_struct.subsurface) + "\"\n";
-            output += "\tsubsurface_radius: \"" + glm::to_string(material_struct.subsurface_radius) + "\"\n";
-            output += "\tsubsurface_color: \"" + glm::to_string(material_struct.subsurface_color) + "\"\n";
-            output += "\tmetallic: \"" + std::to_string(material_struct.metallic) + "\"\n";
-            output += "\tspecular: \"" + std::to_string(material_struct.specular) + "\"\n";
-            output += "\tspecular_tint: \"" + std::to_string(material_struct.specular_tint) + "\"\n";
-            output += "\troughness: \"" + std::to_string(material_struct.roughness) + "\"\n";
-            output += "\tanisotropic: \"" + std::to_string(material_struct.anisotropic) + "\"\n";
-            output += "\tanisotropic_rotation: \"" + std::to_string(material_struct.anisotropic_rotation) + "\"\n";
-            output += "\tsheen: \"" + std::to_string(material_struct.sheen) + "\"\n";
-            output += "\tsheen_tint: \"" + std::to_string(material_struct.sheen_tint) + "\"\n";
-            output += "\tclearcoat: \"" + std::to_string(material_struct.clearcoat) + "\"\n";
-            output += "\tclearcoat_roughness: \"" + std::to_string(material_struct.clearcoat_roughness) + "\"\n";
-            output += "\tior: \"" + std::to_string(material_struct.ior) + "\"\n";
-            output += "\ttransmission: \"" + std::to_string(material_struct.transmission) + "\"\n";
-            output += "\ttransmission_roughness: \"" + std::to_string(material_struct.transmission_roughness) + "\"\n";
-            output += "}";
-            return output;
-        }
-
-        void show_material() {
-            renderMode = 4;
-        }
-
-        void show_normals () {
-            renderMode = 1;
-        }
-
-        void show_vertex_colors() {
-            renderMode = 2;
-        }
-
-        void show_texcoords() {
-            renderMode = 3;
-        }
-
-        void show_blinn() {
-            renderMode = 0;
-        }
-
-        void set_base_color(glm::vec4 color) {
-            this->material_struct.base_color = color;
-        }
-
-        void set_base_color(float r, float g, float b, float a) {
-            this->material_struct.base_color = glm::vec4(r, g, b, a);
-        }
-
-        void set_roughness(float roughness) {
-            this->material_struct.roughness = roughness;
-        }
-
-        void set_metallic(float metallic) {
-            this->material_struct.metallic = metallic;
-        }
-
-        void set_transmission(float transmission) {
-            this->material_struct.transmission = transmission;
-        }
-
-        void set_transmission_roughness(float transmission_roughness) {
-            this->material_struct.transmission_roughness = transmission_roughness;
-        }
-
-        void set_ior(float ior) {
-            this->material_struct.ior = ior;
-        }
-
-        void use_base_color_texture(uint32_t texture_id);
-
-        void use_base_color_texture(Texture *texture);
-
-        void use_base_color_texture(bool use_texture);
+        /* An enumeration used to select a pipeline type for use when drawing a given entity. */
+        enum RenderMode { BLINN, PBR, NORMAL, TEXCOORD, SKYBOX, BASECOLOR };
+        RenderMode renderMode = PBR;
 };

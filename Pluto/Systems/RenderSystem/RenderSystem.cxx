@@ -111,7 +111,7 @@ bool RenderSystem::start()
         // vk::Semaphore renderCompleteSemaphore;
         // vk::Semaphore presentCompleteSemaphore;
 
-        std::cout << "Starting RenderSystem, thread id: " << std::this_thread::get_id() << std::endl;
+        // std::cout << "Starting RenderSystem, thread id: " << std::this_thread::get_id() << std::endl;
 
         while (futureObj.wait_for(std::chrono::seconds(0)) != future_status::ready)
         {
@@ -119,7 +119,7 @@ bool RenderSystem::start()
             if ((currentTime - lastTime) < .008)
                 continue;
 
-            std::cout<<"\r time: " << std::to_string(currentTime - lastTime);
+            // std::cout<<"\r time: " << std::to_string(currentTime - lastTime);
 
             lastTime = currentTime;
 
@@ -169,7 +169,7 @@ bool RenderSystem::start()
             Light::UploadSSBO();
             Camera::UploadSSBO();
             Entity::UploadSSBO();
-            Material::CreateDescriptorSets();
+            Material::UpdateDescriptorSets();
 
 
             /* 1. Optionally aquire swapchain image. Signal image available semaphore. */
@@ -274,34 +274,38 @@ bool RenderSystem::start()
                 /* Download complete frame, send over UDP. */
                 if (Options::IsServer())
                 {
-                    std::vector<float> color_data = current_camera->get_texture()->download_color_data(16, 16, 1, 0);
+                    if (current_camera) {
+                        std::vector<float> color_data = current_camera->get_texture()->download_color_data(16, 16, 1, 0);
 
-                    bucket.x = 0;
-                    bucket.y = 0;
-                    bucket.width = 16;
-                    bucket.height = 16;
-                    memcpy(bucket.data, color_data.data(), 16 * 16 * 4 * sizeof(float));
+                        bucket.x = 0;
+                        bucket.y = 0;
+                        bucket.width = 16;
+                        bucket.height = 16;
+                        memcpy(bucket.data, color_data.data(), 16 * 16 * 4 * sizeof(float));
 
-                    /* Set message group */
-                    zmq_msg_t msg;
-                    const char *text = "Hello";
-                    int rc = zmq_msg_init_size(&msg, sizeof(Bucket));
-                    assert(rc == 0);
-                    memcpy(zmq_msg_data(&msg), &bucket, sizeof(Bucket));
-                    zmq_msg_set_group(&msg, "PLUTO");
-                    zmq_msg_send(&msg, RenderSystem::Get()->socket, ZMQ_DONTWAIT);
+                        /* Set message group */
+                        zmq_msg_t msg;
+                        const char *text = "Hello";
+                        int rc = zmq_msg_init_size(&msg, sizeof(Bucket));
+                        assert(rc == 0);
+                        memcpy(zmq_msg_data(&msg), &bucket, sizeof(Bucket));
+                        zmq_msg_set_group(&msg, "PLUTO");
+                        zmq_msg_send(&msg, RenderSystem::Get()->socket, ZMQ_DONTWAIT);
+                    }
                 }
 
                 /* Receive complete frame over UDP. Upload. */
                 if (Options::IsClient())
                 {
-                    for (int i = 0; i < 100; ++i)
-                    {
-                        int rc = zmq_recv(RenderSystem::Get()->socket, &bucket, sizeof(Bucket), ZMQ_NOBLOCK);
+                    if (current_camera) {
+                        for (int i = 0; i < 100; ++i)
+                        {
+                            int rc = zmq_recv(RenderSystem::Get()->socket, &bucket, sizeof(Bucket), ZMQ_NOBLOCK);
+                        }
+                        std::vector<float> color_data(16 * 16 * 4);
+                        memcpy(color_data.data(), bucket.data, 16 * 16 * 4 * sizeof(float));
+                        current_camera->get_texture()->upload_color_data(16, 16, 1, color_data, 0);
                     }
-                    std::vector<float> color_data(16 * 16 * 4);
-                    memcpy(color_data.data(), bucket.data, 16 * 16 * 4 * sizeof(float));
-                    current_camera->get_texture()->upload_color_data(16, 16, 1, color_data, 0);
                 }
             }
 
