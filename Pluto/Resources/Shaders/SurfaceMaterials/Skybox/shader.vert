@@ -1,35 +1,13 @@
 #version 450
-
 #extension GL_ARB_separate_shader_objects : enable
-#extension GL_ARB_shading_language_420pack : enable
 #extension GL_EXT_multiview : enable
 
-layout (location = 0) in vec3 inPos;
+#include "Pluto/Resources/Shaders/DescriptorLayout.hxx"
 
-#define MAX_MULTIVIEW 6
-struct PerspectiveObject {
-    mat4 view;
-    mat4 proj;
-    mat4 viewinv;
-    mat4 projinv;
-    float near;
-    float far;
-    float pad1, pad2;
-};
-
-layout(binding = 0) uniform PerspectiveBufferObject {
-    PerspectiveObject at[MAX_MULTIVIEW];
-} pbo;
-
-layout(binding = 1) uniform TransformBufferObject{
-    mat4 worldToLocal;
-    mat4 localToWorld;
-} tbo;
-
-layout(binding = 2) uniform MaterialBufferObject {
-    vec4 color;
-    bool useTexture;
-} mbo;
+layout(location = 0) in vec3 point;
+layout(location = 1) in vec4 color;
+layout(location = 2) in vec3 normal;
+layout(location = 3) in vec2 texcoord;
 
 layout (location = 0) out vec3 outUVW;
 layout (location = 1) out vec3 camPos;
@@ -41,13 +19,21 @@ out gl_PerVertex
 
 void main() 
 {
-	outUVW.x = inPos.x;
-	outUVW.y = inPos.z;
-	outUVW.z = inPos.y;
-	vec3 cameraPos = vec3(tbo.worldToLocal * pbo.viewinv[3]);
-	camPos.x = cameraPos.x;
-	camPos.y = cameraPos.z;
-	camPos.z = cameraPos.y;
-	
-	gl_Position = pbo.at[gl_ViewIndex].proj * pbo.at[gl_ViewIndex].view * tbo.localToWorld * vec4(inPos.xyz, 1.0);
+    EntityStruct target_entity = ebo.entities[push.consts.target_id];
+    EntityStruct camera_entity = ebo.entities[push.consts.camera_id];
+    
+    CameraStruct camera = cbo.cameras[camera_entity.camera_id];
+    TransformStruct camera_transform = tbo.transforms[camera_entity.transform_id];
+    TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
+
+    vec4 w_position = target_transform.localToWorld * vec4(point.xyz, 1.0);
+    vec3 w_cameraPos = vec3(camera.multiviews[gl_ViewIndex].viewinv[3]) + vec3(camera_transform.localToWorld[3]);
+
+    camPos = w_cameraPos;//vec3(target_transform.worldToLocal * vec4(w_cameraPos, 1.0));
+
+	outUVW.x = w_position.x;
+	outUVW.y = w_position.y;
+	outUVW.z = w_position.z;
+    
+    gl_Position = camera.multiviews[gl_ViewIndex].proj * camera.multiviews[gl_ViewIndex].view * camera_transform.worldToLocal * w_position;
 }

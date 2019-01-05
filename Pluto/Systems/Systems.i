@@ -9,7 +9,6 @@ using namespace Systems;
 %include "./../Tools/Typemaps.i"
 
 %feature("autodoc", "2");
-%feature("kwargs");
 
 %include <windows.i>
 

@@ -25,7 +25,7 @@ class StaticFactory {
 
     virtual std::string to_string() = 0;
     virtual std::string get_name() { return name; };
-    virtual uint32_t get_id() { return id; };
+    virtual int32_t get_id() { return id; };
     
     bool is_initialized() {
         return initialized;

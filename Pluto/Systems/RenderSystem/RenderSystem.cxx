@@ -190,14 +190,16 @@ bool RenderSystem::start()
 
                             int32_t camera_id = current_camera->get_id();
                             current_camera->begin_renderpass(maincmd);
-
+                            
                             for (uint32_t i = 0; i < Entity::GetCount(); ++i)
                             {
                                 if (entities[i].is_initialized())
                                 {
-                                    Material::DrawEntity(maincmd, entities[i], id, gamma, exposure, light_entity_ids);
+                                    Material::DrawEntity(maincmd, entities[i], id, environment_id, diffuse_id, irradiance_id, gamma, exposure, light_entity_ids);
                                 }
                             }
+
+                            Material::DrawSkyBox(maincmd, id, environment_id, gamma, exposure);
 
                             current_camera->end_renderpass(maincmd);
                         }
@@ -350,6 +352,51 @@ void RenderSystem::set_gamma(float gamma)
 void RenderSystem::set_exposure(float exposure)
 {
     this->exposure = exposure;
+}
+
+void RenderSystem::set_environment_map(int32_t id) 
+{
+    this->environment_id = id;
+}
+
+void RenderSystem::set_environment_map(Texture *texture) 
+{
+    this->environment_id = texture->get_id();
+}
+
+void RenderSystem::clear_environment_map()
+{
+    this->environment_id = -1;
+}
+
+void RenderSystem::set_irradiance_map(int32_t id)
+{
+    this->irradiance_id = id;
+}
+
+void RenderSystem::set_irradiance_map(Texture *texture)
+{
+    this->irradiance_id = texture->get_id();
+}
+
+void RenderSystem::clear_irradiance_map()
+{
+    this->irradiance_id = -1;
+}
+
+void RenderSystem::set_diffuse_map(int32_t id)
+{
+    this->diffuse_id = id;
+}
+
+void RenderSystem::set_diffuse_map(Texture *texture)
+{
+    this->diffuse_id = texture->get_id();
+}
+
+void RenderSystem::clear_diffuse_map()
+{
+    this->diffuse_id = -1;
 }
 
 } // namespace Systems

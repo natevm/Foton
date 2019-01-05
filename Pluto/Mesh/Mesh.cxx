@@ -6,9 +6,10 @@
 // #define TINYGLTF_NO_FS
 // #define TINYGLTF_NO_STB_IMAGE_WRITE
 
-
 #include "./Mesh.hxx"
-#include <Pluto/Tools/HashCombiner.hxx>
+
+#include "Pluto/Tools/Options.hxx"
+#include "Pluto/Tools/HashCombiner.hxx"
 #include <tiny_stl.h>
 #include <tiny_gltf.h>
 
@@ -31,6 +32,16 @@ struct hash<Mesh::Vertex>
     }
 };
 } // namespace std
+
+void Mesh::Initialize() {
+    // Create the default meshes here
+    //std::string resource_path = Options::GetResourcePath();
+    CreateCube("DefaultCube");
+    CreateSphere("DefaultSphere");
+    CreatePlane("DefaultPlane");
+    
+    // fatal error here if result is nullptr...
+}
 
 bool Mesh::load_obj(std::string objPath)
 {

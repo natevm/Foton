@@ -96,7 +96,7 @@ class Mesh : public StaticFactory
         return output;
     }
 	
-    ////static void Initialize();
+    static void Initialize();
     //static void UploadSSBO();
     //static vk::Buffer GetSSBO();
 	//static uint32_t GetSSBOSize();

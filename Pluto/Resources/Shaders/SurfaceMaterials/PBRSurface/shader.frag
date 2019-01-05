@@ -37,15 +37,15 @@ vec2 sampleBRDF(vec3 N, vec3 V, float roughness)
 // Todo: add support for sampled irradiance
 vec3 sampleIrradiance(vec3 N)
 {
-	// vec3 irradiance = vec3(0.0, 0.0, 0.0);
-	// if (push.consts.diffuse_environment_id != -1) {
-	// 	irradiance = texture(
-	// 		samplerCube(texture_cubes[push.consts.diffuse_environment_id], samplers[push.consts.diffuse_environment_id]), 
-	// 		N
-	// 	).rgb;
-	// }
-	// return irradiance;
-	return vec3(0.01, 0.01, 0.01);
+	vec3 irradiance = vec3(0.0, 0.0, 0.0);
+	vec3 adjusted = vec3(N.x, N.z, N.y);
+	if (push.consts.diffuse_environment_id != -1) {
+		irradiance = texture(
+			samplerCube(texture_cubes[push.consts.diffuse_environment_id], samplers[push.consts.diffuse_environment_id]), 
+			adjusted
+		).rgb;
+	}
+	return irradiance;
 }
 
 // From http://filmicgames.com/archives/75
@@ -80,25 +80,42 @@ float G_SchlicksmithGGX(float dotNL, float dotNV, float roughness)
 }
 
 // Fresnel function ----------------------------------------------------
+float SchlickR(float cosTheta, float roughness)
+{
+	return pow(1.0 - cosTheta, 5.0);
+}
 vec3 F_Schlick(float cosTheta, vec3 F0)
 {
 	return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
 vec3 F_SchlickR(float cosTheta, vec3 F0, float roughness)
 {
-	return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
+	return F0 + (max(vec3(1.0 - roughness), F0) - F0) * SchlickR(cosTheta, roughness);
 }
+
 
 // Todo: add support for prefiltered reflection 
 vec3 prefilteredReflection(vec3 R, float roughness)
 {
-	// float lod = roughness * uboParams.prefilteredCubeMipLevels;
-	// float lodf = floor(lod);
-	// float lodc = ceil(lod);
-	// vec3 a = textureLod(prefilteredMap, R, lodf).rgb;
-	// vec3 b = textureLod(prefilteredMap, R, lodc).rgb;
-	// return mix(a, b, lod - lodf);
-	return vec3(0.01, 0.01, 0.01);
+	vec3 reflection = vec3(0.0, 0.0, 0.0);
+	if (push.consts.specular_environment_id != -1) {
+	
+		float lod = roughness * 10.0; // Hard coded for now //uboParams.prefilteredCubeMipLevels;
+		float lodf = floor(lod);
+		float lodc = ceil(lod);
+		vec3 adjusted = vec3(R.x, R.z, R.y);
+		vec3 a = textureLod(
+			samplerCube(texture_cubes[push.consts.specular_environment_id], samplers[push.consts.specular_environment_id]), 
+			adjusted, lodf).rgb;
+
+		vec3 b = textureLod(
+			samplerCube(texture_cubes[push.consts.specular_environment_id], samplers[push.consts.specular_environment_id]), 
+			adjusted, lodc).rgb;
+
+		reflection = mix(a, b, lod - lodf);
+	}
+
+	return reflection;
 }
 
 vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 F0, float metallic, float roughness)
@@ -152,18 +169,56 @@ void main() {
 
 	vec3 N = /*(material.hasNormalTexture == 1.0f) ? perturbNormal() :*/ normalize(w_normal);
 	vec3 V = normalize(w_cameraPos - w_position);
-	vec3 R = normalize(reflect(V, N));
+	vec3 R = -normalize(reflect(V, N));
+	
+	float eta = 1.0 / material.ior; // air = 1.0 / material = ior
+	vec3 Refr = normalize(refract(-V, N, eta));
 
 	float metallic = material.metallic;
+	float transmission = material.transmission;
 	float roughness = material.roughness;
+	float transmission_roughness = material.transmission_roughness;
+	vec3 albedo = getAlbedo();
 
 	/* Todo: read from metallic/roughness texture if one exists. */
+	vec3 reflection = prefilteredReflection(R, roughness).rgb;
+	vec3 refraction = prefilteredReflection(Refr, min(transmission_roughness + roughness, 1.0) ).rgb;
+	vec3 irradiance = sampleIrradiance(N);
 
-	vec3 F0 = vec3(0.04); 
-	F0 = mix(F0, getAlbedo(), metallic);
+	/* Transition between albedo and black */
+	vec3 albedo_mix = mix(vec3(0.04), albedo, max(metallic, transmission));
+
+	/* Transition between refraction and black (metal takes priority) */
+	vec3 refraction_mix = mix(vec3(0.0), refraction, max((transmission - metallic), 0));
+	
+	/* Transition between reflection and black */
+	vec3 reflection_mix = mix(vec3(0.04), refraction, reflection);
+	
+	/* First compute diffuse (None if metal/glass.) */
+	vec3 diffuse = irradiance * albedo;
+	
+	/* Next compute specular. */
+
+	vec2 brdf = sampleBRDF(N, V, roughness);
+	float cosTheta = max(dot(N, V), 0.0);
+	float s = SchlickR(cosTheta, roughness);
+
+	// Add on either a white schlick ring if rough, or nothing. 
+	vec3 albedo_mix_schlicked = albedo_mix + ((max(vec3(1.0 - roughness), albedo_mix) - albedo_mix) * s);
+	vec3 refraction_schlicked = refraction_mix * (1.0 - s);
+	vec3 reflection_schlicked = reflection * (mix(s, 1.0, metallic));
+	vec3 specular_reflection = reflection_schlicked * (albedo_mix_schlicked * brdf.x + brdf.y);
+	vec3 specular_refraction = refraction_schlicked * (albedo_mix * brdf.x); // brdf.y adds frensel like ring, which shouldn't exist on glass
+
+	/* This is really subtle. Brightens schlicked areas, but only if not metal. */
+	vec3 kD = (1.0 - albedo_mix_schlicked) * (1.0 - metallic);
+
+	// Ambient occlusion part
+	float ao = /*(material.hasOcclusionTexture == 1.0f) ? texture(aoMap, inUV).r : */ 1.0f;
+	vec3 ambient = (kD * diffuse + specular_reflection + specular_refraction + specular_refraction) * ao;
 
 	// Iterate over point lights
-	vec3 finalColor = vec3(0.0, 0.0, 0.0);
+	vec3 finalColor = ambient;
 	for (int i = 0; i < MAX_LIGHTS; ++i) {
 		int light_entity_id = push.consts.light_entity_ids[i];
 		if (light_entity_id == -1) continue;
@@ -172,42 +227,31 @@ void main() {
 		if ( (light_entity.initialized != 1) || (light_entity.transform_id == -1)) continue;
 
 		LightStruct light = lbo.lights[light_entity.light_id];
-		TransformStruct light_transform = tbo.transforms[light_entity.transform_id];
 
-		vec3 w_light = vec3(light_transform.localToWorld[3]);
-		vec3 L = normalize(w_light - w_position);
-		vec3 Lo = light.diffuse.rgb * specularContribution(L, V, N, F0, metallic, roughness);
+		/* If the object has a light component (fake emission) */
+		if (light_entity_id == push.consts.target_id) {
+			finalColor += light.diffuse.rgb;
+		}
+		else {
+			TransformStruct light_transform = tbo.transforms[light_entity.transform_id];
 
-		vec2 brdf = sampleBRDF(N, V, roughness);
-		vec3 reflection = prefilteredReflection(R, roughness).rgb;
-		vec3 irradiance = sampleIrradiance(N);
-
-		// Diffuse based on irradiance
-		vec3 diffuse = irradiance * getAlbedo();
-
-		vec3 F = F_SchlickR(max(dot(N, V), 0.0), F0, roughness);
-
-		// Specular reflectance
-		vec3 specular = reflection * (F * brdf.x + brdf.y);
-
-		// Ambient part
-		vec3 kD = 1.0 - F;
-		kD *= 1.0 - metallic;
-		float ao = /*(material.hasOcclusionTexture == 1.0f) ? texture(aoMap, inUV).r : */ 1.0f;
-		vec3 ambient = (kD * diffuse + specular) * ao;
-		vec3 color = ambient + Lo;
-
-		// Tone mapping
-		color = Uncharted2Tonemap(color * push.consts.exposure);
-		color = color * (1.0f / Uncharted2Tonemap(vec3(11.2f)));
-
-		// Gamma correction
-		color = pow(color, vec3(1.0f / push.consts.gamma));
-
-		finalColor += color;
+			vec3 w_light = vec3(light_transform.localToWorld[3]);
+			vec3 L = normalize(w_light - w_position);
+			vec3 Lo = light.diffuse.rgb * specularContribution(L, V, N, albedo_mix, metallic, roughness);
+			finalColor += Lo;
+		}
 	}
+	
+	// Tone mapping
+	finalColor = Uncharted2Tonemap(finalColor * push.consts.exposure);
+	finalColor = finalColor * (1.0f / Uncharted2Tonemap(vec3(11.2f)));
+
+	// Gamma correction
+	finalColor = pow(finalColor, vec3(1.0f / push.consts.gamma));
+	
 
 	// Handle emission here...
 
+//	outColor = vec4(max(dot(N, V), 0.0), max(dot(N, V), 0.0), max(dot(N, V), 0.0), 1.0);//vec4(finalColor, 1.0);
 	outColor = vec4(finalColor, 1.0);
 }
