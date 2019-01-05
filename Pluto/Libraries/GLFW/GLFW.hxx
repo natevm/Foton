@@ -50,13 +50,25 @@ namespace Libraries {
         int get_button_action(std::string key, int button);
         int get_button_mods(std::string key, int button);
 
+        bool set_key_data(std::string window_key, int key, int scancode, int action, int mods);
+        int get_key_scancode(std::string window_key, int key);
+        int get_key_action(std::string window_key, int key);
+        int get_key_mods(std::string window_key, int key);
+        static int get_key_code(std::string key);
+
         private:
         GLFW();
         ~GLFW();    
 
         struct Button {
-            int action;
-            int mods;
+            unsigned char action;
+            unsigned char mods;
+        };
+
+        struct Key {
+            int scancode;
+            unsigned char action;
+            unsigned char mods;
         };
 
         struct Window {
@@ -74,6 +86,7 @@ namespace Libraries {
             double xpos;
             double ypos;
             Button buttons[8];
+            Key keys[349]; // This is a bit inefficient, but allows lookup by GLFW key
         };
 
         static unordered_map<string, Window> &Windows();
