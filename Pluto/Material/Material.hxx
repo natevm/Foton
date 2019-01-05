@@ -60,6 +60,7 @@ class Material : public StaticFactory
         static MaterialResources pbr;
         static MaterialResources texcoordsurface;
         static MaterialResources normalsurface;
+        static MaterialResources skybox;
 
         static vk::ShaderModule CreateShaderModule(const std::vector<char>& code);
         static void CreatePipeline(
@@ -80,13 +81,14 @@ class Material : public StaticFactory
         public: 
         static void CreateDescriptorSets();
         private:
+        static void CreateSkyBoxEntity();
         static void CreateVertexInputBindingDescriptions();
         static void CreateVertexAttributeDescriptions();
         static void CreateSSBO();
         
         /* Instance fields*/
         MaterialStruct material_struct;
-        int renderMode = 0;
+        int renderMode = 4;
         
         bool useBaseColorTexture = false;
         int baseColorTextureID = -1;
@@ -110,7 +112,8 @@ class Material : public StaticFactory
         static void CleanUp();
 
         static bool BindDescriptorSets(vk::CommandBuffer &command_buffer);
-        static bool DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity, int32_t &camera_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids);
+        static bool DrawSkyBox(vk::CommandBuffer &command_buffer, int32_t camera_id, int32_t environment_id, float gamma, float exposure);
+        static bool DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity, int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids);
 
         /* Instance functions */
         Material() {
@@ -172,7 +175,7 @@ class Material : public StaticFactory
         }
 
         void show_material() {
-            renderMode = 0;
+            renderMode = 4;
         }
 
         void show_normals () {
@@ -187,8 +190,8 @@ class Material : public StaticFactory
             renderMode = 3;
         }
 
-        void show_pbr() {
-            renderMode = 4;
+        void show_blinn() {
+            renderMode = 0;
         }
 
         void set_base_color(glm::vec4 color) {
@@ -205,6 +208,18 @@ class Material : public StaticFactory
 
         void set_metallic(float metallic) {
             this->material_struct.metallic = metallic;
+        }
+
+        void set_transmission(float transmission) {
+            this->material_struct.transmission = transmission;
+        }
+
+        void set_transmission_roughness(float transmission_roughness) {
+            this->material_struct.transmission_roughness = transmission_roughness;
+        }
+
+        void set_ior(float ior) {
+            this->material_struct.ior = ior;
         }
 
         void use_base_color_texture(uint32_t texture_id);

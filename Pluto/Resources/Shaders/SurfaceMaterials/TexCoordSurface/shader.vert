@@ -26,7 +26,8 @@ void main() {
     MaterialStruct material = mbo.materials[target_entity.material_id];
     TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
 
-    gl_Position = camera.multiviews[gl_ViewIndex].proj * camera.multiviews[gl_ViewIndex].view * camera_transform.worldToLocal * vec4(point, 1.0);
+    vec3 w_position = vec3(target_transform.localToWorld * vec4(point.xyz, 1.0));
+    gl_Position = camera.multiviews[gl_ViewIndex].proj * camera.multiviews[gl_ViewIndex].view * camera_transform.worldToLocal * vec4(w_position, 1.0);
     gl_PointSize = 1.0;
     fragColor = vec4(texcoord.x, 0.0, texcoord.y, 1.0);
 }

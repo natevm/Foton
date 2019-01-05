@@ -9,10 +9,12 @@
 #include "Pluto/Texture/Texture.hxx"
 #include "Pluto/Transform/Transform.hxx"
 #include "Pluto/Material/Material.hxx"
+#include "Pluto/Mesh/Mesh.hxx"
 #include "Pluto/Light/Light.hxx"
 #include "Pluto/Entity/Entity.hxx"
 
 #include "Systems/EventSystem/EventSystem.hxx"
+#include "Systems/RenderSystem/RenderSystem.hxx"
 
 void Initialize(
     bool useGLFW = true, 
@@ -27,6 +29,7 @@ void Initialize(
     auto openvr = Libraries::OpenVR::Get();
 
     auto event_system = Systems::EventSystem::Get();
+    auto render_system = Systems::RenderSystem::Get();
 
     if (useOpenVR) {
         std::vector<std::string> additional_extensions;
@@ -45,12 +48,13 @@ void Initialize(
     vulkan->create_device(device_extensions, device_features, 8, surface);
     if (useGLFW) glfw->create_vulkan_swapchain("Window", false);
 
-    /* Initialize Component Factories */
+    /* Initialize Component Factories. Order is important. */
     Transform::Initialize();
     Light::Initialize();
     Camera::Initialize();
     Entity::Initialize();
     Texture::Initialize();
+    Mesh::Initialize();
     Material::Initialize();
 }
 

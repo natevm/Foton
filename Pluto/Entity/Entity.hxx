@@ -88,16 +88,11 @@ public:
         return output;
     }
 
-	uint32_t get_id() 
-	{
-		return id;
-	}
-
 	bool connect_to_window(std::string key);
 
 	static int32_t GetEntityFromWindow(std::string key);
 
-	void set_transform(uint32_t transform_id) 
+	void set_transform(int32_t transform_id) 
 	{
 		this->entity_struct.transform_id = transform_id;
 	}
@@ -108,12 +103,17 @@ public:
 		this->entity_struct.transform_id = transform->get_id();
 	}
 
+	void clear_transform()
+	{
+		this->entity_struct.transform_id = -1;
+	}
+
 	int32_t get_transform() 
 	{
 		return this->entity_struct.transform_id;
 	}
 
-	void set_camera(uint32_t camera_id) 
+	void set_camera(int32_t camera_id) 
 	{
 		this->entity_struct.camera_id = camera_id;
 	}
@@ -124,12 +124,17 @@ public:
 		this->entity_struct.camera_id = camera->get_id();
 	}
 
+	void clear_camera()
+	{
+		this->entity_struct.camera_id = -1;
+	}
+
 	int32_t get_camera() 
 	{
 		return this->entity_struct.camera_id;
 	}
 
-	void set_material(uint32_t material_id) 
+	void set_material(int32_t material_id) 
 	{
 		this->entity_struct.material_id = material_id;
 	}
@@ -140,12 +145,17 @@ public:
 		this->entity_struct.material_id = material->get_id();
 	}
 
+	void clear_material()
+	{
+		this->entity_struct.material_id = -1;
+	}
+
 	int32_t get_material() 
 	{
 		return this->entity_struct.material_id;
 	}
 
-	void set_light(uint32_t light_id) 
+	void set_light(int32_t light_id) 
 	{
 		this->entity_struct.light_id = light_id;
 	}
@@ -156,12 +166,17 @@ public:
 		this->entity_struct.light_id = light->get_id();
 	}
 
+	void clear_light()
+	{
+		this->entity_struct.light_id = -1;
+	}
+
 	int32_t get_light() 
 	{
 		return this->entity_struct.light_id;
 	}
 
-	void set_mesh(uint32_t mesh_id) 
+	void set_mesh(int32_t mesh_id) 
 	{
 		this->entity_struct.mesh_id = mesh_id;
 	}
@@ -170,6 +185,11 @@ public:
 	{
 		if (!mesh) return;
 		this->entity_struct.mesh_id = mesh->get_id();
+	}
+
+	void clear_mesh()
+	{
+		this->entity_struct.mesh_id = -1;
 	}
 
 	int32_t get_mesh() 

@@ -14,7 +14,6 @@ std::map<std::string, uint32_t> Material::lookupTable;
 vk::Buffer Material::ssbo;
 vk::DeviceMemory Material::ssboMemory;
 
-
 vk::DescriptorSetLayout Material::componentDescriptorSetLayout;
 vk::DescriptorSetLayout Material::textureDescriptorSetLayout;
 vk::DescriptorPool Material::componentDescriptorPool;
@@ -29,6 +28,7 @@ Material::MaterialResources Material::blinn;
 Material::MaterialResources Material::pbr;
 Material::MaterialResources Material::texcoordsurface;
 Material::MaterialResources Material::normalsurface;
+Material::MaterialResources Material::skybox;
 
 /* Wrapper for shader module creation */
 vk::ShaderModule Material::CreateShaderModule(const std::vector<char>& code) {
@@ -42,7 +42,6 @@ vk::ShaderModule Material::CreateShaderModule(const std::vector<char>& code) {
     vk::ShaderModule shaderModule = device.createShaderModule(createInfo);
     return shaderModule;
 }
-
 
 /* Under the hood, all material types have a set of Vulkan pipeline objects. */
 void Material::CreatePipeline(
@@ -102,14 +101,13 @@ void Material::CreatePipeline(
     pipeline = device.createGraphicsPipelines(vk::PipelineCache(), {pipelineInfo})[0];
 }
 
+/* Compiles all shaders */
 void Material::SetupGraphicsPipelines(uint32_t id, vk::RenderPass renderpass)
 {
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
 
-    /* ------ UNIFORM COLOR GRAPHICS PIPELINE  ------ */
-
-    /* Read in shader modules */
+    /* ------ UNIFORM COLOR  ------ */
     {
         std::string ResourcePath = Options::GetResourcePath();
         auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/UniformColor/vert.spv"));
@@ -143,7 +141,7 @@ void Material::SetupGraphicsPipelines(uint32_t id, vk::RenderPass renderpass)
     }
 
 
-    /* ------ BLINN GRAPHICS PIPELINE  ------ */
+    /* ------ BLINN GRAPHICS ------ */
     {
         std::string ResourcePath = Options::GetResourcePath();
         auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Blinn/vert.spv"));
@@ -176,7 +174,7 @@ void Material::SetupGraphicsPipelines(uint32_t id, vk::RenderPass renderpass)
         device.destroyShaderModule(vertShaderModule);
     }
 
-    /* ------ PBR GRAPHICS PIPELINE  ------ */
+    /* ------ PBR  ------ */
     {
         std::string ResourcePath = Options::GetResourcePath();
         auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/PBRSurface/vert.spv"));
@@ -209,7 +207,7 @@ void Material::SetupGraphicsPipelines(uint32_t id, vk::RenderPass renderpass)
         device.destroyShaderModule(vertShaderModule);
     }
 
-    /* ------ NORMAL SURFACE GRAPHICS PIPELINE  ------ */
+    /* ------ NORMAL SURFACE ------ */
     {
         std::string ResourcePath = Options::GetResourcePath();
         auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/NormalSurface/vert.spv"));
@@ -242,7 +240,7 @@ void Material::SetupGraphicsPipelines(uint32_t id, vk::RenderPass renderpass)
         device.destroyShaderModule(vertShaderModule);
     }
 
-    /* ------ TEXCOORD SURFACE GRAPHICS PIPELINE  ------ */
+    /* ------ TEXCOORD SURFACE  ------ */
     {
         std::string ResourcePath = Options::GetResourcePath();
         auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/TexCoordSurface/vert.spv"));
@@ -274,16 +272,63 @@ void Material::SetupGraphicsPipelines(uint32_t id, vk::RenderPass renderpass)
         device.destroyShaderModule(fragShaderModule);
         device.destroyShaderModule(vertShaderModule);
     }
+
+    /* ------ SKYBOX  ------ */
+    {
+        std::string ResourcePath = Options::GetResourcePath();
+        auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Skybox/vert.spv"));
+        auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Skybox/frag.spv"));
+
+        /* Create shader modules */
+        auto vertShaderModule = CreateShaderModule(vertShaderCode);
+        auto fragShaderModule = CreateShaderModule(fragShaderCode);
+
+        /* Info for shader stages */
+        vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
+        vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
+        vertShaderStageInfo.module = vertShaderModule;
+        vertShaderStageInfo.pName = "main"; // entry point here? would be nice to combine shaders into one file
+
+        vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
+        fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
+        fragShaderStageInfo.module = fragShaderModule;
+        fragShaderStageInfo.pName = "main";
+
+        std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
+        
+        /* Skyboxes don't do back face culling. */
+        skybox.pipelineParameters.rasterizer.setCullMode(vk::CullModeFlagBits::eNone);
+
+        CreatePipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+            { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
+            skybox.pipelineParameters, 
+            renderpass, 0, 
+            skybox.pipeline, skybox.pipelineLayout);
+
+        device.destroyShaderModule(fragShaderModule);
+        device.destroyShaderModule(vertShaderModule);
+    }
 }
 
 void Material::Initialize()
 {
+    Material::CreateSkyBoxEntity();
     Material::CreateDescriptorSetLayouts();
     Material::CreateDescriptorPool();
     Material::CreateVertexInputBindingDescriptions();
     Material::CreateVertexAttributeDescriptions();
     Material::CreateSSBO();
     Material::CreateDescriptorSets();
+}
+
+void Material::CreateSkyBoxEntity()
+{
+    auto skybox = Entity::Create("Skybox");
+    auto plane = Mesh::Get("DefaultSphere");
+    auto transform = Transform::Create("SkyboxTransform");
+    transform->set_scale(100, 100, 100);
+    skybox->set_mesh(plane);
+    skybox->set_transform(transform);
 }
 
 void Material::CreateDescriptorSetLayouts()
@@ -682,11 +727,43 @@ bool Material::BindDescriptorSets(vk::CommandBuffer &command_buffer)
     command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, blinn.pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
     command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, texcoordsurface.pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
     command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pbr.pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
-    command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, blinn.pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
+    command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, skybox.pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
     return true;
 }
 
-bool Material::DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity, int32_t &camera_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids)
+bool Material::DrawSkyBox(vk::CommandBuffer &command_buffer, int32_t camera_id, int32_t environment_id, float gamma, float exposure) {
+    /* Get the default plane mesh */
+    auto skybox_entity = Entity::Get("Skybox");
+    auto mesh_id = skybox_entity->get_mesh();
+    if (mesh_id < 0 || mesh_id >= MAX_MESHES) return false;
+    auto m = Mesh::Get((uint32_t) mesh_id);
+    if (!m) return false;
+
+    // Push constants
+    // Ignoring some fields, but they won't be read from in the skybox shader.
+    PushConsts push_constants = {};
+    push_constants.target_id = skybox_entity->get_id();
+    push_constants.camera_id = camera_id;
+    push_constants.environment_id = environment_id;
+    push_constants.exposure = exposure;
+    push_constants.gamma = gamma;
+
+    command_buffer.pushConstants(
+        skybox.pipelineLayout, 
+        vk::ShaderStageFlagBits::eAll,
+        0, sizeof(PushConsts), &push_constants);
+
+    command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, skybox.pipeline);
+    
+    command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
+    command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
+    command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
+
+    return true;
+}
+
+bool Material::DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity, 
+    int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids)
 {
     /* Need a mesh to render. */
     auto mesh_id = entity.get_mesh();
@@ -704,45 +781,43 @@ bool Material::DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity, int
     auto material = Material::Get(material_id);
     if (!material) return false;
 
-
     // Push constants
-    {
-        PushConsts push_constants = {};
-        push_constants.target_id = entity.get_id();entity.get_id();
-        push_constants.camera_id = camera_id;
-        push_constants.brdf_lut_id = Texture::Get("BRDF")->get_id();
-        push_constants.diffuse_environment_id = -1;
-        push_constants.specular_environment_id = -1;
-        push_constants.environment_id = -1;
-        push_constants.exposure = exposure;
-        push_constants.gamma = gamma;
+    PushConsts push_constants = {};
+    push_constants.target_id = entity.get_id();
+    push_constants.camera_id = camera_id;
+    push_constants.brdf_lut_id = Texture::Get("BRDF")->get_id();
+    push_constants.diffuse_environment_id = diffuse_id; //Texture::Get("DiffuseEnvironment")->get_id()
+    push_constants.specular_environment_id = irradiance_id; //Texture::Get("SpecularEnvironment")->get_id();
+    push_constants.environment_id = environment_id;
+    push_constants.exposure = exposure;
+    push_constants.gamma = gamma;
 
-        memcpy(push_constants.light_entity_ids, light_entity_ids.data(), sizeof(push_constants.light_entity_ids)/*sizeof(int32_t) * light_entity_ids.size()*/);
-        command_buffer.pushConstants(
-            blinn.pipelineLayout, 
-            vk::ShaderStageFlagBits::eAll,
-            0, sizeof(PushConsts), &push_constants);
-    }
+    memcpy(push_constants.light_entity_ids, light_entity_ids.data(), sizeof(push_constants.light_entity_ids)/*sizeof(int32_t) * light_entity_ids.size()*/);
 
     // Render normal
     if (material->renderMode == 1) {
-        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, Material::normalsurface.pipeline);
+        command_buffer.pushConstants(normalsurface.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, normalsurface.pipeline);
     }
     // Render Vertex Colors
     else if (material->renderMode == 2) {
-        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, Material::blinn.pipeline);
+        command_buffer.pushConstants(blinn.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, blinn.pipeline);
     }
     // Render UVs
     else if (material->renderMode == 3) {
-        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, Material::texcoordsurface.pipeline);
+        command_buffer.pushConstants(texcoordsurface.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, texcoordsurface.pipeline);
     }
     // Render PBR
-    if (material->renderMode == 4) {
-        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, Material::pbr.pipeline);
+    else if (material->renderMode == 4) {
+        command_buffer.pushConstants(pbr.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pbr.pipeline);
     }
     // Render material
     else {
-        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, Material::blinn.pipeline);
+        command_buffer.pushConstants(blinn.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, blinn.pipeline);
     }
 
     command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
