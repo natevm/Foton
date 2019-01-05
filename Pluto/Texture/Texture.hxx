@@ -82,7 +82,7 @@ class Texture : public StaticFactory
 		/* Creates a texture with the given name and id. */
 		Texture(std::string name, uint32_t id);
 
-		/* Accessors */
+		/* Accessors / Mutators */
 		vk::Format get_color_format();
 		vk::ImageLayout get_color_image_layout();
 		vk::ImageView get_color_image_view();

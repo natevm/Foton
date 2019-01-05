@@ -56,6 +56,13 @@ void Initialize(
     Texture::Initialize();
     Mesh::Initialize();
     Material::Initialize();
+
+    auto skybox = Entity::Create("Skybox");
+    auto plane = Mesh::Get("DefaultSphere");
+    auto transform = Transform::Create("SkyboxTransform");
+    transform->set_scale(100, 100, 100);
+    skybox->set_mesh(plane);
+    skybox->set_transform(transform);
 }
 
 void CleanUp()

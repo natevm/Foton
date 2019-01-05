@@ -23,12 +23,70 @@ std::vector<vk::VertexInputAttributeDescription> Material::vertexInputAttributeD
 vk::DescriptorSet Material::componentDescriptorSet;
 vk::DescriptorSet Material::textureDescriptorSet;
 
-Material::MaterialResources Material::uniformColor;
-Material::MaterialResources Material::blinn;
-Material::MaterialResources Material::pbr;
-Material::MaterialResources Material::texcoordsurface;
-Material::MaterialResources Material::normalsurface;
-Material::MaterialResources Material::skybox;
+Material::PipelineResources Material::uniformColor;
+Material::PipelineResources Material::blinn;
+Material::PipelineResources Material::pbr;
+Material::PipelineResources Material::texcoordsurface;
+Material::PipelineResources Material::normalsurface;
+Material::PipelineResources Material::skybox;
+
+Material::Material() {
+    this->initialized = false;
+}
+
+Material::Material(std::string name, uint32_t id)
+{
+    this->initialized = true;
+    this->name = name;
+    this->id = id;
+
+    /* Working off blender's principled BSDF */
+    material_struct.base_color = vec4(.8, .8, .8, 1.0);
+    material_struct.subsurface = 0.0;
+    material_struct.subsurface_radius = vec4(1.0, .2, .1, 1.0);
+    material_struct.subsurface_color = vec4(.8, .8, .8, 1.0);
+    material_struct.metallic = 0.0;
+    material_struct.specular = .5;
+    material_struct.specular_tint = 0.0;
+    material_struct.roughness = .5;
+    material_struct.anisotropic = 0.0;
+    material_struct.anisotropic_rotation = 0.0;
+    material_struct.sheen = 0.0;
+    material_struct.sheen_tint = 0.5;
+    material_struct.clearcoat = 0.0;
+    material_struct.clearcoat_roughness = .03f;
+    material_struct.ior = 1.45f;
+    material_struct.transmission = 0.0;
+    material_struct.transmission_roughness = 0.0;
+    material_struct.base_color_texture_id = -1;
+    material_struct.metalic_roughness_texture_id = -1;
+}
+
+std::string Material::to_string() {
+    std::string output;
+    output += "{\n";
+    output += "\ttype: \"Material\",\n";
+    output += "\tname: \"" + name + "\"\n";
+    output += "\tbase_color: \"" + glm::to_string(material_struct.base_color) + "\"\n";
+    output += "\tsubsurface: \"" + std::to_string(material_struct.subsurface) + "\"\n";
+    output += "\tsubsurface_radius: \"" + glm::to_string(material_struct.subsurface_radius) + "\"\n";
+    output += "\tsubsurface_color: \"" + glm::to_string(material_struct.subsurface_color) + "\"\n";
+    output += "\tmetallic: \"" + std::to_string(material_struct.metallic) + "\"\n";
+    output += "\tspecular: \"" + std::to_string(material_struct.specular) + "\"\n";
+    output += "\tspecular_tint: \"" + std::to_string(material_struct.specular_tint) + "\"\n";
+    output += "\troughness: \"" + std::to_string(material_struct.roughness) + "\"\n";
+    output += "\tanisotropic: \"" + std::to_string(material_struct.anisotropic) + "\"\n";
+    output += "\tanisotropic_rotation: \"" + std::to_string(material_struct.anisotropic_rotation) + "\"\n";
+    output += "\tsheen: \"" + std::to_string(material_struct.sheen) + "\"\n";
+    output += "\tsheen_tint: \"" + std::to_string(material_struct.sheen_tint) + "\"\n";
+    output += "\tclearcoat: \"" + std::to_string(material_struct.clearcoat) + "\"\n";
+    output += "\tclearcoat_roughness: \"" + std::to_string(material_struct.clearcoat_roughness) + "\"\n";
+    output += "\tior: \"" + std::to_string(material_struct.ior) + "\"\n";
+    output += "\ttransmission: \"" + std::to_string(material_struct.transmission) + "\"\n";
+    output += "\ttransmission_roughness: \"" + std::to_string(material_struct.transmission_roughness) + "\"\n";
+    output += "}";
+    return output;
+}
 
 /* Wrapper for shader module creation */
 vk::ShaderModule Material::CreateShaderModule(const std::vector<char>& code) {
@@ -102,7 +160,7 @@ void Material::CreatePipeline(
 }
 
 /* Compiles all shaders */
-void Material::SetupGraphicsPipelines(uint32_t id, vk::RenderPass renderpass)
+void Material::SetupGraphicsPipelines(vk::RenderPass renderpass)
 {
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
@@ -312,23 +370,12 @@ void Material::SetupGraphicsPipelines(uint32_t id, vk::RenderPass renderpass)
 
 void Material::Initialize()
 {
-    Material::CreateSkyBoxEntity();
     Material::CreateDescriptorSetLayouts();
     Material::CreateDescriptorPool();
     Material::CreateVertexInputBindingDescriptions();
     Material::CreateVertexAttributeDescriptions();
     Material::CreateSSBO();
-    Material::CreateDescriptorSets();
-}
-
-void Material::CreateSkyBoxEntity()
-{
-    auto skybox = Entity::Create("Skybox");
-    auto plane = Mesh::Get("DefaultSphere");
-    auto transform = Transform::Create("SkyboxTransform");
-    transform->set_scale(100, 100, 100);
-    skybox->set_mesh(plane);
-    skybox->set_transform(transform);
+    Material::UpdateDescriptorSets();
 }
 
 void Material::CreateDescriptorSetLayouts()
@@ -496,7 +543,7 @@ void Material::CreateDescriptorPool()
     textureDescriptorPool = device.createDescriptorPool(texturePoolInfo);
 }
 
-void Material::CreateDescriptorSets()
+void Material::UpdateDescriptorSets()
 {
     if (  (componentDescriptorPool == vk::DescriptorPool()) || (textureDescriptorPool == vk::DescriptorPool())) return;
     auto vulkan = Libraries::Vulkan::Get();
@@ -797,32 +844,23 @@ bool Material::DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity,
 
     memcpy(push_constants.light_entity_ids, light_entity_ids.data(), sizeof(push_constants.light_entity_ids)/*sizeof(int32_t) * light_entity_ids.size()*/);
 
-    // Render normal
-    if (material->renderMode == 1) {
+    if (material->renderMode == NORMAL) {
         command_buffer.pushConstants(normalsurface.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, normalsurface.pipeline);
     }
-    // Render Vertex Colors
-    else if (material->renderMode == 2) {
+    else if (material->renderMode == BLINN) {
         command_buffer.pushConstants(blinn.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, blinn.pipeline);
     }
-    // Render UVs
-    else if (material->renderMode == 3) {
+    else if (material->renderMode == TEXCOORD) {
         command_buffer.pushConstants(texcoordsurface.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, texcoordsurface.pipeline);
     }
-    // Render PBR
-    else if (material->renderMode == 4) {
+    else if (material->renderMode == PBR) {
         command_buffer.pushConstants(pbr.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pbr.pipeline);
     }
-    // Render material
-    else {
-        command_buffer.pushConstants(blinn.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, blinn.pipeline);
-    }
-
+    
     command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
     command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
     command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
@@ -930,25 +968,63 @@ uint32_t Material::GetCount() {
 
 void Material::use_base_color_texture(uint32_t texture_id) 
 {
-    this->baseColorTextureID = texture_id;
-    this->useBaseColorTexture = true;
     this->material_struct.base_color_texture_id = texture_id;
 }
 
 void Material::use_base_color_texture(Texture *texture) 
 {
     if (!texture) return;
-    this->baseColorTextureID = texture->get_id();
-    this->useBaseColorTexture = true;
-    this->material_struct.base_color_texture_id = this->baseColorTextureID;
+    this->material_struct.base_color_texture_id = texture->get_id();
 }
 
-void Material::use_base_color_texture(bool use_texture) {
-    if (use_texture) {
-        this->material_struct.base_color_texture_id = baseColorTextureID;
-    }
-    else {
-        this->material_struct.base_color_texture_id = -1;
-    }
-    this->useBaseColorTexture = use_texture;
+void Material::clear_base_color_texture() {
+    this->material_struct.base_color_texture_id = -1;
+}
+
+void Material::show_pbr() {
+    renderMode = PBR;
+}
+
+void Material::show_normals () {
+    renderMode = NORMAL;
+}
+
+void Material::show_base_color() {
+    renderMode = BASECOLOR;
+}
+
+void Material::show_texcoords() {
+    renderMode = TEXCOORD;
+}
+
+void Material::show_blinn() {
+    renderMode = BLINN;
+}
+
+void Material::set_base_color(glm::vec4 color) {
+    this->material_struct.base_color = color;
+}
+
+void Material::set_base_color(float r, float g, float b, float a) {
+    this->material_struct.base_color = glm::vec4(r, g, b, a);
+}
+
+void Material::set_roughness(float roughness) {
+    this->material_struct.roughness = roughness;
+}
+
+void Material::set_metallic(float metallic) {
+    this->material_struct.metallic = metallic;
+}
+
+void Material::set_transmission(float transmission) {
+    this->material_struct.transmission = transmission;
+}
+
+void Material::set_transmission_roughness(float transmission_roughness) {
+    this->material_struct.transmission_roughness = transmission_roughness;
+}
+
+void Material::set_ior(float ior) {
+    this->material_struct.ior = ior;
 }

@@ -47,7 +47,7 @@ namespace Systems {
         if (running) return false;
 
         auto loop = [this]() {
-            std::cout<<"Starting PythonSystem, thread id: " << std::this_thread::get_id()<<std::endl;
+            // std::cout<<"Starting PythonSystem, thread id: " << std::this_thread::get_id()<<std::endl;
 
             wchar_t *name = L"Pluto";
             Py_SetProgramName(name);

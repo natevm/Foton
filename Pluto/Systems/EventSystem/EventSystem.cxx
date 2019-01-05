@@ -25,7 +25,7 @@ namespace Systems
         if (!initialized) return false;
         if (running) return false;
 
-        std::cout<<"Starting EventSystem, thread id: " << std::this_thread::get_id()<<std::endl;
+        // std::cout<<"Starting EventSystem, thread id: " << std::this_thread::get_id()<<std::endl;
 
         using namespace Libraries;
         
