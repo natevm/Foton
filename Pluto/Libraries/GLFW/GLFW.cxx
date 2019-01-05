@@ -1,33 +1,37 @@
 #include "GLFW.hxx"
+#include <algorithm>
+#include <cctype>
 
 int windowed_xpos, windowed_ypos, windowed_width, windowed_height;
 
 void resize_window_callback(GLFWwindow * window, int width, int height) {
-    auto key = Libraries::GLFW::Get()->get_key_from_ptr(window);
-    if (key.size() > 0 && (width > 0) && (height > 0)) {
-        Libraries::GLFW::Get()->set_swapchain_out_of_date(key);
+    auto window_key = Libraries::GLFW::Get()->get_key_from_ptr(window);
+    if (window_key.size() > 0 && (width > 0) && (height > 0)) {
+        Libraries::GLFW::Get()->set_swapchain_out_of_date(window_key);
     }
 }
 
 void cursor_position_callback(GLFWwindow * window, double xpos, double ypos) {
-    auto key = Libraries::GLFW::Get()->get_key_from_ptr(window);
-    if (key.size() > 0) {
-        Libraries::GLFW::Get()->set_cursor_pos(key, xpos, ypos);
+    auto window_key = Libraries::GLFW::Get()->get_key_from_ptr(window);
+    if (window_key.size() > 0) {
+        Libraries::GLFW::Get()->set_cursor_pos(window_key, xpos, ypos);
     }
 }
 
 void mouse_button_callback(GLFWwindow * window, int button, int action, int mods)
 {
-    auto key = Libraries::GLFW::Get()->get_key_from_ptr(window);
-    if (key.size() > 0) {
-        Libraries::GLFW::Get()->set_button_data(key, button, action, mods);
+    auto window_key = Libraries::GLFW::Get()->get_key_from_ptr(window);
+    if (window_key.size() > 0) {
+        Libraries::GLFW::Get()->set_button_data(window_key, button, action, mods);
     }
 }
 
 void key_callback( GLFWwindow* window, int key, int scancode, int action, int mods )
 {
-    if (action != GLFW_PRESS)
-        return;
+    auto window_key = Libraries::GLFW::Get()->get_key_from_ptr(window);
+    if (window_key.size() > 0) {
+        Libraries::GLFW::Get()->set_key_data(window_key, key, scancode, action, mods);
+    }
 
     if (key == GLFW_KEY_ESCAPE && mods == 0)
         glfwSetWindowShouldClose(window, GLFW_TRUE);
@@ -639,5 +643,219 @@ namespace Libraries {
 
         auto window = &Windows()[key];
         return window->buttons[button].mods;
+    }
+
+    bool GLFW::set_key_data(std::string window_key, int key, int scancode, int action, int mods) {
+        if (initialized == false) {
+            std::cout << "GLFW: Uninitialized, cannot set key data."<<std::endl;
+            return false;
+        }
+        auto ittr = Windows().find(window_key);
+        if ( ittr == Windows().end() ) {
+            std::cout << "GLFW: Error, window does not exists."<<std::endl;
+            return false;
+        }
+        
+        if ((key >= 348) || (key < 0)) {
+            std::cout << "GLFW: Error, Button must be between 0 and 348."<<std::endl;
+            return false;
+        }
+
+        auto window = &Windows()[window_key];
+        window->keys[key].scancode = mods;
+        window->keys[key].action = action;
+        window->keys[key].mods = mods;
+        return true;
+    }
+
+    int GLFW::get_key_action(std::string window_key, int key) {
+        if (initialized == false) {
+            std::cout << "GLFW: Uninitialized, cannot get button mods."<<std::endl;
+            return false;
+        }
+        auto ittr = Windows().find(window_key);
+        if ( ittr == Windows().end() ) {
+            std::cout << "GLFW: Error, window does not exists."<<std::endl;
+            return false;
+        }
+        
+        if ((key >= 348) || (key < 0)) {
+            std::cout << "GLFW: Error, Button must be between 0 and 348."<<std::endl;
+            return false;
+        }
+
+        auto window = &Windows()[window_key];
+        return window->keys[key].action;
+    }
+
+    int GLFW::get_key_scancode(std::string window_key, int key) {
+        if (initialized == false) {
+            std::cout << "GLFW: Uninitialized, cannot get button mods."<<std::endl;
+            return false;
+        }
+        auto ittr = Windows().find(window_key);
+        if ( ittr == Windows().end() ) {
+            std::cout << "GLFW: Error, window does not exists."<<std::endl;
+            return false;
+        }
+        
+        if ((key >= 348) || (key < 0)) {
+            std::cout << "GLFW: Error, Button must be between 0 and 348."<<std::endl;
+            return false;
+        }
+
+        auto window = &Windows()[window_key];
+        return window->keys[key].scancode;
+    }
+
+    int GLFW::get_key_mods(std::string window_key, int key) {
+        if (initialized == false) {
+            std::cout << "GLFW: Uninitialized, cannot get key mods."<<std::endl;
+            return false;
+        }
+        auto ittr = Windows().find(window_key);
+        if ( ittr == Windows().end() ) {
+            std::cout << "GLFW: Error, window does not exists."<<std::endl;
+            return false;
+        }
+        
+        if ((key >= 348) || (key < 0)) {
+            std::cout << "GLFW: Error, Button must be between 0 and 348."<<std::endl;
+            return false;
+        }
+
+        auto window = &Windows()[window_key];
+        return window->keys[key].mods;
+    }
+
+    int GLFW::get_key_code(std::string key) {
+        std::transform(key.begin(), key.end(), key.begin(), [](char c){ return std::toupper(c); });
+        if (key.compare("SPACE") == 0) return GLFW_KEY_SPACE;
+        else if (key.compare("APOSTROPHE") == 0) return GLFW_KEY_APOSTROPHE;
+        else if (key.compare("COMMA") == 0) return GLFW_KEY_COMMA;
+        else if (key.compare("MINUS") == 0) return GLFW_KEY_MINUS;
+        else if (key.compare("PERIOD") == 0) return GLFW_KEY_PERIOD;
+        else if (key.compare("SLASH") == 0) return GLFW_KEY_SLASH;
+        else if (key.compare("0") == 0) return GLFW_KEY_0;
+        else if (key.compare("1") == 0) return GLFW_KEY_1;
+        else if (key.compare("2") == 0) return GLFW_KEY_2;
+        else if (key.compare("3") == 0) return GLFW_KEY_3;
+        else if (key.compare("4") == 0) return GLFW_KEY_4;
+        else if (key.compare("5") == 0) return GLFW_KEY_5;
+        else if (key.compare("6") == 0) return GLFW_KEY_6;
+        else if (key.compare("7") == 0) return GLFW_KEY_7;
+        else if (key.compare("8") == 0) return GLFW_KEY_8;
+        else if (key.compare("9") == 0) return GLFW_KEY_9;
+        else if (key.compare("SEMICOLON") == 0) return GLFW_KEY_SEMICOLON;
+        else if (key.compare("EQUAL") == 0) return GLFW_KEY_EQUAL;
+        else if (key.compare("A") == 0) return GLFW_KEY_A;
+        else if (key.compare("B") == 0) return GLFW_KEY_B;
+        else if (key.compare("C") == 0) return GLFW_KEY_C;
+        else if (key.compare("D") == 0) return GLFW_KEY_D;
+        else if (key.compare("E") == 0) return GLFW_KEY_E;
+        else if (key.compare("F") == 0) return GLFW_KEY_F;
+        else if (key.compare("G") == 0) return GLFW_KEY_G;
+        else if (key.compare("H") == 0) return GLFW_KEY_H;
+        else if (key.compare("I") == 0) return GLFW_KEY_I;
+        else if (key.compare("J") == 0) return GLFW_KEY_J;
+        else if (key.compare("K") == 0) return GLFW_KEY_K;
+        else if (key.compare("L") == 0) return GLFW_KEY_L;
+        else if (key.compare("M") == 0) return GLFW_KEY_M;
+        else if (key.compare("N") == 0) return GLFW_KEY_N;
+        else if (key.compare("O") == 0) return GLFW_KEY_O;
+        else if (key.compare("P") == 0) return GLFW_KEY_P;
+        else if (key.compare("Q") == 0) return GLFW_KEY_Q;
+        else if (key.compare("R") == 0) return GLFW_KEY_R;
+        else if (key.compare("S") == 0) return GLFW_KEY_S;
+        else if (key.compare("T") == 0) return GLFW_KEY_T;
+        else if (key.compare("U") == 0) return GLFW_KEY_U;
+        else if (key.compare("V") == 0) return GLFW_KEY_V;
+        else if (key.compare("W") == 0) return GLFW_KEY_W;
+        else if (key.compare("X") == 0) return GLFW_KEY_X;
+        else if (key.compare("Y") == 0) return GLFW_KEY_Y;
+        else if (key.compare("Z") == 0) return GLFW_KEY_Z;
+        else if (key.compare("LEFT_BRACKET") == 0) return GLFW_KEY_LEFT_BRACKET;
+        else if (key.compare("[") == 0) return GLFW_KEY_LEFT_BRACKET;
+        else if (key.compare("BACKSLASH") == 0) return GLFW_KEY_BACKSLASH;
+        else if (key.compare("\\") == 0) return GLFW_KEY_BACKSLASH;
+        else if (key.compare("RIGHT_BRACKET") == 0) return GLFW_KEY_RIGHT_BRACKET;
+        else if (key.compare("]") == 0) return GLFW_KEY_RIGHT_BRACKET;
+        else if (key.compare("GRAVE_ACCENT") == 0) return GLFW_KEY_GRAVE_ACCENT;
+        else if (key.compare("`") == 0) return GLFW_KEY_GRAVE_ACCENT;
+        else if (key.compare("WORLD_1") == 0) return GLFW_KEY_WORLD_1;
+        else if (key.compare("WORLD_2") == 0) return GLFW_KEY_WORLD_2;
+        else if (key.compare("ESCAPE") == 0) return GLFW_KEY_ESCAPE;
+        else if (key.compare("ENTER") == 0) return GLFW_KEY_ENTER;
+        else if (key.compare("TAB") == 0) return GLFW_KEY_TAB;
+        else if (key.compare("BACKSPACE") == 0) return GLFW_KEY_BACKSPACE;
+        else if (key.compare("INSERT") == 0) return GLFW_KEY_INSERT;
+        else if (key.compare("DELETE") == 0) return GLFW_KEY_DELETE;
+        else if (key.compare("RIGHT") == 0) return GLFW_KEY_RIGHT;
+        else if (key.compare("LEFT") == 0) return GLFW_KEY_LEFT;
+        else if (key.compare("DOWN") == 0) return GLFW_KEY_DOWN;
+        else if (key.compare("UP") == 0) return GLFW_KEY_UP;
+        else if (key.compare("PAGE_UP") == 0) return GLFW_KEY_PAGE_UP;
+        else if (key.compare("PAGE_DOWN") == 0) return GLFW_KEY_PAGE_DOWN;
+        else if (key.compare("HOME") == 0) return GLFW_KEY_HOME;
+        else if (key.compare("END") == 0) return GLFW_KEY_END;
+        else if (key.compare("CAPS_LOCK") == 0) return GLFW_KEY_CAPS_LOCK;
+        else if (key.compare("SCROLL_LOCK") == 0) return GLFW_KEY_SCROLL_LOCK;
+        else if (key.compare("NUM_LOCK") == 0) return GLFW_KEY_NUM_LOCK;
+        else if (key.compare("PRINT_SCREEN") == 0) return GLFW_KEY_PRINT_SCREEN;
+        else if (key.compare("PAUSE") == 0) return GLFW_KEY_PAUSE;
+        else if (key.compare("F1") == 0) return GLFW_KEY_F1;
+        else if (key.compare("F2") == 0) return GLFW_KEY_F;
+        else if (key.compare("F3") == 0) return GLFW_KEY_F3;
+        else if (key.compare("F4") == 0) return GLFW_KEY_F4;
+        else if (key.compare("F5") == 0) return GLFW_KEY_F5;
+        else if (key.compare("F6") == 0) return GLFW_KEY_F6;
+        else if (key.compare("F7") == 0) return GLFW_KEY_F7;
+        else if (key.compare("F8") == 0) return GLFW_KEY_F8;
+        else if (key.compare("F9") == 0) return GLFW_KEY_F9;
+        else if (key.compare("F10") == 0) return GLFW_KEY_F10;
+        else if (key.compare("F11") == 0) return GLFW_KEY_F11;
+        else if (key.compare("F12") == 0) return GLFW_KEY_F12;
+        else if (key.compare("F13") == 0) return GLFW_KEY_F13;
+        else if (key.compare("F14") == 0) return GLFW_KEY_F14;
+        else if (key.compare("F15") == 0) return GLFW_KEY_F15;
+        else if (key.compare("F16") == 0) return GLFW_KEY_F16;
+        else if (key.compare("F17") == 0) return GLFW_KEY_F17;
+        else if (key.compare("F18") == 0) return GLFW_KEY_F18;
+        else if (key.compare("F19") == 0) return GLFW_KEY_F19;
+        if (key.compare("F20") == 0) return GLFW_KEY_F20;
+        else if (key.compare("F21") == 0) return GLFW_KEY_F21;
+        else if (key.compare("F22") == 0) return GLFW_KEY_F22;
+        else if (key.compare("F23") == 0) return GLFW_KEY_F23;
+        else if (key.compare("F24") == 0) return GLFW_KEY_F24;
+        else if (key.compare("F25") == 0) return GLFW_KEY_F25;
+        else if (key.compare("KP_0") == 0) return GLFW_KEY_KP_0;
+        else if (key.compare("KP_1") == 0) return GLFW_KEY_KP_1;
+        else if (key.compare("KP_2") == 0) return GLFW_KEY_KP_2;
+        else if (key.compare("KP_3") == 0) return GLFW_KEY_KP_3;
+        else if (key.compare("KP_4") == 0) return GLFW_KEY_KP_4;
+        else if (key.compare("KP_5") == 0) return GLFW_KEY_KP_5;
+        else if (key.compare("KP_6") == 0) return GLFW_KEY_KP_6;
+        else if (key.compare("KP_7") == 0) return GLFW_KEY_KP_7;
+        else if (key.compare("KP_8") == 0) return GLFW_KEY_KP_8;
+        else if (key.compare("KP_9") == 0) return GLFW_KEY_KP_9;
+        else if (key.compare("KP_DECIMAL") == 0) return GLFW_KEY_KP_DECIMAL;
+        else if (key.compare("KP_DIVIDE") == 0) return GLFW_KEY_KP_DIVIDE;
+        else if (key.compare("KP_MULTIPLY") == 0) return GLFW_KEY_KP_MULTIPLY;
+        else if (key.compare("KP_SUBTRACT") == 0) return GLFW_KEY_KP_SUBTRACT;
+        else if (key.compare("KP_ADD") == 0) return GLFW_KEY_KP_ADD;
+        else if (key.compare("KP_ENTER") == 0) return GLFW_KEY_KP_ENTER;
+        else if (key.compare("KP_EQUAL") == 0) return GLFW_KEY_KP_EQUAL;
+        else if (key.compare("LEFT_SHIFT") == 0) return GLFW_KEY_LEFT_SHIFT;
+        else if (key.compare("LEFT_CONTROL") == 0) return GLFW_KEY_LEFT_CONTROL;
+        else if (key.compare("LEFT_ALT") == 0) return GLFW_KEY_LEFT_ALT;
+        else if (key.compare("LEFT_SUPER") == 0) return GLFW_KEY_LEFT_SUPER;
+        else if (key.compare("RIGHT_SHIFT") == 0) return GLFW_KEY_RIGHT_SHIFT;
+        else if (key.compare("RIGHT_CONTROL") == 0) return GLFW_KEY_RIGHT_CONTROL;
+        else if (key.compare("RIGHT_ALT") == 0) return GLFW_KEY_RIGHT_ALT;
+        else if (key.compare("RIGHT_SUPER") == 0) return GLFW_KEY_RIGHT_SUPER;
+        else if (key.compare("MENU") == 0) return GLFW_KEY_MENU;
+        else if (key.compare("LAST") == 0) return GLFW_KEY_LAST;
+
+        return -1;
     }
 }
