@@ -1,4 +1,6 @@
 #pragma once
+#include <set>
+
 #include "Tools/Options.hxx"
 
 #include "Libraries/GLFW/GLFW.hxx"
@@ -19,34 +21,23 @@
 void Initialize(
     bool useGLFW = true, 
     bool useOpenVR = true,
-    std::vector<std::string> validation_layers = {"VK_LAYER_LUNARG_standard_validation"}, 
-    std::vector<std::string> instance_extensions = {}, 
-    std::vector<std::string> device_extensions = {}, 
-    std::vector<std::string> device_features = {"vertexPipelineStoresAndAtomics", "fragmentStoresAndAtomics"}
+    std::set<std::string> validation_layers = {"VK_LAYER_LUNARG_standard_validation"}, 
+    std::set<std::string> instance_extensions = {}, 
+    std::set<std::string> device_extensions = {}, 
+    std::set<std::string> device_features = {"vertexPipelineStoresAndAtomics", "fragmentStoresAndAtomics"}
 ) {
     auto glfw = Libraries::GLFW::Get();
     auto vulkan = Libraries::Vulkan::Get();
-    auto openvr = Libraries::OpenVR::Get();
 
     auto event_system = Systems::EventSystem::Get();
     auto render_system = Systems::RenderSystem::Get();
 
-    if (useOpenVR) {
-        std::vector<std::string> additional_extensions;
-        bool result = openvr->get_required_vulkan_instance_extensions(additional_extensions);
-        if (result == true) {
-            for (int i = 0; i < additional_extensions.size(); ++i) {
-                std::cout<<additional_extensions[i]<<std::endl;
-            }
-        }
-    }
-
     if (useGLFW) event_system->create_window("Window", 512, 512, true, true, true);
-    vulkan->create_instance(validation_layers.size() > 0, validation_layers, instance_extensions);
+    vulkan->create_instance(validation_layers.size() > 0, validation_layers, instance_extensions, useOpenVR);
     
     auto surface = (useGLFW) ? glfw->create_vulkan_surface(vulkan, "Window") : vk::SurfaceKHR();
-    vulkan->create_device(device_extensions, device_features, 8, surface);
-    if (useGLFW) glfw->create_vulkan_swapchain("Window", false);
+    vulkan->create_device(device_extensions, device_features, 8, surface, useOpenVR);
+    if (useGLFW) glfw->create_vulkan_swapchain("Window", useOpenVR);
 
     /* Initialize Component Factories. Order is important. */
     Transform::Initialize();
@@ -69,6 +60,7 @@ void CleanUp()
 {
     auto glfw = Libraries::GLFW::Get();
     auto vulkan = Libraries::Vulkan::Get();
+    auto openvr = Libraries::Vulkan::Get();
     
     Material::CleanUp();
     Transform::CleanUp();

@@ -12,6 +12,7 @@
 
 #include "Vulkan.hxx"
 #include "../GLFW/GLFW.hxx"
+#include "../OpenVR/OpenVR.hxx"
 
 namespace Libraries
 {
@@ -41,7 +42,7 @@ Vulkan::Vulkan() {}
 Vulkan::~Vulkan() {}
 
 /* Vulkan Instance */
-bool Vulkan::create_instance(bool enable_validation_layers, vector<string> validation_layers, vector<string> instance_extensions)
+bool Vulkan::create_instance(bool enable_validation_layers, set<string> validation_layers, set<string> instance_extensions, bool use_openvr)
 {
     /* Prevent multiple instance creation */
     cout << "Creating vulkan instance" << endl;
@@ -66,6 +67,18 @@ bool Vulkan::create_instance(bool enable_validation_layers, vector<string> valid
         instanceExtensions.insert(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
     for (auto &string : instance_extensions)
         instanceExtensions.insert(string);
+    
+    if (use_openvr) {
+        std::vector<std::string> additional_instance_extensions;
+        auto openvr = Libraries::OpenVR::Get();
+        bool result = openvr->get_required_vulkan_instance_extensions(additional_instance_extensions);
+        if (result == true) {
+            for (int i = 0; i < additional_instance_extensions.size(); ++i) {
+                instanceExtensions.insert(additional_instance_extensions[i]);
+                std::cout<< "OpenVR: Adding instance extension " << additional_instance_extensions[i]<<std::endl;
+            }
+        }
+    }
 
     /* Verify those extensions are supported */
     auto extensionProperties = vk::enumerateInstanceExtensionProperties();
@@ -181,7 +194,7 @@ vk::Instance Vulkan::get_instance() const
 }
 
 /* Vulkan Device */ 
-bool Vulkan::create_device(vector<string> device_extensions, vector<string> device_features, uint32_t num_command_pools, vk::SurfaceKHR surface)
+bool Vulkan::create_device(set<string> device_extensions, set<string> device_features, uint32_t num_command_pools, vk::SurfaceKHR surface, bool use_openvr)
 {
     if (device)
         return false;
@@ -293,6 +306,19 @@ bool Vulkan::create_device(vector<string> device_extensions, vector<string> devi
         return false;
     }
 
+    /* At this point, we can provide the physical device to OpenVR, and get back any additional device extensions which may be required. */
+    if (use_openvr) {
+        std::vector<std::string> additional_device_extensions;
+        auto openvr = Libraries::OpenVR::Get();
+        bool result = openvr->get_required_vulkan_device_extensions(physicalDevice, additional_device_extensions);
+        if (result == true) {
+            for (int i = 0; i < additional_device_extensions.size(); ++i) {
+                device_extensions.insert(additional_device_extensions[i]);
+                std::cout<< "OpenVR: Adding device extension " << additional_device_extensions[i]<<std::endl;
+            }
+        }
+    }
+
     /* We now need to create a logical device, which is like an instance of a physical device */
     std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
     
@@ -400,7 +426,7 @@ vk::Device Vulkan::get_device() const
 }
 
 /* Todo, macro this */
-bool Vulkan::GetFeaturesFromList(vector<string> device_features, vk::PhysicalDeviceFeatures &supportedFeatures, vk::PhysicalDeviceFeatures &requestedFeatures)
+bool Vulkan::GetFeaturesFromList(set<string> device_features, vk::PhysicalDeviceFeatures &supportedFeatures, vk::PhysicalDeviceFeatures &requestedFeatures)
 {
     for (auto feature : device_features)
     {
