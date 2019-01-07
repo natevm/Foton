@@ -34,6 +34,7 @@ namespace Libraries {
 
         vk::Instance get_instance() const;
         vk::PhysicalDevice get_physical_device() const;
+        vk::PhysicalDeviceProperties get_physical_device_properties() const;
         vk::Device get_device() const;
         uint32_t get_graphics_family() const;
         uint32_t get_present_family() const;
@@ -50,12 +51,18 @@ namespace Libraries {
         bool submit_present_commands();
         bool is_ray_tracing_enabled();
 
+        vk::SampleCountFlags min(vk::SampleCountFlags A, vk::SampleCountFlags B);
+        vk::SampleCountFlagBits highest(vk::SampleCountFlags flags);
+        vk::SampleCountFlagBits get_closest_sample_count_flag(uint32_t samples);
+        vk::SampleCountFlags get_msaa_sample_flags();
+
         vk::CommandBuffer begin_one_time_graphics_command(uint32_t pool_id = 0);
         bool end_one_time_graphics_command(vk::CommandBuffer command_buffer, uint32_t pool_id = 0, bool free_after_use = true, bool submit_immediately = false);
 
     private:
         bool validationEnabled = true;
         bool rayTracingEnabled = false;
+        vk::SampleCountFlags supportedMSAASamples;
         set<string> validationLayers;
         set<string> instanceExtensions;
         set<string> deviceExtensions;

@@ -160,10 +160,12 @@ void Material::CreatePipeline(
 }
 
 /* Compiles all shaders */
-void Material::SetupGraphicsPipelines(vk::RenderPass renderpass)
+void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sampleCount)
 {
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
+
+    auto sampleFlag = vulkan->highest(vulkan->min(vulkan->get_closest_sample_count_flag(sampleCount), vulkan->get_msaa_sample_flags()));
 
     /* ------ UNIFORM COLOR  ------ */
     {
@@ -188,6 +190,10 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass)
 
         std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
         
+        /* Account for possibly multiple samples */
+        uniformColor.pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
+        uniformColor.pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
+
         CreatePipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
             { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
             uniformColor.pipelineParameters, 
@@ -222,6 +228,10 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass)
 
         std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
         
+        /* Account for possibly multiple samples */
+        blinn.pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
+        blinn.pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
+
         CreatePipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
             { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
             blinn.pipelineParameters, 
@@ -255,6 +265,10 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass)
 
         std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
         
+        /* Account for possibly multiple samples */
+        pbr.pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
+        pbr.pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
+
         CreatePipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
             { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
             pbr.pipelineParameters, 
@@ -288,6 +302,10 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass)
 
         std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
         
+        /* Account for possibly multiple samples */
+        normalsurface.pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
+        normalsurface.pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
+
         CreatePipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
             { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
             normalsurface.pipelineParameters, 
@@ -321,6 +339,10 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass)
 
         std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
         
+        /* Account for possibly multiple samples */
+        texcoordsurface.pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
+        texcoordsurface.pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
+
         CreatePipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
             { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
             texcoordsurface.pipelineParameters, 
@@ -356,6 +378,10 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass)
         
         /* Skyboxes don't do back face culling. */
         skybox.pipelineParameters.rasterizer.setCullMode(vk::CullModeFlagBits::eNone);
+
+        /* Account for possibly multiple samples */
+        skybox.pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
+        skybox.pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
 
         CreatePipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
             { componentDescriptorSetLayout, textureDescriptorSetLayout }, 

@@ -23,6 +23,7 @@ class Texture : public StaticFactory
 			uint32_t width = 1, height = 1, depth = 1, colorMipLevels = 1, layers = 1;
 			vk::ImageViewType viewType;
 			vk::ImageType imageType;
+			vk::SampleCountFlagBits sampleCount;
 		};
 
 		/* Creates a texture from a khronos texture file (.ktx) */
@@ -38,7 +39,7 @@ class Texture : public StaticFactory
 		static Texture *CreateCubemap(std::string name, uint32_t width, uint32_t height, bool hasColor, bool hasDepth);
 
 		/* Creates a 2d texture of a given width and height, and with color and/or depth resources. */
-		static Texture *Create2D(std::string name, uint32_t width, uint32_t height, bool hasColor, bool hasDepth);
+		static Texture *Create2D(std::string name, uint32_t width, uint32_t height, bool hasColor, bool hasDepth, uint32_t sampleCount);
 
 		/* Retrieves a texture component by name */
 		static Texture *Get(std::string name);
