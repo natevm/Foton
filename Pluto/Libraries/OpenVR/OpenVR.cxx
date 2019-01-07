@@ -1,5 +1,6 @@
 #include "OpenVR.hxx"
 #include <iostream>
+#include <openvr.h>
 
 namespace Libraries
 {
@@ -131,7 +132,7 @@ bool OpenVR::is_runtime_installed() {
 	return VR_IsRuntimeInstalled();
 }
 
-std::string Openvr_runtime_path() {
+std::string OpenVR::vr_runtime_path() {
 	return VR_RuntimePath();
 }
 

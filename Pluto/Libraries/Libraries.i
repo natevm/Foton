@@ -3,6 +3,7 @@
 %{
 #include "Pluto/Libraries/GLFW/GLFW.hxx"
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
+#include "Pluto/Libraries/OpenVR/OpenVR.hxx"
 using namespace Libraries;
 %}
 
@@ -16,6 +17,9 @@ using namespace Libraries;
 %nodefaultctor Vulkan;
 %nodefaultdtor Vulkan;
 
+%nodefaultctor OpenVR;
+%nodefaultdtor OpenVR;
+
 // Issue where swig tries to construct a std future from non-existant copy constructor...
 %ignore Libraries::Vulkan::enqueue_graphics_commands(vk::SubmitInfo submit_info, vk::Fence fence);
 %ignore Libraries::Vulkan::enqueue_present_commands(vk::PresentInfoKHR presentInfo);
@@ -23,3 +27,4 @@ using namespace Libraries;
 %include "./../Tools/Singleton.hxx";
 %include "./GLFW/GLFW.hxx";
 %include "./Vulkan/Vulkan.hxx";
+%include "./OpenVR/OpenVR.hxx";
