@@ -5,7 +5,6 @@
 
 #include "Libraries/GLFW/GLFW.hxx"
 #include "Libraries/Vulkan/Vulkan.hxx"
-#include "Libraries/OpenVR/OpenVR.hxx"
 
 #include "Pluto/Camera/Camera.hxx"
 #include "Pluto/Texture/Texture.hxx"

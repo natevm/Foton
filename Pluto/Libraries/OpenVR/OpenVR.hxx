@@ -1,5 +1,4 @@
 #pragma once
-#include <openvr.h>
 #include <thread>
 #include <future>
 #include <vector>
@@ -9,6 +8,11 @@
 
 #include "Pluto/Tools/Singleton.hxx"
 // #include "threadsafe_queue.hpp"
+
+namespace vr {
+    class IVRSystem;
+    enum EVRInitError;
+}
 
 namespace Libraries {
     using namespace std;
