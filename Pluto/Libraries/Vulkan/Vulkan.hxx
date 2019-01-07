@@ -18,16 +18,18 @@ namespace Libraries {
         static Vulkan* Get();
 
         bool create_instance(bool enable_validation_layers = true, 
-            vector<string> validation_layers = vector<string>(),
-            vector<string> instance_extensions = vector<string>() );
+            set<string> validation_layers = set<string>(),
+            set<string> instance_extensions = set<string>(),
+            bool use_openvr = false );
         bool destroy_instance();
 
 
         bool create_device(
-            vector<string> device_extensions = vector<string>(),
-            vector<string> device_features = vector<string>(),
+            set<string> device_extensions = set<string>(),
+            set<string> device_features = set<string>(),
             uint32_t num_command_pools = 8, 
-            vk::SurfaceKHR surface = vk::SurfaceKHR()
+            vk::SurfaceKHR surface = vk::SurfaceKHR(),
+            bool use_openvr = false
         );
         bool destroy_device();
 
@@ -123,6 +125,6 @@ namespace Libraries {
         vk::DebugReportCallbackEXT internalCallback;
         function<void()> externalCallback;
 
-        bool GetFeaturesFromList(vector<string> device_features, vk::PhysicalDeviceFeatures &supportedFeatures, vk::PhysicalDeviceFeatures &requestedFeatures);
+        bool GetFeaturesFromList(set<string> device_features, vk::PhysicalDeviceFeatures &supportedFeatures, vk::PhysicalDeviceFeatures &requestedFeatures);
     };
 }

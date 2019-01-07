@@ -164,7 +164,7 @@ class Camera : public StaticFactory
         #pragma region CreateRenderPass
 
         uint32_t mask = 0;
-        for (int i = 0; i < layers; ++i)
+        for (uint32_t i = 0; i < layers; ++i)
             mask |= 1 << i;
 
         // Support for multiview
