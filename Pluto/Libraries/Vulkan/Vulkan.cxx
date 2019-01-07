@@ -277,6 +277,8 @@ bool Vulkan::create_device(vector<string> device_extensions, vector<string> devi
         {
             physicalDevice = device;
             devicename = deviceProperties.deviceName;
+            supportedMSAASamples = min(deviceProperties.limits.framebufferColorSampleCounts, deviceProperties.limits.framebufferDepthSampleCounts);
+
             if (deviceProperties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu) {
                 break;
             }
@@ -381,6 +383,13 @@ vk::PhysicalDevice Vulkan::get_physical_device() const
     if (!physicalDevice)
         return vk::PhysicalDevice();
     return physicalDevice;
+}
+
+vk::PhysicalDeviceProperties Vulkan::get_physical_device_properties() const
+{
+    if (!physicalDevice)
+        return vk::PhysicalDeviceProperties();
+    return deviceProperties;
 }
 
 vk::Device Vulkan::get_device() const
@@ -893,6 +902,54 @@ uint32_t get_thread_id() {
 
 bool Vulkan::is_ray_tracing_enabled() {
     return rayTracingEnabled;
+}
+
+/* Flag comparison not supported by c++ vulkan bindings. *sigh* */
+vk::SampleCountFlags Vulkan::min(vk::SampleCountFlags A, vk::SampleCountFlags B) {
+    int a, b;
+
+    if (A & vk::SampleCountFlagBits::e64) { a = 7; }
+    else if (A & vk::SampleCountFlagBits::e32) { a = 6; }
+    else if (A & vk::SampleCountFlagBits::e16) { a = 5; }
+    else if (A & vk::SampleCountFlagBits::e8) { a = 4; }
+    else if (A & vk::SampleCountFlagBits::e4) { a = 3; }
+    else if (A & vk::SampleCountFlagBits::e2) { a = 2; }
+    else a = 1;
+
+    if (B & vk::SampleCountFlagBits::e64) { b = 7; }
+    else if (B & vk::SampleCountFlagBits::e32) { b = 6; }
+    else if (B & vk::SampleCountFlagBits::e16) { b = 5; }
+    else if (B & vk::SampleCountFlagBits::e8) { b = 4; }
+    else if (B & vk::SampleCountFlagBits::e4) { b = 3; }
+    else if (B & vk::SampleCountFlagBits::e2) { b = 2; }
+    else b = 1;
+    if (a == 1) return A;
+    if (a < b) return A;
+    return B;
+}
+
+vk::SampleCountFlagBits Vulkan::highest(vk::SampleCountFlags flags) {
+    if (flags & vk::SampleCountFlagBits::e64) { return vk::SampleCountFlagBits::e64; }
+    else if (flags & vk::SampleCountFlagBits::e32) { return vk::SampleCountFlagBits::e32; }
+    else if (flags & vk::SampleCountFlagBits::e16) { return vk::SampleCountFlagBits::e16; }
+    else if (flags & vk::SampleCountFlagBits::e8) { return vk::SampleCountFlagBits::e8; }
+    else if (flags & vk::SampleCountFlagBits::e4) { return vk::SampleCountFlagBits::e4; }
+    else if (flags & vk::SampleCountFlagBits::e2) { return vk::SampleCountFlagBits::e2; }
+    else return vk::SampleCountFlagBits::e1;
+}
+
+vk::SampleCountFlagBits Vulkan::get_closest_sample_count_flag(uint32_t samples) {
+    if ( samples >= 64) { return vk::SampleCountFlagBits::e64; }
+    else if (samples >= 32) { return vk::SampleCountFlagBits::e32; }
+    else if (samples >= 16) { return vk::SampleCountFlagBits::e16; }
+    else if (samples >= 8) { return vk::SampleCountFlagBits::e8; }
+    else if (samples >= 4) { return vk::SampleCountFlagBits::e4; }
+    else if (samples >= 2) { return vk::SampleCountFlagBits::e2; }
+    else return vk::SampleCountFlagBits::e1;
+}
+
+vk::SampleCountFlags Vulkan::get_msaa_sample_flags() {
+    return supportedMSAASamples;
 }
 
 } // namespace Libraries

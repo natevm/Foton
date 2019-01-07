@@ -54,7 +54,7 @@ class Material : public StaticFactory
         static bool Delete(uint32_t id);
 
         /* Initializes the vulkan resources required to render during the specified renderpass */
-        static void SetupGraphicsPipelines(vk::RenderPass renderpass);
+        static void SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sampleCount);
     
         /* Initializes all vulkan descriptor resources, as well as the Mesh factory. */
         static void Initialize();

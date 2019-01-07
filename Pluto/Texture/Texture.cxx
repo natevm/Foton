@@ -1,3 +1,5 @@
+#pragma optimize ("", off)
+
 #include "./Texture.hxx"
 
 #include "Pluto/Tools/Options.hxx"
@@ -442,6 +444,9 @@ void Texture::Initialize()
     CreateFromKTX("DefaultTexCube", resource_path + "/Defaults/missing-texcube.ktx");
     CreateFromKTX("DefaultTex3D", resource_path + "/Defaults/missing-volume.ktx");    
     // fatal error here if result is nullptr...
+
+    auto vulkan = Libraries::Vulkan::Get();
+    auto properties = vulkan->get_physical_device_properties();
 }
 
 void Texture::CleanUp()
@@ -946,7 +951,7 @@ bool Texture::create_color_image_resources()
     imageInfo.extent.depth = data.depth;
     imageInfo.mipLevels = data.colorMipLevels;
     imageInfo.arrayLayers = data.layers;
-    imageInfo.samples = vk::SampleCountFlagBits::e1;
+    imageInfo.samples = data.sampleCount;
     imageInfo.tiling = vk::ImageTiling::eOptimal;
     imageInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc;
     imageInfo.initialLayout = data.colorImageLayout;
@@ -1041,7 +1046,7 @@ bool Texture::create_depth_stencil_resources()
     imageInfo.extent.depth = data.depth;
     imageInfo.mipLevels = 1; // Doesn't make much sense for a depth map to be mipped... Could change later...
     imageInfo.arrayLayers = data.layers;
-    imageInfo.samples = vk::SampleCountFlagBits::e1;
+    imageInfo.samples = data.sampleCount;
     imageInfo.tiling = vk::ImageTiling::eOptimal;
     imageInfo.usage = vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc;
     imageInfo.initialLayout = data.depthImageLayout;
@@ -1254,17 +1259,25 @@ Texture* Texture::CreateCubemap(
 }
 
 Texture* Texture::Create2D(
-    std::string name, uint32_t width, uint32_t height, bool hasColor, bool hasDepth)
+    std::string name, uint32_t width, uint32_t height, bool hasColor, bool hasDepth, uint32_t sampleCount)
 {
     auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
     if (!tex) return nullptr;
 
+    auto vulkan = Libraries::Vulkan::Get();
+    auto sampleFlag = vulkan->highest(vulkan->min(vulkan->get_closest_sample_count_flag(sampleCount), vulkan->get_msaa_sample_flags()));
 
     tex->data.width = width;
     tex->data.height = height;
     tex->data.layers = 1;
     tex->data.viewType  = vk::ImageViewType::e2D;
     tex->data.imageType = vk::ImageType::e2D;
+    tex->data.sampleCount = vulkan->highest(vulkan->min(sampleFlag, vulkan->get_msaa_sample_flags()));
+
+    if (tex->data.sampleCount != sampleFlag)
+        std::cout<<"Warning: provided sample count is larger than max supported sample count on the device. Using " 
+            << vk::to_string(tex->data.sampleCount) << " instead."<<std::endl;
+
     if (hasColor) tex->create_color_image_resources();
     if (hasDepth) tex->create_depth_stencil_resources();
     return tex;

@@ -21,6 +21,7 @@ class Camera : public StaticFactory
     vk::Framebuffer framebuffer;
 
     Texture* renderTexture = nullptr;
+    Texture* resolveTexture = nullptr;
     bool allow_recording = false;
 
     glm::vec4 clearColor = glm::vec4(0.0); 
@@ -35,37 +36,41 @@ class Camera : public StaticFactory
     static vk::DeviceMemory ssboMemory;
 
     /* private instance functions */
-    void setup(bool allow_recording = false, bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0)
+    void setup(bool allow_recording = false, bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1)
     {
         set_view(glm::mat4(1.0), 0);
         use_orthographic(-1, 1, -1, 1, -1, 1);
         if (allow_recording)
         {
             this->allow_recording = true;
+            
             if (cubemap)
             {
                 renderTexture = Texture::CreateCubemap(name, tex_width, tex_height, true, true);
             }
             else
             {
-                renderTexture = Texture::Create2D(name, tex_width, tex_height, true, true);
+                renderTexture = Texture::Create2D(name, tex_width, tex_height, true, true, msaa_samples);
+                resolveTexture = Texture::Create2D(name + "_resolve", tex_width, tex_height, true, true, 1);
             }
-            create_render_pass(tex_width, tex_height, (cubemap) ? 6 : 1);
+            create_render_pass(tex_width, tex_height, (cubemap) ? 6 : 1, msaa_samples);
             create_frame_buffer();
-            Material::SetupGraphicsPipelines(renderpass);
+            Material::SetupGraphicsPipelines(renderpass, msaa_samples);
         }
     }
 
-    void create_render_pass(uint32_t framebufferWidth, uint32_t framebufferHeight, int layers = 1)
+    void create_render_pass(uint32_t framebufferWidth, uint32_t framebufferHeight, uint32_t layers = 1, uint32_t sample_count = 1)
     {
         auto vulkan = Libraries::Vulkan::Get();
         auto device = vulkan->get_device();
+
+        auto sampleFlag = vulkan->highest(vulkan->min(vulkan->get_closest_sample_count_flag(sample_count), vulkan->get_msaa_sample_flags()));
 
         #pragma region ColorAttachment
         // Color attachment
         vk::AttachmentDescription colorAttachment;
         colorAttachment.format = renderTexture->get_color_format(); // TODO
-        colorAttachment.samples = vk::SampleCountFlagBits::e1;
+        colorAttachment.samples = sampleFlag;
         colorAttachment.loadOp = vk::AttachmentLoadOp::eClear; // clears image to black
         colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;
         colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
@@ -81,7 +86,7 @@ class Camera : public StaticFactory
         #pragma region CreateDepthAttachment
         vk::AttachmentDescription depthAttachment;
         depthAttachment.format = renderTexture->get_depth_format();
-        depthAttachment.samples = vk::SampleCountFlagBits::e1;
+        depthAttachment.samples = sampleFlag;
         depthAttachment.loadOp = vk::AttachmentLoadOp::eClear;
         depthAttachment.storeOp = vk::AttachmentStoreOp::eStore;
         depthAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
@@ -94,12 +99,48 @@ class Camera : public StaticFactory
         depthAttachmentRef.layout = renderTexture->get_depth_image_layout();
         #pragma endregion
 
+        #pragma region ColorAttachmentResolve
+        // Color attachment
+        vk::AttachmentDescription colorAttachmentResolve;
+        colorAttachmentResolve.format = renderTexture->get_color_format(); // TODO
+        colorAttachmentResolve.samples = vk::SampleCountFlagBits::e1;
+        colorAttachmentResolve.loadOp = vk::AttachmentLoadOp::eDontCare; // dont clear
+        colorAttachmentResolve.storeOp = vk::AttachmentStoreOp::eStore;
+        colorAttachmentResolve.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+        colorAttachmentResolve.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+        colorAttachmentResolve.initialLayout = vk::ImageLayout::eUndefined;
+        colorAttachmentResolve.finalLayout = renderTexture->get_color_image_layout();
+
+        vk::AttachmentReference colorAttachmentResolveRef;
+        colorAttachmentResolveRef.attachment = 2;
+        colorAttachmentResolveRef.layout = renderTexture->get_color_image_layout();
+        #pragma endregion
+
+        // #pragma region CreateDepthAttachmentResolve
+        // vk::AttachmentDescription depthAttachmentResolve;
+        // depthAttachmentResolve.format = renderTexture->get_depth_format();
+        // depthAttachmentResolve.samples = vk::SampleCountFlagBits::e1;
+        // depthAttachmentResolve.loadOp = vk::AttachmentLoadOp::eDontCare;
+        // depthAttachmentResolve.storeOp = vk::AttachmentStoreOp::eStore;
+        // depthAttachmentResolve.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+        // depthAttachmentResolve.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+        // depthAttachmentResolve.initialLayout = vk::ImageLayout::eUndefined;
+        // depthAttachmentResolve.finalLayout = renderTexture->get_depth_image_layout();
+
+        // vk::AttachmentReference depthAttachmentResolveRef;
+        // depthAttachmentResolveRef.attachment = 3;
+        // depthAttachmentResolveRef.layout = renderTexture->get_depth_image_layout();
+        // #pragma endregion
+
+
+
         #pragma region CreateSubpass
         vk::SubpassDescription subpass;
         subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
         subpass.colorAttachmentCount = 1;
         subpass.pColorAttachments = &colorAttachmentRef;
         subpass.pDepthStencilAttachment = &depthAttachmentRef;
+        subpass.pResolveAttachments = &colorAttachmentResolveRef;
 
         // Use subpass dependencies for layout transitions
         std::array<vk::SubpassDependency, 2> dependencies;
@@ -139,7 +180,7 @@ class Camera : public StaticFactory
         renderPassMultiviewInfo.pCorrelationMasks = correlationMasks;
 
         /* Create the render pass */
-        std::array<vk::AttachmentDescription, 2> attachments = { colorAttachment, depthAttachment };
+        std::array<vk::AttachmentDescription, 3> attachments = { colorAttachment, depthAttachment, colorAttachmentResolve };
         vk::RenderPassCreateInfo renderPassInfo;
         renderPassInfo.attachmentCount = (uint32_t) attachments.size();
         renderPassInfo.pAttachments = attachments.data();
@@ -162,13 +203,14 @@ class Camera : public StaticFactory
         auto vulkan = Libraries::Vulkan::Get();
         auto device = vulkan->get_device();
 
-        vk::ImageView attachments[2];
+        vk::ImageView attachments[3];
         attachments[0] = renderTexture->get_color_image_view();
         attachments[1] = renderTexture->get_depth_image_view();
+        attachments[2] = resolveTexture->get_color_image_view();
 
         vk::FramebufferCreateInfo fbufCreateInfo;
         fbufCreateInfo.renderPass = renderpass;
-        fbufCreateInfo.attachmentCount = 2;
+        fbufCreateInfo.attachmentCount = 3;
         fbufCreateInfo.pAttachments = attachments;
         fbufCreateInfo.width = renderTexture->get_width();
         fbufCreateInfo.height = renderTexture->get_height();
@@ -191,7 +233,7 @@ class Camera : public StaticFactory
 
   public:
     /* Public static functions */
-    static Camera* Create(std::string name, bool allow_recording = false, bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0);
+    static Camera* Create(std::string name, bool allow_recording = false, bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1);
     static Camera* Get(std::string name);
     static Camera* Get(uint32_t id);
     static Camera* GetFront();
@@ -295,7 +337,7 @@ class Camera : public StaticFactory
 
     Texture* get_texture()
     {
-        return renderTexture;
+        return resolveTexture;
     }
 
     std::string to_string()
