@@ -27,6 +27,7 @@ class Camera : public StaticFactory
     glm::vec4 clearColor = glm::vec4(0.0); 
     float clearDepth = 1.0f;
     uint32_t clearStencil = 0;
+    uint32_t msaa_samples  = 1;
 
     /* Static fields */
     static Camera cameras[MAX_CAMERAS];
@@ -43,6 +44,7 @@ class Camera : public StaticFactory
         if (allow_recording)
         {
             this->allow_recording = true;
+            this->msaa_samples = msaa_samples;
             
             if (cubemap)
             {
@@ -51,7 +53,8 @@ class Camera : public StaticFactory
             else
             {
                 renderTexture = Texture::Create2D(name, tex_width, tex_height, true, true, msaa_samples);
-                resolveTexture = Texture::Create2D(name + "_resolve", tex_width, tex_height, true, true, 1);
+                if (msaa_samples != 1)
+                    resolveTexture = Texture::Create2D(name + "_resolve", tex_width, tex_height, true, true, 1);
             }
             create_render_pass(tex_width, tex_height, (cubemap) ? 6 : 1, msaa_samples);
             create_frame_buffer();
@@ -140,7 +143,8 @@ class Camera : public StaticFactory
         subpass.colorAttachmentCount = 1;
         subpass.pColorAttachments = &colorAttachmentRef;
         subpass.pDepthStencilAttachment = &depthAttachmentRef;
-        subpass.pResolveAttachments = &colorAttachmentResolveRef;
+        if (msaa_samples != 1)
+            subpass.pResolveAttachments = &colorAttachmentResolveRef;
 
         // Use subpass dependencies for layout transitions
         std::array<vk::SubpassDependency, 2> dependencies;
@@ -180,7 +184,8 @@ class Camera : public StaticFactory
         renderPassMultiviewInfo.pCorrelationMasks = correlationMasks;
 
         /* Create the render pass */
-        std::array<vk::AttachmentDescription, 3> attachments = { colorAttachment, depthAttachment, colorAttachmentResolve };
+        std::vector<vk::AttachmentDescription> attachments = {colorAttachment, depthAttachment};
+        if (msaa_samples != 1) attachments.push_back(colorAttachmentResolve);
         vk::RenderPassCreateInfo renderPassInfo;
         renderPassInfo.attachmentCount = (uint32_t) attachments.size();
         renderPassInfo.pAttachments = attachments.data();
@@ -206,11 +211,12 @@ class Camera : public StaticFactory
         vk::ImageView attachments[3];
         attachments[0] = renderTexture->get_color_image_view();
         attachments[1] = renderTexture->get_depth_image_view();
-        attachments[2] = resolveTexture->get_color_image_view();
+        if (msaa_samples != 1)
+            attachments[2] = resolveTexture->get_color_image_view();
 
         vk::FramebufferCreateInfo fbufCreateInfo;
         fbufCreateInfo.renderPass = renderpass;
-        fbufCreateInfo.attachmentCount = 3;
+        fbufCreateInfo.attachmentCount = (msaa_samples == 1) ? 2 : 3;
         fbufCreateInfo.pAttachments = attachments;
         fbufCreateInfo.width = renderTexture->get_width();
         fbufCreateInfo.height = renderTexture->get_height();
@@ -337,7 +343,8 @@ class Camera : public StaticFactory
 
     Texture* get_texture()
     {
-        return resolveTexture;
+        if (msaa_samples == 1) return renderTexture;
+        else return resolveTexture;
     }
 
     std::string to_string()

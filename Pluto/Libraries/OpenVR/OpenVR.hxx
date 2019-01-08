@@ -1,18 +1,23 @@
 #pragma once
+#ifndef GLM_ENABLE_EXPERIMENTAL
+#define GLM_ENABLE_EXPERIMENTAL
+#endif
+
+#ifndef GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#endif
+
 #include <thread>
 #include <future>
 #include <vector>
 #include <set>
 #include <condition_variable>
 #include <vulkan/vulkan.hpp>
+#include <iostream>
+#include <glm/glm.hpp>
+#include <openvr.h>
 
 #include "Pluto/Tools/Singleton.hxx"
-// #include "threadsafe_queue.hpp"
-
-namespace vr {
-    class IVRSystem;
-    enum EVRInitError;
-}
 
 namespace Libraries {
     using namespace std;
@@ -39,6 +44,11 @@ namespace Libraries {
 
             /* Returns where the OpenVR runtime is installed. */
             std::string vr_runtime_path();
+
+            /* Provides the game with the minimum size that it should use for its offscreen render target to minimize pixel stretching. 
+                This size is matched with the projection matrix and distortion function and will change from display to display depending 
+                on resolution, distortion, and field of view. */
+            glm::ivec2 get_recommended_render_target_size();
 
 
         private:
