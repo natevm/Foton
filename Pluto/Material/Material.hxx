@@ -99,6 +99,7 @@ class Material : public StaticFactory
         void show_base_color();
         void show_texcoords();
         void show_blinn();
+        void show_depth();
 
         /* Accessors / Mutators */
         void set_base_color(glm::vec4 color);
@@ -171,6 +172,7 @@ class Material : public StaticFactory
         static PipelineResources texcoordsurface;
         static PipelineResources normalsurface;
         static PipelineResources skybox;
+        static PipelineResources depth;
 
         /* Wrapper for shader module creation.  */
         static vk::ShaderModule CreateShaderModule(const std::vector<char>& code);
@@ -207,6 +209,6 @@ class Material : public StaticFactory
         MaterialStruct material_struct;
 
         /* An enumeration used to select a pipeline type for use when drawing a given entity. */
-        enum RenderMode { BLINN, PBR, NORMAL, TEXCOORD, SKYBOX, BASECOLOR };
+        enum RenderMode { BLINN, PBR, NORMAL, TEXCOORD, SKYBOX, BASECOLOR, DEPTH };
         RenderMode renderMode = PBR;
 };

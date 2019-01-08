@@ -1,39 +1,33 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-layout(binding = 0) uniform CameraBufferObject {
-    mat4 view;
-    mat4 proj;
-    mat4 viewinv;
-    mat4 projinv;
-    float near;
-    float far;
-} cbo;
-
-layout(binding = 1) uniform UniformBufferObject {
-  mat4 modelMatrix;
-  /* Since this depth texture may come from a different projection, 
-  	we have near and far as part of the UBO */
-  float near;
-  float far;
-} ubo;
-
-layout(binding = 2) uniform sampler2D depthSampler;
+#include "Pluto/Resources/Shaders/DescriptorLayout.hxx"
 
 layout(location = 0) in vec2 fragTexCoord;
+layout(location = 1) in float depth;
+layout(location = 2) in float near;
+layout(location = 3) in float far;
 
 layout(location = 0) out vec4 outColor;
 
-float LinearizeDepth(float depth)
+float LinearizeDepth(float depth, float near, float far)
 {
-  float n = ubo.near; // camera z near
-  float f = ubo.far; // camera z far
+  float n = near; // camera z near
+  float f = far; // camera z far
   float z = depth;
   return (2.0 * n) / (f + n - z * (f - n));	
 }
 
+vec3 hsv2rgb(vec3 c) {
+  vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+  vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+  return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+/* Since this project uses zero to one depth (more accurate), I don't think
+  I need to linearize the depth... */
 void main() 
 {
-	float depth = texture(depthSampler, fragTexCoord).r;
-	outColor = vec4(vec3(1.0-LinearizeDepth(depth)), 1.0);
+  // might try 1.0 - depth, might also try accounting for near or far, or using a transfer function to determine actual values
+	outColor = vec4(vec3(depth), 1.0);
 }
