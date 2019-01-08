@@ -29,6 +29,7 @@ Material::PipelineResources Material::pbr;
 Material::PipelineResources Material::texcoordsurface;
 Material::PipelineResources Material::normalsurface;
 Material::PipelineResources Material::skybox;
+Material::PipelineResources Material::depth;
 
 Material::Material() {
     this->initialized = false;
@@ -388,6 +389,43 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
             skybox.pipelineParameters, 
             renderpass, 0, 
             skybox.pipeline, skybox.pipelineLayout);
+
+        device.destroyShaderModule(fragShaderModule);
+        device.destroyShaderModule(vertShaderModule);
+    }
+
+    /* ------ DEPTH  ------ */
+    {
+        std::string ResourcePath = Options::GetResourcePath();
+        auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Depth/vert.spv"));
+        auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Depth/frag.spv"));
+
+        /* Create shader modules */
+        auto vertShaderModule = CreateShaderModule(vertShaderCode);
+        auto fragShaderModule = CreateShaderModule(fragShaderCode);
+
+        /* Info for shader stages */
+        vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
+        vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
+        vertShaderStageInfo.module = vertShaderModule;
+        vertShaderStageInfo.pName = "main"; // entry point here? would be nice to combine shaders into one file
+
+        vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
+        fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
+        fragShaderStageInfo.module = fragShaderModule;
+        fragShaderStageInfo.pName = "main";
+
+        std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
+        
+        /* Account for possibly multiple samples */
+        depth.pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
+        depth.pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
+
+        CreatePipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+            { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
+            depth.pipelineParameters, 
+            renderpass, 0, 
+            depth.pipeline, depth.pipelineLayout);
 
         device.destroyShaderModule(fragShaderModule);
         device.destroyShaderModule(vertShaderModule);
@@ -802,6 +840,7 @@ bool Material::BindDescriptorSets(vk::CommandBuffer &command_buffer)
     command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, texcoordsurface.pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
     command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pbr.pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
     command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, skybox.pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
+    command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, depth.pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
     return true;
 }
 
@@ -885,6 +924,10 @@ bool Material::DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity,
     else if (material->renderMode == PBR) {
         command_buffer.pushConstants(pbr.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pbr.pipeline);
+    }
+    else if (material->renderMode == DEPTH) {
+        command_buffer.pushConstants(depth.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, depth.pipeline);
     }
     
     command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
@@ -1025,6 +1068,10 @@ void Material::show_texcoords() {
 
 void Material::show_blinn() {
     renderMode = BLINN;
+}
+
+void Material::show_depth() {
+    renderMode = DEPTH;
 }
 
 void Material::set_base_color(glm::vec4 color) {

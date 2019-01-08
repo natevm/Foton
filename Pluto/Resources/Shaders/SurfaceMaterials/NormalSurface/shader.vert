@@ -23,7 +23,6 @@ void main() {
     CameraStruct camera = cbo.cameras[camera_entity.camera_id];
     TransformStruct camera_transform = tbo.transforms[camera_entity.transform_id];
 
-    MaterialStruct material = mbo.materials[target_entity.material_id];
     TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
 
     vec3 w_position = vec3(target_transform.localToWorld * vec4(point.xyz, 1.0));

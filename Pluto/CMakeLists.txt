@@ -153,7 +153,9 @@ add_custom_target(Shaders
     COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/SkyBox/shader.vert -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/SkyBox/vert.spv -flimit-file ${GLSLC_CONFIG}
     COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/SkyBox/shader.frag -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/SkyBox/frag.spv -flimit-file ${GLSLC_CONFIG}
 
-    )
+    COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/shader.vert -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/vert.spv -flimit-file ${GLSLC_CONFIG}
+    COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/shader.frag -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/frag.spv -flimit-file ${GLSLC_CONFIG}
+)
 
 install(FILES ${PROJECT_SOURCE_DIR}/setup.py DESTINATION ${CMAKE_INSTALL_PREFIX})
 install(FILES ${PROJECT_SOURCE_DIR}/install.py DESTINATION ${CMAKE_INSTALL_PREFIX})
@@ -161,5 +163,3 @@ install(FILES ${PROJECT_SOURCE_DIR}/MANIFEST.in DESTINATION ${CMAKE_INSTALL_PREF
 install(FILES ${PROJECT_SOURCE_DIR}/README DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/Pluto/Resources DESTINATION ${CMAKE_INSTALL_PREFIX})
-
-
