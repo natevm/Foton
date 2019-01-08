@@ -144,4 +144,12 @@ std::string OpenVR::get_vr_init_error_as_english_description(vr::EVRInitError er
 	return std::string(VR_GetVRInitErrorAsEnglishDescription(error));
 }
 
+glm::ivec2 OpenVR::get_recommended_render_target_size()
+{
+	if (!system) return glm::ivec2(-1, -1);
+	uint32_t width, height;
+	system->GetRecommendedRenderTargetSize(&width, &height);
+	return glm::ivec2(width, height);
+}
+
 } // namespace Libraries

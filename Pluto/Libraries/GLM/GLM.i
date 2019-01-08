@@ -73,6 +73,9 @@ namespace glm {
 
 %typedef int length_t;
 
+%include "./ivec2.i"
+%include "./ivec3.i"
+%include "./ivec4.i"
 %include "./vec2.i"
 %include "./vec3.i"
 %include "./vec4.i"
@@ -100,6 +103,21 @@ namespace glm {
     std::string __repr__() { return glm::to_string(*$self); }
 }
 
+%extend glm::ivec2 {
+    %feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
+    std::string __repr__() { return glm::to_string(*$self); }
+}
+
+%extend glm::ivec3 {
+    %feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
+    std::string __repr__() { return glm::to_string(*$self); }
+}
+
+%extend glm::ivec4 {
+    %feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
+    std::string __repr__() { return glm::to_string(*$self); }
+}
+
 %extend glm::mat3 {
     %feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
     std::string __repr__() { return glm::to_string(*$self); }
@@ -118,7 +136,10 @@ namespace glm {
 /* Vectors */
 %include "std_vector.i"
 namespace std {
-   %template(Vec2Vector) vector<glm::vec2>;
-   %template(Vec3Vector) vector<glm::vec3>;
-   %template(Vec4Vector) vector<glm::vec4>;
+    %template(Vec2Vector) vector<glm::vec2>;
+    %template(Vec3Vector) vector<glm::vec3>;
+    %template(Vec4Vector) vector<glm::vec4>;
+    %template(IVec2Vector) vector<glm::ivec2>;
+    %template(IVec3Vector) vector<glm::ivec3>;
+    %template(IVec4Vector) vector<glm::ivec4>;
 };
