@@ -224,20 +224,20 @@ bool RenderSystem::start()
                                     break;
                             }
 
-                            Material::BindDescriptorSets(maincmd) ;
+                            vk::RenderPass rp = current_camera->get_renderpass();
+                            Material::BindDescriptorSets(maincmd, rp);
 
                             int32_t camera_id = current_camera->get_id();
                             current_camera->begin_renderpass(maincmd);
-                            
                             for (uint32_t i = 0; i < Entity::GetCount(); ++i)
                             {
                                 if (entities[i].is_initialized())
                                 {
-                                    Material::DrawEntity(maincmd, entities[i], id, environment_id, diffuse_id, irradiance_id, gamma, exposure, light_entity_ids);
+                                    Material::DrawEntity(maincmd, rp, entities[i], id, environment_id, diffuse_id, irradiance_id, gamma, exposure, light_entity_ids);
                                 }
                             }
 
-                            Material::DrawSkyBox(maincmd, id, environment_id, gamma, exposure);
+                            Material::DrawSkyBox(maincmd, rp, id, environment_id, gamma, exposure);
 
                             current_camera->end_renderpass(maincmd);
                         }

@@ -177,7 +177,7 @@ glm::mat4 OpenVR::m34_to_mat4(const vr::HmdMatrix34_t &t) {
 	);
 }
 
-glm::mat4 OpenVR::get_left_projection_matrix(float near)
+glm::mat4 OpenVR::get_left_eye_projection_matrix(float near)
 {
 	/* Pull the projection matrix from OpenVR */
 	float left, right, top, bottom;
@@ -185,7 +185,7 @@ glm::mat4 OpenVR::get_left_projection_matrix(float near)
 	return make_projection_matrix(left, right, top, bottom, near);
 }
 
-glm::mat4 OpenVR::get_right_projection_matrix(float near)
+glm::mat4 OpenVR::get_right_eye_projection_matrix(float near)
 {
 	/* Pull the projection matrix from OpenVR */
 	float left, right, top, bottom;
@@ -193,12 +193,12 @@ glm::mat4 OpenVR::get_right_projection_matrix(float near)
 	return make_projection_matrix(left, right, top, bottom, near);
 }
 
-glm::mat4 OpenVR::get_left_view_matrix()
+glm::mat4 OpenVR::get_left_eye_view_matrix()
 {
 	return glm::inverse(m34_to_mat4(system->GetEyeToHeadTransform(vr::Eye_Left)));
 }
 
-glm::mat4 OpenVR::get_right_view_matrix()
+glm::mat4 OpenVR::get_right_eye_view_matrix()
 {
 	return glm::inverse(m34_to_mat4(system->GetEyeToHeadTransform(vr::Eye_Right)));
 }
@@ -292,21 +292,21 @@ glm::mat4 OpenVR::get_headset_transform()
 	return glm::mat4();
 }
 
-bool OpenVr::is_left_controller_connected() {
+bool OpenVR::is_left_controller_connected() {
 	if (system && (left_hand_id != -1)) {
 		return tracked_device_poses[left_hand_id].bDeviceIsConnected;
 	}
 	return false;
 }
 
-bool OpenVr::is_right_controller_connected() {
+bool OpenVR::is_right_controller_connected() {
 	if (system && (right_hand_id != -1)) {
 		return tracked_device_poses[right_hand_id].bDeviceIsConnected;
 	}
 	return false;
 }
 
-bool OpenVr::is_headset_connected() {
+bool OpenVR::is_headset_connected() {
 	if (system && (headset_id != -1)) {
 		return tracked_device_poses[headset_id].bDeviceIsConnected;
 	}
