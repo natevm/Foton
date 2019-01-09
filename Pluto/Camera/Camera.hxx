@@ -421,6 +421,11 @@ class Camera : public StaticFactory
         return true;
     }
 
+    vk::RenderPass get_renderpass()
+    {
+        return renderpass;
+    }
+
     bool end_renderpass(vk::CommandBuffer command_buffer) {
         if (!allow_recording) 
             return false;

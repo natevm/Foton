@@ -76,13 +76,13 @@ class Material : public StaticFactory
         static void CleanUp();
 
         /* Records a bind of all descriptor sets to each possible pipeline to the given command buffer. Call this at the beginning of a renderpass. */
-        static bool BindDescriptorSets(vk::CommandBuffer &command_buffer);
+        static bool BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
 
         /* Records a draw of the skybox to the current command buffer. Call this at the end of a renderpass. */
-        static bool DrawSkyBox(vk::CommandBuffer &command_buffer, int32_t camera_id, int32_t environment_id, float gamma, float exposure);
+        static bool DrawSkyBox(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, int32_t camera_id, int32_t environment_id, float gamma, float exposure);
 
         /* Records a draw of the supplied entity to the current command buffer. Call this during a renderpass. */
-        static bool DrawEntity(vk::CommandBuffer &command_buffer, Entity &entity, int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids);
+        static bool DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids);
 
         /* Creates an uninitialized material. Useful for preallocation. */
         Material();
@@ -147,6 +147,7 @@ class Material : public StaticFactory
             vk::PipelineLayout pipelineLayout;
         };
         
+        
         /* The descriptor set layout describing where component SSBOs are bound */
         static vk::DescriptorSetLayout componentDescriptorSetLayout;
 
@@ -166,13 +167,13 @@ class Material : public StaticFactory
         static vk::DescriptorSet textureDescriptorSet;
 
         /* The pipeline resources for each of the possible material types */
-        static PipelineResources uniformColor;
-        static PipelineResources blinn;
-        static PipelineResources pbr;
-        static PipelineResources texcoordsurface;
-        static PipelineResources normalsurface;
-        static PipelineResources skybox;
-        static PipelineResources depth;
+        static std::map<vk::RenderPass, PipelineResources> uniformColor;
+        static std::map<vk::RenderPass, PipelineResources> blinn;
+        static std::map<vk::RenderPass, PipelineResources> pbr;
+        static std::map<vk::RenderPass, PipelineResources> texcoordsurface;
+        static std::map<vk::RenderPass, PipelineResources> normalsurface;
+        static std::map<vk::RenderPass, PipelineResources> skybox;
+        static std::map<vk::RenderPass, PipelineResources> depth;
 
         /* Wrapper for shader module creation.  */
         static vk::ShaderModule CreateShaderModule(const std::vector<char>& code);
