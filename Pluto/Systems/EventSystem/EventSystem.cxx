@@ -1,5 +1,7 @@
 #include "EventSystem.hxx"
 
+#include "Pluto/Libraries/OpenVR/OpenVR.hxx"
+
 namespace Systems 
 {
     std::condition_variable EventSystem::cv;
@@ -35,6 +37,7 @@ namespace Systems
         {
             std::unique_lock<std::mutex> lock(qMutex);
             auto glfw = GLFW::Get();
+
             if (glfw) {
                 glfw->poll_events();
 
@@ -46,6 +49,13 @@ namespace Systems
                         commandQueue[i].promise->set_value();
                     }
                     commandQueue.clear();
+                }
+            }
+            /* There might be some timing issues here with the above cv... */
+            if (useOpenVR) {
+                auto OpenVR = OpenVR::Get();
+                if (OpenVR) {
+                    OpenVR->poll_event();
                 }
             }
             //close |= (glfw->should_close());
@@ -138,6 +148,10 @@ namespace Systems
         auto glfw = GLFW::Get();
         if (glfw) glfw->post_empty_event();
         return close;
+    }
+
+    void EventSystem::use_openvr(bool useOpenVR) {
+        this->useOpenVR = useOpenVR;
     }
 
     EventSystem::EventSystem() {}

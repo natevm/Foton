@@ -27,9 +27,11 @@ void Initialize(
 ) {
     auto glfw = Libraries::GLFW::Get();
     auto vulkan = Libraries::Vulkan::Get();
-
+    
     auto event_system = Systems::EventSystem::Get();
     auto render_system = Systems::RenderSystem::Get();
+
+    event_system->use_openvr(useOpenVR);
 
     if (useGLFW) event_system->create_window("Window", 512, 512, true, true, true);
     vulkan->create_instance(validation_layers.size() > 0, validation_layers, instance_extensions, useOpenVR);
