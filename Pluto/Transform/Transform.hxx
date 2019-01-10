@@ -356,7 +356,7 @@ class Transform : public StaticFactory
     {
 
         localToParentMatrix = (localToParentTransform * localToParentPosition * localToParentRotation * localToParentScale);
-        parentToLocalMatrix = (parentToLocalTransform * parentToLocalScale * parentToLocalRotation * parentToLocalPosition);
+        parentToLocalMatrix = (parentToLocalScale * parentToLocalRotation * parentToLocalPosition * parentToLocalTransform);
 
         right = glm::vec3(localToParentMatrix[0]);
         up = glm::vec3(localToParentMatrix[1]);
@@ -372,5 +372,35 @@ class Transform : public StaticFactory
     glm::mat4 local_to_parent_matrix()
     {
         return localToParentMatrix;
+    }
+
+    glm::mat4 local_to_parent_position()
+    {
+        return localToParentPosition;
+    }
+
+    glm::mat4 local_to_parent_scale()
+    {
+        return localToParentScale;
+    }
+
+    glm::mat4 local_to_parent_rotation()
+    {
+        return localToParentRotation;
+    }
+
+    glm::mat4 parent_to_local_position()
+    {
+        return parentToLocalPosition;
+    }
+
+    glm::mat4 parent_to_local_scale()
+    {
+        return parentToLocalScale;
+    }
+
+    glm::mat4 parent_to_local_rotation()
+    {
+        return parentToLocalRotation;
     }
 };

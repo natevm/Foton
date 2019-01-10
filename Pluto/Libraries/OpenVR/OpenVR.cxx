@@ -1,6 +1,7 @@
 #include "OpenVR.hxx"
 #include <iostream>
 #include <openvr.h>
+#include "glm/gtc/matrix_transform.hpp"
 
 namespace Libraries
 {
@@ -169,12 +170,16 @@ glm::mat4 OpenVR::m34_to_mat4(const vr::HmdMatrix34_t &t) {
 	/* Traditionally right handed, +y is up, +x is right, -z is forward. */
 	/* Want y is forward, x is right, z is up. */
 	/* Also, converting from row major to column major */
-	return glm::mat4(
+
+	auto mat1 = glm::mat4(
 		t.m[0][0], t.m[1][0], t.m[2][0], 0,
 		t.m[0][1], t.m[1][1], t.m[2][1], 0,
 		t.m[0][2], t.m[1][2], t.m[2][2], 0,
-		t.m[0][3], t.m[1][3], t.m[2][3], 0
+		t.m[0][3], t.m[1][3], t.m[2][3], 1
 	);
+	
+	return mat1;
+
 }
 
 glm::mat4 OpenVR::get_left_eye_projection_matrix(float near)
@@ -271,7 +276,24 @@ bool OpenVR::poll_event()
 glm::mat4 OpenVR::get_right_controller_transform()
 {
 	if (system && (right_hand_id != -1)) {
-		return glm::inverse(m34_to_mat4(tracked_device_poses[right_hand_id].mDeviceToAbsoluteTracking));
+		/* Kinda kludgy, but converts OpenVR -z forward, y up to y forward, z up. */
+		auto flip_matrix_2 = glm::mat4(
+			-1.0, 0.0, 0.0, 0.0,
+			 0.0, 0.0, 1.0, 0.0,
+			 0.0, 1.0, 0.0, 0.0, 
+			 0.0, 0.0, 0.0, 1.0
+		);
+
+		auto input_matrix = m34_to_mat4(tracked_device_poses[right_hand_id].mDeviceToAbsoluteTracking);
+		
+		auto flip_matrix_1 = glm::mat4 (
+			1.0,  0.0, 0.0, 0.0,
+			0.0,  0.0, -1.0, 0.0,
+			0.0, 1.0, 0.0, 0.0, 
+			0.0,  0.0, 0.0, 1.0
+		);
+		
+		return flip_matrix_2 * input_matrix * flip_matrix_1;
 	}
 	return glm::mat4();
 }
@@ -279,7 +301,24 @@ glm::mat4 OpenVR::get_right_controller_transform()
 glm::mat4 OpenVR::get_left_controller_transform()
 {
 	if (system && (left_hand_id != -1)) {
-		return glm::inverse(m34_to_mat4(tracked_device_poses[left_hand_id].mDeviceToAbsoluteTracking));
+		/* Kinda kludgy, but converts OpenVR -z forward, y up to y forward, z up. */
+		auto flip_matrix_2 = glm::mat4(
+			-1.0, 0.0, 0.0, 0.0,
+			 0.0, 0.0, 1.0, 0.0,
+			 0.0, 1.0, 0.0, 0.0, 
+			 0.0, 0.0, 0.0, 1.0
+		);
+
+		auto input_matrix = m34_to_mat4(tracked_device_poses[left_hand_id].mDeviceToAbsoluteTracking);
+		
+		auto flip_matrix_1 = glm::mat4 (
+			1.0,  0.0, 0.0, 0.0,
+			0.0,  0.0, -1.0, 0.0,
+			0.0, 1.0, 0.0, 0.0, 
+			0.0,  0.0, 0.0, 1.0
+		);
+		
+		return flip_matrix_2 * input_matrix * flip_matrix_1;
 	}
 	return glm::mat4();
 }
@@ -287,7 +326,24 @@ glm::mat4 OpenVR::get_left_controller_transform()
 glm::mat4 OpenVR::get_headset_transform()
 {
 	if (system && (headset_id != -1)) {
-		return glm::inverse(m34_to_mat4(tracked_device_poses[headset_id].mDeviceToAbsoluteTracking));
+		/* Kinda kludgy, but converts OpenVR -z forward, y up to y forward, z up. */
+		auto flip_matrix_2 = glm::mat4(
+			-1.0, 0.0, 0.0, 0.0,
+			 0.0, 0.0, 1.0, 0.0,
+			 0.0, 1.0, 0.0, 0.0, 
+			 0.0, 0.0, 0.0, 1.0
+		);
+
+		auto input_matrix = m34_to_mat4(tracked_device_poses[headset_id].mDeviceToAbsoluteTracking);
+		
+		auto flip_matrix_1 = glm::mat4 (
+			1.0,  0.0, 0.0, 0.0,
+			0.0,  0.0, -1.0, 0.0,
+			0.0, 1.0, 0.0, 0.0, 
+			0.0,  0.0, 0.0, 1.0
+		);
+		
+		return flip_matrix_2 * input_matrix * flip_matrix_1;
 	}
 	return glm::mat4();
 }
