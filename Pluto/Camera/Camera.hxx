@@ -121,6 +121,9 @@ class Camera : public StaticFactory
 	/* Marks the total number of multiviews being used by the current camera. */
 	uint32_t usedViews = 1;
 
+	/* Marks the maximum number of views this camera can support, which can be possibly less than MAX_MULTIVIEW. */
+	uint32_t maxMultiview = MAX_MULTIVIEW;
+
 	/* A struct containing all data to be uploaded to the GPU via an SSBO. */
 	CameraStruct camera_struct;
 
@@ -170,7 +173,7 @@ class Camera : public StaticFactory
 	static vk::DeviceMemory ssboMemory;
 
 	/* Allocates (and possibly frees existing) textures, renderpass, and framebuffer required for rendering. */
-	void setup(bool allow_recording = false, bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1, uint32_t layers = 1);
+	bool setup(bool allow_recording = false, bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1, uint32_t layers = 1);
 
 	/* Creates a vulkan renderpass handle which will be used when recording from the current camera component. */
 	void create_render_pass(uint32_t framebufferWidth, uint32_t framebufferHeight, uint32_t layers = 1, uint32_t sample_count = 1);

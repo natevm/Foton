@@ -9,8 +9,14 @@ std::map<std::string, uint32_t> Camera::lookupTable;
 vk::Buffer Camera::ssbo;
 vk::DeviceMemory Camera::ssboMemory;
 
-void Camera::setup(bool allow_recording, bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers)
+bool Camera::setup(bool allow_recording, bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers)
 {
+	if (layers > MAX_MULTIVIEW)
+	{
+		std::cout<<"Error, Camera component cannot render to more than " << MAX_MULTIVIEW << " layers simultaneously."<<std::endl;
+		return false;
+	}
+	maxMultiview = layers;
 	set_view(glm::mat4(1.0), 0);
 	// set_orthographic_projection(-1, 1, -1, 1, -1, 1);
 	if (allow_recording)
@@ -32,6 +38,7 @@ void Camera::setup(bool allow_recording, bool cubemap, uint32_t tex_width, uint3
 		create_frame_buffer();
 		Material::SetupGraphicsPipelines(renderpass, msaa_samples);
 	}
+	return true;
 }
 
 void Camera::create_render_pass(uint32_t framebufferWidth, uint32_t framebufferHeight, uint32_t layers, uint32_t sample_count)
@@ -202,8 +209,8 @@ void Camera::update_used_views(uint32_t multiview) {
 }
 
 bool Camera::check_multiview_index(uint32_t multiview) {
-	if (multiview >= MAX_MULTIVIEW) {
-		std::cout<<"Error, multiview index is larger than MAX_MULTIVIEW"<<std::endl;
+	if (multiview >= maxMultiview) {
+		std::cout<<"Error, multiview index is larger than " << maxMultiview <<std::endl;
 		return false;
 	}
 	return true;
@@ -431,11 +438,11 @@ void Camera::UploadSSBO()
 	if (pinnedMemory == nullptr) return;
 	
 	/* TODO: remove this for loop */
-	for (int i = 0; i < MAX_CAMERAS; ++i) {
+	for (uint32_t i = 0; i < MAX_CAMERAS; ++i) {
 		if (!cameras[i].is_initialized()) continue;
 		pinnedMemory[i] = cameras[i].camera_struct;
 
-		for (int j = 0; j < MAX_MULTIVIEW; ++j) {
+		for (uint32_t j = 0; j < cameras[i].maxMultiview; ++j) {
 			pinnedMemory[i].multiviews[j].viewinv = glm::inverse(pinnedMemory[i].multiviews[j].view);
 			pinnedMemory[i].multiviews[j].projinv = glm::inverse(pinnedMemory[i].multiviews[j].proj);
 			pinnedMemory[i].multiviews[j].viewproj = pinnedMemory[i].multiviews[j].proj * pinnedMemory[i].multiviews[j].view;
@@ -467,7 +474,9 @@ void Camera::CleanUp()
 Camera* Camera::Create(std::string name, bool allow_recording, bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers)
 {
 	auto camera = StaticFactory::Create(name, "Camera", lookupTable, cameras, MAX_CAMERAS);
-	camera->setup(allow_recording, cubemap, tex_width, tex_height, msaa_samples, layers);
+	if (camera->setup(allow_recording, cubemap, tex_width, tex_height, msaa_samples, layers) == false) {
+		return nullptr;
+	}
 	return camera;
 }
 
