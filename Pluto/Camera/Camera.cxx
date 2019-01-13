@@ -293,6 +293,10 @@ bool Camera::set_view(glm::mat4 view, uint32_t multiview)
 	return true;
 };
 
+void Camera::set_render_order(uint32_t order) {
+	renderOrder = order;
+}
+
 glm::mat4 Camera::get_projection(uint32_t multiview) { 
 	if (!check_multiview_index(multiview)) return glm::mat4();
 	return camera_struct.multiviews[multiview].proj; 

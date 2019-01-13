@@ -117,12 +117,19 @@ class Camera : public StaticFactory
 		this should always be 1.0 */
 	void set_clear_depth(float depth);
 
+	/* Sets the renderpass order of the current camera. This is used to render this camera first, so that
+		other cameras later on can use the results. Eg, rendering shadow maps or reflections. */
+	void set_render_order(uint32_t order);
+
   private:
 	/* Marks the total number of multiviews being used by the current camera. */
 	uint32_t usedViews = 1;
 
 	/* Marks the maximum number of views this camera can support, which can be possibly less than MAX_MULTIVIEW. */
 	uint32_t maxMultiview = MAX_MULTIVIEW;
+
+	/* Marks when this camera should render during a frame. */
+	uint32_t renderOrder = 0;
 
 	/* A struct containing all data to be uploaded to the GPU via an SSBO. */
 	CameraStruct camera_struct;
