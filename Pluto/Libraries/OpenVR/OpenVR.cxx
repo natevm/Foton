@@ -211,7 +211,7 @@ glm::mat4 OpenVR::m44_to_mat4(const vr::HmdMatrix44_t &t) {
 
 }
 
-glm::mat4 OpenVR::get_left_eye_projection_matrix(float near)
+glm::mat4 OpenVR::get_left_projection_matrix(float near)
 {
 	/* Pull the projection matrix from OpenVR */
 	float left, right, top, bottom;
@@ -222,7 +222,7 @@ glm::mat4 OpenVR::get_left_eye_projection_matrix(float near)
 	return ovr_matrix;
 }
 
-glm::mat4 OpenVR::get_right_eye_projection_matrix(float near)
+glm::mat4 OpenVR::get_right_projection_matrix(float near)
 {
 	/* Pull the projection matrix from OpenVR */
 	float left, right, top, bottom;
@@ -231,16 +231,6 @@ glm::mat4 OpenVR::get_right_eye_projection_matrix(float near)
 	auto ovr_matrix = make_projection_matrix(left, right, top, bottom, near);
 
 	return ovr_matrix;
-}
-
-glm::mat4 OpenVR::get_left_eye_view_matrix()
-{
-	return m34_to_mat4(system->GetEyeToHeadTransform(vr::Eye_Left));
-}
-
-glm::mat4 OpenVR::get_right_eye_view_matrix()
-{
-	return m34_to_mat4(system->GetEyeToHeadTransform(vr::Eye_Right));
 }
 
 glm::mat4 OpenVR::get_left_view_matrix() {
@@ -369,14 +359,6 @@ glm::mat4 OpenVR::get_left_controller_transform()
 	return glm::mat4();
 }
 
-glm::mat4 OpenVR::get_headset_transform()
-{
-	if (system && (headset_id != -1)) {
-		return m34_to_mat4(tracked_device_poses[headset_id].mDeviceToAbsoluteTracking);
-	}
-	return glm::mat4();
-}
-
 bool OpenVR::is_left_controller_connected() {
 	if (system && (left_hand_id != -1)) {
 		return tracked_device_poses[left_hand_id].bDeviceIsConnected;
@@ -397,6 +379,28 @@ bool OpenVR::is_headset_connected() {
 	}
 	return false;
 }
+
+bool OpenVR::is_left_controller_pose_valid() {
+	if (system && (left_hand_id != -1)) {
+		return tracked_device_poses[left_hand_id].bPoseIsValid;
+	}
+	return false;
+}
+
+bool OpenVR::is_right_controller_pose_valid() {
+	if (system && (right_hand_id != -1)) {
+		return tracked_device_poses[right_hand_id].bPoseIsValid;
+	}
+	return false;
+}
+
+bool OpenVR::is_headset_pose_valid() {
+	if (system && (headset_id != -1)) {
+		return tracked_device_poses[headset_id].bPoseIsValid;
+	}
+	return false;
+}
+
 
 bool OpenVR::create_eye_textures() {
 	auto resolution = get_recommended_render_target_size();
