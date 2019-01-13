@@ -54,8 +54,11 @@ void Initialize(
     auto skybox = Entity::Create("Skybox");
     auto plane = Mesh::Get("DefaultSphere");
     auto transform = Transform::Create("SkyboxTransform");
+    auto material = Material::Create("SkyboxMaterial");
+    material->show_environment();
     transform->set_scale(100, 100, 100);
     skybox->set_mesh(plane);
+    skybox->set_material(material);
     skybox->set_transform(transform);
 
 	if (useOpenVR) {

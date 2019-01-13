@@ -9,6 +9,7 @@
 #endif
 
 #ifndef GLSL
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 using namespace glm;
 #endif
@@ -21,8 +22,9 @@ struct CameraObject
     mat4 projinv;
     mat4 viewproj;
     float near_pos;
-    float far_pos;
+    // float far_pos;
     float fov;
+    float pad1;
     float pad2;
 };
 

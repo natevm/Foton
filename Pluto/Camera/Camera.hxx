@@ -57,22 +57,17 @@ class Camera : public StaticFactory
 	Camera(std::string name, uint32_t id);
 
 	/* Constructs an orthographic projection for the given multiview. */
-	bool use_orthographic(float left, float right, float bottom, float top, float near_pos, float far_pos, uint32_t multiview = 0);
+	// bool set_orthographic_projection(float left, float right, float bottom, float top, float near_pos, uint32_t multiview = 0);
 
 	/* Constructs a reverse Z perspective projection for the given multiview. */
-	bool use_perspective(float fov_in_radians, float width, float height, float near_pos, float far_pos, uint32_t multiview = 0);
+	bool set_perspective_projection(float fov_in_radians, float width, float height, float near_pos, uint32_t multiview = 0);
+
+	/* Uses an external projection matrix for the given multiview. 
+		Note, the projection must be a reversed Z projection. */
+	bool set_custom_projection(glm::mat4 custom_projection, float near_pos, uint32_t multiview = 0);
 
 	/* Returns the near position of the given multiview */
 	float get_near_pos(uint32_t multiview = 0);
-
-	/* Sets the near clipping position of the given multiview */
-	bool set_near_pos(float near_pos, uint32_t multiview = 0);
-
-	/* Returns the far position of the given multiview */
-	float get_far_pos(uint32_t multiview = 0);
-
-	/* Sets the far clipping position of the given multiview */
-	bool set_far_pos(float far_pos, uint32_t multiview = 0);
 
 	/* Returns the entity transform to camera matrix for the given multiview. 
 		This additional transform is applied on top of an entity transform during a renderpass
@@ -88,13 +83,6 @@ class Camera : public StaticFactory
 		This transform can be used to achieve perspective (eg a vanishing point), or for scaling
 		an orthographic view. */
 	glm::mat4 get_projection(uint32_t multiview = 0);
-
-	/* Sets the camera to projection matrix for the given multiview.
-		This transform can be used to achieve perspective (eg a vanishing point), or for scaling
-		an orthographic view. 
-		Note: In the future, this will alter the near and far positions.
-	*/
-	bool set_projection(glm::mat4 projection, uint32_t multiview = 0);
 
 	/* If recording is allowed, returns the texture component being rendered to. 
 		Otherwise, returns None/nullptr. */

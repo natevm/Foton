@@ -12,7 +12,7 @@ vk::DeviceMemory Camera::ssboMemory;
 void Camera::setup(bool allow_recording, bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers)
 {
 	set_view(glm::mat4(1.0), 0);
-	use_orthographic(-1, 1, -1, 1, -1, 1);
+	// set_orthographic_projection(-1, 1, -1, 1, -1, 1);
 	if (allow_recording)
 	{
 		this->allow_recording = true;
@@ -217,54 +217,58 @@ Camera::Camera(std::string name, uint32_t id) {
 	this->initialized = true;
 	this->name = name;
 	this->id = id;
-
-	camera_struct.multiviews[0].near_pos = .01f;
-	camera_struct.multiviews[0].far_pos = 1000.f;
-	camera_struct.multiviews[0].fov = 90.f;
 }
 
-bool Camera::use_orthographic(float left, float right, float bottom, float top, float near_pos, float far_pos, uint32_t multiview)
+// glm::mat4 MakeInfReversedZOrthoRH(float left, float right, float bottom, float top, float zNear)
+// {
+// 	return glm::mat4 (
+// 		2.0f / (right - left), 0.0f,  0.0f,  0.0f,
+// 		0.0f,    2.0f / (top - bottom),  0.0f,  0.0f,
+// 		0.0f, 0.0f,  0.0, -1.0f,
+// 		0.0, 0.0, zNear,  0.0f
+// 	);
+// }
+
+// bool Camera::set_orthographic_projection(float left, float right, float bottom, float top, float near_pos, uint32_t multiview)
+// {
+// 	if (!check_multiview_index(multiview)) return false;
+// 	camera_struct.multiviews[multiview].near_pos = near_pos;
+// 	camera_struct.multiviews[multiview].proj = MakeInfReversedZOrthoRH(left, right, bottom, top, near_pos);
+// 	camera_struct.multiviews[multiview].projinv = glm::inverse(camera_struct.multiviews[multiview].proj);
+// 	return true;
+// };
+
+glm::mat4 MakeInfReversedZProjRH(float fovY_radians, float aspectWbyH, float zNear)
+{
+    float f = 1.0f / tan(fovY_radians / 2.0f);
+    return glm::mat4(
+        f / aspectWbyH, 0.0f,  0.0f,  0.0f,
+                  0.0f,    f,  0.0f,  0.0f,
+                  0.0f, 0.0f,  0.0f, -1.0f,
+                  0.0f, 0.0f, zNear,  0.0f);
+}
+
+bool Camera::set_perspective_projection(float fov_in_radians, float width, float height, float near_pos, uint32_t multiview)
 {
 	if (!check_multiview_index(multiview)) return false;
-	this->set_near_pos(near_pos);
-	this->set_far_pos(far_pos);
-	this->set_projection(glm::ortho(left, right, bottom, top, near_pos, far_pos), multiview);
+	camera_struct.multiviews[multiview].near_pos = near_pos;
+	camera_struct.multiviews[multiview].proj = MakeInfReversedZProjRH(fov_in_radians, width / height, near_pos);
+	camera_struct.multiviews[multiview].projinv = glm::inverse(camera_struct.multiviews[multiview].proj);
 	return true;
 };
 
-bool Camera::use_perspective(float fov_in_radians, float width, float height, float near_pos, float far_pos, uint32_t multiview)
+bool Camera::set_custom_projection(glm::mat4 custom_projection, float near_pos, uint32_t multiview)
 {
 	if (!check_multiview_index(multiview)) return false;
-	this->set_near_pos(near_pos, multiview);
-	this->set_far_pos(far_pos, multiview);
-	this->set_projection(glm::perspectiveFov(fov_in_radians, width, height, near_pos, far_pos), multiview);
+	camera_struct.multiviews[multiview].near_pos = near_pos;
+	camera_struct.multiviews[multiview].proj = custom_projection;
+	camera_struct.multiviews[multiview].projinv = glm::inverse(custom_projection);
 	return true;
-};
+}
 
 float Camera::get_near_pos(uint32_t multiview) { 
 	if (!check_multiview_index(multiview)) return -1;
 	return camera_struct.multiviews[multiview].near_pos; 
-}
-
-bool Camera::set_near_pos(float near_pos, uint32_t multiview)
-{
-	if (!check_multiview_index(multiview)) return false;
-	update_used_views(multiview);
-	camera_struct.multiviews[multiview].near_pos = near_pos;
-	return true;
-}
-
-float Camera::get_far_pos(uint32_t multiview) { 
-	if (!check_multiview_index(multiview)) return -1;
-	return camera_struct.multiviews[multiview].far_pos; 
-}
-
-bool Camera::set_far_pos(float far_pos, uint32_t multiview)
-{
-	if (!check_multiview_index(multiview)) return false;
-	update_used_views(multiview);
-	camera_struct.multiviews[multiview].far_pos = far_pos;
-	return true;
 }
 
 glm::mat4 Camera::get_view(uint32_t multiview) { 
@@ -287,14 +291,6 @@ glm::mat4 Camera::get_projection(uint32_t multiview) {
 	return camera_struct.multiviews[multiview].proj; 
 };
 
-bool Camera::set_projection(glm::mat4 projection, uint32_t multiview)
-{
-	if (!check_multiview_index(multiview)) return false;
-	update_used_views(multiview);
-	camera_struct.multiviews[multiview].proj = projection;
-	camera_struct.multiviews[multiview].projinv = glm::inverse(projection);
-	return true;
-};
 
 Texture* Camera::get_texture()
 {
@@ -324,7 +320,6 @@ std::string Camera::to_string()
 		output += glm::to_string(camera_struct.multiviews[i].view);
 		output += (i == (usedViews - 1)) ? "\n" : ",\n";
 		output += "\t\tnear_pos: " + std::to_string(camera_struct.multiviews[i].near_pos) + ",\n";
-		output += "\t\tfar_pos: " + std::to_string(camera_struct.multiviews[i].far_pos) + ",\n";
 		output += "\t\tfov: " + std::to_string(camera_struct.multiviews[i].fov) + "\n";
 	}
 	output += "\t],\n";

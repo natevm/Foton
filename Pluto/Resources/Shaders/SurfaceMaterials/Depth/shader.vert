@@ -12,7 +12,6 @@ layout(location = 3) in vec2 texcoord;
 layout(location = 0) out vec2 fragTexCoord;
 layout(location = 1) out float depth;
 layout(location = 2) out float near;
-layout(location = 3) out float far;
 
 out gl_PerVertex {
     vec4 gl_Position;
@@ -32,6 +31,5 @@ void main() {
     gl_Position = camera.multiviews[gl_ViewIndex].proj * camera.multiviews[gl_ViewIndex].view * camera_transform.worldToLocal * w_position;
     fragTexCoord = texcoord;
     near = camera.multiviews[gl_ViewIndex].near_pos;
-    far = camera.multiviews[gl_ViewIndex].far_pos;
-    depth = (gl_Position.z - near) / (far - near);
+    depth = (gl_Position.z - near);
 }
