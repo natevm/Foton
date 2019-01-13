@@ -5,6 +5,7 @@
 
 #include "Libraries/GLFW/GLFW.hxx"
 #include "Libraries/Vulkan/Vulkan.hxx"
+#include "Libraries/OpenVR/OpenVR.hxx"
 
 #include "Pluto/Camera/Camera.hxx"
 #include "Pluto/Texture/Texture.hxx"
@@ -32,6 +33,7 @@ void Initialize(
     auto render_system = Systems::RenderSystem::Get();
 
     event_system->use_openvr(useOpenVR);
+    render_system->use_openvr(useOpenVR);
 
     if (useGLFW) event_system->create_window("Window", 512, 512, true, true, true);
     vulkan->create_instance(validation_layers.size() > 0, validation_layers, instance_extensions, useOpenVR);
@@ -55,6 +57,11 @@ void Initialize(
     transform->set_scale(100, 100, 100);
     skybox->set_mesh(plane);
     skybox->set_transform(transform);
+
+	if (useOpenVR) {
+		auto ovr = Libraries::OpenVR::Get();
+        ovr->create_eye_textures();
+	}
 }
 
 void CleanUp()

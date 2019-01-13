@@ -30,7 +30,9 @@ namespace Systems
             void set_diffuse_map(int32_t id);
             void set_diffuse_map(Texture *texture);
             void clear_diffuse_map();
+            void use_openvr(bool useOpenVR);
         private:
+            bool using_openvr = false;
             void *zmq_context;
             float gamma = 1.0;
             float exposure = 1.0;

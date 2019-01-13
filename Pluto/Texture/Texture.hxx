@@ -24,6 +24,7 @@ class Texture : public StaticFactory
 			vk::ImageViewType viewType;
 			vk::ImageType imageType;
 			vk::SampleCountFlagBits sampleCount;
+			std::vector<vk::Image> additionalColorImages;
 		};
 
 		/* Creates a texture from a khronos texture file (.ktx) */
@@ -38,8 +39,8 @@ class Texture : public StaticFactory
 		/* Creates a cubemap texture of a given width and height, and with color and/or depth resources. */
 		static Texture *CreateCubemap(std::string name, uint32_t width, uint32_t height, bool hasColor, bool hasDepth);
 
-		/* Creates a 2d texture of a given width and height, and with color and/or depth resources. */
-		static Texture *Create2D(std::string name, uint32_t width, uint32_t height, bool hasColor, bool hasDepth, uint32_t sampleCount);
+		/* Creates a 2d texture of a given width and height, consisting of possibly several layers, and with color and/or depth resources. */
+		static Texture *Create2D(std::string name, uint32_t width, uint32_t height, bool hasColor, bool hasDepth, uint32_t sampleCount, uint32_t layers);
 
 		/* Retrieves a texture component by name */
 		static Texture *Get(std::string name);
@@ -47,7 +48,7 @@ class Texture : public StaticFactory
 		/* Retrieves a texture component by id */
 		static Texture *Get(uint32_t id);
 
-		/* Retrieves a pointer to the list of texture components */
+		/* Returns a pointer to the list of texture components */
 		static Texture *GetFront();
 
 		/* Returns the total number of reserved textures */
@@ -99,6 +100,7 @@ class Texture : public StaticFactory
 		uint32_t get_height();
 		uint32_t get_total_layers();
 		uint32_t get_width();
+		vk::SampleCountFlagBits get_sample_count();		
 
 		/* Blits the texture to an image of the given width, height, and depth, then downloads from the GPU to the CPU. */
 		std::vector<float> download_color_data(uint32_t width, uint32_t height, uint32_t depth, uint32_t pool = 1);
@@ -107,7 +109,7 @@ class Texture : public StaticFactory
 		bool upload_color_data(uint32_t width, uint32_t height, uint32_t depth, std::vector<float> color_data, uint32_t pool_id = 1);
 
 		/* Records a blit of this texture onto another. */
-		bool record_blit_to(vk::CommandBuffer command_buffer, Texture *other);
+		bool record_blit_to(vk::CommandBuffer command_buffer, Texture *other, uint32_t layer = 0);
 
 		/* Replace the current image resources with external resources. Note, these resources must be freed externally. */
 		void setData(Data data);
