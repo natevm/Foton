@@ -6,7 +6,6 @@
 layout(location = 0) in vec2 fragTexCoord;
 layout(location = 1) in float depth;
 layout(location = 2) in float near;
-layout(location = 3) in float far;
 
 layout(location = 0) out vec4 outColor;
 

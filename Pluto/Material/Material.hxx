@@ -78,9 +78,6 @@ class Material : public StaticFactory
         /* Records a bind of all descriptor sets to each possible pipeline to the given command buffer. Call this at the beginning of a renderpass. */
         static bool BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
 
-        /* Records a draw of the skybox to the current command buffer. Call this at the end of a renderpass. */
-        static bool DrawSkyBox(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, int32_t camera_id, int32_t environment_id, float gamma, float exposure);
-
         /* Records a draw of the supplied entity to the current command buffer. Call this during a renderpass. */
         static bool DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids);
 
@@ -100,6 +97,7 @@ class Material : public StaticFactory
         void show_texcoords();
         void show_blinn();
         void show_depth();
+        void show_environment();
 
         /* Accessors / Mutators */
         void set_base_color(glm::vec4 color);

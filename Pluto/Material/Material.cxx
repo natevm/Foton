@@ -858,42 +858,9 @@ bool Material::BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderP
     return true;
 }
 
-bool Material::DrawSkyBox(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, int32_t camera_id, int32_t environment_id, float gamma, float exposure) {
-    if (environment_id == -1) return false;
-
-    /* Get the default plane mesh */
-    auto skybox_entity = Entity::Get("Skybox");
-    auto mesh_id = skybox_entity->get_mesh();
-    if (mesh_id < 0 || mesh_id >= MAX_MESHES) return false;
-    auto m = Mesh::Get((uint32_t) mesh_id);
-    if (!m) return false;
-
-    // Push constants
-    // Ignoring some fields, but they won't be read from in the skybox shader.
-    PushConsts push_constants = {};
-    push_constants.target_id = skybox_entity->get_id();
-    push_constants.camera_id = camera_id;
-    push_constants.environment_id = environment_id;
-    push_constants.exposure = exposure;
-    push_constants.gamma = gamma;
-
-    command_buffer.pushConstants(
-        skybox[render_pass].pipelineLayout, 
-        vk::ShaderStageFlagBits::eAll,
-        0, sizeof(PushConsts), &push_constants);
-
-    command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, skybox[render_pass].pipeline);
-    
-    command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
-    command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
-    command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
-
-    return true;
-}
-
 bool Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, 
     int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids)
-{
+{    
     /* Need a mesh to render. */
     auto mesh_id = entity.get_mesh();
     if (mesh_id < 0 || mesh_id >= MAX_MESHES) return false;
@@ -942,6 +909,10 @@ bool Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &ren
     else if (material->renderMode == DEPTH) {
         command_buffer.pushConstants(depth[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, depth[render_pass].pipeline);
+    }
+    else if (material->renderMode == SKYBOX) {
+        command_buffer.pushConstants(skybox[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, skybox[render_pass].pipeline);
     }
     
     command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
@@ -1086,6 +1057,10 @@ void Material::show_blinn() {
 
 void Material::show_depth() {
     renderMode = DEPTH;
+}
+
+void Material::show_environment() {
+    renderMode = SKYBOX;
 }
 
 void Material::set_base_color(glm::vec4 color) {
