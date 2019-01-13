@@ -14,6 +14,8 @@
 
 #include "Pluto/Material/PushConstants.hxx"
 
+#include "Pluto/Libraries/OpenVR/OpenVR.hxx"
+
 // #ifndef _WIN32
 // #include <unistd.h>
 // #else
@@ -105,7 +107,6 @@ bool RenderSystem::start()
         vk::Fence main_fence;
         uint32_t MAX_FRAMES_IN_FLIGHT = 3;
 
-
         vk::SemaphoreCreateInfo semaphoreInfo;
         // vk::Semaphore imageAvailableSemaphore;
         // vk::Semaphore renderCompleteSemaphore;
@@ -116,7 +117,7 @@ bool RenderSystem::start()
         while (futureObj.wait_for(std::chrono::seconds(0)) != future_status::ready)
         {
             auto currentTime = glfwGetTime();
-            if ((currentTime - lastTime) < .008)
+            if ((!using_openvr) && ((currentTime - lastTime) < .008))
                 continue;
 
             // std::cout<<"\r time: " << std::to_string(currentTime - lastTime);
@@ -163,15 +164,6 @@ bool RenderSystem::start()
                 acquireFence = device.createFence(fenceInfo);
             }
 
-            /* Upload SSBO data */
-            Material::UploadSSBO();
-            Transform::UploadSSBO();
-            Light::UploadSSBO();
-            Camera::UploadSSBO();
-            Entity::UploadSSBO();
-            Material::UpdateDescriptorSets();
-
-
             /* 1. Optionally aquire swapchain image. Signal image available semaphore. */
             if (glfw->does_window_exist("Window"))
             {
@@ -206,6 +198,23 @@ bool RenderSystem::start()
                     current_camera = Camera::Get(cam_id);
                     if (current_camera)
                     {
+                        if (using_openvr) {
+                            auto ovr = OpenVR::Get();
+                            ovr->wait_get_poses();
+                            current_camera->set_view(ovr->get_left_view_matrix(), 0);
+                            current_camera->set_projection(ovr->get_left_eye_projection_matrix(.1), 0);
+                            current_camera->set_view(ovr->get_right_view_matrix(), 1);
+                            current_camera->set_projection(ovr->get_right_eye_projection_matrix(.1), 1);
+                        }
+
+                        /* Upload SSBO data */
+                        Material::UploadSSBO();
+                        Transform::UploadSSBO();
+                        Light::UploadSSBO();
+                        Camera::UploadSSBO();
+                        Entity::UploadSSBO();
+                        Material::UpdateDescriptorSets();
+                        
                         if (!Options::IsClient())
                         {
                             auto entities = Entity::GetFront();
@@ -246,11 +255,23 @@ bool RenderSystem::start()
                         if (current_camera && swapchain && swapchain_texture && current_camera->get_texture())
                         {
                             current_camera->get_texture()->record_blit_to(maincmd, swapchain_texture);
+
+                            if (using_openvr) {
+                                auto ovr = OpenVR::Get();
+                                auto left_eye_texture = ovr->get_left_eye_texture();
+                                auto right_eye_texture = ovr->get_right_eye_texture();
+                                if (left_eye_texture) {
+                                    current_camera->get_texture()->record_blit_to(maincmd, left_eye_texture, 0);
+                                }
+                                if (right_eye_texture) {
+                                    current_camera->get_texture()->record_blit_to(maincmd, right_eye_texture, 1);
+                                }
+                            }
                         }
                     }
                 }
             }
-
+            
             maincmd.end();
 
             /* 4. Wait on image available. Enqueue graphics commands. Optionally signal render complete semaphore. */
@@ -297,25 +318,33 @@ bool RenderSystem::start()
                 /* Receive complete frame over UDP. Upload. */
                 if (Options::IsClient())
                 {
-                    if (current_camera) {
-                        for (int i = 0; i < 100; ++i)
-                        {
-                            int rc = zmq_recv(RenderSystem::Get()->socket, &bucket, sizeof(Bucket), ZMQ_NOBLOCK);
-                        }
-                        std::vector<float> color_data(16 * 16 * 4);
-                        memcpy(color_data.data(), bucket.data, 16 * 16 * 4 * sizeof(float));
-                        current_camera->get_texture()->upload_color_data(16, 16, 1, color_data, 0);
-                    }
+                    // if (current_camera) {
+                    //     for (int i = 0; i < 100; ++i)
+                    //     {
+                    //         int rc = zmq_recv(RenderSystem::Get()->socket, &bucket, sizeof(Bucket), ZMQ_NOBLOCK);
+                    //     }
+                    //     std::vector<float> color_data(16 * 16 * 4);
+                    //     memcpy(color_data.data(), bucket.data, 16 * 16 * 4 * sizeof(float));
+                    //     current_camera->get_texture()->upload_color_data(16, 16, 1, color_data, 0);
+                    // }
                 }
             }
 
+
             /* Submit enqueued graphics commands */
             vulkan->submit_graphics_commands();
-
+            
             // /* Wait for GPU to finish execution */
             // If i don't fence here, triangles seem to spread apart. I think this is an issue with using the SSBO from frame to frame...
             device.waitForFences(maincmd_fences[currentFrame], true, 100000000000);
             device.resetFences(maincmd_fences[currentFrame]);
+
+            if (using_openvr) {
+                if (current_camera) {
+                    auto ovr = OpenVR::Get();
+                    ovr->submit_textures();
+                }
+            }
 
             /* 5. Optional: Wait on render complete. Present a frame. */
             if (swapchain && swapchain_texture)
@@ -448,4 +477,7 @@ void RenderSystem::clear_diffuse_map()
     this->diffuse_id = -1;
 }
 
+void RenderSystem::use_openvr(bool useOpenVR) {
+    this->using_openvr = useOpenVR;
+}
 } // namespace Systems

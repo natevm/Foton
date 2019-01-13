@@ -43,8 +43,8 @@ void Transform::UploadSSBO()
         if (!transforms[i].is_initialized()) continue;
 
         /* TODO: account for parent transforms */
-        transformObjects[i].worldToLocal = transforms[i].parentToLocalMatrix;
-        transformObjects[i].localToWorld = transforms[i].localToParentMatrix;
+        transformObjects[i].worldToLocal = transforms[i].parent_to_local_matrix();
+        transformObjects[i].localToWorld = transforms[i].local_to_parent_matrix();
     };
 
     auto device = Libraries::Vulkan::Get()->get_device();

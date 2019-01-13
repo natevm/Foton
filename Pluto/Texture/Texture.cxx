@@ -371,7 +371,7 @@ bool Texture::upload_color_data(uint32_t width, uint32_t height, uint32_t depth,
     return true;
 }
 
-bool Texture::record_blit_to(vk::CommandBuffer command_buffer, Texture * other)
+bool Texture::record_blit_to(vk::CommandBuffer command_buffer, Texture * other, uint32_t layer)
 {
     auto src_image = data.colorImage;
     auto dst_image = other->get_color_image();
@@ -383,7 +383,7 @@ bool Texture::record_blit_to(vk::CommandBuffer command_buffer, Texture * other)
     vk::ImageSubresourceLayers srcSubresourceLayers;
     srcSubresourceLayers.aspectMask = vk::ImageAspectFlagBits::eColor;
     srcSubresourceLayers.mipLevel = 0;
-    srcSubresourceLayers.baseArrayLayer = 0;
+    srcSubresourceLayers.baseArrayLayer = layer;
     srcSubresourceLayers.layerCount = 1; // TODO
 
     vk::ImageSubresourceLayers dstSubresourceLayers;
@@ -500,7 +500,7 @@ uint32_t Texture::get_width() { return data.width; }
 uint32_t Texture::get_height() { return data.height; }
 uint32_t Texture::get_depth() { return data.depth; }
 uint32_t Texture::get_total_layers() { return data.layers; }
-
+vk::SampleCountFlagBits Texture::get_sample_count() { return data.sampleCount; }
 void Texture::setImageLayout(
         vk::CommandBuffer cmdbuffer,
         vk::Image image,
@@ -972,8 +972,9 @@ bool Texture::create_color_image_resources()
     vk::ImageSubresourceRange subresourceRange;
     subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
     subresourceRange.baseMipLevel = 0;
-    subresourceRange.levelCount = 1;
-    subresourceRange.layerCount = 1;
+    subresourceRange.baseArrayLayer = 0;
+    subresourceRange.levelCount = data.colorMipLevels;
+    subresourceRange.layerCount = data.layers;
 
     vk::CommandBuffer cmdBuffer = vulkan->begin_one_time_graphics_command(1);
     setImageLayout(cmdBuffer, data.colorImage, vk::ImageLayout::eUndefined, vk::ImageLayout::eColorAttachmentOptimal, subresourceRange);
@@ -1259,7 +1260,7 @@ Texture* Texture::CreateCubemap(
 }
 
 Texture* Texture::Create2D(
-    std::string name, uint32_t width, uint32_t height, bool hasColor, bool hasDepth, uint32_t sampleCount)
+    std::string name, uint32_t width, uint32_t height, bool hasColor, bool hasDepth, uint32_t sampleCount, uint32_t layers)
 {
     auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
     if (!tex) return nullptr;
@@ -1269,7 +1270,7 @@ Texture* Texture::Create2D(
 
     tex->data.width = width;
     tex->data.height = height;
-    tex->data.layers = 1;
+    tex->data.layers = layers;
     tex->data.viewType  = vk::ImageViewType::e2D;
     tex->data.imageType = vk::ImageType::e2D;
     tex->data.sampleCount = vulkan->highest(vulkan->min(sampleFlag, vulkan->get_msaa_sample_flags()));

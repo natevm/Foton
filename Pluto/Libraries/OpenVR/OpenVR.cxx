@@ -2,6 +2,8 @@
 #include <iostream>
 #include <openvr.h>
 #include "glm/gtc/matrix_transform.hpp"
+#include "Pluto/Libraries/Vulkan/Vulkan.hxx"
+#include "Pluto/Texture/Texture.hxx"
 
 namespace Libraries
 {
@@ -12,11 +14,22 @@ OpenVR *OpenVR::Get()
 	static OpenVR instance;
 	if (!instance.is_initialized())
 	{
-		vr::EVRInitError initError;
-		instance.system = VR_Init(&initError, vr::EVRApplicationType::VRApplication_Scene, nullptr);
-		if (initError != vr::EVRInitError::VRInitError_None)
+		vr::EVRInitError error;
+		instance.system = VR_Init(&error, vr::EVRApplicationType::VRApplication_Scene, nullptr);
+		if (error != vr::EVRInitError::VRInitError_None)
 		{
-			std::cout << "OpenVR Error during initialization. " << instance.get_vr_init_error_as_english_description(initError) << std::endl;
+			std::cout << "OpenVR Error during initialization. " << instance.get_vr_init_error_as_english_description(error) << std::endl;
+			return nullptr;
+		}
+		instance.compositor = (vr::IVRCompositor *) vr::VR_GetGenericInterface(vr::IVRCompositor_Version, &error);
+		if (error != vr::EVRInitError::VRInitError_None)
+		{
+			std::cout << "OpenVR Error during compositor aquisition. " << instance.get_vr_init_error_as_english_description(error) << std::endl;
+			return nullptr;
+		}
+		instance.chaperone = (vr::IVRChaperone *)vr::VR_GetGenericInterface(vr::IVRChaperone_Version, &error);
+		if (error != vr::VRInitError_None) {
+			std::cout << "OpenVR Error during chaperone aquisition. " << instance.get_vr_init_error_as_english_description(error) << std::endl;
 			return nullptr;
 		}
 		instance.initialized = true;
@@ -182,12 +195,31 @@ glm::mat4 OpenVR::m34_to_mat4(const vr::HmdMatrix34_t &t) {
 
 }
 
+glm::mat4 OpenVR::m44_to_mat4(const vr::HmdMatrix44_t &t) {
+	/* Traditionally right handed, +y is up, +x is right, -z is forward. */
+	/* Want y is forward, x is right, z is up. */
+	/* Also, converting from row major to column major */
+
+	auto mat1 = glm::mat4(
+		t.m[0][0], t.m[1][0], t.m[2][0], t.m[3][0],
+		t.m[0][1], t.m[1][1], t.m[2][1], t.m[3][1],
+		t.m[0][2], t.m[1][2], t.m[2][2], t.m[3][2],
+		t.m[0][3], t.m[1][3], t.m[2][3], t.m[3][3]
+	);
+	
+	return mat1;
+
+}
+
 glm::mat4 OpenVR::get_left_eye_projection_matrix(float near)
 {
 	/* Pull the projection matrix from OpenVR */
 	float left, right, top, bottom;
 	system->GetProjectionRaw(Eye_Left, &left, &right, &top, &bottom);
-	return make_projection_matrix(left, right, top, bottom, near);
+
+	auto ovr_matrix = make_projection_matrix(left, right, top, bottom, near);
+
+	return ovr_matrix;
 }
 
 glm::mat4 OpenVR::get_right_eye_projection_matrix(float near)
@@ -195,17 +227,52 @@ glm::mat4 OpenVR::get_right_eye_projection_matrix(float near)
 	/* Pull the projection matrix from OpenVR */
 	float left, right, top, bottom;
 	system->GetProjectionRaw(Eye_Right, &left, &right, &top, &bottom);
-	return make_projection_matrix(left, right, top, bottom, near);
+
+	auto ovr_matrix = make_projection_matrix(left, right, top, bottom, near);
+
+	return ovr_matrix;
 }
 
 glm::mat4 OpenVR::get_left_eye_view_matrix()
 {
-	return glm::inverse(m34_to_mat4(system->GetEyeToHeadTransform(vr::Eye_Left)));
+	return m34_to_mat4(system->GetEyeToHeadTransform(vr::Eye_Left));
 }
 
 glm::mat4 OpenVR::get_right_eye_view_matrix()
 {
-	return glm::inverse(m34_to_mat4(system->GetEyeToHeadTransform(vr::Eye_Right)));
+	return m34_to_mat4(system->GetEyeToHeadTransform(vr::Eye_Right));
+}
+
+glm::mat4 OpenVR::get_left_view_matrix() {
+	if (system && (headset_id != -1)) {
+		auto conversion = glm::mat4(
+			1.0,  0.0,  0.0, 0.0,
+			0.0,  0.0, -1.0, 0.0,
+			0.0,  1.0,  0.0, 0.0,
+			0.0,  0.0,  0.0, 1.0
+		);
+
+		auto ovr_hmd_matrix = glm::inverse(m34_to_mat4(tracked_device_poses[headset_id].mDeviceToAbsoluteTracking)) * conversion;
+		auto ovr_eye_matrix = glm::inverse(m34_to_mat4(system->GetEyeToHeadTransform(vr::Eye_Left)));
+		return ovr_eye_matrix * ovr_hmd_matrix;
+	}
+	return glm::mat4();
+}
+
+glm::mat4 OpenVR::get_right_view_matrix() {
+	if (system && (headset_id != -1)) {
+		auto conversion = glm::mat4(
+			1.0,  0.0,  0.0, 0.0,
+			0.0,  0.0, -1.0, 0.0,
+			0.0,  1.0,  0.0, 0.0,
+			0.0,  0.0,  0.0, 1.0
+		);
+
+		auto ovr_hmd_matrix = glm::inverse(m34_to_mat4(tracked_device_poses[headset_id].mDeviceToAbsoluteTracking)) * conversion;
+		auto ovr_eye_matrix = glm::inverse(m34_to_mat4(system->GetEyeToHeadTransform(vr::Eye_Right)));
+		return ovr_eye_matrix * ovr_hmd_matrix;
+	}
+	return glm::mat4();
 }
 
 float OpenVR::get_time_since_last_vsync()
@@ -267,58 +334,37 @@ bool OpenVR::poll_event()
 		default:
 			break;
 	}
-	
-	system->GetDeviceToAbsoluteTrackingPose(TrackingUniverseStanding, 0.0, tracked_device_poses, vr::k_unMaxTrackedDeviceCount);
-	
+
 	return true;
 }
 
 glm::mat4 OpenVR::get_right_controller_transform()
 {
 	if (system && (right_hand_id != -1)) {
-		/* Kinda kludgy, but converts OpenVR -z forward, y up to y forward, z up. */
-		auto flip_matrix_2 = glm::mat4(
-			-1.0, 0.0, 0.0, 0.0,
-			 0.0, 0.0, 1.0, 0.0,
-			 0.0, 1.0, 0.0, 0.0, 
-			 0.0, 0.0, 0.0, 1.0
+		auto ovr_matrix = m34_to_mat4(tracked_device_poses[right_hand_id].mDeviceToAbsoluteTracking);
+		auto conversion = glm::mat4 (
+			1.0,  0.0,  0.0, 0.0,
+			0.0,  0.0,  1.0, 0.0,
+			0.0,  -1.0, 0.0, 0.0,
+			0.0,  0.0,  0.0, 1.0
 		);
-
-		auto input_matrix = m34_to_mat4(tracked_device_poses[right_hand_id].mDeviceToAbsoluteTracking);
-		
-		auto flip_matrix_1 = glm::mat4 (
-			1.0,  0.0, 0.0, 0.0,
-			0.0,  0.0, -1.0, 0.0,
-			0.0, 1.0, 0.0, 0.0, 
-			0.0,  0.0, 0.0, 1.0
-		);
-		
-		return flip_matrix_2 * input_matrix * flip_matrix_1;
+		return conversion * ovr_matrix;
 	}
 	return glm::mat4();
 }
 
 glm::mat4 OpenVR::get_left_controller_transform()
 {
-	if (system && (left_hand_id != -1)) {
-		/* Kinda kludgy, but converts OpenVR -z forward, y up to y forward, z up. */
-		auto flip_matrix_2 = glm::mat4(
-			-1.0, 0.0, 0.0, 0.0,
-			 0.0, 0.0, 1.0, 0.0,
-			 0.0, 1.0, 0.0, 0.0, 
-			 0.0, 0.0, 0.0, 1.0
-		);
 
-		auto input_matrix = m34_to_mat4(tracked_device_poses[left_hand_id].mDeviceToAbsoluteTracking);
-		
-		auto flip_matrix_1 = glm::mat4 (
-			1.0,  0.0, 0.0, 0.0,
-			0.0,  0.0, -1.0, 0.0,
-			0.0, 1.0, 0.0, 0.0, 
-			0.0,  0.0, 0.0, 1.0
+	if (system && (left_hand_id != -1)) {
+		auto ovr_matrix = m34_to_mat4(tracked_device_poses[left_hand_id].mDeviceToAbsoluteTracking);
+		auto conversion = glm::mat4 (
+			1.0,  0.0,  0.0, 0.0,
+			0.0,  0.0,  1.0, 0.0,
+			0.0, -1.0,  0.0, 0.0,
+			0.0,  0.0,  0.0, 1.0
 		);
-		
-		return flip_matrix_2 * input_matrix * flip_matrix_1;
+		return conversion * ovr_matrix;
 	}
 	return glm::mat4();
 }
@@ -326,24 +372,7 @@ glm::mat4 OpenVR::get_left_controller_transform()
 glm::mat4 OpenVR::get_headset_transform()
 {
 	if (system && (headset_id != -1)) {
-		/* Kinda kludgy, but converts OpenVR -z forward, y up to y forward, z up. */
-		auto flip_matrix_2 = glm::mat4(
-			-1.0, 0.0, 0.0, 0.0,
-			 0.0, 0.0, 1.0, 0.0,
-			 0.0, 1.0, 0.0, 0.0, 
-			 0.0, 0.0, 0.0, 1.0
-		);
-
-		auto input_matrix = m34_to_mat4(tracked_device_poses[headset_id].mDeviceToAbsoluteTracking);
-		
-		auto flip_matrix_1 = glm::mat4 (
-			1.0,  0.0, 0.0, 0.0,
-			0.0,  0.0, -1.0, 0.0,
-			0.0, 1.0, 0.0, 0.0, 
-			0.0,  0.0, 0.0, 1.0
-		);
-		
-		return flip_matrix_2 * input_matrix * flip_matrix_1;
+		return m34_to_mat4(tracked_device_poses[headset_id].mDeviceToAbsoluteTracking);
 	}
 	return glm::mat4();
 }
@@ -367,6 +396,106 @@ bool OpenVR::is_headset_connected() {
 		return tracked_device_poses[headset_id].bDeviceIsConnected;
 	}
 	return false;
+}
+
+bool OpenVR::create_eye_textures() {
+	auto resolution = get_recommended_render_target_size();
+	right_eye_texture = Texture::Create2D("right_eye_view", resolution[0], resolution[1], true, false, 1, 1);
+	left_eye_texture = Texture::Create2D("left_eye_view", resolution[0], resolution[1], true, false, 1, 1);
+	if ((right_eye_texture == nullptr) && (left_eye_texture == nullptr)) return false;
+	return true;
+}
+
+Texture *OpenVR::get_right_eye_texture() {
+	return right_eye_texture;
+}
+
+Texture *OpenVR::get_left_eye_texture() {
+	return left_eye_texture;
+}
+
+bool OpenVR::submit_textures() 
+{
+	if ((right_eye_texture == nullptr) || (left_eye_texture == nullptr)) return false;
+	auto vk = Vulkan::Get();
+
+	auto device = static_cast<VkDevice>(vk->get_device());
+	auto physicalDevice = static_cast<VkPhysicalDevice>(vk->get_physical_device());
+	auto instance = static_cast<VkInstance>(vk->get_instance());
+	auto queue = static_cast<VkQueue>(vk->get_graphics_queue(0));
+
+	vr::VRTextureBounds_t bounds;
+	bounds.uMin = 0.0f;
+	bounds.uMax = 1.0f;
+	bounds.vMin = 0.0f;
+	bounds.vMax = 1.0f;
+
+	VRVulkanTextureData_t right_texture_data = {};
+	right_texture_data.m_nImage = (uint64_t)(static_cast<VkImage>(right_eye_texture->get_color_image()));// VkImage
+	right_texture_data.m_pDevice = (VkDevice_T *) device;
+	right_texture_data.m_pPhysicalDevice = (VkPhysicalDevice_T *) physicalDevice;
+	right_texture_data.m_pInstance = (VkInstance_T *) instance;
+	right_texture_data.m_pQueue = (VkQueue_T *) queue;
+	right_texture_data.m_nQueueFamilyIndex = vk->get_graphics_family();
+	right_texture_data.m_nWidth = right_eye_texture->get_width();
+	right_texture_data.m_nHeight = right_eye_texture->get_height();
+	right_texture_data.m_nFormat = (uint32_t)(static_cast<VkFormat>(right_eye_texture->get_color_format()));
+	right_texture_data.m_nSampleCount = (uint32_t)(static_cast<VkSampleCountFlagBits>(right_eye_texture->get_sample_count()));
+
+	VRVulkanTextureData_t left_texture_data = {};
+	left_texture_data.m_nImage = (uint64_t)(static_cast<VkImage>(left_eye_texture->get_color_image()));// VkImage
+	left_texture_data.m_pDevice = (VkDevice_T *) device;
+	left_texture_data.m_pPhysicalDevice = (VkPhysicalDevice_T *) physicalDevice;
+	left_texture_data.m_pInstance = (VkInstance_T *) instance;
+	left_texture_data.m_pQueue = (VkQueue_T *) queue;
+	left_texture_data.m_nQueueFamilyIndex = vk->get_graphics_family();
+	left_texture_data.m_nWidth = left_eye_texture->get_width();
+	left_texture_data.m_nHeight = left_eye_texture->get_height();
+	left_texture_data.m_nFormat = (uint32_t)(static_cast<VkFormat>(left_eye_texture->get_color_format()));
+	left_texture_data.m_nSampleCount = (uint32_t)(static_cast<VkSampleCountFlagBits>(left_eye_texture->get_sample_count()));
+	
+	Texture_t right_eye = {};
+	right_eye.eType = TextureType_Vulkan;
+	right_eye.eColorSpace = ColorSpace_Gamma; // Is this optimal?
+	right_eye.handle = (void*)&right_texture_data;
+
+	Texture_t left_eye = {};
+	left_eye.eType = TextureType_Vulkan;
+	left_eye.eColorSpace = ColorSpace_Gamma; // Is this optimal?
+	left_eye.handle = (void*)&left_texture_data;
+
+	{	
+		auto error = compositor->Submit(Eye_Left, &left_eye, &bounds);
+		if (error != EVRCompositorError::VRCompositorError_None) 
+		{
+			std::cout<<"Error submitting: " << error << std::endl;
+		}
+	}
+
+	{	
+		auto error = compositor->Submit(Eye_Right, &right_eye, &bounds);
+		if (error != EVRCompositorError::VRCompositorError_None) 
+		{
+			std::cout<<"Error submitting: " << error << std::endl;
+		}
+	}
+	
+	return true;
+}
+
+bool OpenVR::wait_get_poses() {
+	// system->GetDeviceToAbsoluteTrackingPose(TrackingUniverseStanding, 0.0, tracked_device_poses, vr::k_unMaxTrackedDeviceCount);
+
+	compositor->WaitGetPoses(tracked_device_poses, vr::k_unMaxTrackedDeviceCount, NULL, 0);
+	return true;
+}
+
+vk::PhysicalDevice OpenVR::get_output_device(vk::Instance instance) {
+	uint64_t device;
+	auto instance_ = static_cast<VkInstance>(instance);
+
+	system->GetOutputDevice(&device, vr::ETextureType::TextureType_Vulkan, (VkInstance_T *) instance_);
+	return vk::PhysicalDevice((VkPhysicalDevice)device);
 }
 
 } // namespace Libraries

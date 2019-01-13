@@ -19,6 +19,8 @@
 
 #include "Pluto/Tools/Singleton.hxx"
 
+class Texture;
+
 namespace Libraries {
     using namespace std;
     class OpenVR : public Singleton
@@ -32,7 +34,6 @@ namespace Libraries {
         
             /* Given a physical device, returns by reference a list of the device extensions required to use OpenVR in Vulkan. */
             bool get_required_vulkan_device_extensions(vk::PhysicalDevice &physicalDevice, std::vector<std::string> &outDeviceExtensionList);
-
 
             /* Returns true if the system believes that an HMD is present on the system. */
             bool is_hmd_present();
@@ -71,6 +72,11 @@ namespace Libraries {
             /* Returns the transformation from headset model space to world space */
             glm::mat4 get_headset_transform();
 
+
+            glm::mat4 get_left_view_matrix();
+            
+            glm::mat4 get_right_view_matrix();
+
             /* Returns true if the left controller is on and connected to OpenVR */
             bool is_left_controller_connected();
             
@@ -94,12 +100,39 @@ namespace Libraries {
             /* Causes the right controller haptics to trigger on the given axis for a specified duration in microseconds. */
             bool trigger_right_haptic_pulse(uint32_t axis_id, uint32_t duration_in_microseconds);
 
+            /* EXPLAIN THIS */
+            bool create_eye_textures();
+
+            /* EXPLAIN THIS */
+            Texture *get_right_eye_texture();
+            
+            /* EXPLAIN THIS */
+            Texture *get_left_eye_texture();
+
+            /* EXPLAIN THIS */
+            bool submit_textures();
+
+            /* EXPLAIN THIS */
+            bool wait_get_poses();
+
+            /* EXPLAIN THIS */
+            vk::PhysicalDevice get_output_device(vk::Instance instance);
         private:
             OpenVR();
             ~OpenVR();
 
             /* Allows access to the IVR system API */
             vr::IVRSystem *system = nullptr;
+
+            /* EXPLAIN THIS */
+            vr::IVRChaperone *chaperone = nullptr;
+
+            /* EXPLAIN THIS */
+            vr::IVRCompositor *compositor = nullptr;
+
+            /* EXPLAIN THIS */
+            Texture *right_eye_texture = nullptr;
+            Texture *left_eye_texture = nullptr;
 
             /* IDs used to index into the tracked device poses array. These IDs will change during runtime. */
             vr::TrackedDeviceIndex_t right_hand_id = -1;
@@ -121,5 +154,8 @@ namespace Libraries {
             
             /* Converts a row major HmdMatrix34_t into a column major glm matrix. */
             glm::mat4 m34_to_mat4(const vr::HmdMatrix34_t &t);
+
+            /* EXPLAIN THIS */
+            glm::mat4 m44_to_mat4(const vr::HmdMatrix44_t &t);
     };
 }

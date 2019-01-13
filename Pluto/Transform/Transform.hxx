@@ -1,5 +1,4 @@
 #pragma once
-#pragma optimize("", off)
 
 #ifndef GLM_ENABLE_EXPERIMENTAL
 #define GLM_ENABLE_EXPERIMENTAL
@@ -17,6 +16,8 @@
 #include <glm/gtc/matrix_access.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/matrix_interpolation.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
 #include <map>
 
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
@@ -55,6 +56,8 @@ class Transform : public StaticFactory
 
     mat4 localToParentMatrix = mat4(1);
     mat4 parentToLocalMatrix = mat4(1);
+
+    // float interpolation = 1.0;
 
     static Transform transforms[MAX_TRANSFORMS];
     static TransformStruct* pinnedMemory;
@@ -217,11 +220,26 @@ class Transform : public StaticFactory
     }
 
     /* Used primarily for non-trivial transformations */
-    void set_transform(glm::mat4 transformation)
+    void set_transform(glm::mat4 transformation, bool decompose = true)
     {
-        this->localToParentTransform = transformation;
-        this->parentToLocalTransform = glm::inverse(transformation);
-        update_matrix();
+        if (decompose)
+        {
+            glm::vec3 scale;
+            glm::quat rotation;
+            glm::vec3 translation;
+            glm::vec3 skew;
+            glm::vec4 perspective;
+            glm::decompose(transformation, scale, rotation, translation, skew, perspective);
+            
+            set_position(translation);
+            set_scale(scale);
+            set_rotation(rotation);
+        }
+        else {
+            this->localToParentTransform = transformation;
+            this->parentToLocalTransform = glm::inverse(transformation);
+            update_matrix();
+        }
     }
 
     quat get_rotation()
@@ -359,19 +377,19 @@ class Transform : public StaticFactory
         parentToLocalMatrix = (parentToLocalScale * parentToLocalRotation * parentToLocalPosition * parentToLocalTransform);
 
         right = glm::vec3(localToParentMatrix[0]);
-        up = glm::vec3(localToParentMatrix[1]);
-        forward = -glm::vec3(localToParentMatrix[2]);
+        forward = glm::vec3(localToParentMatrix[1]);
+        up = glm::vec3(localToParentMatrix[2]);
         position = glm::vec3(localToParentMatrix[3]);
     }
 
     glm::mat4 parent_to_local_matrix()
     {
-        return parentToLocalMatrix;
+        return /*(interpolation >= 1.0 ) ?*/ parentToLocalMatrix /*: glm::interpolate(glm::mat4(1.0), parentToLocalMatrix, interpolation)*/;
     }
 
     glm::mat4 local_to_parent_matrix()
     {
-        return localToParentMatrix;
+        return /*(interpolation >= 1.0 ) ?*/ localToParentMatrix /*: glm::interpolate(glm::mat4(1.0), localToParentMatrix, interpolation)*/;
     }
 
     glm::mat4 local_to_parent_position()
@@ -403,4 +421,8 @@ class Transform : public StaticFactory
     {
         return parentToLocalRotation;
     }
+
+    // void set_test_interpolation(float value) {
+    //     interpolation = value;
+    // }
 };

@@ -41,7 +41,7 @@ class Material : public StaticFactory
         /* Retrieves a material component by id */
         static Material* Get(uint32_t id);
 
-        /* Retrieves a pointer to the list of material components */
+        /* Returns a pointer to the list of material components */
         static Material* GetFront();
 
         /* Returns the total number of reserved materials */

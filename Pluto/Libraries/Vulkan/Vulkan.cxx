@@ -65,8 +65,11 @@ bool Vulkan::create_instance(bool enable_validation_layers, set<string> validati
     validationEnabled = enable_validation_layers;
     if (validationEnabled)
         instanceExtensions.insert(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
-    for (auto &string : instance_extensions)
+
+    for (auto &string : instance_extensions){
         instanceExtensions.insert(string);
+        std::cout<<"Enabling validation layer: " << string << std::endl;
+    }
     
     if (use_openvr) {
         std::vector<std::string> additional_instance_extensions;
@@ -125,10 +128,10 @@ bool Vulkan::create_instance(bool enable_validation_layers, set<string> validati
 
     /* Instance Info: Specifies global extensions and validation layers we'd like to use */
     vector<const char *> ext, vl;
-    for (auto &string : instanceExtensions)
-        ext.push_back(&string.front());
-    for (auto &string : validationLayers)
-        vl.push_back(&string.front());
+    for (const auto &string : instanceExtensions)
+        ext.push_back(string.c_str());
+    for (const auto &string : validationLayers)
+        vl.push_back(string.c_str());
     auto info = vk::InstanceCreateInfo();
     info.pApplicationInfo = &appInfo;
     info.enabledExtensionCount = (uint32_t)(ext.size());
@@ -150,7 +153,7 @@ bool Vulkan::create_instance(bool enable_validation_layers, set<string> validati
         /* The function to assign a callback for validation layers isn't loaded by default. Here, we get that function. */
         instance.createDebugReportCallbackEXT(createCallbackInfo, nullptr, dldi);
     }
-    
+
     return true;
 }
 
@@ -229,24 +232,23 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
     }
     if (surface)
         deviceExtensions.insert(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-
-    /* Check and see if any physical devices are suitable, since not all cards are equal */
-    physicalDevice = vk::PhysicalDevice();
+    
     std::string devicename;
-    for (const auto &device : devices)
-    {
-        swapChainAdequate = extensionsSupported = queuesFound = false;
-        deviceProperties = device.getProperties();
-        auto supportedFeatures = device.getFeatures();
-        auto queueFamilyProperties = device.getQueueFamilyProperties();
-        std::cout<<"\tAvailable device: " << deviceProperties.deviceName <<std::endl;
+
+    /* If we're using OpenVR, we need to select the physical device that OpenVR requires us to use. */
+    if (use_openvr && false) { // get_output_device is always null?
+        auto ovr = OpenVR::Get();
+        physicalDevice = ovr->get_output_device(instance);
+        deviceProperties = physicalDevice.getProperties();
+        auto supportedFeatures = physicalDevice.getFeatures();
+        auto queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
 
         /* Look for a queue family which supports what we need (graphics, maybe also present) */
         int32_t i = 0;
         for (auto queueFamily : queueFamilyProperties)
         {
             auto hasQueues = (queueFamily.queueCount > 0);
-            auto presentSupport = (surface) ? device.getSurfaceSupportKHR(i, surface) : false;
+            auto presentSupport = (surface) ? physicalDevice.getSurfaceSupportKHR(i, surface) : false;
             if (hasQueues && presentSupport) {
                 presentFamilyIndex = i;
                 numPresentQueues = queueFamily.queueCount;
@@ -264,7 +266,7 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
         }
 
         /* Check if the device meets our extension requirements */
-        auto availableExtensions = device.enumerateDeviceExtensionProperties();
+        auto availableExtensions = physicalDevice.enumerateDeviceExtensionProperties();
         std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
 
         /* Indicate extensions found by removing them from this set. */
@@ -277,9 +279,9 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
         if (surface && extensionsSupported)
         {
             Vulkan::SwapChainSupportDetails details;
-            auto capabilities = device.getSurfaceCapabilitiesKHR(surface);
-            auto formats = device.getSurfaceFormatsKHR(surface);
-            auto presentModes = device.getSurfacePresentModesKHR(surface);
+            auto capabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
+            auto formats = physicalDevice.getSurfaceFormatsKHR(surface);
+            auto presentModes = physicalDevice.getSurfacePresentModesKHR(surface);
             swapChainAdequate = !formats.empty() && !presentModes.empty();
         }
 
@@ -288,12 +290,94 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
 
         if (queuesFound && extensionsSupported && featuresSupported && ((!surface) || swapChainAdequate))
         {
-            physicalDevice = device;
             devicename = deviceProperties.deviceName;
             supportedMSAASamples = min(deviceProperties.limits.framebufferColorSampleCounts, deviceProperties.limits.framebufferDepthSampleCounts);
+        }
+        else {
+            std::cout<<"Error: OpenVR is running on a device which does not support the requested extensions. "<<std::endl;
+            return false;
+        }
+        
+    }
 
-            if (deviceProperties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu) {
-                break;
+    else {
+        /* Check and see if any physical devices are suitable, since not all cards are equal */
+        physicalDevice = vk::PhysicalDevice();
+        for (const auto &device : devices)
+        {
+            swapChainAdequate = extensionsSupported = queuesFound = false;
+            deviceProperties = device.getProperties();
+            auto supportedFeatures = device.getFeatures();
+            auto queueFamilyProperties = device.getQueueFamilyProperties();
+            std::cout<<"\tAvailable device: " << deviceProperties.deviceName <<std::endl;
+
+            /* Look for a queue family which supports what we need (graphics, maybe also present) */
+            int32_t i = 0;
+            for (auto queueFamily : queueFamilyProperties)
+            {
+                auto hasQueues = (queueFamily.queueCount > 0);
+                auto presentSupport = (surface) ? device.getSurfaceSupportKHR(i, surface) : false;
+                if (hasQueues && presentSupport) {
+                    presentFamilyIndex = i;
+                    numPresentQueues = queueFamily.queueCount;
+                }
+                if (hasQueues && queueFamily.queueFlags & vk::QueueFlagBits::eGraphics) {
+                    graphicsFamilyIndex = i;
+                    numGraphicsQueues = queueFamily.queueCount;
+                }
+                if (((!surface) || presentFamilyIndex != -1) && graphicsFamilyIndex != -1)
+                {
+                    queuesFound = true;
+                    break;
+                }
+                i++;
+            }
+
+            /* Check if the device meets our extension requirements */
+            auto availableExtensions = device.enumerateDeviceExtensionProperties();
+            std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
+
+            /* Indicate extensions found by removing them from this set. */
+            for (const auto &extension : availableExtensions)
+                requiredExtensions.erase(extension.extensionName);
+            extensionsSupported = requiredExtensions.empty();
+
+            /* If presentation required, see if swapchain support is adequate */
+            /* For this example, all we require is one supported image format and one supported presentation mode */
+            if (surface && extensionsSupported)
+            {
+                Vulkan::SwapChainSupportDetails details;
+                auto capabilities = device.getSurfaceCapabilitiesKHR(surface);
+                auto formats = device.getSurfaceFormatsKHR(surface);
+                auto presentModes = device.getSurfacePresentModesKHR(surface);
+                swapChainAdequate = !formats.empty() && !presentModes.empty();
+            }
+
+            /* Check if the device supports the featrues we want */
+            featuresSupported = GetFeaturesFromList(device_features, supportedFeatures, deviceFeatures);
+
+            if (queuesFound && extensionsSupported && featuresSupported && ((!surface) || swapChainAdequate))
+            {
+                physicalDevice = device;
+                devicename = deviceProperties.deviceName;
+                supportedMSAASamples = min(deviceProperties.limits.framebufferColorSampleCounts, deviceProperties.limits.framebufferDepthSampleCounts);
+
+                if (deviceProperties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu) {
+                    break;
+                }
+            }
+        }
+    }
+
+    /* At this point, we can provide the physical device to OpenVR, and get back any additional device extensions which may be required. */
+    if (use_openvr) {
+        std::vector<std::string> additional_device_extensions;
+        auto openvr = Libraries::OpenVR::Get();
+        bool result = openvr->get_required_vulkan_device_extensions(physicalDevice, additional_device_extensions);
+        if (result == true) {
+            for (int i = 0; i < additional_device_extensions.size(); ++i) {
+                deviceExtensions.insert(additional_device_extensions[i]);
+                std::cout<< "OpenVR: Adding device extension " << additional_device_extensions[i]<<std::endl;
             }
         }
     }
@@ -305,20 +389,7 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
         cout << "Failed to find a GPU which meets demands!" << endl;
         return false;
     }
-
-    /* At this point, we can provide the physical device to OpenVR, and get back any additional device extensions which may be required. */
-    if (use_openvr) {
-        std::vector<std::string> additional_device_extensions;
-        auto openvr = Libraries::OpenVR::Get();
-        bool result = openvr->get_required_vulkan_device_extensions(physicalDevice, additional_device_extensions);
-        if (result == true) {
-            for (int i = 0; i < additional_device_extensions.size(); ++i) {
-                device_extensions.insert(additional_device_extensions[i]);
-                std::cout<< "OpenVR: Adding device extension " << additional_device_extensions[i]<<std::endl;
-            }
-        }
-    }
-
+    
     /* We now need to create a logical device, which is like an instance of a physical device */
     std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
     
@@ -354,7 +425,7 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
     available for particular compute only devices. */
     vector<const char *> ext;
     for (auto &string : deviceExtensions)
-        ext.push_back(&string.front());
+        ext.push_back(string.c_str());
     createInfo.enabledExtensionCount = (uint32_t)(ext.size());
     createInfo.ppEnabledExtensionNames = ext.data();
 
