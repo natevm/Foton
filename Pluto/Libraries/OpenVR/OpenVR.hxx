@@ -52,16 +52,10 @@ namespace Libraries {
             glm::ivec2 get_recommended_render_target_size();
 
             /* Returns the projection transformation for the HMD's left eye */
-            glm::mat4 get_left_eye_projection_matrix(float near);
+            glm::mat4 get_left_projection_matrix(float near);
 
             /* Returns the projection transformation for the HMD's right eye */
-            glm::mat4 get_right_eye_projection_matrix(float near);
-
-            /* Returns the transformation from headset space to left eye unprojected space */
-            glm::mat4 get_left_eye_view_matrix();
-
-            /* Returns the transformation from headset space to right eye unprojected space */
-            glm::mat4 get_right_eye_view_matrix();
+            glm::mat4 get_right_projection_matrix(float near);
 
             /* Returns the transformation from right controller model space to world space */
             glm::mat4 get_right_controller_transform();
@@ -69,12 +63,10 @@ namespace Libraries {
             /* Returns the transformation from left controller model space to world space */
             glm::mat4 get_left_controller_transform();
 
-            /* Returns the transformation from headset model space to world space */
-            glm::mat4 get_headset_transform();
-
-
+            /* EXPLAIN THIS */
             glm::mat4 get_left_view_matrix();
             
+            /* EXPLAIN THIS */
             glm::mat4 get_right_view_matrix();
 
             /* Returns true if the left controller is on and connected to OpenVR */
@@ -85,6 +77,15 @@ namespace Libraries {
             
             /* Returns true if the head mounted display is on and connected to OpenVR */
             bool is_headset_connected();
+
+            /* Returns true if the left controller's transform is valid or invalid, for example if tracking was lost. */
+            bool is_left_controller_pose_valid();
+            
+            /* Returns true if the right controller's transform is valid or invalid, for example if tracking was lost. */
+            bool is_right_controller_pose_valid();
+            
+            /* Returns true if the headset's transform is valid or invalid, for example if tracking was lost. */
+            bool is_headset_pose_valid();
 
             /* Returns the number of elapsed seconds since the last recorded vsync event. 
                 This will come from  a vsync timer event in the timer if possible or from the application-reported time 

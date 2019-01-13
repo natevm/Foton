@@ -202,9 +202,9 @@ bool RenderSystem::start()
                             auto ovr = OpenVR::Get();
                             ovr->wait_get_poses();
                             current_camera->set_view(ovr->get_left_view_matrix(), 0);
-                            current_camera->set_custom_projection(ovr->get_left_eye_projection_matrix(.1), .1, 0);
+                            current_camera->set_custom_projection(ovr->get_left_projection_matrix(.1), .1, 0);
                             current_camera->set_view(ovr->get_right_view_matrix(), 1);
-                            current_camera->set_custom_projection(ovr->get_right_eye_projection_matrix(.1), .1, 1);
+                            current_camera->set_custom_projection(ovr->get_right_projection_matrix(.1), .1, 1);
                         }
 
                         /* Upload SSBO data */
