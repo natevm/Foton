@@ -59,7 +59,6 @@ namespace Systems
             std::vector<vk::Fence> maincmd_fences;
             std::vector<vk::Semaphore> imageAvailableSemaphores;
             std::vector<vk::Semaphore> renderCompleteSemaphores;
-            vk::CommandBuffer maincmd;
             vk::Fence main_fence;
             uint32_t max_frames_in_flight = 3;
 

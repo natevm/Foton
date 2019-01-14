@@ -99,39 +99,34 @@ void RenderSystem::acquire_swapchain_images(
 
 void RenderSystem::record_render_commands()
 {
-    maincmd = maincmds[currentFrame];
+    {
+        /* For now, only render the camera associated with the window named "Window" */
+        auto entity_id = Entity::GetEntityFromWindow("Window");
+        
+        /* Dont render anything if no entity is connected to the window. */
+        if (entity_id == -1) return;
 
-    vk::CommandBufferBeginInfo beginInfo;
-    // beginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
-    beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
-    maincmd.begin(beginInfo);
+        auto entity = Entity::Get(entity_id);
+        auto cam_id = entity->get_camera();
 
-    /* For now, only render the camera associated with the window named "Window" */
-    auto entity_id = Entity::GetEntityFromWindow("Window");
-    
-    /* Dont render anything if no entity is connected to the window. */
-    if (entity_id == -1) return;
+        /* Dont render anything if the connected entity does not have a camera component attached. */
+        if (cam_id == -1) return;
+        Camera* current_camera = Camera::Get(cam_id);
 
-    auto entity = Entity::Get(entity_id);
-    auto cam_id = entity->get_camera();
-
-    /* Dont render anything if the connected entity does not have a camera component attached. */
-    if (cam_id == -1) return;
-    Camera* current_camera = Camera::Get(cam_id);
-
-    /* Don't render anything if the camera component doesn't have a color texture. */
-    Texture * texture = current_camera->get_texture();
-    if (texture == nullptr) return;
+        /* Don't render anything if the camera component doesn't have a color texture. */
+        Texture * texture = current_camera->get_texture();
+        if (texture == nullptr) return;
 
 
-    /* If using openvr, wait for poses before rendering. */
-    if (using_openvr) {
-        auto ovr = OpenVR::Get();
-        ovr->wait_get_poses();
-        current_camera->set_view(ovr->get_left_view_matrix(), 0);
-        current_camera->set_custom_projection(ovr->get_left_projection_matrix(.1f), .1, 0);
-        current_camera->set_view(ovr->get_right_view_matrix(), 1);
-        current_camera->set_custom_projection(ovr->get_right_projection_matrix(.1f), .1, 1);
+        /* If using openvr, wait for poses before rendering. */
+        if (using_openvr) {
+            auto ovr = OpenVR::Get();
+            ovr->wait_get_poses();
+            current_camera->set_view(ovr->get_left_view_matrix(), 0);
+            current_camera->set_custom_projection(ovr->get_left_projection_matrix(.1f), .1, 0);
+            current_camera->set_view(ovr->get_right_view_matrix(), 1);
+            current_camera->set_custom_projection(ovr->get_right_projection_matrix(.1f), .1, 1);
+        }
     }
 
     /* Upload SSBO data */
@@ -142,60 +137,84 @@ void RenderSystem::record_render_commands()
     Entity::UploadSSBO();
     Material::UpdateDescriptorSets();
 
-    /* If we're the client, we recieve color data from "stream_frames". Only render a scene if not the client. */
-    if (!Options::IsClient())
-    {
-        /* Get a pointer to all entitites. */
-        auto entities = Entity::GetFront();
 
-        /* Get light list */
-        std::vector<int32_t> light_entity_ids(MAX_LIGHTS, -1);
-        int32_t light_count = 0;
-        for (uint32_t i = 0; i < Entity::GetCount(); ++i)
+    /* Render all cameras */
+    auto main_entity = Entity::GetEntityFromWindow("Window");
+    auto entities = Entity::GetFront();
+    auto cameras = Camera::GetFront();
+    for (uint32_t entity_id = 0; entity_id < Entity::GetCount(); ++entity_id) {
+        /* Entity must be initialized */
+        if (!entities[entity_id].is_initialized()) continue;
+
+        /* Entity needs a camera */
+        auto cam_id = entities[entity_id].get_camera();
+        if (cam_id < 0) continue;
+
+        /* Camera needs a texture */
+        Texture * texture = cameras[cam_id].get_texture();
+        if (!texture) continue;
+
+        auto command_buffer = cameras[cam_id].get_command_buffer();
+        vk::CommandBufferBeginInfo beginInfo;
+        // beginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
+        beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+        command_buffer.begin(beginInfo);
+
+        /* If we're the client, we recieve color data from "stream_frames". Only render a scene if not the client. */
+        if (!Options::IsClient())
         {
-            if (entities[i].is_initialized() && (entities[i].get_light() != -1))
+            /* Get light list */
+            std::vector<int32_t> light_entity_ids(MAX_LIGHTS, -1);
+            int32_t light_count = 0;
+            for (uint32_t i = 0; i < Entity::GetCount(); ++i)
             {
-                light_entity_ids[light_count] = i;
-                light_count++;
+                if (entities[i].is_initialized() && (entities[i].get_light() != -1))
+                {
+                    light_entity_ids[light_count] = i;
+                    light_count++;
+                }
+                if (light_count == MAX_LIGHTS)
+                    break;
             }
-            if (light_count == MAX_LIGHTS)
-                break;
+
+            /* Get the renderpass for the current camera */
+            vk::RenderPass rp = cameras[cam_id].get_renderpass();
+
+            /* Bind all descriptor sets to that renderpass. 
+                Note that we're using a single bind. The same descriptors are shared across pipelines. */
+            Material::BindDescriptorSets(command_buffer, rp);
+
+            cameras[cam_id].begin_renderpass(command_buffer);
+            for (uint32_t i = 0; i < Entity::GetCount(); ++i)
+            {
+                if (entities[i].is_initialized())
+                {
+                    Material::DrawEntity(command_buffer, rp, entities[i], entity_id, environment_id, diffuse_id, irradiance_id, gamma, exposure, light_entity_ids);
+                }
+            }
+            cameras[cam_id].end_renderpass(command_buffer);
         }
 
-        /* Get the renderpass for the current camera */
-        vk::RenderPass rp = current_camera->get_renderpass();
-
-        /* Bind all descriptor sets to that renderpass. 
-            Note that we're using a single bind. The same descriptors are shared across pipelines. */
-        Material::BindDescriptorSets(maincmd, rp);
-
-        current_camera->begin_renderpass(maincmd);
-        for (uint32_t i = 0; i < Entity::GetCount(); ++i)
+        if (entity_id == main_entity)
         {
-            if (entities[i].is_initialized())
-            {
-                Material::DrawEntity(maincmd, rp, entities[i], entity_id, environment_id, diffuse_id, irradiance_id, gamma, exposure, light_entity_ids);
+            /* Record blit to swapchain */
+            if (swapchain && swapchain_texture) {
+                texture->record_blit_to(command_buffer, swapchain_texture, 0);
+            }
+        
+            /* Record blit to OpenVR eyes. */
+            if (using_openvr) {
+                auto ovr = OpenVR::Get();
+                auto left_eye_texture = ovr->get_left_eye_texture();
+                auto right_eye_texture = ovr->get_right_eye_texture();
+                if (left_eye_texture)  texture->record_blit_to(command_buffer, left_eye_texture, 0);
+                if (right_eye_texture) texture->record_blit_to(command_buffer, right_eye_texture, 1);
             }
         }
-        current_camera->end_renderpass(maincmd);
-    }
 
-    /* Record blit to swapchain */
-    if (swapchain && swapchain_texture) {
-        texture->record_blit_to(maincmd, swapchain_texture, 0);
+        /* End this recording. */
+        command_buffer.end();
     }
-    
-    /* Record blit to OpenVR eyes. */
-    if (using_openvr) {
-        auto ovr = OpenVR::Get();
-        auto left_eye_texture = ovr->get_left_eye_texture();
-        auto right_eye_texture = ovr->get_right_eye_texture();
-        if (left_eye_texture)  texture->record_blit_to(maincmd, left_eye_texture, 0);
-        if (right_eye_texture) texture->record_blit_to(maincmd, right_eye_texture, 1);
-    }
-    
-    /* End this recording. */
-    maincmd.end();
 }
 
 void RenderSystem::present_glfw_frames()
@@ -231,6 +250,23 @@ void RenderSystem::present_openvr_frames()
 {
     /* Ignore if openvr isn't in use. */
     if (!using_openvr) return;
+
+    /* For now, only render the camera associated with the window named "Window" */
+    auto entity_id = Entity::GetEntityFromWindow("Window");
+    
+    /* Dont render anything if no entity is connected to the window. */
+    if (entity_id == -1) return;
+
+    auto entity = Entity::Get(entity_id);
+    auto cam_id = entity->get_camera();
+
+    /* Dont render anything if the connected entity does not have a camera component attached. */
+    if (cam_id == -1) return;
+    Camera* current_camera = Camera::Get(cam_id);
+
+    /* Don't render anything if the camera component doesn't have a color texture. */
+    Texture * texture = current_camera->get_texture();
+    if (texture == nullptr) return;
     
     /* Submit the left and right eye textures to OpenVR */
     auto ovr = OpenVR::Get();
@@ -297,6 +333,25 @@ void RenderSystem::stream_frames()
 
 void RenderSystem::enqueue_render_commands() {
     auto vulkan = Vulkan::Get();
+    std::vector<vk::CommandBuffer> commands;
+
+    auto entities = Entity::GetFront();
+    auto cameras = Camera::GetFront();
+    for (uint32_t entity_id = 0; entity_id < Entity::GetCount(); ++entity_id) {
+        /* Entity must be initialized */
+        if (!entities[entity_id].is_initialized()) continue;
+
+        /* Entity needs a camera */
+        auto cam_id = entities[entity_id].get_camera();
+        if (cam_id < 0) continue;
+
+        /* Camera needs a texture */
+        Texture * texture = cameras[cam_id].get_texture();
+        if (!texture) continue;
+
+        auto command_buffer = cameras[cam_id].get_command_buffer();
+        commands.push_back(command_buffer);
+    }
 
     auto submitPipelineStages = vk::PipelineStageFlags();
     submitPipelineStages |= vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -305,8 +360,8 @@ void RenderSystem::enqueue_render_commands() {
     submit_info.waitSemaphoreCount = (swapchain && swapchain_texture) ? 1 : 0;
     submit_info.pWaitSemaphores = &imageAvailableSemaphores[currentFrame];
     submit_info.pWaitDstStageMask = &submitPipelineStages;
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &maincmd;
+    submit_info.commandBufferCount = commands.size();
+    submit_info.pCommandBuffers = commands.data();
     submit_info.signalSemaphoreCount = (swapchain && swapchain_texture) ? 1 : 0;
     submit_info.pSignalSemaphores = &renderCompleteSemaphores[currentFrame];
 

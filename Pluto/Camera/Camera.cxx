@@ -9,6 +9,8 @@ std::map<std::string, uint32_t> Camera::lookupTable;
 vk::Buffer Camera::ssbo;
 vk::DeviceMemory Camera::ssboMemory;
 
+using namespace Libraries;
+
 bool Camera::setup(bool allow_recording, bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers)
 {
 	if (layers > MAX_MULTIVIEW)
@@ -34,11 +36,23 @@ bool Camera::setup(bool allow_recording, bool cubemap, uint32_t tex_width, uint3
 			if (msaa_samples != 1)
 				resolveTexture = Texture::Create2D(name + "_resolve", tex_width, tex_height, true, true, 1, layers);
 		}
+		create_command_buffer();
 		create_render_pass(tex_width, tex_height, (cubemap) ? 6 : layers, msaa_samples);
 		create_frame_buffer();
 		Material::SetupGraphicsPipelines(renderpass, msaa_samples);
 	}
 	return true;
+}
+
+void Camera::create_command_buffer()
+{
+	auto vulkan = Libraries::Vulkan::Get();
+	auto device = vulkan->get_device();
+	vk::CommandBufferAllocateInfo cmdAllocInfo;
+    cmdAllocInfo.commandPool = vulkan->get_command_pool(1);
+    cmdAllocInfo.level = vk::CommandBufferLevel::ePrimary;
+    cmdAllocInfo.commandBufferCount = 1;
+    command_buffer = device.allocateCommandBuffers(cmdAllocInfo)[0];
 }
 
 void Camera::create_render_pass(uint32_t framebufferWidth, uint32_t framebufferHeight, uint32_t layers, uint32_t sample_count)
@@ -397,6 +411,10 @@ bool Camera::end_renderpass(vk::CommandBuffer command_buffer) {
 	return true;
 }
 
+vk::CommandBuffer Camera::get_command_buffer() {
+	return command_buffer;
+}
+
 void Camera::set_clear_color(float r, float g, float b, float a) {
 	clearColor = glm::vec4(r, g, b, a);
 }
@@ -471,6 +489,10 @@ void Camera::CleanUp()
 	device.destroyBuffer(ssbo);
 	device.unmapMemory(ssboMemory);
 	device.freeMemory(ssboMemory);
+
+	for (uint32_t i = 0; i < GetCount(); ++i) {
+		cameras[i].cleanup();
+	}
 }	
 
 
@@ -520,4 +542,15 @@ std::vector<Camera *> Camera::GetCamerasByOrder(uint32_t order)
 		}
 	}
 	return selected_cameras;
+}
+
+void Camera::cleanup()
+{
+	auto vulkan = Vulkan::Get();
+	auto device = vulkan->get_device();
+
+	if (command_buffer)
+		device.freeCommandBuffers(vulkan->get_command_pool(1), {command_buffer});
+	if (renderpass)
+		device.destroyRenderPass(renderpass);
 }
