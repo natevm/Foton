@@ -32,6 +32,7 @@ namespace Systems
             void clear_diffuse_map();
             void use_openvr(bool useOpenVR);
         private:
+
             bool using_openvr = false;
             void *zmq_context;
             float gamma = 1.0;
@@ -39,6 +40,38 @@ namespace Systems
             int environment_id = -1;
             int diffuse_id = -1;
             int irradiance_id = -1;
+
+            double lastTime, currentTime;
+
+            Texture* swapchain_texture = nullptr;
+
+            struct Bucket
+            {
+                int x, y, width, height;
+                float data[4 * 16 * 16];
+            };
+            bool vulkan_resources_created = false;
+            vk::SwapchainKHR swapchain;
+            uint32_t swapchain_index;
+            uint32_t currentFrame = 0;
+            
+            std::vector<vk::CommandBuffer> maincmds;
+            std::vector<vk::Fence> maincmd_fences;
+            std::vector<vk::Semaphore> imageAvailableSemaphores;
+            std::vector<vk::Semaphore> renderCompleteSemaphores;
+            vk::CommandBuffer maincmd;
+            vk::Fence main_fence;
+            uint32_t max_frames_in_flight = 3;
+
+            void acquire_swapchain_images(vk::SwapchainKHR &swapchain, uint32_t &swapchain_index, Texture *&swapchain_texture, vk::Semaphore &semaphore);
+            void record_render_commands();
+            void enqueue_render_commands();
+
+            void stream_frames();
+            void present_openvr_frames();
+            void present_glfw_frames();
+            void allocate_vulkan_resources();
+            void release_vulkan_resources();
             RenderSystem();
             ~RenderSystem();            
     };

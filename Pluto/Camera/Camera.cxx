@@ -507,3 +507,17 @@ Camera* Camera::GetFront() {
 uint32_t Camera::GetCount() {
 	return MAX_CAMERAS;
 }
+
+std::vector<Camera *> Camera::GetCamerasByOrder(uint32_t order)
+{
+	/* Todo: improve the performance of this. */
+	std::vector<Camera *> selected_cameras;
+	for (uint32_t i = 0; i < MAX_CAMERAS; ++i) {
+		if (!cameras[i].is_initialized()) continue;
+
+		if (cameras[i].renderOrder == order) {
+			selected_cameras.push_back(&cameras[i]);
+		}
+	}
+	return selected_cameras;
+}
