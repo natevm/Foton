@@ -29,6 +29,9 @@ class Camera : public StaticFactory
 	/* Returns the total number of reserved cameras. */
 	static uint32_t GetCount();
 
+	/* Returns a vector containing a list of camera components with the given order. */
+	static std::vector<Camera *> GetCamerasByOrder(uint32_t order);
+
 	/* Deallocates a camera with the given name. */
 	static bool Delete(std::string name);
 
