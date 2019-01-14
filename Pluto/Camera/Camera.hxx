@@ -107,6 +107,9 @@ class Camera : public StaticFactory
 		end a renderpass for the current camera setup. */
 	bool end_renderpass(vk::CommandBuffer command_buffer);
 
+	/* Returns the vulkan command buffer handle. */
+	vk::CommandBuffer get_command_buffer();
+
 	/* If recording is allowed, sets the clear color to be used to reset the color image of this camera's
 		texture component when beginning a renderpass. */
 	void set_clear_color(float r, float g, float b, float a);
@@ -144,6 +147,9 @@ class Camera : public StaticFactory
 	/* The vulkan framebuffer handle, which associates attachments with image views. 
 		Handles all multiviews at once. */
 	vk::Framebuffer framebuffer;
+
+	/* The vulkan command buffer handle, used to record the renderpass. */
+	vk::CommandBuffer command_buffer;
 
 	/* The texture component attached to the framebuffer, which will be rendered to. */
 	Texture *renderTexture = nullptr;
@@ -191,6 +197,9 @@ class Camera : public StaticFactory
 	/* Creates a vulkan framebuffer handle used by the renderpass, which binds image views to the framebuffer attachments. */
 	void create_frame_buffer();
 
+	/* Creates a vulkan commandbuffer handle used to record the renderpass. */
+	void create_command_buffer();
+
 	/* Updates the usedViews field to account for a new multiview. This is fixed to the allocated texture layers 
 		when recording is enabled. */
 	void update_used_views(uint32_t multiview);
@@ -198,4 +207,7 @@ class Camera : public StaticFactory
 	/* Checks to see if a given multiview index is within the multiview bounds, bounded either by MAX_MULTIVIEW, or the 
 		camera's texture layers when recording is allowed..  */
 	bool check_multiview_index(uint32_t multiview);
+
+	/* Releases any vulkan resources. */
+	void cleanup();
 };
