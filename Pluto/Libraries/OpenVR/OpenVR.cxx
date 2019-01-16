@@ -4,6 +4,11 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
 #include "Pluto/Texture/Texture.hxx"
+#include "Pluto/Mesh/Mesh.hxx"
+#include "Pluto/Tools/Options.hxx"
+
+#include <algorithm>
+#include <cctype>
 
 namespace Libraries
 {
@@ -19,17 +24,6 @@ OpenVR *OpenVR::Get()
 		if (error != vr::EVRInitError::VRInitError_None)
 		{
 			std::cout << "OpenVR Error during initialization. " << instance.get_vr_init_error_as_english_description(error) << std::endl;
-			return nullptr;
-		}
-		instance.compositor = (vr::IVRCompositor *) vr::VR_GetGenericInterface(vr::IVRCompositor_Version, &error);
-		if (error != vr::EVRInitError::VRInitError_None)
-		{
-			std::cout << "OpenVR Error during compositor aquisition. " << instance.get_vr_init_error_as_english_description(error) << std::endl;
-			return nullptr;
-		}
-		instance.chaperone = (vr::IVRChaperone *)vr::VR_GetGenericInterface(vr::IVRChaperone_Version, &error);
-		if (error != vr::VRInitError_None) {
-			std::cout << "OpenVR Error during chaperone aquisition. " << instance.get_vr_init_error_as_english_description(error) << std::endl;
 			return nullptr;
 		}
 		instance.initialized = true;
@@ -138,29 +132,35 @@ bool OpenVR::get_required_vulkan_device_extensions(vk::PhysicalDevice &physicalD
 	return true;
 }
 
-bool OpenVR::is_hmd_present() {
+bool OpenVR::is_hmd_present()
+{
 	return VR_IsHmdPresent();
 }
 
-bool OpenVR::is_runtime_installed() {
+bool OpenVR::is_runtime_installed()
+{
 	return VR_IsRuntimeInstalled();
 }
 
-std::string OpenVR::vr_runtime_path() {
+std::string OpenVR::vr_runtime_path()
+{
 	return VR_RuntimePath();
 }
 
-std::string OpenVR::get_vr_init_error_as_symbol(vr::EVRInitError error) {
+std::string OpenVR::get_vr_init_error_as_symbol(vr::EVRInitError error)
+{
 	return std::string(VR_GetVRInitErrorAsSymbol(error));
 }
 
-std::string OpenVR::get_vr_init_error_as_english_description(vr::EVRInitError error) {
+std::string OpenVR::get_vr_init_error_as_english_description(vr::EVRInitError error)
+{
 	return std::string(VR_GetVRInitErrorAsEnglishDescription(error));
 }
 
 glm::ivec2 OpenVR::get_recommended_render_target_size()
 {
-	if (!system) return glm::ivec2(-1, -1);
+	if (!system)
+		return glm::ivec2(-1, -1);
 	uint32_t width, height;
 	system->GetRecommendedRenderTargetSize(&width, &height);
 	return glm::ivec2(width, height);
@@ -169,17 +169,17 @@ glm::ivec2 OpenVR::get_recommended_render_target_size()
 // Reversed z projection matrix
 // https://nlguillemot.wordpress.com/2016/12/07/reversed-z-in-opengl/
 glm::mat4 OpenVR::make_projection_matrix(const float left, const float right,
-		const float top, const float bottom, const float near_clip)
+										 const float top, const float bottom, const float near_clip)
 {
 	return glm::mat4(
-		2.0f/(right - left), 0.0f, 0.0f, 0.0f,
-		0.0f, 2.0f/(bottom - top), 0.0f, 0.0f,
-		(right + left)/(right - left), (bottom + top)/(bottom - top), 0.0f, -1.0f,
-		0.0f, 0.0f, near_clip, 0.0f
-	);
+		2.0f / (right - left), 0.0f, 0.0f, 0.0f,
+		0.0f, 2.0f / (bottom - top), 0.0f, 0.0f,
+		(right + left) / (right - left), (bottom + top) / (bottom - top), 0.0f, -1.0f,
+		0.0f, 0.0f, near_clip, 0.0f);
 }
 
-glm::mat4 OpenVR::m34_to_mat4(const vr::HmdMatrix34_t &t) {
+glm::mat4 OpenVR::m34_to_mat4(const vr::HmdMatrix34_t &t)
+{
 	/* Traditionally right handed, +y is up, +x is right, -z is forward. */
 	/* Want y is forward, x is right, z is up. */
 	/* Also, converting from row major to column major */
@@ -188,14 +188,13 @@ glm::mat4 OpenVR::m34_to_mat4(const vr::HmdMatrix34_t &t) {
 		t.m[0][0], t.m[1][0], t.m[2][0], 0,
 		t.m[0][1], t.m[1][1], t.m[2][1], 0,
 		t.m[0][2], t.m[1][2], t.m[2][2], 0,
-		t.m[0][3], t.m[1][3], t.m[2][3], 1
-	);
-	
-	return mat1;
+		t.m[0][3], t.m[1][3], t.m[2][3], 1);
 
+	return mat1;
 }
 
-glm::mat4 OpenVR::m44_to_mat4(const vr::HmdMatrix44_t &t) {
+glm::mat4 OpenVR::m44_to_mat4(const vr::HmdMatrix44_t &t)
+{
 	/* Traditionally right handed, +y is up, +x is right, -z is forward. */
 	/* Want y is forward, x is right, z is up. */
 	/* Also, converting from row major to column major */
@@ -204,11 +203,9 @@ glm::mat4 OpenVR::m44_to_mat4(const vr::HmdMatrix44_t &t) {
 		t.m[0][0], t.m[1][0], t.m[2][0], t.m[3][0],
 		t.m[0][1], t.m[1][1], t.m[2][1], t.m[3][1],
 		t.m[0][2], t.m[1][2], t.m[2][2], t.m[3][2],
-		t.m[0][3], t.m[1][3], t.m[2][3], t.m[3][3]
-	);
-	
-	return mat1;
+		t.m[0][3], t.m[1][3], t.m[2][3], t.m[3][3]);
 
+	return mat1;
 }
 
 glm::mat4 OpenVR::get_left_projection_matrix(float near)
@@ -233,14 +230,15 @@ glm::mat4 OpenVR::get_right_projection_matrix(float near)
 	return ovr_matrix;
 }
 
-glm::mat4 OpenVR::get_left_view_matrix() {
-	if (system && (headset_id != -1)) {
+glm::mat4 OpenVR::get_left_view_matrix()
+{
+	if (system && (headset_id != -1))
+	{
 		auto conversion = glm::mat4(
-			1.0,  0.0,  0.0, 0.0,
-			0.0,  0.0, -1.0, 0.0,
-			0.0,  1.0,  0.0, 0.0,
-			0.0,  0.0,  0.0, 1.0
-		);
+			1.0, 0.0, 0.0, 0.0,
+			0.0, 0.0, -1.0, 0.0,
+			0.0, 1.0, 0.0, 0.0,
+			0.0, 0.0, 0.0, 1.0);
 
 		auto ovr_hmd_matrix = glm::inverse(m34_to_mat4(tracked_device_poses[headset_id].mDeviceToAbsoluteTracking)) * conversion;
 		auto ovr_eye_matrix = glm::inverse(m34_to_mat4(system->GetEyeToHeadTransform(vr::Eye_Left)));
@@ -249,14 +247,15 @@ glm::mat4 OpenVR::get_left_view_matrix() {
 	return glm::mat4();
 }
 
-glm::mat4 OpenVR::get_right_view_matrix() {
-	if (system && (headset_id != -1)) {
+glm::mat4 OpenVR::get_right_view_matrix()
+{
+	if (system && (headset_id != -1))
+	{
 		auto conversion = glm::mat4(
-			1.0,  0.0,  0.0, 0.0,
-			0.0,  0.0, -1.0, 0.0,
-			0.0,  1.0,  0.0, 0.0,
-			0.0,  0.0,  0.0, 1.0
-		);
+			1.0, 0.0, 0.0, 0.0,
+			0.0, 0.0, -1.0, 0.0,
+			0.0, 1.0, 0.0, 0.0,
+			0.0, 0.0, 0.0, 1.0);
 
 		auto ovr_hmd_matrix = glm::inverse(m34_to_mat4(tracked_device_poses[headset_id].mDeviceToAbsoluteTracking)) * conversion;
 		auto ovr_eye_matrix = glm::inverse(m34_to_mat4(system->GetEyeToHeadTransform(vr::Eye_Right)));
@@ -275,21 +274,26 @@ float OpenVR::get_time_since_last_vsync()
 
 bool OpenVR::trigger_left_haptic_pulse(uint32_t axis_id, uint32_t duration_in_microseconds)
 {
-	if (!system) return false;
+	if (!system)
+		return false;
 	system->TriggerHapticPulse(left_hand_id, axis_id, duration_in_microseconds);
 	return true;
 }
 
 bool OpenVR::trigger_right_haptic_pulse(uint32_t axis_id, uint32_t duration_in_microseconds)
 {
-	if (!system) return false;
+	if (!system)
+		return false;
 	system->TriggerHapticPulse(right_hand_id, axis_id, duration_in_microseconds);
 	return true;
 }
 
 bool OpenVR::poll_event()
 {
-	if (!system) return false;
+	if (!initialized)
+		return false;
+	if (!system)
+		return false;
 	VREvent_t event;
 	system->PollNextEvent(&event, sizeof event);
 
@@ -297,47 +301,220 @@ bool OpenVR::poll_event()
 	left_hand_id = system->GetTrackedDeviceIndexForControllerRole(vr::TrackedControllerRole_LeftHand);
 	headset_id = 0;
 
-	switch (event.eventType) {
-		case vr::VREvent_Quit:
-			std::cout << "Quitting via steam menu" << std::endl;
-			// quit = true;
-			break;
-		case vr::VREvent_TrackedDeviceActivated:
-		std::cout << "Device Activated "<<std::endl;
-			// if (!right_gesture && right_hand_evt) {
-			// 	right_gesture = std::make_unique<GestureSwipe>(vr_system, event.trackedDeviceIndex);
-			// }
-			break;
-		case vr::VREvent_TrackedDeviceRoleChanged:
-			std::cout << "Tracked Device Role Changed "<<std::endl;
-			// // if role is assigned to left or right hand the event.trackedDeviceIndex is -1 (it lags by one event)
-			// // thus we always make sure the assignment of hands is correct no matter the event.trackedDeviceIndex
-			// if (vr_system->GetTrackedDeviceIndexForControllerRole(vr::TrackedControllerRole_LeftHand) != -1) {
-			// 	assignments.left_hand.tracked_device_id =
-			// 		vr_system->GetTrackedDeviceIndexForControllerRole(vr::TrackedControllerRole_LeftHand);
-			// }
-			// if (vr_system->GetTrackedDeviceIndexForControllerRole(vr::TrackedControllerRole_RightHand) != -1) {
-			// 	assignments.right_hand.tracked_device_id =
-			// 		vr_system->GetTrackedDeviceIndexForControllerRole(vr::TrackedControllerRole_RightHand);
-			// }
-			break;
-		default:
-			break;
+	/* Process OpenVR events */
+	switch (event.eventType)
+	{
+	case vr::VREvent_Quit:
+		std::cout << "Quitting via menu triggered" << std::endl;
+		// quit = true;
+		break;
+	case vr::VREvent_ButtonPress:
+		std::cout << "Button pressed " << std::endl;
+		break;
+	case vr::VREvent_ButtonUnpress:
+		std::cout << "Button unpressed " << std::endl;
+		break;
+	default:
+		break;
 	}
+
+	right_hand_prev_state = right_hand_state;
+	system->GetControllerState(right_hand_id, &right_hand_state, sizeof right_hand_state);
+
+	left_hand_prev_state = left_hand_state;
+	system->GetControllerState(left_hand_id, &left_hand_state, sizeof left_hand_state);
 
 	return true;
 }
 
+EVRButtonId OpenVR::get_button_id(std::string key)
+{
+	std::transform(key.begin(), key.end(), key.begin(), [](char c) { return std::toupper(c); });
+
+	if (key.compare("SYSTEM") == 0)
+		return k_EButton_System;
+	else if (key.compare("APPLICATION_MENU") == 0)
+		return k_EButton_ApplicationMenu;
+	else if (key.compare("TOUCH_B") == 0)
+		return k_EButton_ApplicationMenu;
+	else if (key.compare("TOUCH_Y") == 0)
+		return k_EButton_ApplicationMenu;
+	else if (key.compare("MENU") == 0)
+		return k_EButton_ApplicationMenu;
+	else if (key.compare("GRIP") == 0)
+		return k_EButton_Grip;
+	else if (key.compare("DPAD_LEFT") == 0)
+		return k_EButton_DPad_Left;
+	else if (key.compare("LEFT") == 0)
+		return k_EButton_DPad_Left;
+	else if (key.compare("DPAD_UP") == 0)
+		return k_EButton_DPad_Up;
+	else if (key.compare("UP") == 0)
+		return k_EButton_DPad_Up;
+	else if (key.compare("DPAD_RIGHT") == 0)
+		return k_EButton_DPad_Right;
+	else if (key.compare("RIGHT") == 0)
+		return k_EButton_DPad_Right;
+	else if (key.compare("DPAD_DOWN") == 0)
+		return k_EButton_DPad_Down;
+	else if (key.compare("DOWN") == 0)
+		return k_EButton_DPad_Down;
+	else if (key.compare("TOUCH_A") == 0)
+		return k_EButton_A;
+	else if (key.compare("TOUCH_X") == 0)
+		return k_EButton_A;
+	else if (key.compare("PROXIMITY_SENSOR") == 0)
+		return k_EButton_ProximitySensor;
+	else if (key.compare("AXIS_0") == 0)
+		return k_EButton_Axis0;
+	else if (key.compare("AXIS_1") == 0)
+		return k_EButton_Axis1;
+	else if (key.compare("AXIS_2") == 0)
+		return k_EButton_Axis2;
+	else if (key.compare("AXIS_3") == 0)
+		return k_EButton_Axis3;
+	else if (key.compare("AXIS_4") == 0)
+		return k_EButton_Axis4;
+	else if (key.compare("STEAMVR_TOUCHPAD") == 0)
+		return k_EButton_SteamVR_Touchpad;
+	else if (key.compare("TOUCHPAD") == 0)
+		return k_EButton_SteamVR_Touchpad;
+	else if (key.compare("STEAMVR_TRIGGER") == 0)
+		return k_EButton_SteamVR_Trigger;
+	else if (key.compare("TRIGGER") == 0)
+		return k_EButton_SteamVR_Trigger;
+	else if (key.compare("DASHBOARD_BACK") == 0)
+		return k_EButton_Dashboard_Back;
+	else if (key.compare("BACK") == 0)
+		return k_EButton_Dashboard_Back;
+	else if (key.compare("KNUCKLES_A") == 0)
+		return k_EButton_Knuckles_A;
+	else if (key.compare("KNUCKLES_B") == 0)
+		return k_EButton_Knuckles_B;
+	else if (key.compare("JOYSTICK") == 0)
+		return k_EButton_Knuckles_JoyStick;
+	else if (key.compare("KNUCKLES_JOYSTICK") == 0)
+		return k_EButton_Knuckles_JoyStick;
+	else
+		return k_EButton_Max;
+}
+
+EVRControllerAxisType OpenVR::get_axis_id(std::string key)
+{
+	std::transform(key.begin(), key.end(), key.begin(), [](char c) { return std::toupper(c); });
+	
+	if (key.compare("TRACKPAD") == 0)
+		return k_eControllerAxis_TrackPad;
+	else if (key.compare("JOYSTICK") == 0)
+		return k_eControllerAxis_Joystick;
+	else if (key.compare("TRIGGER") == 0)
+		return k_eControllerAxis_Trigger;
+	else
+		return k_eControllerAxis_None;
+}
+
+uint32_t OpenVR::get_right_button_action(std::string button)
+{
+	auto id = get_button_id(button);
+	bool touch_1 = right_hand_prev_state.ulButtonTouched & vr::ButtonMaskFromId(id);
+	bool touch_2 = right_hand_state.ulButtonTouched & vr::ButtonMaskFromId(id);
+
+	bool press_1 = right_hand_prev_state.ulButtonPressed & vr::ButtonMaskFromId(id);
+	bool press_2 = right_hand_state.ulButtonPressed & vr::ButtonMaskFromId(id);
+
+	// Press held
+	if (press_1 && press_2)
+		return 4;
+	// Just pressed
+	else if (press_2)
+		return 3;
+	// Touch held
+	else if (touch_1 && touch_2)
+		return 2;
+	// Just touched
+	else if (touch_1)
+		return 1;
+	// None
+	else
+		return 0;
+}
+
+uint32_t OpenVR::get_left_button_action(std::string button)
+{
+	auto id = get_button_id(button);
+	bool touch_1 = left_hand_prev_state.ulButtonTouched & vr::ButtonMaskFromId(id);
+	bool touch_2 = left_hand_state.ulButtonTouched & vr::ButtonMaskFromId(id);
+
+	bool press_1 = left_hand_prev_state.ulButtonPressed & vr::ButtonMaskFromId(id);
+	bool press_2 = left_hand_state.ulButtonPressed & vr::ButtonMaskFromId(id);
+
+	// Press held
+	if (press_1 && press_2)
+		return 4;
+	// Just pressed
+	else if (press_2)
+		return 3;
+	// Touch held
+	else if (touch_1 && touch_2)
+		return 2;
+	// Just touched
+	else if (touch_1)
+		return 1;
+	// None
+	else
+		return 0;
+}
+
+glm::vec2 OpenVR::get_right_analog_value(std::string button)
+{
+	if (!initialized) return glm::vec2(0.0, 0.0);
+	auto id = get_axis_id(button);
+
+	uint32_t i;
+	for (i = 0; i < k_unControllerStateAxisCount; ++i)
+	{
+		int32_t axis_type = system->GetInt32TrackedDeviceProperty(right_hand_id,
+																  static_cast<vr::TrackedDeviceProperty>(vr::Prop_Axis0Type_Int32 + i));
+		if (axis_type == id)
+			break;
+	}
+
+	if (i >= k_unControllerStateAxisCount)
+		return glm::vec2(0.0, 0.0);
+	else
+		return glm::vec2(right_hand_state.rAxis[i].x, right_hand_state.rAxis[i].y);
+}
+
+glm::vec2 OpenVR::get_left_analog_value(std::string button)
+{
+	if (!initialized) return glm::vec2(0.0, 0.0);
+	auto id = get_axis_id(button);
+
+	uint32_t i;
+	for (i = 0; i < vr::k_unControllerStateAxisCount; ++i)
+	{
+		int32_t axis_type = system->GetInt32TrackedDeviceProperty(left_hand_id,
+																  static_cast<vr::TrackedDeviceProperty>(vr::Prop_Axis0Type_Int32 + i));
+		if (axis_type == id)
+			break;
+	}
+
+	if (i >= k_unControllerStateAxisCount)
+		return glm::vec2(0.0, 0.0);
+	else
+		return glm::vec2(left_hand_state.rAxis[i].x, left_hand_state.rAxis[i].y);
+}
+
 glm::mat4 OpenVR::get_right_controller_transform()
 {
-	if (system && (right_hand_id != -1)) {
+	if (system && (right_hand_id != -1))
+	{
 		auto ovr_matrix = m34_to_mat4(tracked_device_poses[right_hand_id].mDeviceToAbsoluteTracking);
-		auto conversion = glm::mat4 (
-			1.0,  0.0,  0.0, 0.0,
-			0.0,  0.0,  1.0, 0.0,
-			0.0,  -1.0, 0.0, 0.0,
-			0.0,  0.0,  0.0, 1.0
-		);
+		auto conversion = glm::mat4(
+			1.0, 0.0, 0.0, 0.0,
+			0.0, 0.0, 1.0, 0.0,
+			0.0, -1.0, 0.0, 0.0,
+			0.0, 0.0, 0.0, 1.0);
 		return conversion * ovr_matrix;
 	}
 	return glm::mat4();
@@ -346,81 +523,97 @@ glm::mat4 OpenVR::get_right_controller_transform()
 glm::mat4 OpenVR::get_left_controller_transform()
 {
 
-	if (system && (left_hand_id != -1)) {
+	if (system && (left_hand_id != -1))
+	{
 		auto ovr_matrix = m34_to_mat4(tracked_device_poses[left_hand_id].mDeviceToAbsoluteTracking);
-		auto conversion = glm::mat4 (
-			1.0,  0.0,  0.0, 0.0,
-			0.0,  0.0,  1.0, 0.0,
-			0.0, -1.0,  0.0, 0.0,
-			0.0,  0.0,  0.0, 1.0
-		);
+		auto conversion = glm::mat4(
+			1.0, 0.0, 0.0, 0.0,
+			0.0, 0.0, 1.0, 0.0,
+			0.0, -1.0, 0.0, 0.0,
+			0.0, 0.0, 0.0, 1.0);
 		return conversion * ovr_matrix;
 	}
 	return glm::mat4();
 }
 
-bool OpenVR::is_left_controller_connected() {
-	if (system && (left_hand_id != -1)) {
+bool OpenVR::is_left_controller_connected()
+{
+	if (system && (left_hand_id != -1))
+	{
 		return tracked_device_poses[left_hand_id].bDeviceIsConnected;
 	}
 	return false;
 }
 
-bool OpenVR::is_right_controller_connected() {
-	if (system && (right_hand_id != -1)) {
+bool OpenVR::is_right_controller_connected()
+{
+	if (system && (right_hand_id != -1))
+	{
 		return tracked_device_poses[right_hand_id].bDeviceIsConnected;
 	}
 	return false;
 }
 
-bool OpenVR::is_headset_connected() {
-	if (system && (headset_id != -1)) {
+bool OpenVR::is_headset_connected()
+{
+	if (system && (headset_id != -1))
+	{
 		return tracked_device_poses[headset_id].bDeviceIsConnected;
 	}
 	return false;
 }
 
-bool OpenVR::is_left_controller_pose_valid() {
-	if (system && (left_hand_id != -1)) {
+bool OpenVR::is_left_controller_pose_valid()
+{
+	if (system && (left_hand_id != -1))
+	{
 		return tracked_device_poses[left_hand_id].bPoseIsValid;
 	}
 	return false;
 }
 
-bool OpenVR::is_right_controller_pose_valid() {
-	if (system && (right_hand_id != -1)) {
+bool OpenVR::is_right_controller_pose_valid()
+{
+	if (system && (right_hand_id != -1))
+	{
 		return tracked_device_poses[right_hand_id].bPoseIsValid;
 	}
 	return false;
 }
 
-bool OpenVR::is_headset_pose_valid() {
-	if (system && (headset_id != -1)) {
+bool OpenVR::is_headset_pose_valid()
+{
+	if (system && (headset_id != -1))
+	{
 		return tracked_device_poses[headset_id].bPoseIsValid;
 	}
 	return false;
 }
 
-
-bool OpenVR::create_eye_textures() {
+bool OpenVR::create_eye_textures()
+{
 	auto resolution = get_recommended_render_target_size();
 	right_eye_texture = Texture::Create2D("right_eye_view", resolution[0], resolution[1], true, false, 1, 1);
 	left_eye_texture = Texture::Create2D("left_eye_view", resolution[0], resolution[1], true, false, 1, 1);
-	if ((right_eye_texture == nullptr) && (left_eye_texture == nullptr)) return false;
+	if ((right_eye_texture == nullptr) && (left_eye_texture == nullptr))
+		return false;
 	return true;
 }
 
-Texture *OpenVR::get_right_eye_texture() {
+Texture *OpenVR::get_right_eye_texture()
+{
 	return right_eye_texture;
 }
 
-Texture *OpenVR::get_left_eye_texture() {
+Texture *OpenVR::get_left_eye_texture()
+{
 	return left_eye_texture;
 }
 
-bool OpenVR::submit_textures() 
+bool OpenVR::submit_textures()
 {
-	if ((right_eye_texture == nullptr) || (left_eye_texture == nullptr)) return false;
+	if ((right_eye_texture == nullptr) || (left_eye_texture == nullptr))
+		return false;
 	auto vk = Vulkan::Get();
 
 	auto device = static_cast<VkDevice>(vk->get_device());
@@ -435,11 +628,11 @@ bool OpenVR::submit_textures()
 	bounds.vMax = 1.0f;
 
 	VRVulkanTextureData_t right_texture_data = {};
-	right_texture_data.m_nImage = (uint64_t)(static_cast<VkImage>(right_eye_texture->get_color_image()));// VkImage
-	right_texture_data.m_pDevice = (VkDevice_T *) device;
-	right_texture_data.m_pPhysicalDevice = (VkPhysicalDevice_T *) physicalDevice;
-	right_texture_data.m_pInstance = (VkInstance_T *) instance;
-	right_texture_data.m_pQueue = (VkQueue_T *) queue;
+	right_texture_data.m_nImage = (uint64_t)(static_cast<VkImage>(right_eye_texture->get_color_image())); // VkImage
+	right_texture_data.m_pDevice = (VkDevice_T *)device;
+	right_texture_data.m_pPhysicalDevice = (VkPhysicalDevice_T *)physicalDevice;
+	right_texture_data.m_pInstance = (VkInstance_T *)instance;
+	right_texture_data.m_pQueue = (VkQueue_T *)queue;
 	right_texture_data.m_nQueueFamilyIndex = vk->get_graphics_family();
 	right_texture_data.m_nWidth = right_eye_texture->get_width();
 	right_texture_data.m_nHeight = right_eye_texture->get_height();
@@ -447,59 +640,199 @@ bool OpenVR::submit_textures()
 	right_texture_data.m_nSampleCount = (uint32_t)(static_cast<VkSampleCountFlagBits>(right_eye_texture->get_sample_count()));
 
 	VRVulkanTextureData_t left_texture_data = {};
-	left_texture_data.m_nImage = (uint64_t)(static_cast<VkImage>(left_eye_texture->get_color_image()));// VkImage
-	left_texture_data.m_pDevice = (VkDevice_T *) device;
-	left_texture_data.m_pPhysicalDevice = (VkPhysicalDevice_T *) physicalDevice;
-	left_texture_data.m_pInstance = (VkInstance_T *) instance;
-	left_texture_data.m_pQueue = (VkQueue_T *) queue;
+	left_texture_data.m_nImage = (uint64_t)(static_cast<VkImage>(left_eye_texture->get_color_image())); // VkImage
+	left_texture_data.m_pDevice = (VkDevice_T *)device;
+	left_texture_data.m_pPhysicalDevice = (VkPhysicalDevice_T *)physicalDevice;
+	left_texture_data.m_pInstance = (VkInstance_T *)instance;
+	left_texture_data.m_pQueue = (VkQueue_T *)queue;
 	left_texture_data.m_nQueueFamilyIndex = vk->get_graphics_family();
 	left_texture_data.m_nWidth = left_eye_texture->get_width();
 	left_texture_data.m_nHeight = left_eye_texture->get_height();
 	left_texture_data.m_nFormat = (uint32_t)(static_cast<VkFormat>(left_eye_texture->get_color_format()));
 	left_texture_data.m_nSampleCount = (uint32_t)(static_cast<VkSampleCountFlagBits>(left_eye_texture->get_sample_count()));
-	
+
 	Texture_t right_eye = {};
 	right_eye.eType = TextureType_Vulkan;
 	right_eye.eColorSpace = ColorSpace_Gamma; // Is this optimal?
-	right_eye.handle = (void*)&right_texture_data;
+	right_eye.handle = (void *)&right_texture_data;
 
 	Texture_t left_eye = {};
 	left_eye.eType = TextureType_Vulkan;
 	left_eye.eColorSpace = ColorSpace_Gamma; // Is this optimal?
-	left_eye.handle = (void*)&left_texture_data;
+	left_eye.handle = (void *)&left_texture_data;
 
-	{	
-		auto error = compositor->Submit(Eye_Left, &left_eye, &bounds);
-		if (error != EVRCompositorError::VRCompositorError_None) 
+	{
+		auto error = VRCompositor()->Submit(Eye_Left, &left_eye, &bounds);
+		if (error != EVRCompositorError::VRCompositorError_None)
 		{
-			std::cout<<"Error submitting: " << error << std::endl;
+			std::cout << "Error submitting: " << error << std::endl;
 		}
 	}
 
-	{	
-		auto error = compositor->Submit(Eye_Right, &right_eye, &bounds);
-		if (error != EVRCompositorError::VRCompositorError_None) 
+	{
+		auto error = VRCompositor()->Submit(Eye_Right, &right_eye, &bounds);
+		if (error != EVRCompositorError::VRCompositorError_None)
 		{
-			std::cout<<"Error submitting: " << error << std::endl;
+			std::cout << "Error submitting: " << error << std::endl;
 		}
 	}
-	
+
 	return true;
 }
 
-bool OpenVR::wait_get_poses() {
+bool OpenVR::wait_get_poses()
+{
 	// system->GetDeviceToAbsoluteTrackingPose(TrackingUniverseStanding, 0.0, tracked_device_poses, vr::k_unMaxTrackedDeviceCount);
 
-	compositor->WaitGetPoses(tracked_device_poses, vr::k_unMaxTrackedDeviceCount, NULL, 0);
+	VRCompositor()->WaitGetPoses(tracked_device_poses, vr::k_unMaxTrackedDeviceCount, NULL, 0);
 	return true;
 }
 
-vk::PhysicalDevice OpenVR::get_output_device(vk::Instance instance) {
+vk::PhysicalDevice OpenVR::get_output_device(vk::Instance instance)
+{
 	uint64_t device;
 	auto instance_ = static_cast<VkInstance>(instance);
 
-	system->GetOutputDevice(&device, vr::ETextureType::TextureType_Vulkan, (VkInstance_T *) instance_);
+	system->GetOutputDevice(&device, vr::ETextureType::TextureType_Vulkan, (VkInstance_T *)instance_);
 	return vk::PhysicalDevice((VkPhysicalDevice)device);
+}
+
+int32_t OpenVR::get_left_knuckles_mesh(std::string name)
+{
+	std::string ResourcePath = Options::GetResourcePath();
+	auto full_path = ResourcePath + std::string("/Defaults/VRModels/valve_controller_knu_ev2_0_left/valve_controller_knu_ev2_0_left.obj");
+	auto component = Mesh::CreateFromOBJ(name, full_path);
+	if (component)
+		return component->get_id();
+	return -1;
+}
+
+int32_t OpenVR::get_left_knuckles_basecolor_texture(std::string name)
+{
+	auto vk = Vulkan::Get();
+	std::string ResourcePath = Options::GetResourcePath();
+	auto full_path = ResourcePath;
+	if (vk->is_ASTC_supported()) full_path += std::string("/Defaults/VRModels/valve_controller_knu_ev2_0_left/knucklesev2_0_basecolor_left_astc8x8.ktx");
+	else if (vk->is_ETC2_supported()) full_path += std::string("/Defaults/VRModels/valve_controller_knu_ev2_0_left/knucklesev2_0_basecolor_left_etc2.ktx");
+	else if (vk->is_BC_supported()) full_path += std::string("/Defaults/VRModels/valve_controller_knu_ev2_0_left/knucklesev2_0_basecolor_left_bc3.ktx");
+	else {
+		std::cout<<"OpenVR Error: no texture compression format supported! " << std::endl;
+		return -1;
+	}
+	auto component = Texture::CreateFromKTX(name, full_path);
+	if (component)
+		return component->get_id();
+	return -1;
+}
+
+int32_t OpenVR::get_left_knuckles_roughness_texture(std::string name)
+{
+	auto vk = Vulkan::Get();
+	std::string ResourcePath = Options::GetResourcePath();
+	auto full_path = ResourcePath;
+	if (vk->is_ASTC_supported()) full_path += std::string("/Defaults/VRModels/valve_controller_knu_ev2_0_left/knucklesev2_0_rough_left_astc8x8.ktx");
+	else if (vk->is_ETC2_supported()) full_path += std::string("/Defaults/VRModels/valve_controller_knu_ev2_0_left/knucklesev2_0_rough_left_etc2.ktx");
+	else if (vk->is_BC_supported()) full_path += std::string("/Defaults/VRModels/valve_controller_knu_ev2_0_left/knucklesev2_0_rough_left_bc3.ktx");
+	else {
+		std::cout<<"OpenVR Error: no texture compression format supported! " << std::endl;
+		return -1;
+	}
+	auto component = Texture::CreateFromKTX(name, full_path);
+	if (component)
+		return component->get_id();
+	return -1;
+}
+
+int32_t OpenVR::get_right_knuckles_mesh(std::string name)
+{
+	std::string ResourcePath = Options::GetResourcePath();
+	auto full_path = ResourcePath + std::string("/Defaults/VRModels/valve_controller_knu_ev2_0_right/valve_controller_knu_ev2_0_right.obj");
+	auto component = Mesh::CreateFromOBJ(name, full_path);
+	if (component)
+		return component->get_id();
+	return -1;
+}
+
+int32_t OpenVR::get_right_knuckles_basecolor_texture(std::string name)
+{
+	auto vk = Vulkan::Get();
+	std::string ResourcePath = Options::GetResourcePath();
+	auto full_path = ResourcePath;
+	if (vk->is_ASTC_supported()) full_path += std::string("/Defaults/VRModels/valve_controller_knu_ev2_0_right/knucklesev2_0_basecolor_right_astc8x8.ktx");
+	else if (vk->is_ETC2_supported()) full_path += std::string("/Defaults/VRModels/valve_controller_knu_ev2_0_right/knucklesev2_0_basecolor_right_etc2.ktx");
+	else if (vk->is_BC_supported()) full_path += std::string("/Defaults/VRModels/valve_controller_knu_ev2_0_right/knucklesev2_0_basecolor_right_bc3.ktx");
+	else {
+		std::cout<<"OpenVR Error: no texture compression format supported! " << std::endl;
+		return -1;
+	}
+	auto component = Texture::CreateFromKTX(name, full_path);
+	if (component)
+		return component->get_id();
+	return -1;
+}
+
+int32_t OpenVR::get_right_knuckles_roughness_texture(std::string name)
+{
+	auto vk = Vulkan::Get();
+	std::string ResourcePath = Options::GetResourcePath();
+	auto full_path = ResourcePath;
+	if (vk->is_ASTC_supported()) full_path += std::string("/Defaults/VRModels/valve_controller_knu_ev2_0_right/knucklesev2_0_rough_right_astc8x8.ktx");
+	else if (vk->is_ETC2_supported()) full_path += std::string("/Defaults/VRModels/valve_controller_knu_ev2_0_right/knucklesev2_0_rough_right_etc2.ktx");
+	else if (vk->is_BC_supported()) full_path += std::string("/Defaults/VRModels/valve_controller_knu_ev2_0_right/knucklesev2_0_rough_right_bc3.ktx");
+	else {
+		std::cout<<"OpenVR Error: no texture compression format supported! " << std::endl;
+		return -1;
+	}
+	auto component = Texture::CreateFromKTX(name, full_path);
+	if (component)
+		return component->get_id();
+	return -1;
+}
+
+int32_t OpenVR::get_vive_controller_mesh(std::string name)
+{
+	std::string ResourcePath = Options::GetResourcePath();
+	auto full_path = ResourcePath + std::string("/Defaults/VRModels/vr_controller_vive_1_5/vr_controller_vive_1_5.obj");
+	auto component = Mesh::CreateFromOBJ(name, full_path);
+	if (component)
+		return component->get_id();
+	return -1;
+}
+
+int32_t OpenVR::get_vive_controller_basecolor_texture(std::string name)
+{
+	auto vk = Vulkan::Get();
+	std::string ResourcePath = Options::GetResourcePath();
+	auto full_path = ResourcePath;
+	if (vk->is_ASTC_supported()) full_path += std::string("/Defaults/VRModels/vr_controller_vive_1_5/onepointfive_basecolor_astc8x8.ktx");
+	else if (vk->is_ETC2_supported()) full_path += std::string("/Defaults/VRModels/vr_controller_vive_1_5/onepointfive_basecolor_etc2.ktx");
+	else if (vk->is_BC_supported()) full_path += std::string("/Defaults/VRModels/vr_controller_vive_1_5/onepointfive_basecolor_bc3.ktx");
+	else {
+		std::cout<<"OpenVR Error: no texture compression format supported! " << std::endl;
+		return -1;
+	}
+	auto component = Texture::CreateFromKTX(name, full_path);
+	if (component)
+		return component->get_id();
+	return -1;
+}
+
+int32_t OpenVR::get_vive_controller_roughness_texture(std::string name)
+{
+	auto vk = Vulkan::Get();
+	std::string ResourcePath = Options::GetResourcePath();
+	auto full_path = ResourcePath;
+	if (vk->is_ASTC_supported()) full_path += std::string("/Defaults/VRModels/vr_controller_vive_1_5/onepointfive_rough_astc8x8.ktx");
+	else if (vk->is_ETC2_supported()) full_path += std::string("/Defaults/VRModels/vr_controller_vive_1_5/onepointfive_rough_etc2.ktx");
+	else if (vk->is_BC_supported()) full_path += std::string("/Defaults/VRModels/vr_controller_vive_1_5/onepointfive_rough_bc3.ktx");
+	else {
+		std::cout<<"OpenVR Error: no texture compression format supported! " << std::endl;
+		return -1;
+	}
+	auto component = Texture::CreateFromKTX(name, full_path);
+	if (component)
+		return component->get_id();
+	return -1;
 }
 
 } // namespace Libraries

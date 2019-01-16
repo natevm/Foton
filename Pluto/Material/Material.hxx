@@ -113,6 +113,10 @@ class Material : public StaticFactory
         void use_base_color_texture(Texture *texture);
         void clear_base_color_texture();
 
+        void use_roughness_texture(uint32_t texture_id);
+        void use_roughness_texture(Texture *texture);
+        void clear_roughness_texture();
+
 
     private:
     

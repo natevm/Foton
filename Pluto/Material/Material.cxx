@@ -60,7 +60,7 @@ Material::Material(std::string name, uint32_t id)
     material_struct.transmission = 0.0;
     material_struct.transmission_roughness = 0.0;
     material_struct.base_color_texture_id = -1;
-    material_struct.metalic_roughness_texture_id = -1;
+    material_struct.roughness_texture_id = -1;
 }
 
 std::string Material::to_string() {
@@ -1033,6 +1033,21 @@ void Material::use_base_color_texture(Texture *texture)
 
 void Material::clear_base_color_texture() {
     this->material_struct.base_color_texture_id = -1;
+}
+
+void Material::use_roughness_texture(uint32_t texture_id) 
+{
+    this->material_struct.roughness_texture_id = texture_id;
+}
+
+void Material::use_roughness_texture(Texture *texture) 
+{
+    if (!texture) return;
+    this->material_struct.roughness_texture_id = texture->get_id();
+}
+
+void Material::clear_roughness_texture() {
+    this->material_struct.roughness_texture_id = -1;
 }
 
 void Material::show_pbr() {
