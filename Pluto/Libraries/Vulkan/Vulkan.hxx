@@ -52,6 +52,9 @@ namespace Libraries {
         bool submit_graphics_commands();
         bool submit_present_commands();
         bool is_ray_tracing_enabled();
+        bool is_ASTC_supported();
+        bool is_ETC2_supported();
+        bool is_BC_supported();
 
         vk::SampleCountFlags min(vk::SampleCountFlags A, vk::SampleCountFlags B);
         vk::SampleCountFlagBits highest(vk::SampleCountFlags flags);
@@ -125,6 +128,6 @@ namespace Libraries {
         vk::DebugReportCallbackEXT internalCallback;
         function<void()> externalCallback;
 
-        bool GetFeaturesFromList(set<string> device_features, vk::PhysicalDeviceFeatures &supportedFeatures, vk::PhysicalDeviceFeatures &requestedFeatures);
+        bool GetFeaturesFromList(set<string> device_features, vk::PhysicalDeviceFeatures &supportedFeatures);
     };
 }

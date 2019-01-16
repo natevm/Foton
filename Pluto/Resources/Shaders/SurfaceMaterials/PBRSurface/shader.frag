@@ -26,6 +26,18 @@ vec3 getAlbedo()
 	return pow(albedo, vec3(2.2));
 }
 
+float getRoughness(MaterialStruct material)
+{
+	float roughness = material.roughness;
+
+
+	if (material.roughness_texture_id != -1) {
+  		roughness = texture(sampler2D(texture_2Ds[material.roughness_texture_id], samplers[material.roughness_texture_id]), fragTexCoord).r;
+	}
+
+	return roughness;
+}
+
 vec2 sampleBRDF(vec3 N, vec3 V, float roughness)
 {
 	return texture( 
@@ -176,7 +188,7 @@ void main() {
 
 	float metallic = material.metallic;
 	float transmission = material.transmission;
-	float roughness = material.roughness;
+	float roughness = getRoughness(material);
 	float transmission_roughness = material.transmission_roughness;
 	vec3 albedo = getAlbedo();
 

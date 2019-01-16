@@ -286,10 +286,11 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
         }
 
         /* Check if the device supports the featrues we want */
-        featuresSupported = GetFeaturesFromList(device_features, supportedFeatures, deviceFeatures);
+        featuresSupported = GetFeaturesFromList(device_features, supportedFeatures);
 
         if (queuesFound && extensionsSupported && featuresSupported && ((!surface) || swapChainAdequate))
         {
+            deviceFeatures = supportedFeatures;
             devicename = deviceProperties.deviceName;
             supportedMSAASamples = min(deviceProperties.limits.framebufferColorSampleCounts, deviceProperties.limits.framebufferDepthSampleCounts);
         }
@@ -354,10 +355,11 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
             }
 
             /* Check if the device supports the featrues we want */
-            featuresSupported = GetFeaturesFromList(device_features, supportedFeatures, deviceFeatures);
+            featuresSupported = GetFeaturesFromList(device_features, supportedFeatures);
 
             if (queuesFound && extensionsSupported && featuresSupported && ((!surface) || swapChainAdequate))
             {
+                deviceFeatures = supportedFeatures;
                 physicalDevice = device;
                 devicename = deviceProperties.deviceName;
                 supportedMSAASamples = min(deviceProperties.limits.framebufferColorSampleCounts, deviceProperties.limits.framebufferDepthSampleCounts);
@@ -497,339 +499,229 @@ vk::Device Vulkan::get_device() const
 }
 
 /* Todo, macro this */
-bool Vulkan::GetFeaturesFromList(set<string> device_features, vk::PhysicalDeviceFeatures &supportedFeatures, vk::PhysicalDeviceFeatures &requestedFeatures)
+bool Vulkan::GetFeaturesFromList(set<string> device_features, vk::PhysicalDeviceFeatures &supportedFeatures)
 {
     for (auto feature : device_features)
     {
         if (feature.compare("robustBufferAccess") == 0)
         {
-            if (!supportedFeatures.robustBufferAccess)
-                return false;
-            requestedFeatures.robustBufferAccess = VK_TRUE;
+            if (!supportedFeatures.robustBufferAccess) return false;
         }
         else if (feature.compare("fullDrawIndexUint32") == 0)
         {
-            if (!supportedFeatures.fullDrawIndexUint32)
-                return false;
-            requestedFeatures.fullDrawIndexUint32 = VK_TRUE;
+            if (!supportedFeatures.fullDrawIndexUint32) return false;
         }
         else if (feature.compare("imageCubeArray") == 0)
         {
-            if (!supportedFeatures.imageCubeArray)
-                return false;
-            requestedFeatures.imageCubeArray = VK_TRUE;
+            if (!supportedFeatures.imageCubeArray) return false;
         }
         else if (feature.compare("independentBlend") == 0)
         {
-            if (!supportedFeatures.independentBlend)
-                return false;
-            requestedFeatures.independentBlend = VK_TRUE;
+            if (!supportedFeatures.independentBlend) return false;
         }
         else if (feature.compare("geometryShader") == 0)
         {
-            if (!supportedFeatures.geometryShader)
-                return false;
-            requestedFeatures.geometryShader = VK_TRUE;
+            if (!supportedFeatures.geometryShader) return false;
         }
         else if (feature.compare("tessellationShader") == 0)
         {
-            if (!supportedFeatures.tessellationShader)
-                return false;
-            requestedFeatures.tessellationShader = VK_TRUE;
+            if (!supportedFeatures.tessellationShader) return false;
         }
         else if (feature.compare("sampleRateShading") == 0)
         {
-            if (!supportedFeatures.sampleRateShading)
-                return false;
-            requestedFeatures.sampleRateShading = VK_TRUE;
+            if (!supportedFeatures.sampleRateShading) return false;
         }
         else if (feature.compare("dualSrcBlend") == 0)
         {
-            if (!supportedFeatures.dualSrcBlend)
-                return false;
-            requestedFeatures.dualSrcBlend = VK_TRUE;
+            if (!supportedFeatures.dualSrcBlend) return false;
         }
         else if (feature.compare("logicOp") == 0)
         {
-            if (!supportedFeatures.logicOp)
-                return false;
-            requestedFeatures.logicOp = VK_TRUE;
+            if (!supportedFeatures.logicOp) return false;
         }
         else if (feature.compare("multiDrawIndirect") == 0)
         {
-            if (!supportedFeatures.multiDrawIndirect)
-                return false;
-            requestedFeatures.multiDrawIndirect = VK_TRUE;
+            if (!supportedFeatures.multiDrawIndirect) return false;
         }
         else if (feature.compare("drawIndirectFirstInstance") == 0)
         {
-            if (!supportedFeatures.drawIndirectFirstInstance)
-                return false;
-            requestedFeatures.drawIndirectFirstInstance = VK_TRUE;
+            if (!supportedFeatures.drawIndirectFirstInstance) return false;
         }
         else if (feature.compare("depthClamp") == 0)
         {
-            if (!supportedFeatures.depthClamp)
-                return false;
-            requestedFeatures.depthClamp = VK_TRUE;
+            if (!supportedFeatures.depthClamp) return false;
         }
         else if (feature.compare("depthBiasClamp") == 0)
         {
-            if (!supportedFeatures.depthBiasClamp)
-                return false;
-            requestedFeatures.depthBiasClamp = VK_TRUE;
+            if (!supportedFeatures.depthBiasClamp) return false;
         }
         else if (feature.compare("fillModeNonSolid") == 0)
         {
-            if (!supportedFeatures.fillModeNonSolid)
-                return false;
-            requestedFeatures.fillModeNonSolid = VK_TRUE;
+            if (!supportedFeatures.fillModeNonSolid) return false;
         }
         else if (feature.compare("depthBounds") == 0)
         {
-            if (!supportedFeatures.depthBounds)
-                return false;
-            requestedFeatures.depthBounds = VK_TRUE;
+            if (!supportedFeatures.depthBounds) return false;
         }
         else if (feature.compare("wideLines") == 0)
         {
-            if (!supportedFeatures.wideLines)
-                return false;
-            requestedFeatures.wideLines = VK_TRUE;
+            if (!supportedFeatures.wideLines) return false;
         }
         else if (feature.compare("largePoints") == 0)
         {
-            if (!supportedFeatures.largePoints)
-                return false;
-            requestedFeatures.largePoints = VK_TRUE;
+            if (!supportedFeatures.largePoints) return false;
         }
         else if (feature.compare("alphaToOne") == 0)
         {
-            if (!supportedFeatures.alphaToOne)
-                return false;
-            requestedFeatures.alphaToOne = VK_TRUE;
+            if (!supportedFeatures.alphaToOne) return false;
         }
         else if (feature.compare("multiViewport") == 0)
         {
-            if (!supportedFeatures.multiViewport)
-                return false;
-            requestedFeatures.multiViewport = VK_TRUE;
+            if (!supportedFeatures.multiViewport) return false;
         }
         else if (feature.compare("samplerAnisotropy") == 0)
         {
-            if (!supportedFeatures.samplerAnisotropy)
-                return false;
-            requestedFeatures.samplerAnisotropy = VK_TRUE;
+            if (!supportedFeatures.samplerAnisotropy) return false;
         }
         else if (feature.compare("textureCompressionETC2") == 0)
         {
-            if (!supportedFeatures.textureCompressionETC2)
-                return false;
-            requestedFeatures.textureCompressionETC2 = VK_TRUE;
+            if (!supportedFeatures.textureCompressionETC2) return false;
         }
         else if (feature.compare("textureCompressionASTC_LDR") == 0)
         {
-            if (!supportedFeatures.textureCompressionASTC_LDR)
-                return false;
-            requestedFeatures.textureCompressionASTC_LDR = VK_TRUE;
+            if (!supportedFeatures.textureCompressionASTC_LDR) return false;
         }
         else if (feature.compare("textureCompressionBC") == 0)
         {
-            if (!supportedFeatures.textureCompressionBC)
-                return false;
-            requestedFeatures.textureCompressionBC = VK_TRUE;
+            if (!supportedFeatures.textureCompressionBC) return false;
         }
         else if (feature.compare("occlusionQueryPrecise") == 0)
         {
-            if (!supportedFeatures.occlusionQueryPrecise)
-                return false;
-            requestedFeatures.occlusionQueryPrecise = VK_TRUE;
+            if (!supportedFeatures.occlusionQueryPrecise) return false;
         }
         else if (feature.compare("pipelineStatisticsQuery") == 0)
         {
-            if (!supportedFeatures.pipelineStatisticsQuery)
-                return false;
-            requestedFeatures.pipelineStatisticsQuery = VK_TRUE;
+            if (!supportedFeatures.pipelineStatisticsQuery) return false;
         }
         else if (feature.compare("vertexPipelineStoresAndAtomics") == 0)
         {
-            if (!supportedFeatures.vertexPipelineStoresAndAtomics)
-                return false;
-            requestedFeatures.vertexPipelineStoresAndAtomics = VK_TRUE;
+            if (!supportedFeatures.vertexPipelineStoresAndAtomics) return false;
         }
         else if (feature.compare("fragmentStoresAndAtomics") == 0)
         {
-            if (!supportedFeatures.fragmentStoresAndAtomics)
-                return false;
-            requestedFeatures.fragmentStoresAndAtomics = VK_TRUE;
+            if (!supportedFeatures.fragmentStoresAndAtomics) return false;
         }
         else if (feature.compare("shaderTessellationAndGeometryPointSize") == 0)
         {
-            if (!supportedFeatures.shaderTessellationAndGeometryPointSize)
-                return false;
-            requestedFeatures.shaderTessellationAndGeometryPointSize = VK_TRUE;
+            if (!supportedFeatures.shaderTessellationAndGeometryPointSize) return false;
         }
         else if (feature.compare("shaderImageGatherExtended") == 0)
         {
-            if (!supportedFeatures.shaderImageGatherExtended)
-                return false;
-            requestedFeatures.shaderImageGatherExtended = VK_TRUE;
+            if (!supportedFeatures.shaderImageGatherExtended) return false;
         }
         else if (feature.compare("shaderStorageImageExtendedFormats") == 0)
         {
-            if (!supportedFeatures.shaderStorageImageExtendedFormats)
-                return false;
-            requestedFeatures.shaderStorageImageExtendedFormats = VK_TRUE;
+            if (!supportedFeatures.shaderStorageImageExtendedFormats) return false;
         }
         else if (feature.compare("shaderStorageImageMultisample") == 0)
         {
-            if (!supportedFeatures.shaderStorageImageMultisample)
-                return false;
-            requestedFeatures.shaderStorageImageMultisample = VK_TRUE;
+            if (!supportedFeatures.shaderStorageImageMultisample) return false;
         }
         else if (feature.compare("shaderStorageImageReadWithoutFormat") == 0)
         {
-            if (!supportedFeatures.shaderStorageImageReadWithoutFormat)
-                return false;
-            requestedFeatures.shaderStorageImageReadWithoutFormat = VK_TRUE;
+            if (!supportedFeatures.shaderStorageImageReadWithoutFormat) return false;
         }
         else if (feature.compare("shaderStorageImageWriteWithoutFormat") == 0)
         {
-            if (!supportedFeatures.shaderStorageImageWriteWithoutFormat)
-                return false;
-            requestedFeatures.shaderStorageImageWriteWithoutFormat = VK_TRUE;
+            if (!supportedFeatures.shaderStorageImageWriteWithoutFormat) return false;
         }
         else if (feature.compare("shaderUniformBufferArrayDynamicIndexing") == 0)
         {
-            if (!supportedFeatures.shaderUniformBufferArrayDynamicIndexing)
-                return false;
-            requestedFeatures.shaderUniformBufferArrayDynamicIndexing = VK_TRUE;
+            if (!supportedFeatures.shaderUniformBufferArrayDynamicIndexing) return false;
         }
         else if (feature.compare("shaderSampledImageArrayDynamicIndexing") == 0)
         {
-            if (!supportedFeatures.shaderSampledImageArrayDynamicIndexing)
-                return false;
-            requestedFeatures.shaderSampledImageArrayDynamicIndexing = VK_TRUE;
+            if (!supportedFeatures.shaderSampledImageArrayDynamicIndexing) return false;
         }
         else if (feature.compare("shaderStorageBufferArrayDynamicIndexing") == 0)
         {
-            if (!supportedFeatures.shaderStorageBufferArrayDynamicIndexing)
-                return false;
-            requestedFeatures.shaderStorageBufferArrayDynamicIndexing = VK_TRUE;
+            if (!supportedFeatures.shaderStorageBufferArrayDynamicIndexing) return false;
         }
         else if (feature.compare("shaderStorageImageArrayDynamicIndexing") == 0)
         {
-            if (!supportedFeatures.shaderStorageImageArrayDynamicIndexing)
-                return false;
-            requestedFeatures.shaderStorageImageArrayDynamicIndexing = VK_TRUE;
+            if (!supportedFeatures.shaderStorageImageArrayDynamicIndexing) return false;
         }
         else if (feature.compare("shaderClipDistance") == 0)
         {
-            if (!supportedFeatures.shaderClipDistance)
-                return false;
-            requestedFeatures.shaderClipDistance = VK_TRUE;
+            if (!supportedFeatures.shaderClipDistance) return false;
         }
         else if (feature.compare("shaderCullDistance") == 0)
         {
-            if (!supportedFeatures.shaderCullDistance)
-                return false;
-            requestedFeatures.shaderCullDistance = VK_TRUE;
+            if (!supportedFeatures.shaderCullDistance) return false;
         }
         else if (feature.compare("shaderFloat64") == 0)
         {
-            if (!supportedFeatures.shaderFloat64)
-                return false;
-            requestedFeatures.shaderFloat64 = VK_TRUE;
+            if (!supportedFeatures.shaderFloat64) return false;
         }
         else if (feature.compare("shaderInt64") == 0)
         {
-            if (!supportedFeatures.shaderInt64)
-                return false;
-            requestedFeatures.shaderInt64 = VK_TRUE;
+            if (!supportedFeatures.shaderInt64) return false;
         }
         else if (feature.compare("shaderInt16") == 0)
         {
-            if (!supportedFeatures.shaderInt16)
-                return false;
-            requestedFeatures.shaderInt16 = VK_TRUE;
+            if (!supportedFeatures.shaderInt16) return false;
         }
         else if (feature.compare("shaderResourceResidency") == 0)
         {
-            if (!supportedFeatures.shaderResourceResidency)
-                return false;
-            requestedFeatures.shaderResourceResidency = VK_TRUE;
+            if (!supportedFeatures.shaderResourceResidency) return false;
         }
         else if (feature.compare("shaderResourceMinLod") == 0)
         {
-            if (!supportedFeatures.shaderResourceMinLod)
-                return false;
-            requestedFeatures.shaderResourceMinLod = VK_TRUE;
+            if (!supportedFeatures.shaderResourceMinLod) return false;
         }
         else if (feature.compare("sparseBinding") == 0)
         {
-            if (!supportedFeatures.sparseBinding)
-                return false;
-            requestedFeatures.sparseBinding = VK_TRUE;
+            if (!supportedFeatures.sparseBinding) return false;
         }
         else if (feature.compare("sparseResidencyBuffer") == 0)
         {
-            if (!supportedFeatures.sparseResidencyBuffer)
-                return false;
-            requestedFeatures.sparseResidencyBuffer = VK_TRUE;
+            if (!supportedFeatures.sparseResidencyBuffer) return false;
         }
         else if (feature.compare("sparseResidencyImage2D") == 0)
         {
-            if (!supportedFeatures.sparseResidencyImage2D)
-                return false;
-            requestedFeatures.sparseResidencyImage2D = VK_TRUE;
+            if (!supportedFeatures.sparseResidencyImage2D) return false;
         }
         else if (feature.compare("sparseResidencyImage3D") == 0)
         {
-            if (!supportedFeatures.sparseResidencyImage3D)
-                return false;
-            requestedFeatures.sparseResidencyImage3D = VK_TRUE;
+            if (!supportedFeatures.sparseResidencyImage3D) return false;
         }
         else if (feature.compare("sparseResidency2Samples") == 0)
         {
-            if (!supportedFeatures.sparseResidency2Samples)
-                return false;
-            requestedFeatures.sparseResidency2Samples = VK_TRUE;
+            if (!supportedFeatures.sparseResidency2Samples) return false;
         }
         else if (feature.compare("sparseResidency4Samples") == 0)
         {
-            if (!supportedFeatures.sparseResidency4Samples)
-                return false;
-            requestedFeatures.sparseResidency4Samples = VK_TRUE;
+            if (!supportedFeatures.sparseResidency4Samples) return false;
         }
         else if (feature.compare("sparseResidency8Samples") == 0)
         {
-            if (!supportedFeatures.sparseResidency8Samples)
-                return false;
-            requestedFeatures.sparseResidency8Samples = VK_TRUE;
+            if (!supportedFeatures.sparseResidency8Samples) return false;
         }
         else if (feature.compare("sparseResidency16Samples") == 0)
         {
-            if (!supportedFeatures.sparseResidency16Samples)
-                return false;
-            requestedFeatures.sparseResidency16Samples = VK_TRUE;
+            if (!supportedFeatures.sparseResidency16Samples) return false;
         }
         else if (feature.compare("sparseResidencyAliased") == 0)
         {
-            if (!supportedFeatures.sparseResidencyAliased)
-                return false;
-            requestedFeatures.sparseResidencyAliased = VK_TRUE;
+            if (!supportedFeatures.sparseResidencyAliased) return false;
         }
         else if (feature.compare("variableMultisampleRate") == 0)
         {
-            if (!supportedFeatures.variableMultisampleRate)
-                return false;
-            requestedFeatures.variableMultisampleRate = VK_TRUE;
+            if (!supportedFeatures.variableMultisampleRate) return false;
         }
         else if (feature.compare("inheritedQueries") == 0)
         {
-            if (!supportedFeatures.inheritedQueries)
-                return false;
-            requestedFeatures.inheritedQueries = VK_TRUE;
+            if (!supportedFeatures.inheritedQueries) return false;
         }
         else
         {
@@ -1048,5 +940,21 @@ vk::SampleCountFlagBits Vulkan::get_closest_sample_count_flag(uint32_t samples) 
 vk::SampleCountFlags Vulkan::get_msaa_sample_flags() {
     return supportedMSAASamples;
 }
+
+bool Vulkan::is_ASTC_supported()
+{
+    return deviceFeatures.textureCompressionASTC_LDR;
+}
+
+bool Vulkan::is_ETC2_supported()
+{
+    return deviceFeatures.textureCompressionETC2;
+}
+
+bool Vulkan::is_BC_supported()
+{
+    return deviceFeatures.textureCompressionBC;
+}
+
 
 } // namespace Libraries

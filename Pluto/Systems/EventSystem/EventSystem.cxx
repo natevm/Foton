@@ -35,14 +35,14 @@ namespace Systems
        
         while (!close)
         {
-            std::unique_lock<std::mutex> lock(qMutex);
             auto glfw = GLFW::Get();
 
             if (glfw) {
                 glfw->poll_events();
 
                 // glfw->wait_events(); // THIS CALL IS BLOCKING
-                if (cv.wait_for(lock, 16ms) == std::cv_status::no_timeout)
+                std::unique_lock<std::mutex> lock(qMutex);
+                if (cv.wait_for(lock, 4ms) == std::cv_status::no_timeout)
                 {
                     for (int i = 0; i < commandQueue.size(); ++i) {
                         commandQueue[i].function();
@@ -51,7 +51,6 @@ namespace Systems
                     commandQueue.clear();
                 }
             }
-            /* There might be some timing issues here with the above cv... */
             if (useOpenVR) {
                 auto OpenVR = OpenVR::Get();
                 if (OpenVR) {

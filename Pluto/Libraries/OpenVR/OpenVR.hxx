@@ -20,6 +20,7 @@
 #include "Pluto/Tools/Singleton.hxx"
 
 class Texture;
+class Mesh;
 
 namespace Libraries {
     using namespace std;
@@ -102,6 +103,16 @@ namespace Libraries {
             bool trigger_right_haptic_pulse(uint32_t axis_id, uint32_t duration_in_microseconds);
 
             /* EXPLAIN THIS */
+            vr::EVRButtonId get_button_id(std::string key);
+
+            vr::EVRControllerAxisType get_axis_id(std::string key);
+
+            uint32_t get_right_button_action(std::string button);
+            uint32_t get_left_button_action(std::string button);
+            glm::vec2 get_right_analog_value(std::string button);
+            glm::vec2 get_left_analog_value(std::string button);
+
+            /* EXPLAIN THIS */
             bool create_eye_textures();
 
             /* EXPLAIN THIS */
@@ -118,18 +129,32 @@ namespace Libraries {
 
             /* EXPLAIN THIS */
             vk::PhysicalDevice get_output_device(vk::Instance instance);
+
+            /* EXPLAIN THIS */
+            int32_t get_left_knuckles_mesh(std::string name);
+
+            int32_t get_left_knuckles_basecolor_texture(std::string name);
+
+            int32_t get_left_knuckles_roughness_texture(std::string name);
+
+            int32_t get_right_knuckles_mesh(std::string name);
+            
+            int32_t get_right_knuckles_basecolor_texture(std::string name);
+
+            int32_t get_right_knuckles_roughness_texture(std::string name);
+
+            int32_t get_vive_controller_mesh(std::string name);
+
+            int32_t get_vive_controller_basecolor_texture(std::string name);
+
+            int32_t get_vive_controller_roughness_texture(std::string name);
+
         private:
             OpenVR();
             ~OpenVR();
 
             /* Allows access to the IVR system API */
             vr::IVRSystem *system = nullptr;
-
-            /* EXPLAIN THIS */
-            vr::IVRChaperone *chaperone = nullptr;
-
-            /* EXPLAIN THIS */
-            vr::IVRCompositor *compositor = nullptr;
 
             /* EXPLAIN THIS */
             Texture *right_eye_texture = nullptr;
@@ -142,6 +167,12 @@ namespace Libraries {
 
             /* An array of all tracked OpenVR devices, which is updated during the poll_event */
             vr::TrackedDevicePose_t tracked_device_poses[vr::k_unMaxTrackedDeviceCount];
+
+            /* EXPLAIN THIS */
+            vr::VRControllerState_t right_hand_prev_state = {};
+            vr::VRControllerState_t right_hand_state = {};
+            vr::VRControllerState_t left_hand_prev_state = {};
+            vr::VRControllerState_t left_hand_state = {};
 
             /* This function returns the vr::EVRInitError enum value as a string. It can be called any time, 
                 regardless of whether the VR system is started up.*/
