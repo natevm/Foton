@@ -195,6 +195,19 @@ namespace Libraries {
         return true;
     }
 
+    GLFWwindow* GLFW::get_ptr(std::string key) {
+        if (initialized == false) { 
+            std::cout << "GLFW: Uninitialized, cannot get window ptr from key."<<std::endl;
+            return nullptr;
+        }
+
+        for (auto &window : Windows()) {
+            if (window.first.compare(key) == 0)
+                return window.second.ptr;
+        }
+        return nullptr;
+    }
+
     std::string GLFW::get_key_from_ptr(GLFWwindow* ptr) {
         if (initialized == false) { 
             std::cout << "GLFW: Uninitialized, cannot get window key from ptr."<<std::endl;
