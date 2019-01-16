@@ -17,6 +17,13 @@
 #include "Pluto/Texture/Texture.hxx"
 #include  <vulkan/vulkan.hpp>
 
+// /* For access to HWND handle on windows. */
+// #ifdef WIN32
+// #ifndef _WINDEF_
+// // class HWIND; // Forward or never
+// #endif
+// #endif
+
 namespace Libraries {
     using namespace std;
     class GLFW : public Singleton
@@ -24,7 +31,6 @@ namespace Libraries {
     public:
         static GLFW* Get();
 
-        bool initialized = false;
         bool initialize();
         bool create_window(string key, uint32_t width = 512, uint32_t height = 512, bool floating = true, bool resizable = true, bool decorated = true);
         bool resize_window(std::string key, uint32_t width, uint32_t height);
@@ -55,6 +61,7 @@ namespace Libraries {
         int get_key_action(std::string window_key, int key);
         int get_key_mods(std::string window_key, int key);
         static int get_key_code(std::string key);
+        GLFWwindow* get_ptr(std::string key);
 
         private:
         GLFW();

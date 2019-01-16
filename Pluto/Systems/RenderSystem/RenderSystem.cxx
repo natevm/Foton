@@ -444,7 +444,7 @@ bool RenderSystem::start()
     auto loop = [this](future<void> futureObj) {
         lastTime = glfwGetTime();
 
-        while (futureObj.wait_for(std::chrono::seconds(0)) != future_status::ready)
+        while (true)
         {
             /* Regulate the framerate. */
             currentTime = glfwGetTime();
@@ -483,6 +483,8 @@ bool RenderSystem::start()
             present_glfw_frames();
 
             currentFrame = (currentFrame + 1) % max_frames_in_flight;
+
+            if (futureObj.wait_for(.1ms) == future_status::ready) break;
         }
 
         release_vulkan_resources();

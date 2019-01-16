@@ -297,10 +297,6 @@ bool OpenVR::poll_event()
 	VREvent_t event;
 	system->PollNextEvent(&event, sizeof event);
 
-	right_hand_id = system->GetTrackedDeviceIndexForControllerRole(vr::TrackedControllerRole_RightHand);
-	left_hand_id = system->GetTrackedDeviceIndexForControllerRole(vr::TrackedControllerRole_LeftHand);
-	headset_id = 0;
-
 	/* Process OpenVR events */
 	switch (event.eventType)
 	{
@@ -318,6 +314,10 @@ bool OpenVR::poll_event()
 		break;
 	}
 
+	right_hand_id = system->GetTrackedDeviceIndexForControllerRole(vr::TrackedControllerRole_RightHand);
+	left_hand_id = system->GetTrackedDeviceIndexForControllerRole(vr::TrackedControllerRole_LeftHand);
+	headset_id = 0;
+	
 	right_hand_prev_state = right_hand_state;
 	system->GetControllerState(right_hand_id, &right_hand_state, sizeof right_hand_state);
 
