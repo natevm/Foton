@@ -13,6 +13,7 @@ layout(location = 0) out vec3 w_normal;
 layout(location = 1) out vec3 w_position;
 layout(location = 2) out vec2 fragTexCoord;
 layout(location = 3) out vec3 w_cameraPos;
+layout(location = 4) out vec4 vert_color;
 
 
 out gl_PerVertex {
@@ -35,4 +36,6 @@ void main() {
 
     fragTexCoord = texcoord;
     gl_Position = camera.multiviews[gl_ViewIndex].proj * camera.multiviews[gl_ViewIndex].view * camera_transform.worldToLocal * vec4(w_position, 1.0);
+
+    vert_color = color;
 }

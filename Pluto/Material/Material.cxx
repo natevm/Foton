@@ -1046,6 +1046,15 @@ void Material::use_roughness_texture(Texture *texture)
     this->material_struct.roughness_texture_id = texture->get_id();
 }
 
+void Material::use_vertex_colors(bool use)
+{
+    if (use) {
+        this->material_struct.flags |= (1 << 0);
+    } else {
+        this->material_struct.flags &= ~(1 << 0);
+    }
+}
+
 void Material::clear_roughness_texture() {
     this->material_struct.roughness_texture_id = -1;
 }

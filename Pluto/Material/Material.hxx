@@ -117,6 +117,9 @@ class Material : public StaticFactory
         void use_roughness_texture(Texture *texture);
         void clear_roughness_texture();
 
+        /* A uniform base color can be replaced with per-vertex colors as well. */
+        void use_vertex_colors(bool use);
+
 
     private:
     
