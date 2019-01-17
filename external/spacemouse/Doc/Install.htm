@@ -1,0 +1,423 @@
+<!--
+/* Copyright notice:
+ * (c) 3Dconnexion. All rights reserved. 
+ *
+ * This file and source code are an integral part of the "3Dconnexion
+ * Software Developer Kit", including all accompanying documentation,
+ * and is protected by intellectual property laws. All use of the
+ * 3Dconnexion Software Developer Kit is subject to the License
+ * Agreement found in the "LicenseAgreementSDK.rtf" file.
+ * All rights not expressly granted by 3Dconnexion are reserved.
+ *
+ * Last edited: $Id: Install.htm 14759 2018-02-19 15:43:47Z ngomes $
+ */-->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Installing the SDK</title>
+    <link rel="stylesheet" type="text/css" href="style.css" />
+    <x-sas-window top="17" bottom="594" left="8" right="888">
+    <style type="text/css">
+        .style1
+        {
+            height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <a href="MathLib.htm">
+        <img border="0" width="46" height="22" src="graphics/prev1.gif" alt="graphics/prev1.gif"
+            x-sas-useimagewidth x-sas-useimageheight align="bottom"></a><a href="TechSup.htm" />
+    <img border="0" width="46" height="22" src="graphics/next1.gif" alt="graphics/next1.gif"
+        x-sas-useimagewidth x-sas-useimageheight align="bottom" /></a>
+    <h1>
+        SDK Release Information</h1>
+    <p>
+        <b><a name="3DxWare_Driver_Installation"></a>3DxWare Driver Installation</b></p>
+    <p>
+        Before you install the 3DxWare SDK for Windows, you must have the <b>3DxWinWare driver version 17.5.x or
+        newer </b>installed on your computer. The driver is included in the 3DxWare 10 installation package.</p>
+    <p>
+    <b><a name="New_in_this_Release"></a>New in this Release</b></p>
+    <p>This release of the 3DxWare SDK (v. 3.4.0) contains the following changes:</p>
+    <ul>
+        <li>New: <a href=hints.htm>Hints</a> allow an application to tell the 3DxWare driver about specific characteristics of the application.  For example, it may tell the driver that it is expecting specific types of button events, or that it is using a specific API.</li>
+        <li>
+            Change: Converted the <a href="Demos.htm#sbtest32">3DxTest32</a> sample to only use V3DCMD actions
+            (see the <a href="DevInfo.htm#Device%20Buttons">Device Buttons</a> sections).
+        </li>
+        <li>
+            Change: Simplify the user-interface of the <a href="Demos.htm#action_interface_sample">Action Interface</a> sample.
+        </li>
+        <li>
+            Change: Changed the installation default location to be in the user&apos;s program files (%LOCALAPPDATA%\Programs).
+        </li>
+        <li>
+            Change: Changed the &quot;Online Doc&quot; and &quot;ReadMe&quot; shortcuts in Start menu
+            to &quot;3DxWare SDK Documentation&quot; and &quot;3DxWare SDK ReadMe&quot;.
+        </li>
+        <li>
+            Fix: Correct and expanded the <a href="Integrat.htm#Action Interface">Action Interface</a> icon types
+            and structures descriptions in the
+            <a href="InputLib.htm#Action Interface Types and Structures">Action Interface Types and Structures</a> section.
+        </li>
+        <li>
+            Fix: Fixed a compilation error of the <a href="Demos.htm#action_interface_sample">Action Interface</a> sample
+            when built in Visual Studio 2017.
+        </li>
+    </ul>
+    <p>Additional change details from the SDK version 3.3.1 (r13492) notes:</p>
+    <ul>
+        <li>Improve robustness of the <a href="Demos.htm#testsiapp_sample">TestSiapp Sample</a> demo program to handle
+            the exception thrown if the 3Dconnexion 3DxWare driver is not installed and memory misalignment error when
+            compiled using older versions of Visual Studio.</li>
+    </ul>
+    <p>Additional change details from the SDK version 3.3.0 (r13306) notes:</p>
+    <ul>
+        <li>Add a &quot;best practice&quot; section for the
+            <a href="BestPractices.htm#QuickViews">Quick Views</a> concept. The concept introduces the
+            new V3DCMD commands <a href="DevInfo.htm#Device Buttons">V3DCMD_SAVE_VIEW_x and V3DCMD_VIEW_x</a>
+             and the function <a href="InputFun.htm#SiMessageBox">SiMessageBox</a>.</li>
+        <li>Added information on an update to the <a href="Integrat.htm#Action Interface">Action Interface</a> to add
+            support for action &quot;description&quot; (command tooltips) and &quot;icons&quot; (command images).
+            The update changes some of the Action Interface structures, adds new types and structures and the new
+            function <a href="InputFun.htm#SiAppCmdWriteActionImages">SiAppCmdWriteActionImages</a>. The
+            <a href="Demos.htm#action_interface_sample">Action Interface</a> demo was updated to reflect the changes.</li>
+        <li>Added the <a href="Demos.htm#testsiapp_sample">TestSiapp Sample</a> demo program to demonstrate how to
+            integrate the SDK on a C# WinForms program.</li>
+        <li>Update header files.</li>
+        <li>Changed minimum driver version to 17.4 (only required if using the update to the
+            <a href="Integrat.htm#Action Interface">Action Interface</a> strucutres and functions).</li>
+        <li>Change supported operation system versions to Vista and newer as per 3DxWinCore v. 17.4 requirements.</li>
+        <li>Upgrade 3DxTest and 3DxTstMFC demo projects to Visual Studio 2015.</li>
+        <li>Corrected documentation of functions <a href="InputFun.htm#SiOpen">SiOpen</a> and
+            <a href="InputFun.htm#SiSetUiMode">SiSetUiMode</a>.</li>
+    </ul>
+    <p>
+        Additional change details from the SDK version 3.2.0 (r11461) notes:</p>
+    <ul>
+        <li>Add a &quot;best practice&quot; section for the
+            <a href="BestPractices.htm#QuickZoom">QuickZoom</a> concept.</li>
+        <li>Added a section on the <a href="Integrat.htm#Action Interface">Action Interface</a> extension
+            that further improves <a href="DevInfo.htm#Application and Driver Integration">3Dconnexion
+                product abstraction</a> (future-proofing) and related
+            new <a href="InputLib.htm#Action Interface Types and Structures">structures</a> and
+            functions (<a href="InputFun.htm#SiAppCmdActivateActionSet">SiAppCmdActivateActionSet</a>
+            and <a href="InputFun.htm#SiAppCmdWriteActionSet">SiAppCmdWriteActionSet</a>).</li>
+        <li>Added the <a href="Demos.htm#action_interface_sample">Action Interface</a> demo program.</li>
+        <li>Update header files.</li>
+        <li>Changed minimum driver version to 17.2 (only required if using the
+            <a href="Integrat.htm#Action Interface">Action Interface</a> strucutres and functions).</li>
+        <li>Formatting and error corrections in this SDK documentation.</li>
+    </ul>
+    <p>
+        Additional change details from the SDK version 3.1.0 notes:</p>
+    <ul>
+        <li>Remove dependency on the CRT in the 3DxWare Input Library, siapp.lib. Library available
+            as a single file per platform.</li>
+        <li>Formatting and error corrections in this SDK documentation.</li>
+        <li>Minor clean-up to header files to remove unnecessary includes and enums.</li>
+    </ul>
+    <p>
+        Additional change details from the SDK version 3.0.2 notes:</p>
+    <ul>
+        <li>Simplify API structure. Deprecate SI Cfg saving functions<del> and SI Sync extension</del>.</li>
+        <li>SDK license no longer allows redistribution of DLL binary files (these are always
+            included in the driver user installation).</li>
+        <li>Only USB devices are supported.</li>
+        <li>The static libraries were all moved into the same directory under lib (x86/x64).</li>
+        <li>Added prebuilt versions of the static libraries for four CRT usages: Multi-threaded
+            DLL (<i>default</i>), Multi-threaded Debug DLL (<i>D suffix</i>), Multi-threaded
+            (static) (<i>MT suffix</i>), Multi-threaded Debug (static) (<i>MTD suffix</i>).</li>
+        <li>Some of the include files have been cleaned up and split.&nbsp; This should not
+            affect existing code.</li>
+        <li>In conjunction with 3DxWare 10, your application can now support multiple simultaneously
+            connected devices and run-time Plug-n-Play (PnP) of those devices.</li>
+        <li>Your application can interrogate the number and type of connected devices. You can
+            address each device separately or all as a group.</li>
+        <li>A 3Dx device no longer has to be connected when your application starts. The end-user
+            can connect, disconnect and change devices at any time.</li>
+        <li>A new event is sent to your application when a device leaves or arrives.</li>
+    </ul>
+    <p>
+        Notes of changes for older releases:</p>
+    <ul>
+        <li>64-bit Itanium is no longer supported.</li>
+        <li>Somewhat unrelated to the SDKs, SiSetUIMode was enabled again in 3DxWare 5.0.&nbsp;
+            It had been disabled in 3DxWare releases for several years.&nbsp; Applications may
+            now notice that the 3DxWare GUI will be displayed when their application starts
+            if they used the sample code.&nbsp; Applications should change SI_UI_ALL_CONTROLS
+            to SI_UI_NO_CONTROLS to change this behavior.</li>
+        <li>Only 32-bit release versions of the library compiled with the Microsoft Visual 2008
+            compiler are provided. </li>
+        <li>Microsoft Visual Studio 2008 solutions are provided for rebuilding libraries and
+            demos. </li>
+        <li>The 3DxWarThe 3DxWare Input library, siapp, is packaged as a separate library.&nbsp;
+            It must be specifically included in the link and siapp.h must be specifically included
+            in the source files. </li>
+        <li>The math library is now named spwmath.li>
+            <li>The tuning for the device has changed internal to the library. Any applications
+                using a previous version of the SDK may need to change the tuning constants to maintain
+                the correct feel. </li>
+            <li>SiDispatch is provided for backward compatibility only. It is not recommended that
+                you use this function. </li>
+            <li>SiSetTypeMask is obsolete, but a stubbed version is provided for backwards compatibility.</li>
+    </ul>
+    <p>
+        <a name="Included_Files"></a><b>Included Files</b></p>
+    <p>
+        When referencing 3DxWare SDK directories and files, this document uses the string
+        directory where you installed the SDK. The default directory (&lt;SDK&gt;) is:</p>
+    <p class="sourcecode">
+        C:\Program Files\3Dconnexion\3DxWare SDK\</p>
+    <p>
+        <a name="3DxWare_DLLs"></a><b>3DxWare DLLs</b></p>
+    <p>
+        Executables from the SDK require a Dynamic Link Library (DLL), siappdll.dll.&nbsp;
+        This is installed in your Windows &quot;system32&quot; directory as part of the
+        standard 3DxWare software installation. This file must be in the Windows system
+        directory in order for the 3Dconnexion device to work properly.</p>
+    <p>
+        <a name="3DxWare_Libraries"></a><b>3DxWare Libraries</b></p>
+    <p>
+        There are two 3DxWare libraries: the Input Library and the Math Library. The libraries
+        are available in binary form and were generated using the Microsoft Visual C++ compiler,
+        version 9.0.</p>
+    <p>
+        The versions of the libraries that are prebuilt are for multi-threaded release applications.</p>
+    <table>
+        <tr>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                <p>
+                    <b>Math Library</b>
+                </p>
+            </td>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                <p>
+                    &nbsp;</p>
+            </td>
+        </tr>
+        <tr>
+            <td style='padding: .75pt .75pt .75pt .75pt'>
+                <p>
+                    &lt;SDK&gt;\lib\&lt;platform&gt;\spwmath.lib</p>
+            </td>
+            <td style='padding: .75pt .75pt .75pt .75pt'>
+                <p>
+                    static Math Library compiled for release multi-threaded applications using the CRT
+                    DLL</p>
+            </td>
+        </tr>
+        <tr>
+            <td style='padding: .75pt .75pt .75pt .75pt'>
+                <p>
+                    &lt;SDK&gt;\lib\&lt;platform&gt;\spwmathD.lib</p>
+            </td>
+            <td style='padding: .75pt .75pt .75pt .75pt'>
+                <p>
+                    static Math Library compiled for release multi-threaded applications using the Debug
+                    CRT DLL</p>
+            </td>
+        </tr>
+        <tr>
+            <td style='padding: .75pt .75pt .75pt .75pt'>
+                <p>
+                    &lt;SDK&gt;\lib\&lt;platform&gt;\spwmathMT.lib</p>
+            </td>
+            <td style='padding: .75pt .75pt .75pt .75pt'>
+                <p>
+                    static Math Library compiled for release multi-threaded applications using the CRT
+                    statically linked</p>
+            </td>
+        </tr>
+        <tr>
+            <td style='padding: .75pt .75pt .75pt .75pt'>
+                <p>
+                    &lt;SDK&gt;\lib\&lt;platform&gt;\spwmathMTD.lib</p>
+            </td>
+            <td style='padding: .75pt .75pt .75pt .75pt'>
+                <p>
+                    static Math Library compiled for release multi-threaded applications using the debug
+                    CRT statically linked</p>
+            </td>
+        </tr>
+    </table>
+    <p>
+        &nbsp;</p>
+    <table>
+        <tr>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                <p>
+                    <b>Input Library</b>
+                </p>
+            </td>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                <p>
+                    &nbsp;</p>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                <p>
+                    &lt;SDK&gt;\lib\&lt;platform&gt;\siapp.lib
+                </p>
+            </td>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                <p>
+                    static Input Library compiled for multi-threaded release or debug applications.
+                    The library has no CRT dependency.</p>
+            </td>
+        </tr>
+    </table>
+    <p>
+        <a name="3DxWare_Include_Files"></a><b>3DxWare Include Files</b>
+    </p>
+    <table>
+        <tr>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                <b>Include Files</b>
+            </td>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                &nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td style='padding: .75pt .75pt .75pt .75pt'>
+                &lt;SDK&gt;\inc\si.h
+            </td>
+            <td style='padding: .75pt .75pt .75pt .75pt'>
+                Input Library header file
+            </td>
+        </tr>
+        <tr>
+            <td style='padding: .75pt .75pt .75pt .75pt'>&lt;SDK&gt;\inc\siappcmd.h
+            </td>
+            <td style='padding: .75pt .75pt .75pt .75pt'>Function declarations used in the
+                <a href="Integrat.htm#Action Interface">Action Interface</a> extension.
+            </td>
+        </tr>
+        <tr>
+            <td style='padding: .75pt .75pt .75pt .75pt'>&lt;SDK&gt;\inc\siappcmd_types.h
+            </td>
+            <td style='padding: .75pt .75pt .75pt .75pt'>Variable types used in the
+                <a href="Integrat.htm#Action Interface">Action Interface</a> extension.
+            </td>
+        </tr>
+        <tr>
+            <td style='padding: .75pt .75pt .75pt .75pt'>
+                &lt;SDK&gt;\inc\siDefines.h
+            </td>
+            <td style='padding: .75pt .75pt .75pt .75pt'>
+                Input Library just defines and enums
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                &lt;SDK&gt;\inc\siapp.h
+            </td>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                Siapp library function definitions
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                &lt;SDK&gt;\inc\spwdata.h
+            </td>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                3DxWare data definitions
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt' class="style1">
+                &lt;SDK&gt;\inc\spwerror.h
+            </td>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt' class="style1">
+                3DxWare error codes
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                &lt;SDK&gt;\inc\spwmacro.h
+            </td>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                3DxWare macros
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                &lt;SDK&gt;\inc\spwmath.h
+            </td>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                Math Library header file
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                &lt;SDK&gt;\inc\SiSync.h
+            </td>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                GUI Synchronization constants and data types
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                &lt;SDK&gt;\inc\SiSyncDefines.h
+            </td>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                GUI Synchronization defines and enums
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                &lt;SDK&gt;\inc\SiSyncPriv.h
+            </td>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                Included by SiSync.h. (<b>This file must not be included explicitly.</b>)
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                &lt;SDK&gt;\inc\SiCfg.h
+            </td>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                Registry configuration saving and retrieving function declarations (<b>Deprecated in
+                    SDK v. 3.0</b>)
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                &lt;SDK&gt;\inc\V3DCMD.h
+            </td>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                Enums for all current Virtual 3D Commands (V3DCMD)
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                &lt;SDK&gt;\inc\V3DKey.h
+            </td>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                Enums for all current Virtual 3D Keys (V3DK)
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                &lt;SDK&gt;\inc\virtualkeys.h
+            </td>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                Helper enums and functions to support 3D mouse generically (disregarding device
+                type)
+            </td>
+        </tr>
+        <tr>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                &lt;SDK&gt;\inc\3DxWareVersionNumbers.h
+            </td>
+            <td valign="top" style='padding: .75pt .75pt .75pt .75pt'>
+                3DxWare version information (Used by some demos. File should not be ignored by third-party
+                programs.)
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

@@ -1,0 +1,39 @@
+html, body, table {
+    font-family: Arial;
+    font-size: 10pt;
+}
+
+h1 {
+    color: #0000AF;
+}
+
+h2 {
+    font-size: 14pt;
+    font-weight: bold;
+    color: #000080;
+}
+
+h3 {
+    font-size: 12pt;
+    font-weight: bold;
+    color: #000080;
+}
+
+h4 {
+    font-size: 10pt;
+    font-weight: bold;
+    color: #000080;
+}
+
+p, table, blockquote, ol, ul {
+    font-size: 10pt;
+}
+        
+p.sourcecode {
+    font-family: Courier New;
+}
+
+td {
+  vertical-align: top;
+  text-align: left;
+}

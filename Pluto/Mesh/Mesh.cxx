@@ -353,6 +353,91 @@ bool Mesh::load_glb(std::string glbPath)
     return true;
 }
 
+bool Mesh::load_raw(
+    std::vector<glm::vec3> &points_, 
+    std::vector<glm::vec3> &normals_, 
+    std::vector<glm::vec4> &colors_, 
+    std::vector<glm::vec2> &texcoords_
+)
+{
+    bool reading_normals = normals_.size() > 0;
+    bool reading_colors = colors_.size() > 0;
+    bool reading_texcoords = texcoords_.size() > 0;
+
+    if (points_.size() == 0) {
+        std::cout<<"Error, no points supplied. " <<std::endl;
+        return false;
+    } 
+
+    if ((points_.size() % 3) != 0) {
+        std::cout<<"Warning, length of points is not a multiple of 3."<<std::endl;
+    }
+
+    if (reading_normals && (normals_.size() != points_.size()))
+    {
+        std::cout<<"Error, length mismatch. Total normals: " << normals_.size() << " does not equal total points: " << points_.size() <<std::endl;
+        return false;
+    }
+
+    if (reading_colors && (colors_.size() != points_.size()))
+    {
+        std::cout<<"Error, length mismatch. Total colors: " << colors_.size() << " does not equal total points: " << points_.size() <<std::endl;
+        return false;
+    }
+
+    if (reading_texcoords && (texcoords_.size() != points_.size()))
+    {
+        std::cout<<"Error, length mismatch. Total texcoords: " << texcoords_.size() << " does not equal total points: " << points_.size() <<std::endl;
+        return false;
+    }
+
+    std::vector<Mesh::Vertex> vertices;
+
+    /* For each vertex */
+    for (int i = 0; i < points_.size(); ++ i) {
+        Mesh::Vertex vertex = Mesh::Vertex();
+        vertex.point = points_[i];
+        if (reading_normals) vertex.normal = normals_[i];
+        if (reading_colors) vertex.color = colors_[i];
+        if (reading_texcoords) vertex.texcoord = texcoords_[i];        
+        vertices.push_back(vertex);
+    }
+
+    /* Eliminate duplicate points */
+    std::unordered_map<Mesh::Vertex, uint32_t> uniqueVertexMap = {};
+    std::vector<Mesh::Vertex> uniqueVertices;
+    for (int i = 0; i < vertices.size(); ++i)
+    {
+        Mesh::Vertex vertex = vertices[i];
+        if (uniqueVertexMap.count(vertex) == 0)
+        {
+            uniqueVertexMap[vertex] = static_cast<uint32_t>(uniqueVertices.size());
+            uniqueVertices.push_back(vertex);
+        }
+        indices.push_back(uniqueVertexMap[vertex]);
+    }
+
+    /* Map vertices to buffers */
+    for (int i = 0; i < uniqueVertices.size(); ++i)
+    {
+        Vertex v = uniqueVertices[i];
+        points.push_back(v.point);
+        colors.push_back(v.color);
+        normals.push_back(v.normal);
+        texcoords.push_back(v.texcoord);
+    }
+
+    cleanup();
+    compute_centroid();
+    createPointBuffer();
+    createColorBuffer();
+    createIndexBuffer();
+    createNormalBuffer();
+    createTexCoordBuffer();
+
+    return true;
+}
+
 /* Static Factory Implementations */
 Mesh* Mesh::Get(std::string name) {
     return StaticFactory::Get(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -404,6 +489,18 @@ Mesh* Mesh::CreateFromGLB(std::string name, std::string glbPath)
 {
     auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
     if (!mesh->load_glb(glbPath)) return nullptr;
+    return mesh;
+}
+
+Mesh* Mesh::CreateFromRaw(
+    std::string name,
+    std::vector<glm::vec3> points, 
+    std::vector<glm::vec3> normals, 
+    std::vector<glm::vec4> colors, 
+    std::vector<glm::vec2> texcoords)
+{
+    auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
+    if (!mesh->load_raw(points, normals, colors, texcoords)) return nullptr;
     return mesh;
 }
 

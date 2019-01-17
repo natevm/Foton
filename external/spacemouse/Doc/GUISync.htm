@@ -1,0 +1,180 @@
+<!--This file created 9:45 AM  5/26/98 by Claris Home Page version 2.0-->
+<HTML>
+<HEAD>
+   <TITLE>3DxWare Functions</TITLE>
+   <META NAME=GENERATOR CONTENT="Microsoft FrontPage 4.0">
+   <X-SAS-WINDOW TOP=85 BOTTOM=593 LEFT=14 RIGHT=928>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1"><!--This file created 1:57 PM  4/6/98 by Claris Home Page version 2.0-->
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+
+<P><a HREF="InputFun.htm"><IMG SRC="graphics/prev1.gif"
+ALT="graphics/prev1.gif" width=46 height=22 X-SAS-UseImageWidth
+X-SAS-UseImageHeight BORDER=0
+ALIGN=bottom></a><a HREF="SyncFun.htm"><IMG SRC="graphics/next1.gif"
+ALT="graphics/next1.gif" width=46 height=22 X-SAS-UseImageWidth
+X-SAS-UseImageHeight BORDER=0 ALIGN=bottom></a></P>
+
+<H1><FONT COLOR="#0000AF">GUI Synchronization</FONT></H1>
+
+<P><font face="Arial" size="2">The GUI Synchronization functions allow an
+application to control sections of the 3DxWare driver GUI (&quot;3Dconnexion Properties&quot;).&nbsp; They allow an
+application to change what action is taken when any 3D mouse button is
+pressed.&nbsp; They are also used to change the text that is displayed on the
+    driver GUI and, in for some of the mode advanced 3D types, the integrated device 
+    display.</font></P>
+
+<h2><font face="Arial" color="#0000AF"><a name="Why_Use_It"></a>Why Use It?</font></h2>
+
+<P><font size="-1" face="Arial">The contents of the 3DxWare GUI are controlled
+by the contents of the application-specific configuration file that is loaded by
+the 3DxWare driver.&nbsp; These configuration files are by their nature <i>compile-time</i>
+constructs.&nbsp; Their contents are determined when they are authored and
+frozen when shipped.&nbsp; Most applications have more than a small pre-selected
+number of functions that users might want to assign to 3Dconnexion device
+buttons.&nbsp; In most applications, the available commands, in fact, change
+based on what application mode is in use.&nbsp; Many applications have created
+their own GUI to show 3Dconnexion device settings that are specific to their
+application.&nbsp; This has resulted in two GUIs in which users can make
+changes.&nbsp; Often times these changes are at odds with one another.&nbsp; One
+GUI will say one thing, the other GUI will say something different.&nbsp;
+Because of the flow of data from driver to application, the driver GUI settings
+get applied first, then the applications settings.&nbsp; This is very confusing
+to users.</font></P>
+
+<P><font size="-1" face="Arial">The only way to provide customizable
+functionality is for the application to take control over the GUIs.&nbsp; The
+application can put up its own GUI and synchronize itself with the 3DxWare GUI.&nbsp; The application
+can do some application-specific settings and can launch the 3DxWare GUI to do
+other more generic settings.&nbsp; For example, the application may assign
+button functions since only it has the entire list of relevant functions, and
+have the driver control axes scaling and filtering.&nbsp;&nbsp;</font></P>
+
+<P><font size="-1" face="Arial">The GUI Sync API allows an application to get
+and set just about any setting in the 3DxWare as if it were an automated
+user.&nbsp; It can read any setting from the GUI and display the information in
+its own GUI, or it can set any setting in the 3DxWare GUI based on its own
+modes.&nbsp; When any user action happens in the 3DxWare GUI, say a change of
+scale slider position or remapping of a button, the application will be informed
+of it, so it can update its own redundant representation of the setting.</font></P>
+
+<h2><font face="Arial" color="#0000AF"><a name="How_It_Works"></a>How It Works</font></h2>
+
+<P><font size="-1" face="Arial">Normally, GUI synchronization is initiated by
+the driver when it loads the application's config file.&nbsp; If it finds <b>APP_CONTROLS_BUTTONS
+= TRUE</b> in the <b>[CONFIGURATION]</b> section of the application's config
+file, it will initiate the synchronization process with the application (see <a href="#Typical Synchronization Scenario">Typical Synchronization Scenario</a>).&nbsp;
+If it finds <b>APP_CONTROLS_BUTTONS = FALSE</b> it will ignore all attempts at
+synchronization.&nbsp; The application is free to ignore the attempts by the
+driver to synchronize.&nbsp; The application is free to attempt to start
+synchronization on its own, but it will be ignored if the current config file
+indicates <b>APP_CONTROLS_BUTTONS = FALSE.</b></font></P>
+
+<h2><font face="Arial" color="#0000AF"><a name="Design_Decisions"></a>Design
+Decisions</font></h2>
+
+<P><font size="-1" face="Arial">The most fundamental decision an application
+designer must make is to decide how to split functional information display
+responsibility between the application GUI and the 3DxWare GUI.&nbsp; That is,
+is he going to:</font></P>
+
+<p>&nbsp;&nbsp;&nbsp;<font size="-1" face="Arial"> A)&nbsp; Load his
+information into the 3DxWare GUI (some cababilities are limited).<br>
+&nbsp;&nbsp;&nbsp; B)&nbsp; Implement application-specific functionality in the
+application GUI and forward other functionality to the 3DxWare GUI.</font></p>
+
+<blockquote>
+
+<h3><font color="#0000AF" face="Arial">How Much Should I Implement?</font></h3>
+
+<P><font size="-1" face="Arial">The application should implement as much
+functionality as his users require.&nbsp; It should, at least, allow any
+application function to be chosen from a list for assignment to any device
+button.&nbsp; The list of available functions probably changes depending on
+which application mode the user is in (e.g., drafting, modeling, visualization).</font></P>
+
+</blockquote>
+<h2><font face="Arial" color="#0000AF"><a name="Configuration_Saving"></a>Configuration
+Saving</font></h2>
+
+<P><font size="-1" face="Arial">As users make choices in assigning function to 
+    3Dconnexion device buttons, those choices need to be persisted for them for the 
+    next time they run the application.&nbsp; These choices are probably specific to 
+    each.&nbsp; Most applications already have ways of saving these preferences and 
+    we suggest you fold these additional parameters into that scheme.&nbsp; The 
+    designer can decide whether the saved assignments should be device specific.</font></P>
+
+<h2><font face="Arial" color="#0000AF"><a name="Typical_Synchronization_Scenario"></a>Typical
+Synchronization Scenario</font></h2>
+
+<P><font size="-1" face="Arial">When the 3DxWare driver loads a configuration
+file that contains <b>APP_CONTROLS_BUTTONS = TRUE,&nbsp;</b> it sends a <i>Query
+</i>SI_SYNC_EVENT event to the application.&nbsp; If the application wishes to
+participate in synchronization, it should perform this procedure after it
+receives this event.</font></P>
+
+<P><font size="-1" face="Arial">The typical procedure would be:</font></P>
+
+<P><font size="-1" face="Arial"><i>(the first 4 steps, being non-<u><b>SiSync</b></u>XXX
+functions, could be done before synching is initiated)</i></font></P>
+
+<ol>
+  <li><font size="-1" face="Arial">Query the driver for the type of device
+    attached (<a href="InputFun.htm#SiGetDeviceInfo">SiGetDeviceInfo</a>) and
+    get the </font><font size="-1" face="Arial">number of buttons on the device.</font></li>
+  <li><font size="-1" face="Arial">Query the driver for the device name (<a href="inputfun.htm#SiGetDeviceName">SiGetDeviceName</a>)
+    and the device image (<a href="inputfun.htm#SiGetDeviceImageFileName">SiGetDeviceImageFileName</a>),
+    if it wants to display these in its GUI.</font></li>
+  <li><font size="-1" face="Arial">Query the driver for the company logo (<a href="inputfun.htm#SiGetCompanyLogoFileName">SiGetCompanyLogoFileName</a>)
+    and icon (<a href="inputfun.htm#SiGetCompanyIcon">SiGetCompanyIcon</a>), if
+    desired.</font></li>
+  <li><font size="-1" face="Arial">Get the human-readable button names for each
+    of the buttons (<a href="inputfun.htm#SiGetButtonName">SiGetButtonName</a>)
+    so it displays the most familiar label for each button in its GUI.<br>
+    </font></li>
+  <li><font size="-1" face="Arial">Get the number of available driver functions
+    (<a href="SyncFun.htm#SiSyncGetNumberOfFunctions">SiSyncGetNumberOfFunctions</a>)
+    and each of the functions (<a href="SyncFun.htm#SiSyncGetFunction">SiSyncGetFunction</a>).</font></li>
+  <li><font size="-1" face="Arial">Get the current assignment of all the buttons
+    (<a href="SyncFun.htm#SiSyncGetButtonAssignment">SiSyncGetButtonAssignment</a>).</font></li>
+  <li><font size="-1" face="Arial">Incorporate the user's saved settings into the
+    settings retrieved from the driver and reassign any buttons that need
+    changing (<a href="SyncFun.htm#SiSyncSetButtonAssignment">SiSyncSetButtonAssignment</a>).</font></li>
+  <li><font size="-1" face="Arial">Update the application function button labels
+    (<a href="SyncFun.htm#SiSyncSetButtonName">SiSyncSetButtonName</a>).<br>
+    <br>
+    <i>(If filters and scaling values are also be synchronized)</i></font></li>
+  <li><font size="-1" face="Arial">Get and Set the Filter values that the
+    application is displaying (<a href="SyncFun.htm#SiSyncGetFilter">SiSyncGetFilter</a>
+    / <a href="SyncFun.htm#SiSyncSetFilter">SiSyncSetFilter</a>).</font></li>
+  <li><font size="-1" face="Arial">Get and Set any scaling values the
+    application is displaying (SiSyncGetScale* / SiSyncSetScale*).</font></li>
+  <li><font size="-1" face="Arial">Get and Set anything else the applications
+    GUI requires.<br>
+    <br>
+    <i>(Now that the initialization is done)</i></font></li>
+  <li><font size="-1" face="Arial">Respond to SI_SYNC_EVENTS to keep up-to-date
+    with user changes in the 3DxWare GUI.</font></li>
+  <li><font size="-1" face="Arial">Required synchronization changes to the
+    3DxWare GUI as application modes change.</font></li>
+</ol>
+
+<h2><font face="Arial" color="#0000AF"><a name="FAQ"></a>FAQ</font></h2>
+<p><font size="-1" face="Arial">Q: Even without the optional steps, that seems like 
+    a lot of work, what&#39;s the least work I can do to use all the buttons in my 
+    application and a 3D mouse display to show my function names?&nbsp; <br>
+A: Set all button assignments to 0 (passthru) and set all the button names to
+your function names.&nbsp; Update the names as the user chooses different
+functions.&nbsp; If the user opens the 3DxWare GUI and assigns a driver
+function, e.g., Toggle Translations, to a button your application just won't get
+the button event.&nbsp; Your application will be sent a SI_SYNC_EVENT that you
+can choose to ignore.&nbsp; If you ignore it the only drawback is:&nbsp; your
+GUI will be slightly out of sync--your GUI will say it is assigned to a specific
+app function but your app will not get a button event--a driver function will be
+run instead.&nbsp; The assignment will be saved in the 3DxWare config file for
+the user so it will be remade each time the user uses the application.&nbsp; If
+you reassign all button assignments to 0 when your application starts, it will
+reassign this button to your application function.</font></p>
+
+</BODY>
+</HTML>

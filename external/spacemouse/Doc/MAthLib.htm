@@ -1,0 +1,3046 @@
+<!--This file created 2:48 PM  5/13/98 by Claris Home Page version 2.0-->
+<HTML>
+<HEAD>
+   <TITLE>Math Library</TITLE>
+   <META NAME=GENERATOR CONTENT="Microsoft FrontPage 4.0">
+   <X-SAS-WINDOW TOP=23 BOTTOM=568 LEFT=16 RIGHT=930>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1"><!--This file created 3:12 PM  3/26/98 by Claris Home Page version 2.0--><!--This file created 2:17 PM  3/26/98 by Claris Home Page version 2.0--><!--This file created 4:26 PM  3/11/98 by Claris Home Page version 2.0--><!--This file created 9:23 AM  3/11/98 by Claris Home Page version 2.0-->
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+
+<P><a HREF="SyncFun.htm"><IMG SRC="graphics/prev1.gif"
+ALT="graphics/prev1.gif" width=46 height=22 X-SAS-UseImageWidth
+X-SAS-UseImageHeight BORDER=0 ALIGN=bottom
+nosave></a><A HREF="Install.htm"><IMG SRC="graphics/next1.gif"
+ALT="graphics/next1.gif" WIDTH=46 HEIGHT=22 X-SAS-UseImageWidth
+X-SAS-UseImageHeight BORDER=0 ALIGN=bottom nosave></A></P>
+
+<H1><FONT COLOR="#0000AF">Math Library</FONT></H1>
+
+<P><FONT SIZE="-1" FACE="Arial">This portion of the 3DxWare library
+contains some simple mathematical functions that 3Dconnexion finds
+useful when integrating 3D mouse device support into an application.</FONT>
+</P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B><BR>
+
+<A NAME="Math Library Philosophy"></A><B><FONT FACE="Arial"
+COLOR="#000080">Math Library Philosophy</FONT></B></P>
+
+<P><FONT SIZE="-1" FACE="Arial">Every graphics engine eventually
+requires a world-to-eye transformation matrix to convert an
+application's data from its coordinate space to eye space immediately
+prior to projection to the 2D screen.</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Arial">Eye space is what you see when you
+look at an image on a computer monitor. It is at this point that you
+interact with the device. You push the ball to the left, up, down,
+etc. Therefore your interaction takes place in eye space. You are
+telling the graphics program to take the image on the screen and move
+it left, up, down, etc.</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Arial">Eye space and the world-to-eye matrix
+form a consistent interface for applying the device input into any
+program.</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Arial">In the spirit of friendship and happy
+side-effectless programming, all functions that have original and
+result arguments are written to "not care" if the original and the
+result are the same array.</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B><BR>
+
+<A NAME="The Coordinate System"></A><B><FONT FACE="Arial"
+COLOR="#000080">The Coordinate System</FONT></B></P>
+
+<P><IMG SRC="graphics/COORDSYS.png"
+width=560 height=636 BORDER=0 ALIGN=bottom nosave></P>
+
+<P><FONT SIZE="-1" FACE="Arial">The world_to_eye matrix must be the
+true world_to_eye (scale is ok). If it is composed of several
+matrices (such as [Trans][Rot][Scale]), the composition must be
+passed in and then decomposed by the caller after Library
+modification. It is better to change the code to use one world_to_eye
+matrix.</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Arial">It is the caller's responsibility to
+apply 3D input device data in the correct coordinate system. If you want to
+move something in world (or other) space, transform the device data from the eye coordinate system to the target coordinate
+system.</FONT></P>
+
+<P><B><I><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></I></B>
+</P>
+
+<P><A NAME="Math Library Structures/Definit"></A><B><I><FONT
+FACE="Arial" COLOR="#000080">Math Library
+Structures/Definitions</FONT></I></B></P>
+
+<P><A NAME="Matrix"></A><B><FONT FACE="Arial"
+COLOR="#000080">Matrix</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">typedef float Matrix[4][4];</FONT></B>
+</P>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B></P>
+
+<P><FONT SIZE="-1" FACE="Arial">The Matrix data type is used
+throughout the 3DxWare Math Library. It is a 4x4 float array in
+which the rotation is held in the upper right 3x3 matrix; the
+translations are held in the 4th row, columns 1-3. The matrix may be
+scaled. The last column is:</FONT></P>
+
+<BLOCKQUOTE><P><FONT SIZE="-1" FACE="Arial">[0</FONT><BR>
+
+<FONT SIZE="-1" FACE="Arial">0</FONT><BR>
+
+<FONT SIZE="-1" FACE="Arial">0</FONT><BR>
+
+<FONT SIZE="-1" FACE="Arial">1]</FONT></P></BLOCKQUOTE>
+
+<P><FONT SIZE="-1" FACE="Arial">The matrix is stored in row major
+order.</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Arial">The matrix therefore is:</FONT></P>
+
+<BLOCKQUOTE><P><FONT SIZE="-1" FACE="Arial">[ [ Side Vector ] 0
+]</FONT><BR>
+
+<FONT SIZE="-1" FACE="Arial">[ [ Up Vector ] 0 ]</FONT><BR>
+
+<FONT SIZE="-1" FACE="Arial">[ [ Toward Vector ] 0 ]</FONT><BR>
+
+<FONT SIZE="-1" FACE="Arial">[ [ Translation ] 1 ]</FONT></P>
+</BLOCKQUOTE>
+
+<P><FONT SIZE="-1" FACE="Arial">This is the form common to computer
+graphics literature. It is the transpose of the form common in the
+robotics literature.</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Arial">This type will not be defined if the
+GL header file is included before spwmath.h.</FONT></P>
+
+<P><B><I><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></I></B>
+</P>
+
+<P><A NAME="Math Library Functions"></A><B><I><FONT FACE="Arial"
+COLOR="#000080">Math Library Functions</FONT></I></B></P>
+
+<P><A NAME="SPW_ArbitraryAxisToMatrix"></A><B><FONT FACE="Arial"
+COLOR="#000080">SPW_ArbitraryAxisToMatrix</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">void
+SPW_ArbitraryAxisToMatrix(m,arbaxis[3],rot_scale)</FONT></B> <TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix m;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">matrix to be
+         calculated</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         arbaxis[3];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">arbitrary axis, the length
+         is amount of rotation</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         rot_scale;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">an arbitrary scale factor to
+         be applied to the amount of rotation</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Returns</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">The resultant rotation matrix</FONT>
+</P>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Calculates the rotation matrix that
+corresponds to the rotation specified by an arbitrary axis whose
+components determine the direction of the axis and whose length
+indicates the amount of rotation. This is what physicists call the
+infinitesimal angular displacement and what this SDK calls the device's rotation vector.</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><A NAME="SPW_CompareMatrices"></A><B><FONT FACE="Arial"
+COLOR="#000080">SPW_CompareMatrices</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">int
+SPW_CompareMatrices(m1,m2)</FONT></B> <TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix m1;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix m2;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Returns</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">&nbsp;&nbsp;&nbsp; 0 if the matrices are
+identical</FONT><BR>
+
+<FONT SIZE="-1" FACE="Arial">&nbsp;&nbsp;&nbsp; 1 if they are
+not.</FONT></P>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Compares two matrices, element by
+element.</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><A NAME="SPW_CopyMatrix"></A><B><FONT FACE="Arial"
+COLOR="#000080">SPW_CopyMatrix</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">void
+SPW_CopyMatrix(destination,source)</FONT></B> <TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix
+         destination;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix source;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Copies the source matrix to the
+destination matrix.</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><A NAME="SPW_CrossProduct"></A><B><FONT FACE="Arial"
+COLOR="#000080">SPW_CrossProduct</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">void
+SPW_CrossProduct(result,vectorA,vectorB)</FONT></B> <TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         result[3];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         vectorA[3];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         vectorB[3];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Calculates the vector cross product of
+two vectors. The resultant vector = [vectorA][vectorB].</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><B><FONT FACE="Arial"
+COLOR="#000080"><A NAME="SPW_DotProduct"></A>SPW_DotProduct</FONT></B>
+</P>
+
+<P><B><FONT FACE="Courier New">float
+SPW_DotProduct(vectorA,vectorB)</FONT></B> <TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         vectorA[3];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         vectorB[3];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Returns</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Dot product of A onto B</FONT></P>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Calculates the dot product of two
+vectors.</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><A NAME="SPW_GetMatrixScale"></A><B><FONT FACE="Arial"
+COLOR="#000080">SPW_GetMatrixScale</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">float SPW_GetMatrixScale(m)</FONT></B>
+<TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix m;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">matrix from which the scale
+         factor is to be calculated</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Returns</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">The factor by which the rotation part of
+the matrix is scaled.</FONT></P>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Looks at the scaling of each row and
+takes the average. This should be the same in every direction.</FONT>
+</P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><A NAME="SPW_GetTranslationMatrix"></A><B><FONT FACE="Arial"
+COLOR="#000080">SPW_GetTranslationMatrix</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">void
+SPW_GetTranslationMatrix(destination,source)</FONT></B> <TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix
+         destination;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">matrix that is to become a
+         translation matrix</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix source;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">matrix whose translation is
+         to be extracted for the destination matrix</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Creates a translation matrix by
+extracting the Translation (last row) part of an existing
+transformation matrix. The orientation part is left at
+identity.</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><A NAME="SPW_HighValuePassFilter"></A><B><FONT FACE="Arial"
+COLOR="#000080">SPW_HighValuePassFilter</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">void
+SPW_HighValuePassFilter(array,array_length)</FONT></B> <TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float *array;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/w)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the array to
+         filter</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">int
+         array_length;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the number of elements of
+         array to examine</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Zeroes all but the largest (in absolute
+value) element in the array. It only looks at the first
+"array_length" elements.</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><A NAME="SPW_InitilizeMatrix"></A><B><FONT FACE="Arial"
+COLOR="#000080">SPW_InitializeMatrix</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">void
+SPW_InitializeMatrix(m,m00,m01,m02,m03,</FONT></B><BR>
+
+<B><FONT
+FACE="Courier New">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+m10,m11,m12,m13,</FONT></B><BR>
+
+<B><FONT
+FACE="Courier New">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+m20,m21,m22,m23,</FONT></B><BR>
+
+<B><FONT
+FACE="Courier New">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+m30,m31,m32,m33)</FONT></B> <TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix m;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">matrix to be
+         initialized</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         m00,m01,m02,m03;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">values for the
+         matrix</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         m10,m11,m12,m13;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">values for the
+         matrix</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         m20,m21,m22,m23;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">values for the
+         matrix&nbsp;</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         m30,m31,m32,m33;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">values for the
+         matrix</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Initializes a matrix with the passed
+values.</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><A NAME="SPW_InvertMatrix"></A><B><FONT FACE="Arial"
+COLOR="#000080">SPW_InvertMatrix</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">void
+SPW_InvertMatrix(result,m)</FONT></B> <TABLE >
+   <TR>
+      <TD VALIGN=top WIDTH=104>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix result;</FONT>&nbsp;
+      </TD><TD>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top WIDTH=104>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix m;</FONT>&nbsp;
+      </TD><TD>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Mathematics</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Transposes the rotation part of the
+matrix. It inverts the last row by negating the translation and
+dotting each element with its respective (untransposed) row.</FONT>
+</P>
+
+<P><FONT SIZE="-1" FACE="Arial">This method does not work with any
+matrix - it must be a standard transformation matrix. This is not
+doing Gaussian elimination, but taking advantage of some special
+properties of transformation matrices.</FONT></P>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Inverts an orthogonal transformation
+matrix.</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><A NAME="SPW_LookAtUpVectorToMatrix"></A><B><FONT FACE="Arial"
+COLOR="#000080">SPW_LookAtUpVectorToMatrix</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">void
+SPW_LookAtUpVectorToMatrix(m,looking_from_pt,looking_at_pt,up_vector)</FONT></B>
+<TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix m;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">resulting view matrix
+         (world_to_eye)</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         looking_from_pt[3];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">point in world coordinates
+         where you are</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         looking_at_pt[3];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">point in world coordinates
+         at which you are looking (sometimes called the reference
+         pt)</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         up_vector[3];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">"up" direction in world
+         coordinates. This is a vector pointing in the direction that
+         is going to be directly up (the positive Y axis) in the eye
+         coordinate system. The vector is specified in the world
+         coordinate system (it is going to be [0,1,0] in the eye
+         coordinate system).</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Performs the function many graphics
+languages provide for camera orientation. This is commonly called a
+"look at" transformation. It merely defines view matrix. Most
+platforms make it difficult to get at the actual matrix after the
+"look at" function is called. This function creates a matrix from one
+of the common set of parameters.</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><A NAME="SPW_MakeIdentityMatrix"></A><B><FONT FACE="Arial"
+COLOR="#000080">SPW_MakeIdentityMatrix</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">void
+SPW_MakeIdentityMatrix(m)</FONT></B> <TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix m;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">matrix that is to become an
+         identity matrix</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Turns the passed matrix into an identity
+matrix.</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><A NAME="SPW_MatrixDeterminant"></A><B><FONT FACE="Arial"
+COLOR="#000080">SPW_MatrixDeterminant</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">float
+SPW_MatrixDeterminant(m)</FONT></B><TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix m;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">matrix</FONT>
+      </TD></TR>
+</TABLE><B><FONT SIZE="-1" FACE="Arial">&nbsp;</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Returns</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Determinant of the upper 3x3 part of
+m</FONT></P>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Mathematics</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">The determinant of A is a combination of
+row i and the cofactors of row i:</FONT></P>
+
+<BLOCKQUOTE><P><FONT SIZE="-1" FACE="Courier New">det A = ai1Ai1 +
+ai2Ai2 + ... + ainAin</FONT></P></BLOCKQUOTE>
+
+<P><FONT SIZE="-1" FACE="Arial">The cofactor Aij is the determinant
+of Mij with the correct sign:</FONT></P>
+
+<BLOCKQUOTE><P><FONT SIZE="-1" FACE="Courier New">Aij = (-1)**i+j det
+Mij</FONT></P></BLOCKQUOTE>
+
+<P><FONT SIZE="-1" FACE="Arial">Mij is formed by deleting row i and
+column j of A.</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Arial">The determinant of an orthornormal
+matrix is +1.0.</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Arial">The determinant gives the volume of
+the box enclosed by the vectors described by the matrix.</FONT></P>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Calculates the determinant of the upper
+3x3 part of a matrix (rotations only).</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><A NAME="SPW_MatrixToArbitraryAxis"></A><B><FONT FACE="Arial"
+COLOR="#000080">SPW_MatrixToArbitraryAxis</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">void
+SPW_MatrixToArbitraryAxis(arbaxis,pangle,m)</FONT></B> <TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         arbaxis[3];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">arbitrary axis, the length
+         is the amount of rotation</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float *pangle;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">pointer to angle of rotation
+         (in radians)</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix m;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">matrix used to calculate
+         arbitrary axis</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Reference</FONT></B><BR>
+
+<U><FONT SIZE="-1" FACE="Arial">Robot Manipulators</FONT></U><FONT
+SIZE="-1" FACE="Arial"> by Richard Paul</FONT></P>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Calculates the arbitrary axis and
+rotation angle represented in a matrix.</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><A NAME="SPW_MatrixToLookAtUpVector"></A><B><FONT FACE="Arial"
+COLOR="#000080">SPW_MatrixToLookAtUpVector</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">void
+SPW_MatrixToLookAtUpVector(looking_from_pt,looking_at_pt,up_vector,m)</FONT></B>
+<TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         looking_from_pt[3];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">point in world coordinates
+         where you are</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         looking_at_pt[3];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">point in world coordinates
+         at which you are looking (sometimes called the reference
+         point)</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         up_vector[3];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">"up" direction in world
+         coordinates. This is a vector pointing in the direction that
+         is directly up (the positive y axis) in the eye coordinate
+         system</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix m;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">view matrix (world_to_eye)
+         from which to extract parameters</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Returns "look at" parameters from an
+existing world_to_eye matrix. These looking_at_pt may be different
+from the looking_at_pt passed to </FONT><FONT SIZE="-1" FACE="Arial"
+COLOR="#008000"><A HREF="#SPW_LookAtUpVectorToMatrix">SPW_LookAtUpVectorToMatrix</A></FONT><FONT
+SIZE="-1" FACE="Arial"> because only the direction from the
+looking_at_pt to the looking_from_pt is used to calculate the matrix,
+the actual distance between these points is not in the matrix (so it
+can not be retrieved). As a result the looking_at_pt that is returned
+from this function is one unit length away from the looking_from_pt.
+It is in the right direction, just probably not far enough along.
+This should not make a difference.</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><A NAME="SPW_Mult13x33"></A><B><FONT FACE="Arial"
+COLOR="#000080">SPW_Mult13x33</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">void
+SPW_Mult13x33(result,vector,m)</FONT></B> <TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         result[3];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">resultant vector =
+         [vector][m]</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         vector[3];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">original vector</FONT>&nbsp;
+      
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix m;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">matrix by which to multiply
+         the vector</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Mathematics</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Courier New">&nbsp; Resultant vector =
+[vector][m]</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Arial">This function uses only the rotation
+part of m so the result is unaffected by the translation in the
+matrix (last row).</FONT></P>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Multiplies a vector by a 3x3 matrix
+(rotation part of a 4x4).</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><A NAME="SPW_Mult14x44"></A><B><FONT FACE="Arial"
+COLOR="#000080">SPW_Mult14x44</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">void
+SPW_Mult14x44(result,vector,m)</FONT></B> <TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         result[3];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">resultant vector of the
+         multiplication</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         vector[3];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">original vector {v[0], v[1],
+         v[2], 1.0}</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix m;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">matrix by which to multiply
+         the vector</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Mathematics</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Courier New">&nbsp; Resultant vector = [vector
+1][m]</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Arial">Note how a 1 is assumed in the last
+column of the vector. Since all of m is used, the result IS affected
+by the translation in the matrix (last row).</FONT></P>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Multiplies a vector by a matrix.</FONT>
+</P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><B><FONT FACE="Arial"
+COLOR="#000080"><A NAME="SPW_Mult33x33"></A>SPW_Mult33x33</FONT></B>
+</P>
+
+<P><B><FONT FACE="Courier New">void
+SPW_Mult33x33(result,m1,m2)</FONT></B> <TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix result;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">result matrix</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix m1;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">first matrix</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix m2;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">second matrix</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Mathematics</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Courier New">&nbsp; Result = [m1(3x3)][m2(3x3)]
++last row &amp; column of m1</FONT></P>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Multiples the rotation part (upper 3x3)
+of two matrices and copies the unaffected balance (last row and last
+column) of m1 to the result.</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><B><FONT FACE="Arial"
+COLOR="#000080"><A NAME="SPW_Mult44x44"></A>SPW_Mult44x44</FONT></B>
+</P>
+
+<P><B><FONT FACE="Courier New">void
+SPW_Mult44x44(result,m1,m2)</FONT></B> <TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix result;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">resultant
+         matrix</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix m1;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">first matrix</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix m2;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">second matrix</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Mathematics</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Courier New">&nbsp; Resultant matrix =
+[m1][m2]</FONT></P>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Multiplies two 4x4 matrices.</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><A NAME="SPW_MultFull14x44"></A><B><FONT FACE="Arial"
+COLOR="#000080">SPW_MultFull14x44</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">void
+SPW_MultFull14x44(result,vector,m)</FONT></B> <TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         result[3];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">resultant vector of the
+         multiplication</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         vector[3];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">original vector (assumes
+         fourth element of 1.0)</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix m;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">matrix by which to multiply
+         the vector</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Multiplies a vector by a matrix and then
+divides by w (the fourth element of the vector after the multiply).
+This includes any perspective foreshortening that may be included in
+the last column.</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><A NAME="SPW_NormalizeVector"></A><B><FONT FACE="Arial"
+COLOR="#000080">SPW_NormalizeVector</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">void
+SPW_NormalizeVector(result,vector)</FONT></B> <TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         result[3];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">vector after
+         normalization</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         vector[3];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">original vector before
+         normalization</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Mathematics</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Courier New">&nbsp; rx = vx / length</FONT><BR>
+
+<FONT SIZE="-1" FACE="Courier New">&nbsp; ry = vy / length</FONT><BR>
+
+<FONT SIZE="-1" FACE="Courier New">&nbsp; rz = vz / length</FONT>
+</P>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Normalizes a vector.</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><B><FONT FACE="Arial"
+COLOR="#000080"><A NAME="SPW_OrthoNormMatrix"></A>SPW_OrthoNormMatrix</FONT></B>
+</P>
+
+<P><B><FONT FACE="Courier New">int SPW_OrthoNormMatrix(m)</FONT></B>
+<TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix m;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/w)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">matrix whose rotation part
+         (upper 3x3) is to be orthonormalized</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Mathematics</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">This function uses an interpretation of
+the Gram-Schmidt method.</FONT></P>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Orthonormalizes the rotation part of the
+matrix.</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><B><FONT FACE="Arial"
+COLOR="#000080"><A NAME="SPW_PrintMatrix"></A>SPW_PrintMatrix</FONT></B>
+</P>
+
+<P><B><FONT FACE="Courier New">void
+SPW_PrintMatrix(label,m)</FONT></B> <TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">char *label;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">an identifying label to
+         print first</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix m;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the matrix whose contents
+         are to be printed</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Prints the content of a matrix to stdout
+preceded by an identifying label.</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<H4><A NAME="SPW_PrintSpaceballData"></A><B><FONT FACE="Arial"
+COLOR="#000080">SPW_PrintSpaceballData</FONT></B></H4>
+
+<P><B><FONT FACE="Courier New">void
+SPW_PrintSpaceballData(label,sbdata)</FONT></B> <TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">char *label;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">an identifying label to
+         print first</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         sbdata[7];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">an array of sbdata in the
+         "standard" (tx, ty, tz, rx, ry, rz, period)
+         order</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Prints the 3D Mouse data in a useful,
+labeled manner.</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<H4><A NAME="SPW_PrintVector"></A><B><FONT FACE="Arial"
+COLOR="#000080">SPW_PrintVector</FONT></B></H4>
+
+<P><B><FONT FACE="Courier New">void
+SPW_PrintVector(label,v)</FONT></B> <TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">char *label;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">an identifying label to
+         print first</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float v[3];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the vector whose contents
+         are to be printed (3 floats)</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Prints the contents of a vector to
+stdout, preceded by an identifying label.</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><A NAME="SPW_ScaleMatrix"></A><B><FONT FACE="Arial"
+COLOR="#000080">SPW_ScaleMatrix</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">void
+SPW_ScaleMatrix(result,m,scale_factor)</FONT></B> <TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix result;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">resultant matrix after
+         scaling m by scale_factor</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matix m;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">original matrix</FONT>&nbsp;
+      
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         scale_factor;</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">factor by which to scale
+         m</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Scales matrix m by scale_factor and
+returns the resultant matrix in result.</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><A NAME="SPW_TransposeMatrix"></A><B><FONT FACE="Arial"
+COLOR="#000080">SPW_TransposeMatrix</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">void
+SPW_TransposeMatrix(result,m)</FONT></B> <TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix result;</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">Matrix m;</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Mathematics</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Courier New">&nbsp; [result] = transpose of
+[m]</FONT></P>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Transposes a matrix.</FONT></P>
+
+<P><B><FONT FACE="Arial" COLOR="#000080">&nbsp;</FONT></B></P>
+
+<P><B><FONT FACE="Arial"
+COLOR="#000080">&nbsp;</FONT></B><A NAME="SPW_VectorLength"></A><B><FONT
+FACE="Arial" COLOR="#000080">SPW_VectorLength</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">float
+SPW_VectorLength(vector)</FONT></B> <TABLE >
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">float
+         vector[3];</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">vector whose length is to be
+         calculated</FONT>&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Returns</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Length of passed in vector</FONT></P>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Mathematics</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Courier New">&nbsp; Length = sqrt ( x*x + y*y +
+z*z )</FONT></P>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">Calculates length of passed in
+vector.</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P><FONT SIZE="-1" FACE="Courier New">&nbsp;</FONT></P>
+
+<P>&nbsp;</P>
+</BODY>
+</HTML>

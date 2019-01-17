@@ -123,9 +123,9 @@ void RenderSystem::record_render_commands()
             auto ovr = OpenVR::Get();
             ovr->wait_get_poses();
             current_camera->set_view(ovr->get_left_view_matrix(), 0);
-            current_camera->set_custom_projection(ovr->get_left_projection_matrix(.1f), .1, 0);
+            current_camera->set_custom_projection(ovr->get_left_projection_matrix(.1f), .1f, 0);
             current_camera->set_view(ovr->get_right_view_matrix(), 1);
-            current_camera->set_custom_projection(ovr->get_right_projection_matrix(.1f), .1, 1);
+            current_camera->set_custom_projection(ovr->get_right_projection_matrix(.1f), .1f, 1);
         }
     }
 
@@ -360,7 +360,7 @@ void RenderSystem::enqueue_render_commands() {
     submit_info.waitSemaphoreCount = (swapchain && swapchain_texture) ? 1 : 0;
     submit_info.pWaitSemaphores = &imageAvailableSemaphores[currentFrame];
     submit_info.pWaitDstStageMask = &submitPipelineStages;
-    submit_info.commandBufferCount = commands.size();
+    submit_info.commandBufferCount = (uint32_t) commands.size();
     submit_info.pCommandBuffers = commands.data();
     submit_info.signalSemaphoreCount = (swapchain && swapchain_texture) ? 1 : 0;
     submit_info.pSignalSemaphores = &renderCompleteSemaphores[currentFrame];

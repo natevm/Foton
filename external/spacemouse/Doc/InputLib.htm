@@ -1,0 +1,1058 @@
+<!--
+/* Copyright notice:
+ * (c) 3Dconnexion. All rights reserved. 
+ *
+ * This file and source code are an integral part of the "3Dconnexion
+ * Software Developer Kit", including all accompanying documentation,
+ * and is protected by intellectual property laws. All use of the
+ * 3Dconnexion Software Developer Kit is subject to the License
+ * Agreement found in the "LicenseAgreementSDK.rtf" file.
+ * All rights not expressly granted by 3Dconnexion are reserved.
+ *
+ * Last edited: $Id: InputLib.htm 14745 2018-02-15 09:38:05Z jwick $
+ */-->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>3DxWare Input Library</title>
+    <x-sas-window top="60" bottom="605" left="8" right="900">
+    <link rel="stylesheet" type="text/css" href="style.css" />
+</head>
+<body>
+    <a href="BestPractices.htm">
+        <img src="graphics/prev1.gif" alt="graphics/prev1.gif" width="46" height="22" border="0"
+            align="bottom" /></a><a href="InputFun.htm"><img src="graphics/next1.gif" alt="graphics/next1.gif"
+                width="46" height="22" border="0" align="bottom" /></a>
+    <h1>3DxWare Input Library</h1>
+    <p>
+        The functions in this library provide the means for interfacing your program(s)
+        with the 3Dconnexion input device. The basic integration consists of calling routines
+        to check if a device is currently connected and then calling routines to determine
+        if a given event is really a 3DxWare event. See the <a href="Integrat.htm">Integration
+            Basics</a> topic for more details. A basic code example is provided in <a href="Integrat.htm#Win32">Win32</a> and <a href="Integrat.htm#MFC">MFC</a>. For more detailed examples,
+        see the source code for the individual <a href="Demos.htm">demos</a>
+    </p>
+    <p>
+        &nbsp;
+    </p>
+    <h2>
+        <a name="3DxWare Library Definitions a"></a>3DxWare Library Definitions and Structures</h2>
+    <h3>
+        <a name="Action Interface Types and Structures"></a>Action Interface: action node types and structures</h3>
+    <p class="sourcecode">
+        typedef enum siActionNodeType_e<br />
+        {<br />
+        &nbsp;&nbsp;SI_ACTIONSET_NODE=0<br />
+        &nbsp;&nbsp;, SI_CATEGORY_NODE<br />
+        &nbsp;&nbsp;, SI_ACTION_NODE<br />
+        } SiActionNodeType_t;
+    </p>
+    <p class="sourcecode">
+        typedef struct siActionNodeEx_s<br />
+        {<br />
+        &nbsp;&nbsp;uint32_t size;<br />
+        &nbsp;&nbsp;SiActionNodeType_t type;<br />
+        &nbsp;&nbsp;struct siActionNodeEx_s *next;<br />
+        &nbsp;&nbsp;struct siActionNodeEx_s *children;<br />
+        &nbsp;&nbsp;const char *id;<br />
+        &nbsp;&nbsp;const char *label;<br />
+        &nbsp;&nbsp;const char *description;<br />
+        } SiActionNodeEx_t;
+
+    </p>
+    <h4>Description</h4>
+    <p>
+        The application passes a pointer to a structure of type siActionNodeEx_s to
+        the function
+        <a href="InputFun.htm#SiAppCmdWriteActionSet">SiAppCmdWriteActionSet</a>.
+    </p>
+    <p>
+        A set of actions is composed of a linked list of SiActionNodeEx_t structures.
+        Sibling nodes are linked by the next field of the structure and child nodes
+        by the children field. The root node of the tree represents the name of the
+        action set while the leaf nodes of the tree represent the actions that can
+        be assigned to buttons and invoked by the user. The intermediate nodes
+        represent categories and sub-categories for the actions. An example of this
+        would be the menu item structure in a menu bar. The menus in the menu bar
+        would be represented by the SiActionNodeEx_t structures with type
+        SI_CATEGORY_NODE pointed to by each successively linked next field and the
+        first menu item of each menu represented by the structure pointed to by
+        their child fields (the rest of the menu items in each menu would again be
+        linked by the next fields).
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td>size
+            </td>
+            <td>The size field must always be the byte size of siActionNodeEx_s.
+            </td>
+        </tr>
+        <tr>
+            <td>type
+            </td>
+            <td>The type field specifies one of the following values.<br />
+                &nbsp;&nbsp;SI_ACTIONSET_NODE<br />
+                &nbsp;&nbsp;SI_CATEGORY_NODE<br />
+                &nbsp;&nbsp;SI_ACTION_NODE<br />
+                <br />
+                The root node (and only the root node) of the tree always has type
+                SI_ACTIONSET_NODE. Only the leaf nodes of the tree have type SI_ACTION_NODE. 
+                All intermediate nodes have type SI_CATEGORY_NODE.<br />
+            </td>
+        </tr>
+        <tr>
+            <td>next
+            </td>
+            <td>Links to the next &quot;sibling&quot; node. Last node must have next
+                set to NULL. See above.
+            </td>
+        </tr>
+        <tr>
+            <td>children
+            </td>
+            <td>Links to the first &quot;child&quot; node. If node has no children,
+                then children must be set to NULL. See above.</td>
+        </tr>
+        <tr>
+            <td>id
+            </td>
+            <td>The id field specifies a UTF8 string identifier for the action set, 
+                category, or action represented by the node. The field is always non-NULL. 
+                This string needs to remain constant across application sessions and more 
+                or less constant across application releases. The id is used by the 
+                application to identify an action.
+            </td>
+        </tr>
+
+        <tr>
+            <td>label
+            </td>
+            <td>The label field specifies a UTF8 localized/internationalized name 
+                for the action set, category, or action represented by the node. The label 
+                field can be NULL for the root and intermediate category nodes that are not 
+                explicitly presented to users. All leaf (action) and intermediate nodes 
+                containing leaf nodes have non-NULL labels. If the application only has a 
+                single action tree set, then the label of the root (context) node can also 
+                be NULL.
+            </td>
+        </tr>
+        <tr>
+            <td>description
+            </td>
+            <td>The description field specifies a UTF8 localized/internationalized
+                tooltip for the action set, category, or action represented by the
+                node. The description field can be NULL for the root and intermediate
+                category nodes that are not explicitly presented to users. Leaf
+                (action) nodes should have non-NULL descriptions.
+            </td>
+        </tr>
+    </table>
+    <p>
+        Node types:
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td>SI_ACTIONSET_NODE
+            </td>
+            <td>The root node (and only the root node) of the tree always has type
+                SI_ACTIONSET_NODE. Only the leaf nodes of the tree have type SI_ACTION_NODE. 
+                All intermediate nodes have type SI_CATEGORY_NODE.
+            </td>
+        </tr>
+        <tr>
+            <td>SI_CATEGORY_NODE
+            </td>
+            <td>An intermediate note. A node representing an application category (or context). A category node may include action nodes (representating an application command) and may have
+                additional category nodes to allow cascading of sub-categories.
+            </td>
+        </tr>
+        <tr>
+            <td>SI_ACTION_NODE
+            </td>
+            <td>A leaf node. Represents an application command. Does not have any any sub-tree elements.
+            </td>
+        </tr>
+    </table>
+    <h3>
+        <a name="Action Interface Icon Types and Structures"></a>Action Interface: icon types and structures</h3>
+    <p class="sourcecode">
+        typedef enum eSiImageType<br />
+        {<br />
+        &nbsp;&nbsp;e_none = 0<br />
+        &nbsp;&nbsp;, e_image_file<br />
+        &nbsp;&nbsp;, e_resource_file<br />
+        &nbsp;&nbsp;, e_image<br />
+        } SiImageType_t;<br />
+    </p>
+    <p class="sourcecode">
+        struct siResource_s<br />
+        {<br />
+        &nbsp;&nbsp;const char         *file_name;<br />
+        &nbsp;&nbsp;const char         *id;<br />
+        &nbsp;&nbsp;const char         *type;<br />
+        &nbsp;&nbsp;uint32_t            index;<br />
+        };
+    </p>
+    <p class="sourcecode">
+        struct siImageFile_s<br />
+        {<br />
+        &nbsp;&nbsp;const char         *file_name;<br />
+        &nbsp;&nbsp;uint32_t            index;<br />
+        };
+    </p>
+    <p class="sourcecode">
+        struct siImageData_s<br />
+        {<br />
+        &nbsp;&nbsp;const uint8_t      *data;<br />
+        &nbsp;&nbsp;uintptr_t           size;<br />
+        &nbsp;&nbsp;uint32_t            index;<br />
+        };
+    </p>
+    <p class="sourcecode">
+        typedef struct siImage_s<br />
+        {<br />
+        &nbsp;&nbsp;uint32_t                size;<br />
+        &nbsp;&nbsp;SiImageType_t           type;<br />
+        &nbsp;&nbsp;const char             *id;<br />
+        &nbsp;&nbsp;union<br />
+        &nbsp;&nbsp;{<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;struct siResource_s   resource;<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;struct siImageFile_s  file;<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;struct siImageData_s  image;<br />
+        &nbsp;&nbsp;};<br />
+        } SiImage_t;
+    </p>
+    <h4>Description</h4>
+    <p>
+        The application passes a pointer to an array of type SiImage_t to the function
+        <a href="InputFun.htm#SiAppCmdWriteActionImages">SiAppCmdWriteActionImages</a>.
+    </p>
+    <p>
+        For each action node exported through
+        <a href="InputFun.htm#SiAppCmdWriteActionImages">SiAppCmdWriteActionImages</a>,
+        the application can use SiAppCmdWriteActionImages to point to an icon image. The
+        icon artwork is then used by the driver on devices (that can display icon images)
+        and on the user interface (On-Screen Display, 3Dconnexion Properties "Buttons" panel).
+    </p>
+
+    <table border="0" cellpadding="5">
+        <tr>
+
+            <td>size
+            </td>
+            <td>The size field specifies the size of the SiImage_t type in bytes.
+            </td>
+        </tr>
+        <tr>
+            <td>id
+            </td>
+            <td>The id field specifies a UTF8 string identifier for the image. The field
+                is always non-NULL. This string needs to remain constant across application
+                sessions and more or less constant across application releases.
+                The id is used by the application to identify the image. To associate an
+                image with a command the id needs to be identical to the value of the
+                SiActionNodeEx_t::id of the action
+            </td>
+        </tr>
+        <tr>
+            <td>siResource_s::file_name
+            </td>
+            <td>Full path to a resource file (DLL or EXE).
+            </td>
+        </tr>
+        <tr>
+            <td>siResource_s::id
+            </td>
+            <td>Resource identifier in resource file. Example: "#512".<br />
+                Note: Integer identifiers (e.g. MAKEINTRESOURCE(512)) are not support and 
+                the alternative "#NNNNN" syntax needs to be used. For further information
+                see the remarks to LoadImage() in the Microsoft MSDN documentation.
+            </td>
+        </tr>
+        <tr>
+            <td>siResource_s::type
+            </td>
+            <td>Resource type in the resource file. For example for RT_BITMAP: "#2".<br />
+                Supported resource types are "#2" (RT_BITMAP), "#3" (RT_ICON) and any other
+                binary type that can be loaded by Gdiplus::Bitmap::FromStream() or is in a recognizable svg format.<br />
+                Note: Integer identifiers (e.g. MAKEINTRESOURCE(2)) are not support (see siResource_s::id).
+            </td>
+        </tr>
+        <tr>
+            <td>siImageFile_s::file_name
+            </td>
+            <td>Full path to an image file.
+            </td>
+        </tr>
+        <tr>
+            <td>siImageData_s::data
+            </td>
+            <td>The image field contains a pointer to the binary image. The image may be in coded
+                in any format that can be loaded by Gdiplus::Bitmap::FromStream() or is in a recognizable svg format.
+            </td>
+        </tr>
+        <tr>
+            <td>siImageData_s::size
+            </td>
+            <td>The siImageData_s::size field specifies the size of the data pointed to
+                by the siImageData_s::data field in bytes.
+            </td>
+        </tr>
+        <tr>
+            <td>::index
+            </td>
+            <td>If the data is an image list, this elements specifies the zero-based index
+                of the icon in the image list. Must be set to zero if image is not an image 
+                list.
+            </td>
+        </tr>
+    </table>
+    <p>
+        Node types:
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td>SI_ACTIONSET_NODE
+            </td>
+            <td>The root node (and only the root node) of the tree always has type
+                SI_ACTIONSET_NODE. Only the leaf nodes of the tree have type SI_ACTION_NODE. 
+                All intermediate nodes have type SI_CATEGORY_NODE.
+            </td>
+        </tr>
+        <tr>
+            <td>SI_CATEGORY_NODE
+            </td>
+            <td>An intermediate note. A node representing an application category (or context). A category node may include action nodes (representating an application command) and may have
+                additional category nodes to allow cascading of sub-categories.
+            </td>
+        </tr>
+        <tr>
+            <td>SI_ACTION_NODE
+            </td>
+            <td>A leaf node. Represents an application command. Does not have any any sub-tree elements.
+            </td>
+        </tr>
+    </table>
+    <h3>
+        <a name="SiButtonData Structure"></a>SiButtonData Structure</h3>
+    <p class="sourcecode">
+        typedef struct /* Bitmasks of button states */<br />
+        {<br />
+        &nbsp;&nbsp;unsigned long last;&nbsp;&nbsp;&nbsp; /* buttons pressed as of last
+        event */<br />
+        &nbsp;&nbsp;unsigned long current; /* buttons pressed as of this event */<br />
+        &nbsp;&nbsp;unsigned long pressed; /* buttons pressed this event */<br />
+        &nbsp;&nbsp;unsigned long release; /* buttons released this event */<br />
+        } SiButtonData;
+    </p>
+    <p>
+        Special button bits:
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td>SI_RESET_BIT
+            </td>
+            <td>The Reset button on the device. Pressing this button rezeros the device using SiRezero.
+            </td>
+        </tr>
+        <tr>
+            <td>SI_PICK_BIT
+            </td>
+            <td>The Pick button on the device. This button normally performs a reset/refit view
+                function when released.
+            </td>
+        </tr>
+        <tr>
+            <td>SI_DIALOG_BIT
+            </td>
+            <td>This button is used to Open/Close the driver menu. The button result is only passed
+                to the application if <a href="InputFun.htm#SiSetUiMode">SiSetUiMode</a> is used to
+                turn off the driver menu.
+            </td>
+        </tr>
+    </table>
+    <h4>Description</h4>
+    <p>
+        This structure contains several bitmasks which represent the state of the buttons
+        on the device at various times. If a button is pressed its bitfield contains a 1;
+        if not, its bitfield contains a 0. Aside from the special button fields, the first
+        button on the device is the 0x2 bit, the second button is the 0x4 bit, etc. These
+        fields can be used if the <a href="InputFun.htm#SiButtonPressed">SiButtonPressed</a>
+        and <a href="InputFun.htm#SiButtonReleased">SiButtonReleased</a> functions do not
+        supply sufficient functionality in an application.
+    </p>
+    <p>
+        &nbsp;
+    </p>
+    <h3>
+        <a name="SiDevInfo Structure"></a>SiDevInfo Structure</h3>
+    <p class="sourcecode">
+        typedef struct /* Device information */<br />
+        {<br />
+        &nbsp;&nbsp;char firmware[SI_STRSIZE]; /* Firmware version&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        */<br />
+        &nbsp;&nbsp;int devType;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Device type&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        */<br />
+        &nbsp;&nbsp;int numButtons;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Number of buttons&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        */<br />
+        &nbsp;&nbsp;int numDegrees;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Number of degrees of freedom */<br />
+        &nbsp;&nbsp;SPWbool canBeep;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Device beeps&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        */<br />
+        &nbsp;&nbsp;int majorVersion;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Major version number&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; */<br />
+        &nbsp;&nbsp;int minorVersion;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Minor version number&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; */<br />
+        } SiDevInfo;
+    </p>
+    <h4>Description</h4>
+    <p>
+        This structure contains the information about the attached device. You can obtain
+        the information by calling <a href="InputFun.htm#SiGetDeviceInfo">SiGetDeviceInfo</a>.
+        See <a href="#3DxWare Device Type">3DxWare Device Types</a> for more information
+        about the possible return values in <i>devType</i>.
+        <br />
+        <b>NOTE:</b> For some devices, <i>numButtons</i> may indicate the largest button
+        number received, not the actual number of physical buttons on the device. Some devices
+        use the standard set of buttons (as found on the SpacePilot Pro), but there are
+        breaks for missing buttons. To the developer, it appears as if those buttons exist
+        but the program will never get events from them. It's like having a user buy a keyboard
+        with only F1-F8. The program should still be written to handle all the F keys.
+    </p>
+    <p>
+        &nbsp;
+    </p>
+    <h3>
+        <a name="SiDevID Type"></a>SiDevID Type</h3>
+    <p class="sourcecode">
+        typedef int SiDevID;
+    </p>
+    <h4>Description</h4>
+    <p>
+        This is the <i>ID number</i> of an attached device. You can find the ID number for
+        an attached device by calling <a href="InputFun.htm#SiGetDeviceID">SiGetDeviceID</a>
+        with the device handle.
+    </p>
+    <p>
+        &nbsp;
+    </p>
+    <h3>
+        <a name="SiGetEventData Structure"></a>SiGetEventData Structure</h3>
+    <p class="sourcecode">
+        typedef struct
+        <br />
+        {<br />
+        &nbsp;&nbsp;/* This structure should not be accessed directly */<br />
+        } SiGetEventData;
+    </p>
+    <h4>Description</h4>
+    <p>
+        This structure contains the platform specific information needed by <a href="InputFun.htm#SiGetEvent">SiGetEvent</a>. Do not access it directly but initialize it using <a href="InputFun.htm#SiGetEventWinInit">SiGetEventWinInit</a>.
+    </p>
+    <p>
+        &nbsp;
+    </p>
+    <h3>
+        <a name="SiHdl Type"></a>SiHdl Type</h3>
+    <p class="sourcecode">
+        typedef void *SiHdl;
+    </p>
+    <h4>Description</h4>
+    <p>
+        This is the handle to an attached device used by the Input library functions. <a
+            href="InputFun.htm#SiOpen">SiOpen</a> returns this handle.
+    </p>
+    <p>
+        &nbsp;
+    </p>
+    <h3>
+        <a name="SiOpenData Structure"></a>SiOpenData Structure</h3>
+    <p class="sourcecode">
+        typedef struct
+        <br />
+        {<br />
+        &nbsp;&nbsp;/* This structure should not be accessed directly */<br />
+        } SiOpenData;
+    </p>
+    <h4>Description</h4>
+    <p>
+        This structure contains the platform specific information needed by <a href="InputFun.htm#SiOpen">SiOpen</a> and <a href="InputFun.htm#SiOpenPort">SiOpenPort</a>. Do not access it directly but initialize it using <a href="InputFun.htm#SiGetEventWinInit">SiGetEventWinInit</a>.
+    </p>
+    <p>
+        &nbsp;
+    </p>
+    <h3>
+        <a name="SiOpenDataEx Structure"></a>SiOpenDataEx Structure</h3>
+    <p class="sourcecode">
+        typedef struct
+        <br />
+        {<br />
+        &nbsp;&nbsp;/* This structure should not be accessed directly */<br />
+        } SiOpenDataEx;
+    </p>
+    <h4>Description</h4>
+    <p>
+        This extended structure contains platform specific information needed by <a href="InputFun.htm#SiOpenEx">SiOpenEx</a> and <a href="InputFun.htm#SiOpenPortEx">SiOpenPortEx</a>. Do not access it directly but initialize it using <a href="InputFun.htm#SiGetEventWinInitEx">SiGetEventWinInitEx</a> and the various SiOpenWinAddHint methods.
+    </p>
+    <p>
+        &nbsp;
+    </p>
+    <h3>
+        <a name="SiSpwEvent Structure"></a>SiSpwEvent Structure</h3>
+    <p class="sourcecode">
+        typedef struct&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* Data for SI_BUTTON_PRESS/RELEASE_EVENT
+        */<br />
+        {<br />
+        &nbsp;&nbsp;SPWuint32 buttonNumber;&nbsp;&nbsp; /* The button number that went down/up
+        in a *<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;&nbsp;* SI_BUTTON_PRESS/RELEASE_EVENT event */<br />
+        } SiHWButtonData;
+    </p>
+    <p class="sourcecode">
+        typedef struct<br />
+        {<br />
+        &nbsp; char appCmdID[SI_MAXAPPCMDID]; /* The AppCmdID from the AppCommand button action */<br />
+        } SiAppCmdID;
+    </p>
+    <p class="sourcecode">
+        typedef struct&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* Data for SI_APP_EVENT */<br />
+        {<br />
+        &nbsp; SPWbool pressed; /* SPW_TRUE if the invoking button pressed, SPW_FALSE otherwise */<br />
+        &nbsp; SiAppCmdID id;&nbsp;&nbsp; /* The Application-specific function identifier *<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; * invoked by the user in a SI_APP_EVENT. *<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; * The id is last so we can optimize the use of transport memory. */<br />
+        } SiAppCommandData;
+    </p>
+    <p class="sourcecode">
+        typedef struct&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* Data for SI_CMD_EVENT */<br />
+        {<br />
+        &nbsp; SPWbool pressed;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* SPW_TRUE if the invoking button pressed, SPW_FALSE otherwise */<br />
+        &nbsp; SPWuint32 functionNumber; /* The V3DCMD_ function number invoked by the *<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; * user in a SI_CMD_EVENT (see V3DCMD.h) */<br />
+        &nbsp; SPWint32 iArgs[16];&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* Optional arguments on a V3DCMD_ basis */<br />
+        &nbsp; SPWfloat32 fArgs[16];<br />
+        } SiCmdEventData;
+    </p>
+    <p class="sourcecode">
+        typedef struct&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* Data for SI_DEVICE_CHANGE_EVENT
+        */<br />
+        {<br />
+        &nbsp;&nbsp;SiDeviceChangeType type;&nbsp; /* The type of event that happened */<br />
+        &nbsp;&nbsp;SiDevID devID;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* The device ID effected */<br />
+        &nbsp;&nbsp;SiPortName portName;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* The device path
+        that changed */<br />
+        } SiDeviceChangeEventData;
+    </p>
+    <p class="sourcecode">
+        typedef struct&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* 3DxWare data */<br />
+        {<br />
+        &nbsp;&nbsp;SiButtonData bData;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* Button data
+        */<br />
+        &nbsp;&nbsp;long mData[6];&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Motion data (index via SI_TX, etc) */<br />
+        &nbsp;&nbsp;long period;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Period (milliseconds) */<br />
+        } SiSpwData;
+    </p>
+    <p class="sourcecode">
+        typedef struct&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* 3DxWare event */<br />
+        {<br />
+        &nbsp;&nbsp;int type;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Event type */<br />
+        &nbsp;&nbsp;union<br />
+        &nbsp;&nbsp;{<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;SiSpwData spwData;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Button, motion, or combo data */<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;SiSpwOOB spwOOB;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Out of band message */<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;SiOrientation spwOrientation; /* Which hand orientation
+        is the device */<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;char exData[SI_MAXBUF];&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Exception data. Driver use only */<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;SiKeyboardData spwKeyData;&nbsp;&nbsp;&nbsp; /* String for
+        keyboard data */<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;SiSyncPacket siSyncPacket;&nbsp;&nbsp;&nbsp; /* GUI SyncPacket
+        sent to applications */<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;SiHWButtonData hwButtonEvent; /* ButtonNumber that goes
+        with *<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;&nbsp;&nbsp;&nbsp;* SI_BUTTON_PRESS/RELEASE_EVENT */<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;SiAppCommandData appCommandData; /* Application event
+        function data that *<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp; * goes with an SI_APP_EVENT event */<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;SiDeviceChangeEventData deviceChangeEventData; /* Data for
+        connecting/disconnecting devices */<br />
+        &nbsp;&nbsp;&nbsp; SiCmdEventData cmdEventData;&nbsp; /* V3DCMD_* function data that *<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; * goes with an SI_CMD_EVENT event */<br />
+        &nbsp;&nbsp;} u;<br />
+        } SiSpwEvent;
+    </p>
+    <h4>Description</h4>
+    <p>
+        This is the event structure returned by <a href="InputFun.htm#SiGetEvent">SiGetEvent</a>.
+        It is composed of a <i>type</i> which can be one of the <a href="#SiSpwEvent Types">SiSpwEvent Types</a>.<br />
+        If the event is a SI_BUTTON_EVENT, it returns its data using the <i>spwData</i>
+        portion of the union. The <i>bData</i> field contains the states of all the buttons
+        on the device (see <a href="#SiButtonData Structure">SiButtonData Structure</a>
+        for more information).<br />
+        For simple press and release processing, the functions <a href="InputFun.htm#SiButtonPressed">SiButtonPressed</a> and <a href="InputFun.htm#SiButtonReleased">SiButtonReleased</a>
+        can be used to retrieve a button number from the <a href="#SiSpwEvent Structure">SiSpwEvent
+            Structure</a>.<br />
+        If the event is a SI_MOTION_EVENT, it returns its data using <i>spwData</i>. Only
+        the <i>mData</i> and <i>period</i> fields are valid for a Motion event. The <i>mData</i>
+        member contains the axis data from the 3D mouse in the following order:
+    </p>
+    <blockquote>
+        Translation along X<br />
+        Translation along Y<br />
+        Translation along Z<br />
+        Rotation about X<br />
+        Rotation about Y<br />
+        Rotation about Z.
+    </blockquote>
+    <p>
+        You can use the <a href="#Motion Data Offsets">Motion Data Offsets</a> to get the
+        axis data. The <i>period</i> contains the time in milliseconds since the last device
+        event.<br />
+        If the event is a SI_ZERO_EVENT, it returns zero for all axes in <i>spwData</i>.<br />
+        if the event is a SI_APP_EVENT, the data is returned in <em>appEventData</em> and holds
+        an application command (action) string identifier (as passed in the
+        <a href="#Action Interface Types and Structures">SiActionNodeEx_t Structure</a> when
+        calling <a href="InputFun.htm#Action Interface Types and Structures">SiAppCmdWriteActionSet</a>).<br />
+        If the event is a SI_DEVICE_CHANGE_EVENT, the data is returned in <i>deviceChangeEventData</i>
+        and holds information of the 3D mouse device that was connected or disconnected
+        from the system.
+        If the event is a SI_BUTTON_PRESS_EVENT, the data is returned in <i>hwButtonEvent</i>
+        and holds the number of the pressed 3D mouse button.<br />
+        If the event is a SI_BUTTON_RELEASE_EVENT, the data is returned in <i>hwButtonEvent</i>
+        and holds the number of the released 3D mouse button.<br />
+    </p>
+    <p>
+        &nbsp;
+    </p>
+    <h3>
+        <a name="SiSpwEvent Types"></a>SiSpwEvent Types</h3>
+    <p class="sourcecode">
+        typedef enum<br />
+        {<br />
+        &nbsp;&nbsp;SI_BUTTON_EVENT = 1,<br />
+        &nbsp;&nbsp;SI_MOTION_EVENT,<br />
+        &nbsp;&nbsp;SI_COMBO_EVENT,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Not implemented */<br />
+        &nbsp;&nbsp;SI_ZERO_EVENT,<br />
+        &nbsp;&nbsp;SI_EXCEPTION_EVENT,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/* Driver use
+        only */<br />
+        &nbsp;&nbsp;SI_OUT_OF_BAND,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Driver use only */<br />
+        &nbsp;&nbsp;SI_ORIENTATION_EVENT,&nbsp;&nbsp;&nbsp;&nbsp;/* Driver use only */<br />
+        &nbsp;&nbsp;SI_KEYBOARD_EVENT,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/* Driver
+        use only */<br />
+        &nbsp;&nbsp;SI_LPFK_EVENT,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Driver use only */<br />
+        &nbsp;&nbsp;SI_APP_EVENT,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Application functions */<br />
+        &nbsp;&nbsp;SI_SYNC_EVENT,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* GUI synchronization events */<br />
+        &nbsp;&nbsp;SI_BUTTON_PRESS_EVENT,&nbsp;&nbsp; /* Single button events (replace
+        SI_BUTTON_EVENT) */<br />
+        &nbsp;&nbsp;SI_BUTTON_RELEASE_EVENT, /* Single button events (replace SI_BUTTON_EVENT)
+        */<br />
+        &nbsp;&nbsp;SI_DEVICE_CHANGE_EVENT,&nbsp; /* Connect or disconnect device events
+        */<br />
+        &nbsp;&nbsp;SI_MOUSE_EVENT,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Driver use only */<br />
+        &nbsp;&nbsp;SI_JOYSTICK_EVENT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* Driver
+        use only */<br />
+        } SiEventType;
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td>SI_BUTTON_EVENT
+            </td>
+            <td>The state of the buttons has changed. The values returned in <i>bData</i> should
+                be examined to determine which buttons were pressed and/or released (<i>mData </i>
+                and<i> period, </i>which<i> </i>are zeroed, do not apply).
+            </td>
+        </tr>
+        <tr>
+            <td>SI_MOTION_EVENT
+            </td>
+            <td>A motion event occurred. Motion event data is returned in <i>mData</i> and<i>period</i>
+                (<i>bData</i>, which is zeroed, does not apply).
+            </td>
+        </tr>
+        <tr>
+            <td>SI_ZERO_EVENT
+            </td>
+            <td>The user released the device handle or cap (sensor module). &nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td>SI_APP_EVENT
+            </td>
+            <td>Application functions.
+            </td>
+        </tr>
+        <tr>
+            <td>SI_SYNC_EVENT
+            </td>
+            <td>
+                <a href="GUISync.htm">GUI synchronization</a> events.
+            </td>
+        </tr>
+        <tr>
+            <td>SI_BUTTON_PRESS_EVENT
+            </td>
+            <td>The user pressed a device button. This event differs from SI_BUTTON_EVENT as it
+                is not limited to a 32-bit bitfield and allows for the exact serialization of near
+                simultaneous button events.
+            </td>
+        </tr>
+        <tr>
+            <td>SI_BUTTON_RELEASE_EVENT
+            </td>
+            <td>The user released a device button. This event differs from SI_BUTTON_EVENT as it
+                is not limited to a 32-bit bitfield and allows for the exact serialization of near
+                simultaneous button events.
+            </td>
+        </tr>
+        <tr>
+            <td>SI_DEVICE_CHANGE_EVENT
+            </td>
+            <td>A device was connected or disconnected from the system.
+            </td>
+        </tr>
+    </table>
+    <h4>Description</h4>
+    <p>
+        These are the possible event types returned by <a href="InputFun.htm#SiGetEvent">SiGetEvent</a>.
+        You should interpret the data based on the type of event returned by the function.
+    </p>
+    <p>
+        &nbsp;
+    </p>
+    <h3>
+        <a name="SiSpwHandler Structure"></a>SiSpwHandler Structure</h3>
+    <p class="sourcecode">
+        typedef struct /* Event handler (for SiDispatch) */<br />
+        {<br />
+        &nbsp;&nbsp;int (*func) (SiOpenData *, SiGetEventData *, SiSpwEvent *, void *);<br />
+        &nbsp;&nbsp;void *data;<br />
+        } SiEventHandler;
+    </p>
+    <h4>Description</h4>
+    <p>
+        Member <i>func</i> is pointer to a function to handle the event.<br />
+        Any application specific data to be passed to the event handling function using
+        <i>data</i>.This pointer may be NULL.<br />
+        This structure is the information needed to setup a callback for a particular event
+        type. One of these structures is required for each event callback.
+    </p>
+    <p>
+        &nbsp;
+    </p>
+    <h3>
+        <a name="SiSpwHandlers Structure"></a>SiSpwHandlers Structure</h3>
+    <p class="sourcecode">
+        typedef struct /* 3DxWare event handlers */<br />
+        {<br />
+        &nbsp;&nbsp;SiEventHandler button;&nbsp;&nbsp;&nbsp; /* Button event handler */<br />
+        &nbsp;&nbsp;SiEventHandler motion;&nbsp;&nbsp;&nbsp; /* Motion event handler */<br />
+        &nbsp;&nbsp;SiEventHandler combo;&nbsp;&nbsp;&nbsp;&nbsp; /* Driver use only */<br />
+        &nbsp;&nbsp;SiEventHandler zero;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* Zero event handler
+        */<br />
+        &nbsp;&nbsp;SiEventHandler exception; /* Exception event handler */<br />
+        } SiSpwHandlers;
+    </p>
+    <h4>Description</h4>
+    <p>
+        This structure is used by <a href="InputFun.htm#SiDispatch">SiDispatch</a> to handle
+        the various event types. SiDispatch calls the function in a given SiEventHandler
+        for a given event type as long as the function pointer is non-NULL. Both SiDispatch
+        and SiSpwHandlers Structure are included for backward compatibility only. It is
+        not recommended that you use either of them.
+    </p>
+    <p>
+        &nbsp;
+    </p>
+    <h3>
+        <a name="SiVerInfo Structure"></a>SiVerInfo Structure</h3>
+    <p class="sourcecode">
+        typedef struct /* Version information */<br />
+        {<br />
+        &nbsp;&nbsp;int major;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Major version number */<br />
+        &nbsp;&nbsp;int minor;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Minor version number */<br />
+        &nbsp;&nbsp;int build;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Build number */<br />
+        &nbsp;&nbsp;char version[SI_STRSIZE];&nbsp;&nbsp;/* Version string */<br />
+        &nbsp;&nbsp;char date[SI_STRSIZE];&nbsp;&nbsp;&nbsp;&nbsp; /* Date string */<br />
+        } SiVerInfo;
+    </p>
+    <h3>Description</h3>
+    <p>
+        This structure contains the information about the version of the 3DxWare software.
+        <a href="InputFun.htm#SiGetDriverInfo">SiGetDriverInfo</a> and <a href="InputFun.htm#SiGetLibraryInfo">SiGetLibraryInfo</a> return this same structure.
+    </p>
+    <p>
+        &nbsp;
+    </p>
+    <h3>
+        <a name="Motion Data Offsets"></a>Motion Data Offsets</h3>
+    <p class="sourcecode">
+        #define SI_TX&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*
+        Translation X value */<br />
+        #define SI_TY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*
+        Translation Y value */<br />
+        #define SI_TZ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*
+        Translation Z value */<br />
+        #define SI_RX&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*
+        Rotation X value */<br />
+        #define SI_RY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*
+        Rotation Y value */<br />
+        #define SI_RZ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*
+        Rotation Z value */<br />
+    </p>
+    <h4>Description</h4>
+    <p>
+        These constants are shortcuts for accessing the data from the <a href="#SiSpwEvent Structure">SiSpwEvent Structure</a>.
+    </p>
+    <p>
+        &nbsp;
+    </p>
+    <h3>
+        <a name="3DxWare Device Type"></a>3DxWare Device Types</h3>
+    <p class="sourcecode">
+        typedef enum<br />
+        {<br />
+        &nbsp;&nbsp;SI_ALL_TYPES&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        = -1,<br />
+        &nbsp;&nbsp;SI_UNKNOWN_DEVICE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        = 0,<br />
+        &nbsp;&nbsp;/* ...Device types 1 to 3 discountinued. */<br />
+        &nbsp;&nbsp;SI_SPACEEXPLORER &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        = 4,<br />
+        &nbsp;&nbsp;SI_SPACENAVIGATOR_FOR_NOTEBOOKS = 5,<br />
+        &nbsp;&nbsp;SI_SPACENAVIGATOR &nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        = 6,<br />
+        &nbsp;&nbsp;/* ...Device types 7 to 28 discountinued. */<br />
+        &nbsp;&nbsp;SI_SPACEPILOT &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        = 29,<br />
+        &nbsp;&nbsp;/* ...Device type 30 discountinued. */<br />
+        &nbsp;&nbsp;SI_SPACEPILOT_PRO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        = 0xc629,<br />
+        &nbsp;&nbsp;SI_SPACEMOUSE_PRO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        = 0xc62b,<br />
+        } SiDevType;
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td>SI_SPACEEXPLORER
+            </td>
+            <td>SpaceExplorer USB
+            </td>
+        </tr>
+        <tr>
+            <td>SI_SPACENAVIGATOR
+            </td>
+            <td>SpaceNavigator
+            </td>
+        </tr>
+        <tr>
+            <td>SI_SPACENAVIGATOR_FOR_NOTEBOOKS
+            </td>
+            <td>SpaceNavigator for Notebooks
+            </td>
+        </tr>
+        <tr>
+            <td>SI_SPACEPILOT
+            </td>
+            <td>SpacePilot
+            </td>
+        </tr>
+        <tr>
+            <td>SI_SPACEPILOT_PRO
+            </td>
+            <td>SpacePilot Pro
+            </td>
+        </tr>
+        <tr>
+            <td>SI_SPACEMOUSE_PRO
+            </td>
+            <td>SpaceMouse Pro
+            </td>
+        </tr>
+    </table>
+    <h4>Description</h4>
+    <p>
+        These are the types of devices supported by this version of the SDK. Future releases
+        of the SDK will support additional device types.<br />
+        <b>NOTE:</b> Only USB devices are supported.
+    </p>
+    <p>
+        &nbsp;
+    </p>
+    <h3>
+        <a name="3DxWare UI Mode Setting"></a>3DxWare UI Mode Settings</h3>
+    <p class="sourcecode">
+        #define SI_UI_ALL_CONTROLS&nbsp;&nbsp;&nbsp;&nbsp;0xffffffffL<br />
+        #define SI_UI_NO_CONTROLS&nbsp;&nbsp;&nbsp; &nbsp;0x00000000L<br />
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td>SI_UI_ALL_CONTROLS
+            </td>
+            <td>displays the driver menu
+            </td>
+        </tr>
+        <tr>
+            <td>SI_UI_NO_CONTROLS
+            </td>
+            <td>hides the driver menu
+            </td>
+        </tr>
+    </table>
+    <h4>Description</h4>
+    <p>
+        These constants are used to determine the state of the driver menu. They are used
+        as parameters to <a href="InputFun.htm#SiSetUiMode">SiSetUiMode</a>.
+    </p>
+    <p>
+        &nbsp;
+    </p>
+    <h3>
+        <a name="Special Button Definition"></a>Special Button Definitions</h3>
+    <p class="sourcecode">
+        #define SI_RESET_DEVICE_BUTTON&nbsp;&nbsp;&nbsp;&nbsp; 0<br />
+        #define SI_APP_FIT_BUTTON&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 31<br />
+        #define SI_APP_DIALOG_BUTTON&nbsp; &nbsp;&nbsp;&nbsp; 30<br />
+        #define SI_APP_POPUPMENU_BUTTON&nbsp; &nbsp;29<br />
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td>SI_RESET_BUTTON
+            </td>
+            <td>The button number for the reset button. When this button is pressed the device should
+                be rezeroed using <a href="InputFun.htm#SiRezero">SiRezero</a>.
+            </td>
+        </tr>
+        <tr>
+            <td>SI_PICK_BUTTON
+            </td>
+            <td>The Pick button This button normally performs a reset/refit view function on release
+            </td>
+        </tr>
+        <tr>
+            <td>SI_DIALOG_BUTTON
+            </td>
+            <td>The driver menu button. It toggles the driver menu Open/Closed. This button is passed
+                to the application only if <a href="InputFun.htm#SiSetUiMode">SiSetUiMode</a> is
+                used to turn off the driver menu.
+            </td>
+        </tr>
+    </table>
+    <h4>Description</h4>
+    <p>
+        These button definitions represent buttons on the devices. The recommended functionality
+        for these buttons is given in the above table. See <a href="DevInfo.htm#SB_Buttons">Device Buttons</a> for more information.
+    </p>
+    <p>
+        &nbsp;
+    </p>
+    <h3>
+        <a name="SpwErrorVal"></a>SpwErrorVal Global Variable</h3>
+    <p class="sourcecode">
+        enum SpwRetVal SpwErrorVal;
+    </p>
+    <h4>Description</h4>
+    <p>
+        This global variable returns the status for functions like <a href="InputFun.htm#SiGetEvent">SiGetEvent</a> which return a value that can conflict with the return codes
+        defined by <a href="#SpwRetVal Enumueration">SpwRetVal Enumueration</a>.
+    </p>
+    <p>
+        &nbsp;
+    </p>
+    <h3>
+        <a name="SpwRetVal Enumeration"></a>SpwRetVal Enumeration</h3>
+    <p class="sourcecode">
+        enum SpwRetVal&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Error return values. &nbsp;*/<br />
+        {<br />
+        &nbsp;&nbsp;SPW_NO_ERROR,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp;/*
+        No error. &nbsp;*/<br />
+        &nbsp;&nbsp;SPW_ERROR,&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Error -- function failed.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;&nbsp;&nbsp;&nbsp; &nbsp;*/<br />
+        &nbsp;&nbsp;SI_BAD_HANDLE,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;/*
+        Invalid 3DxWare handle. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; */<br />
+        &nbsp;&nbsp;SI_BAD_ID,&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Invalid device ID. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        */<br />
+        &nbsp;&nbsp;SI_BAD_VALUE,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;/* Invalid argument value. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        */<br />
+        &nbsp;&nbsp;SI_IS_EVENT,&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* Event is a 3DxWare event.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;*/<br />
+        &nbsp;&nbsp;SI_SKIP_EVENT,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp;/* Skip
+        this 3DxWare event.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;*/<br />
+        &nbsp;&nbsp;SI_NOT_EVENT,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;/* Event is not a 3DxWare event. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        */<br />
+        &nbsp;&nbsp;SI_NO_DRIVER,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;/* 3DxWare driver is not running. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        */<br />
+        &nbsp;&nbsp;SI_NO_RESPONSE,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;/* 3DxWare
+        driver is not responding. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        */<br />
+        &nbsp;&nbsp;SI_UNSUPPORTED,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;/* The
+        function is unsupported by this version. &nbsp;*/<br />
+        &nbsp;&nbsp;SI_UNINITIALIZED,&nbsp; &nbsp;&nbsp;&nbsp;&nbsp; /* 3DxWare input library
+        is uninitialized. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; */<br />
+        &nbsp;&nbsp;SI_WRONG_DRIVER,&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* Driver is incorrect
+        for this 3DxWare version. */<br />
+        &nbsp;&nbsp;SI_INTERNAL_ERROR,&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;/* Internal 3DxWare
+        error.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;*/<br />
+        &nbsp;&nbsp;SI_BAD_PROTOCOL,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;/* The transport
+        protocol is unknown.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;*/<br />
+        &nbsp;&nbsp;SI_OUT_OF_MEMORY,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;/* Unable to malloc
+        space required. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        */<br />
+        &nbsp;&nbsp;SPW_DLL_LOAD_ERROR,&nbsp; &nbsp; &nbsp;/* Could not load siapp dlls.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;*/<br />
+        &nbsp;&nbsp;SI_NOT_OPEN,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;/* 3D mouse device not open.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;*/<br />
+        &nbsp;&nbsp;SI_ITEM_NOT_FOUND&nbsp; &nbsp;&nbsp;&nbsp;&nbsp; /* Item not found.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;*/<br />
+        &nbsp;&nbsp;SI_UNSUPPORTED_DEVICE,&nbsp;&nbsp;/* The device is not supported.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;*/<br />
+        &nbsp;&nbsp;SI_NOT_ENOUGH_MEMORY,&nbsp; &nbsp;/* Not enough memory (but not a malloc
+        problem).&nbsp;*/<br />
+        &nbsp;&nbsp;SI_SYNC_WRONG_HASHCODE,&nbsp;/* Wrong hash code sent to a Sync function.&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;*/<br />
+        &nbsp;&nbsp;SI_INCOMPATIBLE_PROTOCOL_MIX&nbsp; &nbsp;/* Attempt to mix MWM and S80
+        protocol in invalid way.&nbsp;*/<br />
+        };
+    </p>
+    <h4>Description</h4>
+    <p>
+        A majority of the 3DxWare input functions return a value to indicate success or
+        failure upon completion. The return value is one of the items listed above. The
+        3DxWare Input functions which do not return a value, set the global variable <i>SpwErrorVal</i>
+        to indicate what caused them to fail. To convert the error number into a string,
+        use the <a href="InputFun.htm#SpwErrorString">SpwErrorString</a> function.
+    </p>
+</body>
+</html>

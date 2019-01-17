@@ -52,6 +52,12 @@ class Mesh : public StaticFactory
     static Mesh* CreateFromOBJ(std::string name, std::string objPath);
     static Mesh* CreateFromSTL(std::string name, std::string stlPath);
     static Mesh* CreateFromGLB(std::string name, std::string glbPath);
+    static Mesh* CreateFromRaw(
+        std::string name,
+        std::vector<glm::vec3> points, 
+        std::vector<glm::vec3> normals = {}, 
+        std::vector<glm::vec4> colors = {}, 
+        std::vector<glm::vec2> texcoords = {});
     //static Mesh* Create(std::string name);
 	static Mesh* GetFront();
 	static uint32_t GetCount();
@@ -732,6 +738,13 @@ class Mesh : public StaticFactory
     bool load_stl(std::string stlPath);
 
     bool load_glb(std::string glbPath);
+
+    bool load_raw(
+        std::vector<glm::vec3> &points, 
+        std::vector<glm::vec3> &normals, 
+        std::vector<glm::vec4> &colors, 
+        std::vector<glm::vec2> &texcoords
+    );
 
   private:
     void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer &buffer, vk::DeviceMemory &bufferMemory)

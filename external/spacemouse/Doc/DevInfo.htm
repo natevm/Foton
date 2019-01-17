@@ -1,0 +1,1592 @@
+﻿<!--
+/* Copyright notice:
+ * Copyright (c) 3Dconnexion. All rights reserved.
+ *
+ * This file and source code are an integral part of the "3Dconnexion
+ * Software Developer Kit", including all accompanying documentation,
+ * and is protected by intellectual property laws. All use of the
+ * 3Dconnexion Software Developer Kit is subject to the License
+ * Agreement found in the "LicenseAgreementSDK.rtf" file.
+ * All rights not expressly granted by 3Dconnexion are reserved.
+ *
+ * Last edited: $Id: DevInfo.htm 13306 2016-08-18 19:00:54Z ngomes $
+ */-->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Device Information</title>
+    <x-sas-window top="48" bottom="576" left="35" right="911">
+    <link rel="stylesheet" type="text/css" href="style.css"/>
+</head>
+<body>
+    <a href="SupPlatf.htm">
+        <img src="graphics/prev1.gif" alt="graphics/prev1.gif" border="0" height="22" width="46"
+            align="bottom" /></a><a href="Integrat.htm"><img src="graphics/next1.gif" alt="graphics/next1.gif"
+                border="0" x-sas-useimagewidth x-sas-useimageheight height="22" width="46" align="bottom" /></a>
+    <h1>
+        <a name="Device Information"></a>Device Information
+    </h1>
+    <h2>
+        <a name="Getting Started"></a>Getting Started
+    </h2>
+    <p>
+        3Dconnexion devices are true 3D input devices that detect the slightest fingertip
+        pressure applied to them and resolve the pressure into X, Y, and Z translations
+        and rotations, moving your 3D images instantaneously and simultaneously. This provides
+        intuitive, interactive six degrees-of-freedom control of 3D graphical images and
+        objects.
+    </p>
+    <center>
+        <img border="0" src="Graphics/productline.jpg" height="200">
+    </center>
+    <center>
+        <b>3Dconnexion Devices</b>
+    </center>
+    <p>
+        Adding 3D mouse support in application should follow the basic three-phase approach
+        to any software project: specification, integration (or implementation), followed
+        by testing and quality assurance (QA). This SDK documentation can assist with the
+        first two (specification and integration) and 3Dconnexion can work with partners
+        with the third and final phase.
+    </p>
+    <h4>
+        <a name="Specification"></a>Specification
+    </h4>
+    <p>
+        Feature defintion must begin by choosing the 3D mouse navigation modes that will
+        be supported by the application. Section <a href="#3D Application Operating Modes">
+            3D
+            Application Operating Modes
+        </a> explains the two main control modes and section
+        <a href="#3D Navigation Control Modes">3D Navigation Control Modes</a> adds additional
+        details mode. If the application has 2D environments (for 2D drawing, sketching,
+        drafting, etc), the control modes described in section <a href="#2D Navigation">2D Navigation</a>
+        should be taken in consideration.
+    </p>
+    <p>
+        If Object Mode is implemented, then careful thought must be given to the placement
+        and user-control of the Center of Rotation (CoR): 3D manipulation is greatly improved
+        by the automatic algorithm described in the <a href="#Center of Rotation">
+            Center of
+            Rotation
+        </a> section. 3Dconnexion strongly recommends the implementation of
+        the auto-rotation center as it is key to an effortless navigation of 3D models when
+        operating at different zoom levels.
+    </p>
+    <p>
+        In addition to navigation control, 3Dconnexion devices include buttons and other
+        features that can be used to shortcut application commands, further simplifying
+        the usuability of a modern graphical application.
+    </p>
+    <p>
+        Adding specific support for device buttons is not recommended. By taking a different
+        approach where a 3Dconnexion device is abstracted, programmers can ensure a greater
+        level of compability with future device models.
+    </p>
+    <p>
+        To enable this level of abstraction, the 3DxWare SDK was udpated with the "Action Interface"
+        extension to allow applications to expose at run-time a categorized list of application commands.
+        The interface can support applications with different contexes (or environments) where users
+        dynamically change from using one specific set of commands to another.
+    </p>
+    <p>
+        Section <a href="#Application and Driver Integration">Application and Driver Integration</a>
+        below provides the details on how to use this interface to most effect.
+    </p>
+    <h4>
+        Integration
+    </h4>
+    <p>
+        Implementing 3D mouse support begins by enable the transportation of 3D mouse data
+        to the application. Section <a href="Integrat.htm">Integration Basics</a> introduces
+        3DxWare Input Library and how it can be used to receive 3D mouse motion data and
+        other events.
+    </p>
+    <p>
+        Once the 3D mouse data is available in the application, it is transformed to control
+        the placement of a camera, viewpoint, viewport or whatever 3D viewer abstraction
+        model used in the application implementation. Section <a href="#Data Supplied">
+            Data
+            Supplied
+        </a> describes in detail the 3D mouse data and how it should be transformed
+        into 3D mouse control. Implementers should carefully follow sub-section <a href="#Navigation Velocity">
+            Navigation Velocity
+        </a> where it is explained how to convert the raw 3D mouse
+        data into translation and angular velocity parameters, thus ensuring a correct response
+        by the application to 3D mouse input.
+    </p>
+    <p>
+        As with the normal mouse, performance is key to allow users to correctly operate
+        the 3D mouse. Several performance parameters should be considered but two are particularly
+        important: <b>low latency</b> and <b>frame rate</b>. A 3D mouse implemention should
+        offer a frame rate of not less than 15 frames per seconds (fps) but 30 fps is the
+        recommend minimum. Users do not expect to see a degradation of performance if using
+        a 3D mouse when compared to the same (or similar) operation using pointing device
+        (2D mouse, touch screen). A more in-depth discussion on the subject of performance
+        parameters is available in the <a href="TandT.htm#Navigation Parameters">
+            Navigation
+            Parameters
+        </a> section.
+    </p>
+    <h4>
+        Testing and Quality Assurance
+    </h4>
+    <p>
+        Particular care should be taken to ensure the correct operation of the 3D mouse
+        in a dynamic interaction with the application: the user may activate the 3D mouse
+        whilst using the pointing device to select a command from the application menu.
+        Users will expect to be able to operate the application simultaneously using the
+        3D mouse and the pointing device.
+    </p>
+    <p>
+        3D mouse options should be part of a "3Dconnexion Properties" section of the application
+        user interface where other input devices can be configured (menu "Tools", "Options",
+        for example).
+    </p>
+    <p>
+        The information on the 3D mouse support features must be available on the application's
+        user documentation. The text and other resources in this SDK can be re-used for
+        the user documentation under the same terms and conditions as defined in the <a href="Copyrt.htm">
+            SDK License Agreement
+        </a>.
+    </p>
+    <p>
+        &nbsp;
+    </p>
+    <h3>
+        <a name="3D Application Operating Modes"></a>3D Application Operating Modes
+    </h3>
+    <p>
+        Using a 3Dconnexion device is natural and intuitive. There are two basic ways to
+        move objects in 3D with the device:
+    </p>
+    <ul>
+        <li>
+            Manipulate the 3D mouse sensor cap as if you were holding the 3D model in your hand;
+            this is <b>Object Mode</b>. Push left and the image moves left. Push right and it
+            moves right. Lift up or push down and the image moves accordingly. Push away (out)
+            and or pull forward (in) on the sensor and the image responds. Twist in any direction
+            and the image rotates in that direction. This is the most natural mode when there
+            is a single item to move.
+        </li>
+        <li>
+            Manipulate the 3D mouse sensor cap as if it is a camera or your head; this is <b>
+                Camera Mode
+            </b>. Push into the scene and the camera moves forward into the scene.
+            The scene will appear to move toward and around the viewer. Push left and the camera
+            moves to the left (the scene moves to the right). Push right and the camera moves
+            to the right (the scene moves to the left). Lift up and the camera moves up. Push
+            down and the camera moves down. The viewer is entering the scene as if walking around
+            in it. It normally takes some time to get used to this mode. It is a natural mode
+            in a virtual scene environment when there is a clear floor and/or horizon rather
+            than some single object to move and &quot;floating&quot; in a virtual space.
+        </li>
+    </ul>
+    <p>
+        A more detailed overview of different control is given in the <a href="#3D Navigation Control Modes">
+            3D Navigation Control Modes
+        </a> section.
+    </p>
+    <h4>
+        <a name="Alternate Orientations"></a>Alternate Orientations
+    </h4>
+    <p>
+        Some users prefer to think of the Windows desktop as being a real desktop (and paralell
+        to the room floor). They like to think of their screen as looking down on their
+        desktop, not as looking at a projection of it or say a whiteboard.&nbsp; Therefore,
+        they prefer to have the 3D mouse sensor oriented similar to a mouse in which pushing
+        away from them causes the object under control to go <i>up</i> the screen in the
+        same way that pushing a mouse away from them causes the Windows cursor to move up
+        the screen. The 3DxWare driver GUI supports this option by rearranging the 3D mouse
+        sensor axes. Several axes have to be changed in conjunction to maintain a consistent
+        interaction model.<br />
+        This being a user preference, developers are best advised to code for standard navigation
+        modes and leave the alternate orientations setting as part of the 3D mouse configuration.
+    </p>
+    <h3>
+        <a name="2D Application Operating Modes"></a>2D Application Operating Modes
+    </h3>
+    <p>
+        In 2D applications there is a personal preference of whether the user is <i>
+            moving the
+            paper
+        </i> or <i>moving the view</i>. This is the same issue as whether Windows
+        scroll bars move the paper up and down or move your view of the document up and
+        down. The 3DxWare GUI supports this option in applications whose config file indicate
+        that they are 2D applications.
+    </p>
+    <p>
+        &nbsp;
+    </p>
+    <h2>
+        <a name="Navigation"></a>Navigation
+    </h2>
+    <p>
+        The goal of integrating a 3D Mouse into an application is to provide the user with
+        experience as if he were holding the displayed object, or the camera, in his hand.
+        This illusion can only be upheld if the object moves simultaneously with the hand
+        movement and in the direction the user expects.<br />
+        To achieve an excellent user experience the developer needs to understand the difference
+        between 2D and 3D mice and the parameters that affect the navigation experience.
+    </p>
+    <h3>
+        <a name="Axis Orientation"></a>Axis Orientation
+    </h3>
+    <p>
+        Where discussing axes and orientations, this document will assume the 3DxWare SDK
+        coordinate system with Y pointing up and Z pointing away from the observer.<br />
+        Note that this is not a right-handed co-ordinate system and differ from the HID
+        &quot;multi-axis controller&quot; as defined by the USB Implementers Forum (USB-IF).
+    </p>
+    <h3>
+        <a name="3D Navigation Control Modes"></a>3D Navigation Control Modes
+    </h3>
+    <h4>
+        <a name="3D Navigation Control Modes"></a>Object Mode
+    </h4>
+    <p>
+        The main characteristic of object mode navigation is that the user has the impression
+        he is holding the object in his hand. An important use for this navigation mode
+        is in the modeling and inspection of parts and assemblies. To create this illusion
+        for the user, the direction that the object moves needs to be the same as the direction
+        the user moves his hand, which is moving the devices cap. It is also important that
+        the center of rotation is fixed relative to the object. A consequence of this mode
+        is that the pan speed needs to be adjusted depending how far the object is from
+        the user (see chapter 5).
+    </p>
+    <h4>
+        <a name="Camera Mode"></a>Camera Mode
+    </h4>
+    <p>
+        Camera mode navigation is characterized by the user having the impression that he
+        is moving around in the scene he is observing. A typical use for a camera mode is
+        exploring virtual sceneries or in first person games. This requires that the user
+        moves and turns in the direction that the cap on the 3D Mouse moves, and causes
+        the objects displayed to move in the opposite direction to object mode described
+        above. In camera mode the center of rotation is at the eye or view point. Because
+        camera mode navigation reflects movement in the real world, there are a number of
+        sub modes which have various constraints similar to those existing in the real world.
+    </p>
+    <h4>
+        <a name="Target Camera Mode"></a>Target Camera Mode
+    </h4>
+    <p>
+        Target camera mode, for want of a better name, moves the object or scene in the
+        same direction as in camera mode, but uses the object mode center of rotation algorithms.
+        In other words target camera mode is the same as object mode, but pans, zooms and
+        rotates in the opposite direction.
+    </p>
+    <h4>
+        <a name="Fly (Level Horizon)"></a>Fly (Level Horizon)
+    </h4>
+    <p>
+        Fly (Level Horizon) mode is used to describe a camera mode navigation where the
+        horizon is required to always remain leveled ("horizontal”), see 3.4.1. Apart from
+        the horizontal constraint fly mode is the same as unconstrained camera mode, with
+        the center of rotation located in the camera.
+    </p>
+    <h4>
+        <a name="Walk"></a>Walk
+    </h4>
+    <p>
+        This mode is used where the height above a surface is required to remain constant
+        whilst still allowing the user to look up and down. Walk mode has the same constraint
+        applied to the horizon as Fly (Level Horizon) mode in that the horizon must remain
+        leveled. The translations applied to the cap of the device are considered to be
+        in the world xz plane with the device's y-axis disabled: Pushing the cap forward
+        moves the observer forward in the virtual plane he is standing independent of whether
+        he happens to be looking up or down. An analogy would be that the device controls
+        the walker's body whilst the tilt axis controls the walker's head or eyes.
+    </p>
+    <h4>
+        <a name="Helicopter"></a>Helicopter
+    </h4>
+    <p>
+        As the name suggests this mode simulates a helicopter control mechanism. Similar
+        to walk mode navigation the device's pan axes control the movement in a plane parallel
+        to the world's xz-plane irrespective of the applied tilt. However, unlike walk mode,
+        the device's y-axis is used directly to control the height above the world's xz-
+        plane. In this navigation mode pulling the devices cap up causes the height above
+        world's xz-plane to increase, increasing the distance of the view point above the
+        plane. Similarly, pressing the cap down causes the view point to get closer to the
+        plane. Not only are the device's y-translation values applied directly to the world's
+        up-axis, the same is true for the devices spin values: These rotations act as if
+        the device's and the world's up-axis were coincidental.
+    </p>
+    <h3>
+        <a name="3D Navigation Control Usage"></a>3D Navigation Control Usage
+    </h3>
+    <p>
+        Not all navigation modes have the same importance in every application. Which navigation
+        mode in a virtual environment feels most natural is related to how a similar task
+        would be performed in the real world. For example, if the user has the impression
+        that he is looking at something he would hold, then the natural navigation mode
+        would be object mode. Similarly, if he thinks that he is in a building or scene
+        then the most natural mode might be 'helicopter'.
+    </p>
+    <p>
+        The table below lists a number of application categories and the navigation modes
+        we have identified as being most appropriate for the tasks that the user may perform.
+    </p>
+    <table border="1" title="Application Navigation Modes" style="caption-side: bottom"
+           summary="Application Navigation Modes" align="center">
+        <tr>
+            <th>
+                Application type
+            </th>
+            <th>
+                Object
+            </th>
+            <th>
+                Camera
+            </th>
+            <th>
+                Target Camera Mode
+            </th>
+            <th>
+                Fly (Level Horizon)
+            </th>
+            <th>
+                Walk
+            </th>
+            <th>
+                Helicopter
+            </th>
+        </tr>
+        <tr>
+            <td align="center">
+                CAD / CAM
+            </td>
+            <td align="center">
+                Modeling and Inspection
+            </td>
+            <td align="center">
+                &nbsp;
+            </td>
+            <td align="center">
+                &nbsp;
+            </td>
+            <td align="center">
+                &nbsp;
+            </td>
+            <td align="center">
+                &nbsp;
+            </td>
+            <td align="center">
+                &nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td align="center">
+                Digital Content Creation
+            </td>
+            <td align="center">
+                Modeling
+            </td>
+            <td align="center">
+                Inspection
+            </td>
+            <td align="center">
+                Modeling and Inspection
+            </td>
+            <td align="center">
+                Animation
+            </td>
+            <td align="center">
+                &nbsp;
+            </td>
+            <td align="center">
+                Inspection
+            </td>
+        </tr>
+        <tr>
+            <td align="center">
+                Architecture, Engineering, Construction
+            </td>
+            <td align="center">
+                Modeling
+            </td>
+            <td align="center">
+                &nbsp;
+            </td>
+            <td align="center">
+                Modeling and Inspection
+            </td>
+            <td align="center">
+                &nbsp;
+            </td>
+            <td align="center">
+                Inspection
+            </td>
+            <td align="center">
+                Inspection
+            </td>
+        </tr>
+        <tr>
+            <td align="center">
+                Geographic Information Systems
+            </td>
+            <td align="center">
+                &nbsp;
+            </td>
+            <td align="center">
+                &nbsp;
+            </td>
+            <td align="center">
+                &nbsp;
+            </td>
+            <td align="center">
+                &nbsp;
+            </td>
+            <td align="center">
+                &nbsp;
+            </td>
+            <td align="center">
+                General Navigation
+            </td>
+        </tr>
+    </table>
+    <h3>
+        <a name="Center of Rotation"></a>Center of Rotation
+    </h3>
+    <p>
+        All 3D navigation modes require a definition for the center of rotation (CoR). This
+        section discusses a solution developped at 3Dconnexion to offer an effortless use
+        of 3D mice.<br />
+        For Object Mode, manual placement of the CoR should be given as an option but well-designed
+        automatic placement increases the level of confort for a 3D mouse user.
+    </p>
+    <h4>
+        <a name="The Center of Rotation for Camera Mode"></a>The Center of Rotation for
+        Camera Mode
+    </h4>
+    <p>
+        Camera control type navigation modes generally have the rotation centered on the
+        camera or view. An exception to the rule is a target camera which always looks at,
+        and consequently rotates around, the target.
+    </p>
+    <h4>
+        <a name="The Center of Rotation for Camera Mode"></a>The Center of Rotation for
+        Object Mode Control
+    </h4>
+    <p>
+        The different navigation modes each place their own requirements on where the center
+        of rotation is located relative to the view or viewed objects. In object control
+        navigation the center of rotation needs to be placed in or on the object that the
+        user is examining and adjusted depending on the level of detail the user is interested
+        in. With the exception of the initial placement, the center of rotation should never
+        leave the object being examined.
+    </p>
+    <ul>
+        <li>
+            <b>Visualization</b><br />
+            To help the 3D Mouse user understand how the 3D Mouse connects to that which he
+            is moving, <b>one must visualize the center of rotation</b>. Seeing a small icon
+            on the screen which the user can identify as the center of rotation draws his focus
+            to that point when moving the 3D Mouse and the resulting motion, or more specific
+            rotation, can be more easily associated with the initiating hand movement and controlled.
+            Without a representation of the rotation center, it can be extremely difficult to
+            determine about which point in 3D space the object is being rotated and consequently
+            how the object and hand movement are related. This then leads to a looser control.
+        </li>
+        <li>
+            <b>Placement</b><br />
+            The recommended approach to setting the center of rotation is for the initial position
+            to be at <b>the Center of Volume of all the objects (CoV)</b> on the screen. A pragmatic
+            solution is to use the center point of the bounding box enclosing all the objects
+            on the screen. This point ought to coincide with the point that is always centered
+            on the screen when the ‘zoom extents’ application command is executed.
+        </li>
+        <li>
+            <b>Manual Rotation Center</b><br />
+            The initial position of the center of rotation is only truly useful as long as it
+            is visible on the screen. When working on a model, the user will spend a lot of
+            time zoomed into details, and more than likely, with the center of volume and the
+            initial rotation center off the edge of the screen, making it difficult for the
+            user to differentiate between pan-zoom and rotary movement and inevitably resulting
+            in a loss of control. A simple solution to this is to allow the user to place the
+            rotation center anywhere on the surface of the model. The recommendation here is
+            to use the <b>middle mouse button (MMB)</b>, preferably without a modifier key -
+            the prioritized order for choosing a modifier if one is needed is to use Ctrl or
+            if not available then Shift and lastly Alt. Assuming the MMB already has a function
+            attached to it, but Ctrl+MMB is unassigned, pressing Ctrl+MMB would result in the
+            center of rotation being moved from its current position to the surface of the model
+            under the mouse cursor where the user clicked the button.
+        </li>
+        <li>
+            <b>Resetting the Placement</b><br />
+            Two methods should be implemented to reset the center of rotation to its initial
+            placement. Firstly, with the &#39;<b>Fit</b>&#39; command that zooms the view so
+            that all objects are visible on the screen. The second method is to reset the center
+            of rotation to its initial position when the user attempts to place it in empty
+            space <b>by clicking the MMB with no object below the cursor</b>.
+        </li>
+        <li>
+            <b>Auto Rotation Center</b><br />
+            The auto rotation center algorithm allows the center of rotation to be automatically
+            set without the user explicitly selecting a point on the object. To do this the
+            following assumptions are made:
+            <ol>
+                <li>
+                    When the object or scene is completely visible the user is interested in the object
+                    or scene as a whole and expects the rotation to be about the center of volume (COV)
+                    of the object.
+                </li>
+                <li>
+                    To view details on an object, the user will move that object closer, placing the
+                    details he is interested in near to the center of the view. The user expects the
+                    rotation to be about his center of interest, that is, a point on the surface of
+                    the model, ideally, at the center of the view. If no point in the surface lies at
+                    the middle of the view, the center of rotation remains where it is.
+                </li>
+            </ol>
+            The criterion used to switch between the center of volume and the surface under
+            the center of view is when the bounding box of the object scaled linearly by 0.8
+            is no longer completely visible in the view.<br />
+            The newly calculated center of rotation needs to be visible at its position before
+            the user starts to move or rotate the viewed object and, because the user may be
+            modeling and changing the viewed object, continually recalculated when the object
+            is not being moved.
+        </li>
+        <li>
+            <b>Selection Follower</b><br />
+            In 3D environments with numerous spaciously placed 3D objects where the user selects
+            an object before using a tool to modify it, an intuitive method of placing the center
+            of rotation is to set it to the center of volume of the selection. This is very
+            similar to user placement with the advantage that the user does not need to actively
+            concentrate on setting the center of rotation and automatically has a point near
+            to his center of interest. Combined with the auto rotation center the selection
+            follower acts as an object filter reducing the number of objects seen by the algorithm
+            to those selected.
+        </li>
+    </ul>
+    <!--
+        <h4>
+            <a name="Center of Rotation Usage"></a>Center of Rotation Filter Usage</h4>
+        <p>
+            When the user is using 'Object', or the related 'Target Camera', mode navigation
+            the center of rotation should be calculated using the 'Auto' algorithm. Allowing
+            the user to limit the algorithm to a point or region can be seen as applying a filter
+            to the algorithm. The table below lists a number of application categories and the
+            filters we believe are most appropriate when determining the center of rotation.
+        </p>
+        <table border="1" title="Application Navigation Modes" style="caption-side: bottom"
+            summary="Application Navigation Modes" align="center">
+            <tr>
+                <th>
+                    Application type
+                </th>
+                <th>
+                    Selection Follower
+                </th>
+                <th>
+                    Manual Override
+                </th>
+            </tr>
+            <tr>
+                <td align="center">
+                    CAD / CAM
+                </td>
+                <td align="center">
+                </td>
+                <td align="center">
+                    Optional
+                </td>
+            </tr>
+            <tr>
+                <td align="center">
+                    Digital Content Creation
+                </td>
+                <td align="center">
+                    Required
+                </td>
+                <td align="center">
+                    Optional
+                </td>
+            </tr>
+            <tr>
+                <td align="center">
+                    Architecture, Engineering, Construction
+                </td>
+                <td align="center">
+                    Required
+                </td>
+                <td align="center">
+                    Optional
+                </td>
+            </tr>
+            <tr>
+                <td align="center">
+                    Geographic Information System
+                </td>
+                <td align="center">
+                    &nbsp;
+                </td>
+                <td align="center">
+                    &nbsp;
+                </td>
+            </tr>
+        </table>
+    -->
+    <h3>
+        <a name="2D Navigation"></a>2D Navigation
+    </h3>
+    <p>
+        2D navigation is characterized by only being able to pan and zoom and not being
+        able to rotate at all. One might argue that a rotation about the view direction
+        to change the layout from portrait to landscape should be allowed. However, this
+        forgets that navigation is about continuous smooth movement and does not apply to
+        changing the layout format which is the 2D equivalent of changing to a different
+        view.
+    </p>
+    <p>
+        The two navigation paradigms that are of interest in 2D views are what we call paper
+        and view control.
+    </p>
+    <h4>
+        <a name="View Control"></a>View Control
+    </h4>
+    <p>
+        View control is the default 2D navigation paradigm for manipulating windows using
+        the mouse (pointing device) and the scrollbar controls. Effectively, the only difference
+        to Paper Control is the direction that the viewed document moves and is similar
+        to moving your view point above a document.
+    </p>
+    <h4>
+        <a name="View Control"></a>Paper Control
+    </h4>
+    <p>
+        The 'real-life' equivalent is of a user holding a piece of paper or book in his
+        hand. In this navigation mode the viewed object or document moves, that is pans
+        and zooms, in the same direction as the hand movement
+    </p>
+    <h2>
+        <a name="Application and Driver Integration"></a>Application and Driver Integration
+    </h2>
+    <p>
+        As explained in section <a href="#Specification">Specification</a> above, applications
+        should support 3Dconnexion devices regardless of model type. A level of 3Dconnexion device
+        abstraction allows programs to seamlessly support new device models without requiring device
+        specific changes or requiring users to update the application to support a just-released
+        3Dconnexion device.
+    </p>
+    <p>
+        3D mouse control (or navigation) is effectively already abstracted: all current 3D mouse
+        devices optical sensors provide a similar user experience and programs do not need to
+        implement different code paths or values (such as sensitivity, speed or gain multipliers)
+        for different device types.
+    </p>
+    <p>
+        Different device models will still vary extensively due to ergonomic features, including
+        buttons.
+    </p>
+    <p>
+        To improve the usefulness of device to end-users, the 3DxWare SDK includes the "Action
+        Interface" extension that provides a method for applications to expose (export) a
+        categorized list of application commands and to notify the driver when
+        such commands become available. Different applications will have different use cases: some
+        applications will have a single list of commands (perhaps categorized in a menu structure
+        with commands for "File", "Edit", etc) and others may have different contexts (or
+        environments) where a particular set of commands (or actions) is only available for a
+        specific application context (like a set of commands being available to "sketch" and a
+        different set available to edit an "assembly").
+    </p>
+    <p>
+        As the command list exposed through the "Action Inteface" is preformed a run-time,
+        programs should also add support for a pre-defined list of commands as detailed in the
+        the following section.
+    </p>
+    <p>
+        Implementation details for the "Action Inteface" extension is available in section
+        <a href="Integrat.htm#Action Interface">Action Interface</a>.
+    </p>
+    <h2>
+        <a name="Device Buttons"></a>Device Buttons
+    </h2>
+    <p>
+        Most 3Dconnexion device models have different numbers of <i>buttons</i>, also known
+        as 3D mouse <i>keys</i>. Receiving button events is straightforward but developing
+        an effective solution that provides a good user experience can be a time consuming
+        project once programs begin to handle each device type independently (with varying
+        number of buttons, default function assignments, interaction with advanced driver
+        features).
+    </p>
+    <p>
+        To facilitate handling of 3D mouse buttons off-the-shelf (actions assigned
+        by default to a device button), 3Dconnexion recommends developers to
+        code support for <i>Virtual 3D Mouse Commands</i> (V3DCMD). The commands are a pre-defined
+        list the 3D mouse device driver can rely on the application having implemented.
+        The application receives a notification to activate a specific command using
+        the <a href="Integrat.htm#3DxWareEvents">SI_CMD_EVENT event type</a>. The samples
+        included in the SDK provide simple examples of how to handle an SI_CMD_EVENT.
+    </p>
+    <p>
+        Command mapping (assignment of application or driver functions to 3D mouse buttons)
+        can then be controlled on the device driver control panel (known as &quot;3Dconnexion
+        Properties&quot;) where end-users expect to find the options settings for their
+        3D mouse devices.
+    </p>
+    <p>
+        The table below lists all current V3DCMD commands. Developers should keep in mind
+        that it is likely the list will be extended over time and 3D mouse support implementations
+        may have to update the V3DCMD handling code when upgrading to a newer version of
+        this SDK.
+    </p>
+    <table border="1" cellpadding="5" align="center">
+        <tr>
+            <th>
+                <b>V3DCMD</b>
+            </th>
+            <th>
+                <b>Description</b>
+            </th>
+        </tr>
+        <tr>
+            <td>
+                V3DCMD_VIEW_FIT
+            </td>
+            <td>
+                Fit model to view. Command is also known as &quot;zoom to fit&quot; or &quot;reframe&quot;.
+            </td>
+        </tr>
+        <tr>
+            <td>
+                V3DCMD_VIEW_TOP
+            </td>
+            <td>
+                Change the view to the &quot;Top&quot; orientation.
+            </td>
+        </tr>
+        <tr>
+            <td>
+                V3DCMD_VIEW_LEFT
+            </td>
+            <td>
+                Change the view to the &quot;Left&quot; orientation.
+            </td>
+        </tr>
+        <tr>
+            <td>
+                V3DCMD_VIEW_RIGHT
+            </td>
+            <td>
+                Change the view to the &quot;Right&quot; orientation.
+            </td>
+        </tr>
+        <tr>
+            <td>
+                V3DCMD_VIEW_FRONT
+            </td>
+            <td>
+                Change the view to the &quot;Front&quot; orientation.
+            </td>
+        </tr>
+        <tr>
+            <td>
+                V3DCMD_VIEW_BOTTOM
+            </td>
+            <td>
+                Change the view to the &quot;Bottom&quot; orientation.
+            </td>
+        </tr>
+        <tr>
+            <td>
+                V3DCMD_VIEW_BACK
+            </td>
+            <td>
+                Change the view to the &quot;Back&quot; orientation.
+            </td>
+        </tr>
+        <tr>
+            <td>
+                V3DCMD_VIEW_ROLL_CW
+            </td>
+            <td>
+                Rotate (roll) model 90 degrees clockwise (rotation axis is perpendicular to the
+                view plane / display screen: Tz).
+            </td>
+        </tr>
+        <tr>
+            <td>
+                V3DCMD_VIEW_ROLL_CCW
+            </td>
+            <td>
+                Rotate (roll) model 90 degrees counter-clockwise (rotation axis is perpendicular
+                to the view plane / display screen: Tz).
+            </td>
+        </tr>
+        <tr>
+            <td>
+                V3DCMD_VIEW_ISO1
+            </td>
+            <td>
+                Change the view to an isometric projection where the front, right and top views
+                are visible.
+            </td>
+        </tr>
+        <tr>
+            <td>
+                V3DCMD_VIEW_ISO2
+            </td>
+            <td>
+                Change the view to an isometric projection where the back, left and top views are
+                visible.
+            </td>
+        </tr>
+        <tr>
+            <td>
+                V3DCMD_VIEW_SPIN_CW
+            </td>
+            <td>
+                Rotate (spin) model 90 degrees clockwise (rotation axis is the view up/down axis:
+                Ty).
+            </td>
+        </tr>
+        <tr>
+            <td>
+                V3DCMD_VIEW_SPIN_CCW
+            </td>
+            <td>
+                Rotate (spin) model 90 degrees counter-clockwise (rotation axis is the view up/down
+                axis: Ty).
+            </td>
+        </tr>
+        <tr>
+            <td>
+                V3DCMD_VIEW_TILT_CW
+            </td>
+            <td>
+                Rotate (tilt) model 90 degrees clockwise (rotation axis is the view left/right axis:
+                Tx).
+            </td>
+        </tr>
+        <tr>
+            <td>
+                V3DCMD_VIEW_TILT_CCW
+            </td>
+            <td>
+                Rotate (tilt) model 90 degrees counter-clockwise (rotation axis is the view left/right
+                axis: Tx).
+            </td>
+        </tr>
+        <tr>
+            <td>
+                V3DCMD_VIEW_QZ_IN
+            </td>
+            <td>
+                QuickZoom In. Zoom in (10x) along direction pointed by the mouse cursor, keeping
+                the view aspect ratio. See <a href="BestPractices.htm#QuickZoom">QuickZoom</a>
+                section for additional details.
+            </td>
+        </tr>
+        <tr>
+            <td>
+                V3DCMD_VIEW_QZ_OUT
+            </td>
+            <td>
+                QuickZoom Out. Zoom out (10x) along the view centre direction, keeping
+                the view aspect ratio. See <a href="BestPractices.htm#QuickZoom">QuickZoom</a>
+                section for additional details.
+            </td>
+        </tr>
+        <tr>
+            <td>
+                V3DCMD_SAVE_VIEW_1<br />
+                V3DCMD_SAVE_VIEW_2<br />
+                V3DCMD_SAVE_VIEW_3<br />
+            </td>
+            <td>
+                Save named view "3Dconnexion V1, 2 or 3" to the current document context. See <a href="BestPractices.htm#QuickViews">Quick Views</a>
+                section for additional details.
+            </td>
+        </tr>
+        <tr>
+            <td>
+                V3DCMD_VIEW_1<br />
+                V3DCMD_VIEW_2<br />
+                V3DCMD_VIEW_3<br />
+            </td>
+            <td>
+                Restore named "3Dconnexion V1, 2 or 3" from the current document context. See <a href="BestPractices.htm#QuickViews">Quick Views</a>
+                section for additional details.
+            </td>
+        </tr>
+    </table>
+    <p>
+        If the application specification requires the handling of actual 3D mouse buttons
+        events (press and release), 3Dconnexion recommends that developers contact the <a href="TechSup.htm">API Support Service</a> to ensure the implementation can
+        be developed to a stable solution avoiding the pitfalls that can happen when handling
+        a rich varity of 3D mouse device types.
+    </p>
+    <h2>
+        <a name="Data Supplied"></a>Data Supplied
+    </h2>
+    <p>
+        3Dconnexion devices provide full, simultaneous six-axis movement in any and all
+        directions. The diagrams below show the orientation of Translation and Rotation
+        axes on the sensor. Following the diagrams, there are two charts explaining the
+        data range of each axis, and the axis "meaning" in both 6D Navigation (Eyepoint
+        Control) and 6D Object Control (Object Movement).
+    </p>
+    <p>
+        It is crucial to a good implementation of the 3Dconnexion device in your application
+        that the movement resulting from pressures on the sensor be as smooth and instantaneous
+        as possible. Please use the diagrams and charts below when adding support for a
+        3Dconnexion device to your application. The motions in parentheses are what are
+        designated in the 3Dconnexion Properties panel by default and reflects the user
+        terminology for these motions.
+    </p>
+    <center>
+        <img border="0" src="Graphics/SP_Arrows.png"></img>
+    </center>
+    <center>
+        <img border="0" src="Graphics/Cap_Arrows.png"></img>
+    </center>
+    <p>
+        The normal range of the device axes is approximately +/- 350. The user can though,
+        scale these values up or down, so your application should be able to handle larger
+        or smaller values. In addition to the axis data, the 3DxWare Input Library also
+        returns the elapsed time since the last event. This is called the 'period' and is
+        measured in milliseconds.
+    </p>
+    <p>
+        The 3Dconnexion devices produce both a translation and a rotation vector simultaneously
+        as a user pushes, pulls, or torques the handle (as is shown in the diagram below).
+        The translation vector represents the force the user applies to move thFit (right
+        button)&nbsp;
+    </p>
+    <p>
+        If the application specification requires the handling of actual 3D mouse buttons
+        events (press and release), 3Dconnexion recommends that developers contact the <a href="TechSup.htm">API Support Service</a> to ensure the implementation can
+        be developed to a stable solution avoiding the pitfalls that can happen when handling
+        a rich varity of 3D mouse device types.
+    </p>
+    <h3>
+        Individual Rotations vs. Rotation about a Vector</b>
+    </h3>
+    <p>
+        There is a way to convert the rotation data into a delta rotation matrix which corresponds
+        to a rotation about a vector. The following matrix is taken from <u>Robot Manipulators</u>
+        by Richard P. Paul, where X, Y, and Z are the components of the (unit) vector and
+        <i>&theta;</i> is the angle of rotation.
+    </p>
+    <img src="graphics/DeltaRot.GIF" alt="graphics/DeltaRot.GIF" />
+    <p>
+        This bit of mathematics is implemented by the <a href="MathLib.htm#SPW_ArbitraryAxisToMatrix">
+            SPW_ArbitraryAxisToMarix
+        </a> function (in the 3DxWare Math Library that is included
+        in the SDK) which makes it easy to include in your application.
+    </p>
+    <h3>
+        <a name="How Data Should be Used"></a>How Data Should be Used
+    </h3>
+    <p>
+        One of the most frequently-asked questions 3Dconnexion receives is how to map the
+        axes of the device to match the application. Here is the rule of thumb.
+    </p>
+    <table border="1" cellpadding="5">
+        <tr>
+            <td>
+                <b>Note</b>: The home position for the device is with Y-axis pointing up and the
+                Z-axis pointing outwards from the screen. The teapot in these illustrations, when
+                at home or rest, is between the two posts, slightly above the surface with the spout
+                pointing to the right as shown in the graphic below.&nbsp;
+            </td>
+        </tr>
+    </table>
+    <p>
+        &nbsp;
+    </p>
+    <center>
+        <img src="graphics/start.JPG" alt="graphics/start.JPG" />
+    </center>
+    <center>
+        <small><b>Teapot at Rest</b>
+    </center>
+    </small>
+    <center>
+        <p>
+            &nbsp;
+        </p>
+        <table>
+            <tr>
+                <td>
+                    <b>Translation Controls</b>&nbsp;
+                </td>
+            </tr>
+        </table>
+    </center>
+    <center>
+        <table border="1" cellpadding="10">
+            <tr>
+                <td valign="TOP" class="style1">
+                    <p align="center">
+                        <b>Device Value</b>
+                    </p>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        <b>Camera Mode</b>
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        <b>Object Mode</b>
+                    </center>
+                </td>
+            </tr>
+            <tr>
+                <td valign="TOP" class="style1">
+                    <center>
+                        Translate Z-axis 0 to -MAX
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/TZn.png" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Backward&nbsp;
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/TeyeZb.JPG" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Zoom In&nbsp;
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/TobjYi.JPG" />
+                    </center>
+                </td>
+            </tr>
+            <tr>
+                <td valign="TOP" class="style1">
+                    <center>
+                        Translate Z-axis 0 to MAX
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/TZp.png" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Forward&nbsp;
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/TeyeZf.JPG" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Zoom Out&nbsp;
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/TobjYo.JPG" />
+                    </center>
+                </td>
+            </tr>
+            <tr>
+                <td valign="TOP" class="style1">
+                    <center>
+                        Translate Y-axis 0 to MAX
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/TYp.png" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Up or Jumps&nbsp;
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/TeyeYu.JPG" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Pan Up&nbsp;
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/TobjZu.JPG" />
+                    </center>
+                </td>
+            </tr>
+            <tr>
+                <td valign="TOP" class="style1">
+                    <center>
+                        Translate Y-axis 0 to -MAX
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/TYn.png" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Down or Crouch
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/TeyeYd.JPG" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Pan Down&nbsp;
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/TobjYd.JPG" />
+                    </center>
+                </td>
+            </tr>
+            <tr>
+                <td valign="TOP" class="style1">
+                    <center>
+                        Translate X-axis 0 to MAX
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/TXp.png" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Right&nbsp;
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/TeyeXr.JPG" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Pan Right&nbsp;
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/TobjXr.JPG" />
+                    </center>
+                </td>
+            </tr>
+            <tr>
+                <td valign="TOP" class="style1">
+                    <center>
+                        Translate X-axis 0 to -MAX
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/TXn.png" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Left&nbsp;
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/TeyeXl.JPG" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Pan Left&nbsp;
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/TobjXl.JPG" />
+                    </center>
+                </td>
+            </tr>
+        </table>
+    </center>
+    <p>
+        &nbsp;
+    </p>
+    <center>
+        <table>
+            <tr>
+                <td>
+                    <b>Rotation Control</b>
+                </td>
+            </tr>
+        </table>
+    </center>
+    <center>
+        <table border="1" cellpadding="10">
+            <tr>
+                <td valign="TOP">
+                    <p align="center">
+                        <b>Device Value</b>
+                    </p>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        <b>Camera Mode</b>
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        <b>Object Mode</b>
+                    </center>
+                </td>
+            </tr>
+            <tr>
+                <td valign="TOP">
+                    <center>
+                        Rotate Z-axis 0 to MAX
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/RZp.png" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Roll Right
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/ReyeZr.JPG" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Roll Clockwise
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/RobjYc.JPG" />
+                    </center>
+                </td>
+            </tr>
+            <tr>
+                <td valign="TOP">
+                    <center>
+                        Rotate Z-axis 0 to -MAX
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/RZn.png" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Roll Left
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/ReyeZl.JPG" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Roll Counterclockwise
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/RobjYcc.JPG" />
+                    </center>
+                </td>
+            </tr>
+            <tr>
+                <td valign="TOP">
+                    <center>
+                        Rotate Y-axis 0 to -MAX
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/RYn.png" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Spin Clockwise
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/ReyeYcc.JPG" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Spin Clockwise
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/RobjZcc.JPG" />
+                    </center>
+                </td>
+            </tr>
+            <tr>
+                <td valign="TOP">
+                    <center>
+                        Rotate Y-axis 0 to MAX
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/RYp.png" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Spin Counterclockwise
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/ReyeYc.JPG" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Spin Counterclockwise
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/RobjZc.JPG" />
+                    </center>
+                </td>
+            </tr>
+            <tr>
+                <td valign="TOP">
+                    <center>
+                        Rotate X-axis 0 to MAX
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/RXp.png" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Pitch Up or Look Up
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/ReyeXu.JPG" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Object top tilts towards you
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/RobjXt.JPG" />
+                    </center>
+                </td>
+            </tr>
+            <tr>
+                <td valign="TOP">
+                    <center>
+                        Rotate X-axis 0 to -MAX
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/RXn.png" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Pitch Down or Look Down
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/ReyeXd.JPG" />
+                    </center>
+                </td>
+                <td valign="TOP">
+                    <center>
+                        Object bottom tilts towards you
+                    </center>
+                    <center>
+                    </center>
+                    <center>
+                        <img src="graphics/RobjXb.JPG" />
+                    </center>
+                </td>
+            </tr>
+        </table>
+    </center>
+    <h3>
+        <a name="Navigation Velocity"></a>Navigation Velocity
+    </h3>
+    <p>
+        3D mouse data (translation and rotational vector) is supplied in arbitrary units
+        (called a <i>count</i> unit) and need to be converted to meaningful values that
+        can be used to predictably control a 3D model in virtual space.
+    </p>
+    <h4>
+        Rotation Velocity
+    </h4>
+    <p>
+        The rotation speed of a 3D Mouse controlled object (Object Mode), or a camera/view
+        with a field of view (FOV) of 90 degrees, is defined as
+    </p>
+    <pre>
+k3dmouseAngularVelocity = 0.008 radians per second per count		(1)
+</pre>
+    <p>
+        For example, if the rotation data s = (x,y,z) being sent by the 3D Mouse is (0,
+        0, -100), then the object being controlled rotates at an angular velocity of 0.8
+        radians per second anti-clockwise about the axis projecting out of the view. In
+        other words, the angular velocity vector w for an object is given by
+    </p>
+    <pre>
+w = (x, y, z) * k3dmouseAngularVelocity					(2)
+</pre>
+    <p>
+        For the case of the 3D Mouse controlling the view being looked through (Camera Mode)
+        the field of view (FOV) needs to be accounted for as it affects the speed of the
+        objects being looked at moving across the view when the camera is rotated. For a
+        rotation speed vector s = (x, y, z), where x,y,z are the data values of the 3D Mouse
+        rotation axes, the angular velocity vector w for a camera/view with field of view
+        (FOV) of Θ is given by
+    </p>
+    <pre>
+w = (x * tan(Θ/2), y * tan(Θ/2), z) * k3dmouseAngularVelocity  		(3)
+</pre>
+    <h4>
+        Pan Zoom Velocity for Perspective Projections
+    </h4>
+    <p>
+        The pan zoom velocity in Object Mode is defined as being the velocity that would
+        be observed looking at the center of rotation if instead of panning the object the
+        view were rotated. Thus, if the distance of the object center of rotation to the
+        camera is r, the pan zoom (translation) velocity vector v is given by
+    </p>
+    <pre>
+v = r * w   		  		  		  	  	(4)
+</pre>
+    <p>
+        Substituting for w from equation 2 we get
+    </p>
+    <pre>
+v = r * (x * tan(Θ/2), y * tan(Θ/2), z) * k3dmouseAngularVelocity 	(5)
+</pre>
+    <p>
+        where x,y,z are the corresponding data values of the 3D Mouse translation axes
+    </p>
+    <p>
+        The effect of the equation 5 is that, for the same 3D Mouse input, the center of
+        rotation will travel across the projection plane of a perspective view at the same
+        velocity independent of the field of view and the distance to the camera. This allows
+        the user to zoom into details whilst keeping the same level of control. You will
+        notice that the FOV does not affect the zoom direction (z-axis) velocity. This is
+        because for a perspective view with, for example, half the FOV, any object needs
+        to be twice as far from the camera to appear the same size and thus needs to travel
+        twice as far for the same zoom, which is already taken to account for in r.
+    </p>
+    <p>
+        As r tends to zero, v also tends to zero and the object comes to a complete halt.
+        This effect is not desirable, so that a minimum distance needs to be defined below
+        which the velocity v no longer decreases. A first approximation for this distance,
+        is to use the near clipping plane distance as anything nearer to the view will not
+        be seen anyway.
+    </p>
+    <p>
+        When navigating in Camera Mode there is no single reference point such as the center
+        of rotation which can be used to determine the speed of the scene or object on the
+        projection plane. However, if we assume that the user’s interest is focused near
+        the center of the screen, we can define the distance of the camera to the object
+        or surface at the center of the screen as the focal distance (r) and, using the
+        symmetry between rotation and translation defined earlier, we again arrive at equation
+        5. However, unlike object navigation, we need to not only define a minimal, but
+        also a maximal limit for the distance r, above which the velocity v does not increase.
+        This distance is dependent on the dimensions of the scene or model, and is defined
+        as the focal distance f, when the model is zoomed to fully fill the view.
+    </p>
+    <h4>
+        Pan Zoom Velocity for Parallel Projections
+    </h4>
+    <p>
+        In a parallel projection, the size of the objects on the screen is independent of
+        the distance from the viewer and solely determined by the field of view of the camera
+        looking at the projection plane. Because all objects have their full dimensions
+        on the projection plane, the distance of the camera to the center of rotation used
+        in equations 4 and 5 above is the distance of the camera to the projection plane
+        for a parallel projection. We will use the terminology ‘target distance’ for this
+        distance. With r set to the target distance, equation 5 is valid for both camera
+        and object modes and results in the same navigation speed for parallel and perspective
+        projections.
+    </p>
+    <p>
+        Simply navigating in a parallel projection will not change the size of the objects
+        on the screen. It can be shown that to have the same zoom speed in parallel and
+        perspective projections the rate of change of the focal distance (df/dt) is given
+        by:
+    </p>
+    <pre>
+ f' =  f * wz									(6)
+</pre>
+    <p>
+        where f is the focal distance, f΄ its first derivative with respect to time and
+        wz is the z component of w in equation 3
+    </p>
+    <p>
+        Integrating and converting to a field of view we then get:
+    </p>
+    <pre>
+fov(t) = 2 * atan( tan(fovt=0/2) * exp (-z * k3dmouseAngularVelocity * t)	(7)
+</pre>
+    <p>
+        where t is time in seconds, fovt=0 is the initial field of view, for incremental
+        changes this will be the current field of view, and z is the corresponding value
+        of the 3D Mouse translation axis.
+    </p>
+    <p>
+        Note: If the field of view as well as the view position is controlled by the 3D
+        Mouse in a parallel projection, then rotations are only allowed in Object Mode.
+        Zooming and rotating in Camera Mode would result in the view moving away from objects
+        but those appearing nearer when looked at. If a camera mode is selected when in
+        a parallel projection then the application needs to either change to a perspective
+        projection or disallow rotations by switching to a 2D view.
+    </p>
+</body>
+</html>
