@@ -8,6 +8,7 @@
 using namespace glm;
 #endif
 
+/* Not all these properties are mapped to PBR. */
 struct MaterialStruct {
     vec4 base_color;
     vec4 subsurface_radius;
@@ -26,11 +27,12 @@ struct MaterialStruct {
     float ior;
     float transmission;
     float transmission_roughness;
+
+    int flags;
     
     int base_color_texture_id;
     int roughness_texture_id;
-    float ph3;
+    int occlusion_texture_id;
     float ph4;
     float ph5;
-    float ph6;
 };

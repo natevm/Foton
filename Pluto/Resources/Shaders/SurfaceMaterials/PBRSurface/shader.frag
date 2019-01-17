@@ -8,22 +8,27 @@ layout(location = 0) in vec3 w_normal;
 layout(location = 1) in vec3 w_position;
 layout(location = 2) in vec2 fragTexCoord;
 layout(location = 3) in vec3 w_cameraPos;
+layout(location = 4) in vec4 vert_color;
 
 layout(location = 0) out vec4 outColor;
 
 #define PI 3.1415926535897932384626433832795
 // Todo: allow user to specify exposure and gamma
-vec3 getAlbedo()
+vec4 getAlbedo()
 {
 	EntityStruct entity = ebo.entities[push.consts.target_id];
 	MaterialStruct material = mbo.materials[entity.material_id];
-	vec3 albedo = material.base_color.rgb; 
+	vec4 albedo = material.base_color; 
+
+	/* If the use vertex colors flag is set, use the vertex color as the base color instead. */
+	if ((material.flags & (1 << 0)) != 0)
+		albedo = vert_color;
 
 	if (material.base_color_texture_id != -1) {
-  		albedo = texture(sampler2D(texture_2Ds[material.base_color_texture_id], samplers[material.base_color_texture_id]), fragTexCoord).rgb;
+  		albedo = texture(sampler2D(texture_2Ds[material.base_color_texture_id], samplers[material.base_color_texture_id]), fragTexCoord);
 	}
 
-	return pow(albedo, vec3(2.2));
+	return vec4(pow(albedo.rgb, vec3(2.2)), albedo.a);
 }
 
 float getRoughness(MaterialStruct material)
@@ -149,7 +154,7 @@ vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 F0, float metallic, float
 		vec3 F = F_Schlick(dotNV, F0);		
 		vec3 spec = D * F * G / (4.0 * dotNL * dotNV + 0.001);		
 		vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);			
-		color += (kD * getAlbedo() / PI + spec) * dotNL;
+		color += (kD * getAlbedo().rgb / PI + spec) * dotNL;
 	}
 
 	return color;
@@ -190,7 +195,7 @@ void main() {
 	float transmission = material.transmission;
 	float roughness = getRoughness(material);
 	float transmission_roughness = material.transmission_roughness;
-	vec3 albedo = getAlbedo();
+	vec4 albedo = getAlbedo();
 
 	/* Todo: read from metallic/roughness texture if one exists. */
 	vec3 reflection = prefilteredReflection(R, roughness).rgb;
@@ -198,7 +203,7 @@ void main() {
 	vec3 irradiance = sampleIrradiance(N);
 
 	/* Transition between albedo and black */
-	vec3 albedo_mix = mix(vec3(0.04), albedo, max(metallic, transmission));
+	vec3 albedo_mix = mix(vec3(0.04), albedo.rgb, max(metallic, transmission));
 
 	/* Transition between refraction and black (metal takes priority) */
 	vec3 refraction_mix = mix(vec3(0.0), refraction, max((transmission - metallic), 0));
@@ -207,7 +212,7 @@ void main() {
 	vec3 reflection_mix = mix(vec3(0.04), refraction, reflection);
 	
 	/* First compute diffuse (None if metal/glass.) */
-	vec3 diffuse = irradiance * albedo;
+	vec3 diffuse = irradiance * albedo.rgb;
 	
 	/* Next compute specular. */
 
@@ -265,5 +270,5 @@ void main() {
 	// Handle emission here...
 
 //	outColor = vec4(max(dot(N, V), 0.0), max(dot(N, V), 0.0), max(dot(N, V), 0.0), 1.0);//vec4(finalColor, 1.0);
-	outColor = vec4(finalColor, 1.0);
+	outColor = vec4(finalColor, albedo.a);
 }
