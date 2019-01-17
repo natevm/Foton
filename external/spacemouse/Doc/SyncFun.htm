@@ -1,0 +1,2665 @@
+<!--This file created 9:45 AM  5/26/98 by Claris Home Page version 2.0-->
+<HTML>
+<HEAD>
+   <TITLE>3DxWare Functions</TITLE>
+   <META NAME=GENERATOR CONTENT="Microsoft FrontPage 4.0">
+   <X-SAS-WINDOW TOP=85 BOTTOM=593 LEFT=14 RIGHT=928>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1"><!--This file created 1:57 PM  4/6/98 by Claris Home Page version 2.0-->
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+
+<P><a HREF="GUISync.htm"><IMG SRC="graphics/prev1.gif"
+ALT="graphics/prev1.gif" width=46 height=22 X-SAS-UseImageWidth
+X-SAS-UseImageHeight BORDER=0
+ALIGN=bottom></a><a HREF="Hints.htm"><IMG SRC="graphics/next1.gif"
+ALT="graphics/next1.gif" width=46 height=22 X-SAS-UseImageWidth
+X-SAS-UseImageHeight BORDER=0 ALIGN=bottom></a></P>
+
+<H1><FONT COLOR="#0000AF">GUI Synchronization Functions</FONT></H1>
+
+<P><a NAME="SiSyncSendQuery"></a><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncSendQuery</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncSendQuery( SiHdl hdl )</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncSendQuery ( m_hdl </FONT><FONT FACE="Courier New">);</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncSendQuery sends a sync query to the driver.  The driver responds
+with a query packet if the configuration for the app has syncing enabled.&nbsp;
+Normally the driver initiates the synching procedure with the </FONT><font size="-1" face="Arial">application
+when the driver loads a configuration file that contains APP_CONTROLS_BUTTONS =
+TRUE.&nbsp; If at anytime the application wants to initiate or reinitiate the
+synching procedure, it can call SiSyncSendQuery to the driver.&nbsp; If the
+configuration file in use for the application does not contain
+APP_CONTROLS_BUTTONS = TRUE, all attempts to synchronize will be ignored.</font></P>
+
+&nbsp;<P><a NAME="SiSyncGetVersion"></a><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncGetVersion</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncGetVersion( SiHdl hdl,
+SPWuint32 *pmajor, SPWuint32 *pminor )</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">pmajor</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">pointer to the major version of the
+         sync interface</FONT>&nbsp;
+      </TD>
+   </tr>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">pminor</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">pointer to the minor version of the
+         sync interface</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><font size="-1" face="Arial">one or more the the pointers is
+         invalid&nbsp;</font>
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncGetVersion( m_hdl, &amp;major, &amp;minor );</FONT></B> 
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<font size="-1" face="Arial">SiSyncGetVersion retrieves the version of the sync
+interface in major.minor format.</font></P>
+
+&nbsp;<P><a NAME="SiSyncGetNumberOfFunctions"></a><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncGetNumberOfFunctions</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncGetNumberOfFunctions( SiHdl
+hdl, SPWuint32 *pnumberOfFunctions )</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">pnumberOfFunctions</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><font size="-1" face="Arial">address of the number of functions
+         buffer</font>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument&nbsp;</FONT>
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncGetNumberOfFunctions( m_hdl, &amp;numberOfFunctions )</FONT></B><B><FONT FACE="Courier New">;</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncGetNumberOfFunctions returns the number of
+functions in the driver's current configuration for the application.</FONT></P>
+
+&nbsp;<P><a NAME="SiSyncGetFunction"></a><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncGetFunction</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncGetFunction( SiHdl hdl,
+SPWuint32 index, SPWint32 *pabsoluteFunctionIndex, WCHAR name[],
+SPWuint32 *pmaxNameLen )</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">index</font>
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the index for the function to be
+         retrieved (1-n)</FONT>&nbsp;
+      </TD>
+   </tr>
+   <tr>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">pabsoluteFunctionIndex</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the invariant function number (only for
+         nonvarying functions)</FONT>
+      </TD>
+   </tr>
+   <tr>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">name</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the name of the function</FONT>&nbsp;
+      </TD>
+   </tr>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">pmaxNameLen</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/w)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the number of characters in <i>name.</i>&nbsp;
+         Will be set to required amount if too short, and set to retrieved
+         amount if long enough.</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad </FONT>argument&nbsp;
+      </TD>
+   </tr>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_NOT_ENOUGH_MEMORY</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><font size="-1" face="Arial"><i>name</i> is too small for the
+         function name</font>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B>
+<p><font face="Courier New"><b>for ( int i=0; i&lt;numberOfFunctions; i++)</b><BR>
+
+&nbsp;&nbsp;&nbsp; </font><B><FONT FACE="Courier New">SiSyncGetFunction( m_hdl,
+i+1, &amp;functionList[i].absoluteFunctionIndex, functionList[i].name, &amp;maxNameLen )</FONT></B><B><FONT FACE="Courier New">;</FONT></B>
+
+</p>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncGetFunction returns the name of function number "index" and the
+absolute/immutable function number at the index.  If the function is a macro, the absoluteFunctionNumber
+is negative.  Macros can not be counted on to exist from config to config.&nbsp;
+If *pmaxNameLen is too small, SI_NOT_ENOUGH_MEMORY is returned and *pmaxNameLen is set to the required length.</FONT></P>
+
+&nbsp;<P><a NAME="SiSyncGetButtonAssignment"></a><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncGetButtonAssignment</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncGetButtonAssignment( SiHdl
+hdl, SPWuint32 buttonNumber, SPWint32 *passignedFunctionIndex )</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">buttonNumber</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the number of the button to retrieve
+         (1-n)</FONT>&nbsp;
+      </TD>
+   </tr>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">passignedFunctionIndex</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the function index that is assigned to
+         this button</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument&nbsp;</FONT>
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B>
+<p><font face="Courier New"><b>for ( int i=0; i&lt;numberOfButtons; i++)</b><BR>
+
+&nbsp;&nbsp;&nbsp; </font><B><FONT FACE="Courier New">SiSyncGetButtonAssignment(
+m_hdl, i+1, &amp;button[i].assignedFunctionIndex);</FONT></B></p>
+<p><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncGetButtonAssignment returns the function
+index that is assigned to a button.</FONT></p>
+    <p>&nbsp;</p>
+<P><a NAME="SiSyncSetButtonAssignment"></a><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncSetButtonAssignment</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncSetButtonAssignment( SiHdl
+hdl, SPWuint32 buttonNumber, SPWint32 assignedFunctionIndex )</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">buttonNumber</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the button to change</FONT>
+      </TD>
+   </tr>
+   <TR>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">assignedFunctionIndex</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the function that is to be assigned to
+         this button</FONT><br>
+         <font face="Arial" size="2">>0:&nbsp; the button is to trigger an internal function (1-n)<br>
+         &nbsp; 0:&nbsp; the button event is to be passed straight thru<br>
+         &nbsp;-1:&nbsp; the button is to be unassigned (does nothing)<br>
+         &nbsp;-2:&nbsp; the button assignment is to be returned to the config's default value</font>
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument&nbsp;</FONT>
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncSetButtonAssignment( m_hdl, 1,
+button[0].assignedFunctionIndex )</FONT></B><B><FONT FACE="Courier New">;</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncSetButtonAssignment assigns a new function to
+a button.</FONT></P>
+
+&nbsp;<P><a NAME="SiSyncSetButtonAssignmentAbsolute"></a><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncSetButtonAssignmentAbsolute</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncSetButtonAssignmentAbsolute( SiHdl
+hdl, SPWuint32 buttonNumber, SPWint32 absoluteFunctionNumber )</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">buttonNumber</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the button to change</FONT>
+      </TD>
+   </tr>
+   <TR>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">absoluteFunctionNumber</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the absoluteFunction that is to be
+         assigned to this button<br>
+         &nbsp;>0:&nbsp; the button is to trigger an internal function (1-n)<br>
+         &nbsp;&nbsp; 0:&nbsp; the button event is to be passed straight thru<br>
+         &nbsp;&lt;0:&nbsp; the button is to be unassigned (does nothing)</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncSetButtonAssignmentAbsolute( m_hdl, 1,
+absoluteFunctionList[0].absoluteFunctionNumber )</FONT></B><B><FONT FACE="Courier New">;</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncSetButtonAssignmentAbsolute assigns a
+function to a button using the absolute, never changing function number.&nbsp;
+The function indices (1-numberOfFunctions) used to retrieve the function names (SiSyncGetFunction)
+are in the order that they are listed in the config file and are valid only
+while that config file is loaded.&nbsp; If an application wants to store these
+functions between configs it may find that a different config is loaded the next
+time the application is run, and therefore some of the functions will not be
+there.&nbsp; For example, macros can never be relied on being in the config
+because the user can create and delete them at will.&nbsp; Some functions,
+though, are guaranteed to always be available.&nbsp; In fact, they are always
+available to an application even if they aren't listed in the config file (e.g.,
+ESC_KEY).&nbsp; These <i>absolute function indices</i> are returned by
+SiSyncGetFunction. If the application wants to use these indices to set a button
+assignment, it uses SiSyncSetButtonAssignmentAbsolute.&nbsp; Calls to
+SiSyncButtonAssignment and SiSyncButtonAssignmentAbsolute can be interleaved.</FONT></P>
+
+&nbsp;<P><a NAME="SiSyncSetButtonName"></a><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncSetButtonName</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">enum SpwRetVal SiSyncSetButtonName( SiHdl hdl,
+SPWuint32 buttonNumber, WCHAR name[] )</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">buttonNumber</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the button number to change (1-n)</FONT>&nbsp;
+      </TD>
+   </tr>
+   <TR>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">name</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the new name for the
+         &quot;pass-thru&quot; function for this button</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument</FONT>
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncSetButtonName( m_hdl, 1, L&quot;Open
+File...&quot; )</FONT></B><B><FONT FACE="Courier New">;</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncSetButtonName function changes the name for the default (pass-thru) function for a button.&nbsp;
+This is the string shown in the GUI and on the 3D mouse display when the button is set to pass
+the event straight thru to the application.</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><a NAME="SiSyncGetAxisLabel"></a><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncGetAxisLabel</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncGetAxisLabel( SiHdl hdl,
+SPWuint32 axisNumber, WCHAR name[], SPWuint32 *pmaxNameLen )</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">axisNumber</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the axis number (1-6)</FONT>&nbsp;
+      </TD>
+   </tr>
+   <tr>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">name</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the buffer to write the axis label to</FONT>
+      </TD>
+   </tr>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">pmaxNameLen</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/w)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the number of characters that can be
+         written to <i>name.</i>&nbsp; If too small, it is updated with the
+         correct length.&nbsp; If large enough, it contains the number of
+         characters written.</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument&nbsp;</FONT>
+      </TD>
+   </tr>
+   <tr>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_NOT_ENOUGH_MEMORY</FONT>
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">if *pmaxNameLen is too small for the
+         name</FONT>&nbsp;
+      </TD>
+   </tr>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncGetAxisLabel( m_hdl, 1, TxName, &amp;TxNameLen
+)</FONT></B><B><FONT FACE="Courier New">;</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<font size="-1" face="Arial">SiSyncGetAxisLabel retrieves the label on a
+specific axis that is displayed in the 3DxWare GUI.&nbsp; If *pmaxNameLen is too
+small for the label, SI_NOT_ENOUGH_MEMORY is returned and *pmaxNameLen is
+updated with the required length (in WCHARs).</font></P>
+
+<P><a NAME="SiSyncSetAxisLabel"></a><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncSetAxisLabel</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncSetAxisLabel( SiHdl hdl,
+SPWuint32 axisNumber, WCHAR name[] )</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">axisNumber</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the axisNumber (1-6) to change</FONT>&nbsp;
+      </TD>
+   </tr>
+   <TR>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">name</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the new axis label</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument&nbsp;</FONT>
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncSetAxisLabel( m_hdl, 1, L&quot;Pan View
+Horizontal&quot; )</FONT></B><B><FONT FACE="Courier New">;</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncSetAxisLabel changes the label displayed for
+an axis in the GUI.</FONT></P>
+
+&nbsp;<P><a NAME="SiSyncGetOrientation"></a><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncGetOrientation</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncGetOrientation( SiHdl hdl,
+SPWint32 axes[6] )</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">axes</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the orientation of the six axes
+         currently used by the driver</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad </FONT>argument&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncGetOrientation( m_hdl, axes )</FONT></B><B><FONT FACE="Courier New">;</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncGetOrientation returns the orientation of all
+6 axes currently in use by the driver.&nbsp; This allows an application to
+retrieve, then rearrange the axes with SiSyncSetOrientation.</FONT></P>
+    <P>&nbsp;</P>
+
+<P><a NAME="SiSyncSetOrientation"></a><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncSetOrientation</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncSetOrientation( SiHdl hdl,
+SPWint32 axes[6] )</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">axes</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the new orientation for the axes</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument&nbsp;</FONT>
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncSetOrientation( m_hdl, axes )</FONT></B><B><FONT FACE="Courier New">;</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncSetOrientation allows an application to
+rearrange the 6 device axes in anyway.&nbsp; Each axis can be inverted or
+swapped with another axis.&nbsp; This might be used by an application that wants
+Scale to be along a different direction than specified in the default config
+file for the application.&nbsp; It is preferable to leave the driver at the
+default orientation and do the rearranging inside the application.&nbsp;</FONT></P>
+
+&nbsp;<P><a NAME="SiSyncGetFilter"></a><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncGetFilter</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncGetFilter( SiHdl hdl,
+SiSyncFilter i, SiSyncFilterValue *pv )</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">i</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the filter to retrieve</FONT>&nbsp;
+      </TD>
+   </tr>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">pv</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the current setting of the filter</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncGetFilter( m_hdl, SI_SYNC_FILTER_TRANSLATIONS,
+&amp;v )</FONT></B><B><FONT FACE="Courier New">;</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncGetFilter returns the setting of any of the
+filters set in the GUI.&nbsp; The SiSyncFilter type enumerates the possible
+values.</FONT></P>
+    <P>&nbsp;</P>
+
+<P><a NAME="SiSyncSetFilter"></a><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncSetFilter</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncSetFilter( SiHdl hdl,
+SiSyncFilter i, SiSyncFilterValue v )</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">i</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the filter to set</FONT>&nbsp;
+      </TD>
+   </tr>
+   <TR>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">v</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the new filter state&nbsp;</FONT>
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncSetFilter( m_hdl, SI_SYNC_FILTER_TRANSLATIONS,
+SI_SYNC_FILTER_OFF );</FONT></B>
+<p><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiyncSetFilter changes the state of one of the
+Degree of Freedom filters in the driver.&nbsp; The SiSyncFilter type enumerates
+the possible filters that can be set.</FONT></p>
+&nbsp;<P><a NAME="SiSyncGetAxesState"></a><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncGetAxesState</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncGetAxesState( SiHdl hdl,
+SiSyncAxesState *pa )</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">pa</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the buffer for the axes state</FONT>
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument</FONT>
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncGetAxesState( m_hdl, &amp;a )</FONT></B><B><FONT FACE="Courier New">;</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncGetAxesState retrieves the state (on/off) of
+each of the six axes from the driver.&nbsp; Each axis can be individually
+toggled in the driver's GUI.</FONT></P>
+    <P>&nbsp;</P>
+
+<P><a NAME="SiSyncSetAxesState"></a><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncSetAxesState</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncSetAxesState( SiHdl hdl,
+SiSyncAxesState a )</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">a</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the new state of each of the 6 axes</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument</FONT>
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">a.state = SI_SYNC_AXES_STATE_TX |
+SI_SYNC_AXES_STATE_TY;</FONT></B><font face="Courier New"><BR>
+
+</font><B><FONT FACE="Courier New">SiSyncSetAxesState( m_hdl, a );</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSetAxesState turns on/off each of the axes in the
+driver.&nbsp; If off, the driver zeroes out the value for that axis before
+sending it to the application.</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><a NAME="SiSyncSetInfoLine"></a><B><FONT FACE="Arial"
+COLOR="#000080">S</FONT></B><B><FONT FACE="Arial"
+COLOR="#000080">iSyncSetInfoLine</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncSetInfoLine( SiHdl hdl,
+SPWint32 duration, WCHAR text[] )</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">duration</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the duration (in milliseconds) that the
+         text is to be displayed on the 3D mouse integrated display (LCD).&nbsp; &lt;0 indicates to
+         replace it &quot;permanently&quot; (until some other process or the
+         driver replaces it &quot;permanently&quot;).</FONT>
+      </TD>
+   </tr>
+   <TR>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">text</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the text to display on the LCD infoline</FONT>
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument</FONT>
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncSetInfoLine( m_hdl, 1500, L&quot;Camera Roll
+Disabled&quot; )</FONT></B><B><FONT FACE="Courier New">;</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncSetInfoLine replaces the text in the InfoLine
+(top line) of the 3D mouse display (LCD). If duration is &gt;=0 it is replaced for a
+specific number of milliseconds, the reverts back to whatever it said
+before.&nbsp; If duration is &lt;0 it is replaced &quot;permanently&quot; until
+some other process replaces it &quot;permanently&quot; .</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><a NAME="SiSyncGetScaleOverall"></a><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncGetScaleOverall</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncGetScaleOverall ( SiHdl hdl, SPWfloat32
+*pv )</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">pv</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the current overall scale factor</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncGetScaleOverall ( m_hdl, &amp;overallScaleFactor
+);</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncGetScaleOverall retrieves the current overall
+scale factor used by the driver.&nbsp; This is as shown on a slider in the
+driver's GUI.</FONT></P>
+    <P>&nbsp;</P>
+
+<P><a NAME="SiSyncSetScaleOverall"></a><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncSetScaleOverall</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncSetScaleOverall ( SiHdl hdl, SPWfloat32 v
+)</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">v</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the requested new overall scale
+         factor&nbsp;</FONT>
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncSetScaleOverall ( m_hdl, overallScaleFactor *=
+2.0f );</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncSetScaleOverall requests a new scale factor
+for the driver's overall scale factor slider.&nbsp; If the slider can not
+accommodate the new setting (because it is outside the range of the slider, the
+driver will send an asynchronous SetScaleOverall sync packet to the application
+with the closest setting it could achieve.</FONT></P>
+    <P>&nbsp;</P>
+
+
+
+<P><a NAME="SiSyncGetScaleTx"></a><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncGetScaleTx</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncGetScaleTx ( SiHdl hdl, SPWfloat32 *pv
+)</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">pv</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the current overall scale factor</FONT>&nbsp;
+      </TD>
+   </tr>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncGetScaleTx ( m_hdl, &amp;txScaleFactor );</FONT></B>
+<p><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncGetScaleTx retrieves the current Tx scale
+factor used by the driver.&nbsp; This is as shown on a slider in the driver's
+GUI.</FONT></p>
+    <p>&nbsp;</p>
+
+<P><a NAME="SiSyncSetScaleTx"></a><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncSetScaleTx</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncSetScaleTx ( SiHdl hdl, SPWfloat32 v
+)</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">v</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the requested new Tx scale factor&nbsp;</FONT>
+      </TD>
+   </tr>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncSetScaleTx ( m_hdl, txScaleFactor *= 2.0f );</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncSetScaleTx requests a new scale factor for
+the driver's Tx scale factor slider.&nbsp; If the slider can not accommodate the
+new setting (because it is outside the range of the slider, the driver will send
+an asynchronous SetScaleTx sync packet to the application with the closest
+setting it could achieve.</FONT></P>
+    <P>&nbsp;</P>
+
+<P><a NAME="SiSyncGetScaleTy"></a><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncGetScaleTy</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncGetScaleTy ( SiHdl hdl, SPWfloat32 *pv
+)</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">pv</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the current overall scale factor</FONT>&nbsp;
+      </TD>
+   </tr>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncGetScaleTy ( m_hdl, &amp;tyScaleFactor );</FONT></B>
+<p><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncGetScaleTy retrieves the current Ty scale
+factor used by the driver.&nbsp; This is as shown on a slider in the driver's
+GUI.</FONT></p>
+    <p>&nbsp;</p>
+
+<P><a NAME="SiSyncSetScaleTy"></a><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncSetScaleTy</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncSetScaleTy ( SiHdl hdl, SPWfloat32 v
+)</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">v</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the requested new Ty scale factor&nbsp;</FONT>
+      </TD>
+   </tr>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncSetScaleTy ( m_hdl, tyScaleFactor *= 2.0f );</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncSetScaleTy requests a new scale factor for
+the driver's Ty scale factor slider.&nbsp; If the slider can not accommodate the
+new setting (because it is outside the range of the slider, the driver will send
+an asynchronous SetScaleTy sync packet to the application with the closest
+setting it could achieve.</FONT></P>
+
+<P><A NAME="SiSyncGetScaleTz"></A></P>
+    <P><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncGetScaleTz</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncGetScaleTz ( SiHdl hdl, SPWfloat32 *pv
+)</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">pv</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the current overall scale factor</FONT>&nbsp;
+      </TD>
+   </tr>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncGetScaleTz ( m_hdl, &amp;tzScaleFactor );</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncGetScaleTz retrieves the current Tz scale
+factor used by the driver.&nbsp; This is as shown on a slider in the driver's
+GUI.</FONT></P>
+
+<P><A NAME="SiSyncSetScaleTz"></A></P>
+    <P><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncSetScaleTz</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncSetScaleTz ( SiHdl hdl, SPWfloat32 v
+)</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">v</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the requested new Tz scale factor&nbsp;</FONT>
+      </TD>
+   </tr>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncSetScaleTz ( m_hdl, tzScaleFactor *= 2.0f );</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncSetScaleTz requests a new scale factor for
+the driver's Tz scale factor slider.&nbsp; If the slider can not accommodate the
+new setting (because it is outside the range of the slider, the driver will send
+an asynchronous SetScaleTz sync packet to the application with the closest
+setting it could achieve.</FONT></P>
+
+
+<P><A NAME="SiSyncGetScaleRx"></A></P>
+    <P><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncGetScaleRx</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncGetScaleRx ( SiHdl hdl, SPWfloat32 *pv
+)</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">pv</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the current overall scale factor</FONT>&nbsp;
+      </TD>
+   </tr>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncGetScaleRx ( m_hdl, &amp;rxScaleFactor );</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncGetScaleRx retrieves the current Rx scale
+factor used by the driver.&nbsp; This is as shown on a slider in the driver's
+GUI.</FONT></P>
+
+<P><A NAME="SiSyncSetScaleRx"></A></P>
+    <P><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncSetScaleRx</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncSetScaleRx ( SiHdl hdl, SPWfloat32 v
+)</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">v</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the requested new Rx scale factor&nbsp;</FONT>
+      </TD>
+   </tr>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncSetScaleRx ( m_hdl, rxScaleFactor *= 2.0f );</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncSetScaleRx requests a new scale factor for
+the driver's Rx scale factor slider.&nbsp; If the slider can not accommodate the
+new setting (because it is outside the range of the slider, the driver will send
+an asynchronous SetScaleRx sync packet to the application with the closest
+setting it could achieve.</FONT></P>
+
+
+<P><A NAME="SiSyncGetScaleRy"></A></P>
+    <P><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncGetScaleRy</FONT></B></P>
+
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncGetScaleRy ( SiHdl hdl, SPWfloat32 *pv
+)</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">pv</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the current overall scale factor</FONT>&nbsp;
+      </TD>
+   </tr>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncGetScaleRy ( m_hdl, &amp;ryScaleFactor );</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncGetScaleRy retrieves the current Ry scale
+factor used by the driver.&nbsp; This is as shown on a slider in the driver's
+GUI.</FONT></P>
+
+<P><A NAME="SiSyncSetScaleRy"></A></P>
+    <P><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncSetScaleRy</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncSetScaleRy ( SiHdl hdl, SPWfloat32 v
+)</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">v</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the requested new Ry scale factor&nbsp;</FONT>
+      </TD>
+   </tr>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncSetScaleRy ( m_hdl, ryScaleFactor *= 2.0f );</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncSetScaleRy requests a new scale factor for
+the driver's Ry scale factor slider.&nbsp; If the slider can not accommodate the
+new setting (because it is outside the range of the slider, the driver will send
+an asynchronous SetScaleRy sync packet to the application with the closest
+setting it could achieve.</FONT></P>
+
+
+
+<P><A NAME="SiSyncGetScaleRz"></A></P>
+    <P><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncGetScaleRz</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncGetScaleRz ( SiHdl hdl, SPWfloat32 *pv
+)</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">pv</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(w/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the current overall scale factor</FONT>&nbsp;
+      </TD>
+   </tr>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncGetScaleRz ( m_hdl, &amp;rzScaleFactor );</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncGetScaleRz retrieves the current Rz scale
+factor used by the driver.&nbsp; This is as shown on a slider in the driver's
+GUI.</FONT></P>
+
+<P>&nbsp;</P>
+    <P><A NAME="SiSyncSetScaleRz"></A><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncSetScaleRz</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncSetScaleRz ( SiHdl hdl, SPWfloat32 v
+)</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">v</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the requested new Rz scale factor&nbsp;</FONT>
+      </TD>
+   </tr>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New">SiSyncSetScaleRz ( m_hdl, rzScaleFactor *= 2.0f );</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncSetScaleRz requests a new scale factor for
+the driver's Rz scale factor slider.&nbsp; If the slider can not accommodate the
+new setting (because it is outside the range of the slider, the driver will send
+an asynchronous SetScaleRz sync packet to the application with the closest
+setting it could achieve.</FONT></P>
+
+
+
+<P>&nbsp;</P>
+
+
+
+<P><a NAME="SiSyncInvokeAbsoluteFunction"></a><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncInvokeAbsoluteFunction</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncInvokeAbsoluteFunction (
+SiHdl hdl, SiSyncAbsFunctionNumber i )</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">i</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the absolute function index to invoke</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><font size="-1" face="Arial">invalid absolute function index</font>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New"> SiSyncInvokeAbsoluteFunction ( m_hdl,
+SI_SYNC_FUNCTION_3DX_HELP
+)</FONT></B><B><FONT FACE="Courier New">;</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiInvokeAbsoluteFunction immediately causes one of
+the absolute (guaranteed to be there) function to be invoked.&nbsp; Certain
+functions can always be invoked regardless of their listing in a config
+file.&nbsp; These are termed absolute functions.&nbsp; The functions numbers can
+be listed via SiSyncGetFunction but are hard-coded, guaranteed to never change,
+so they can also be invoked using the constants in siSync.h.</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><A NAME="SiSyncSetButtonState"></A><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncSetButtonState</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">SpwReturnValue SiSyncSetButtonState ( SiHdl hdl, SPWuint32 buttonNumber, SiSyncButtonState state
+)</FONT></B> <TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+   <tr>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">buttonNumber</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the button number to change (1-n)</FONT>&nbsp;
+      </TD>
+   </tr>
+   <TR>
+      <TD VALIGN=top>
+         <P><font size="-1" face="Arial">state</font>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the new state of the button</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_VALUE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">bad argument&nbsp;</FONT>
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New"> SiSyncSetButtonState ( m_hdl, buttonNumber, SI_SYNC_BUTTON_STATE_OFF
+)</FONT></B><B><FONT FACE="Courier New">;</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">SiSyncSetButtonState changes the state (on / off /
+disabled) of a button.&nbsp; This only effects buttons that are assigned to be
+passthru events (function 0), not buttons assigned to driver functions.&nbsp; If
+the new state is OFF, the button is put into reverse video.</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><A NAME="SiSyncSuspendFileWriting"></A><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncSuspendFileWriting</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">enum SpwRetVal SiSyncSuspendFileWriting(SiHdl hdl)
+</FONT></B>
+<TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New"> SiSyncSuspendFileWriting ( m_hdl );</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">This function sends a sync command to the
+driver to suspend profile file writing.<br />
+File writing to disk takes a relatively long time, and it causes extra
+updates that are redundant if, for example, the client is updating
+a whole list of buttons.<br />
+The client can use this function to suspend the file updates until it
+is all done.<br />
+In the suspended state, the driver just updates in memory data
+structures.<br />
+Once the app is done with its big sequence of updates, it can call
+<a href="#SiSyncResumeFileWriting">SiSyncResumeFileWriting</a> to have
+all the pending (and subsequent) updates written to disk.<br />
+Requires 3DxWare 10 or newer.</FONT></P>
+
+<P>&nbsp;</P>
+
+<P><A NAME="SiSyncResumeFileWriting"></A><B><FONT FACE="Arial"
+COLOR="#000080">SiSyncResumeFileWriting</FONT></B></P>
+
+<P><B><FONT FACE="Courier New">enum SpwRetVal SiSyncResumeFileWriting(SiHdl hdl)</FONT></B>
+<TABLE BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">hdl</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">(r/o)</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">the 3DxWare input device
+         handle returned by <a href="InputFun.htm#SiOpen">SiOpen</a> or <a href="InputFun.htm#SiOpenPort">SiOpenPort</a></FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Return Value</FONT></B> <TABLE
+BORDER=0 CELLPADDING=5>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SPW_NO_ERROR</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">no error</FONT>&nbsp;
+      </TD></TR>
+   <TR>
+      <TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">SI_BAD_HANDLE</FONT>&nbsp;
+      </TD><TD VALIGN=top>
+         <P><FONT SIZE="-1" FACE="Arial">invalid
+         handle</FONT>&nbsp;
+      </TD></TR>
+</TABLE><BR>
+
+<B><FONT SIZE="-1" FACE="Arial">Example</FONT></B><BR>
+
+<B><FONT FACE="Courier New"> SiSyncResumeFileWriting ( m_hdl );</FONT></B>
+
+<P><B><FONT SIZE="-1" FACE="Arial">Description</FONT></B><BR>
+
+<FONT SIZE="-1" FACE="Arial">This function resumes profile file writing
+that was suspended by a paired call to
+<a href="#SiSyncSuspendFileWriting">SiSyncSuspendFileWriting</a>.<br />
+Requires 3DxWare 10 or newer.</FONT></P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+
+<P>&nbsp;</P>
+</BODY>
+</HTML>

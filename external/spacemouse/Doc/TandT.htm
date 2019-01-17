@@ -1,0 +1,235 @@
+<!--
+/* Copyright notice:
+ * Copyright (c) 3Dconnexion. All rights reserved. 
+ *
+ * This file and source code are an integral part of the "3Dconnexion
+ * Software Developer Kit", including all accompanying documentation,
+ * and is protected by intellectual property laws. All use of the
+ * 3Dconnexion Software Developer Kit is subject to the License
+ * Agreement found in the "LicenseAgreementSDK.rtf" file.
+ * All rights not expressly granted by 3Dconnexion are reserved.
+ *
+ * Last edited: $Id: TandT.htm 10589 2014-07-22 16:26:30Z ngomes $
+ */-->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tips Techniques</title>
+    <x-sas-window top="48" bottom="576" left="35" right="911">
+    <link rel="stylesheet" type="text/css" href="style.css"/>
+</head>
+<body>
+    <a href="Demos.htm">
+        <img src="graphics/prev1.gif" alt="graphics/prev1.gif" border="0" height="22" width="46"
+            align="BOTTOM"></a><a href="Scoring.htm"><img src="graphics/next1.gif" alt="graphics/next1.gif"
+                nosave border="0" x-sas-useimagewidth x-sas-useimageheight height="22" width="46"
+                align="BOTTOM"></a>
+    <h1>
+        Tips Techniques</h1>
+    <p>
+        <a name="Navigation Parameters"></a><b>Navigation Parameters</b></p>
+    <p>
+        When adding support for a 3D input device, a number of parameters which affect the
+        quality of the process of transforming the user's hand movement to a visual representation
+        in the virtual 2D or 3D viewing space need to be understood and taken into consideration
+        to provide a good navigation experience.</p>
+    <p>
+        <b>Latency</b></p>
+    <p>
+        There are at least four time constants which have a major effect on the quality
+        of the navigation experience. It is neither possible to completely remove all of
+        them nor even guarantee that they all are within certain bounds; one of the reasons
+        for this being that the operating systems with which the majority of us work today
+        are not real time systems. However, for the purpose of the following discussion,
+        the effects of CPU and resource load due to other programs will be ignored.</p>
+    <p>
+        <b>Start Delay</b></p>
+    <p>
+        The time between the user moving the 3D Mouse from rest and when the object starts
+        to move on the screen is what we shall call the start delay. Ideally, the application
+        does not need any special initialization before it starts converting the 3D input
+        data into visual feedback. This is not true for all applications: possibly a different
+        graphical representation or viewport type needs to be created and initialized before
+        navigation can begin. The time that this takes results in the start delay. If this
+        delay is too long the user will let go of the device before he sees a resulting
+        movement on the screen and assume that the input device is defective.</p>
+    <p>
+        <b>Propagation Delay</b></p>
+    <p>
+        If we assume that we are looking at a very simple model which can be drawn almost
+        instantaneously, then the time that elapses between the user changing the 3D Mouse
+        cap displacement and the effects of the change propagating to the view is caused
+        solely by the propagation delay. With a very short propagation delay, the user has
+        the impression that he is directly attached to the object that he is controlling.
+        A noticeable propagation delay is characterized by the impression that a rubber
+        band appears somehow to be connected between the controller the object being moved.</p>
+    <p>
+        <b>Frame Rate Lag</b></p>
+    <p>
+        The frame rate that an application can maintain when the user is navigating is a
+        measure of the usability of the 3D Mouse. The reason for this is that the 3D Mouse
+        delivers values that represent the translation and rotation speed of the object
+        or view that the user is trying to control. Increasing the frame rate results in
+        a smaller time interval and hence a smaller distance travelled since the user was
+        last shown the result of his pushing, pulling or turning of the cap of the device.
+        The resulting user experience due to the high frame rate is one of a smoother and
+        more precise navigation.</p>
+    <p>
+        Conversely, a larger time interval between consecutive frames leads to adverse effects
+        which leave the user with a poor navigation experience: he is not sure where the
+        object actually is on the screen as a small movement of his hand can result in a
+        large change of the controlled objects velocity and more than likely redrawing the
+        screen is not synchronized with single model or scene changes.</p>
+    <p>
+        As the scene complexity increases, the frame rate that can be achieved will decrease.
+        There would appear little alternative to reducing the amount that needs to be redrawn
+        from one frame to the next to be able to achieve a reasonable frame rate. Depending
+        on the application and the capabilities of for example the API, a number of strategies
+        can be useful. A very common strategy, often implemented by the program itself,
+        is to degrade the visual style used to draw in the viewport dependent on the frame
+        rate. It can in some cases be sufficient to notify the program that degrading should
+        begin and after the user has returned the cap to the rest position that degradation
+        is no longer required.</p>
+    <p>
+        <b>Regeneration Delay</b></p>
+    <p>
+        The regeneration delay occurs when the user puts the cap back into the zero or rest
+        position and the application cannot be used for a period of time longer than can
+        be accounted for by the previously mentioned latency times. One reason for this
+        kind of program unresponsiveness is when the scene or model needs to be redrawn
+        in a visual style more detailed than the style used during navigation.</p>
+    <p>
+        <a name="Common Problems"></a><b>Common Problems</b></p>
+    <ul>
+        <li>You receive an error message stating: &quot;ERROR: an OS type must be defined --
+            e.g. OS_WIN32&quot;. This means that OS_WIN32 has not been defined for your project.
+            To add this definition, go to <b>Build &gt; Settings &gt; C/C++ &gt; Preprocessor</b>.
+            In the Preprocessor Definitions section, add the definition. Adding this to your
+            project settings should clear up the problem.</li>
+        <br />
+        <li>You receive errors with si.h. Double check that OS_WIN32 is defined for your project.</li>
+        <br />
+        <li>You get any one of the following unresolved symbols error messages when linking:
+            <br />
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; __imp__timeBeginPeriod<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; __imp__timeEndPeriod<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; __imp__timeGetTime</p>
+            <br />
+            This means you are not linking with winmm.lib. Add winmm.lib to the link libraries
+            in your project settings. </li>
+        <br />
+        <li>You get compiler errors about not being able to find intptr_t, let us know.&nbsp;
+            You shouldn't have this problem anymore since we removed the Win64 Platform SDK
+            requirement.</li>
+        <br />
+        <li>You get complaints from the linker telling you it can't find certain Si functions
+            such as:<br>
+            LNK2019: unresolved external symbol &quot;void * __cdecl SiOpen(char *,int,struct
+            SiTypeMask *,long,struct SiOpenData *)&quot; (?SiOpen@@YAPAXPADHPAUSiTypeMask@@JPAUSiOpenData@@@Z)<br>
+            <br>
+            It is because the libraries are written in C, not C++ and therefore the names are
+            not mangled.&nbsp;<br>
+            Use the following to include the headers in your .cpp files:<br>
+            extern &quot;C&quot; {<br>
+            #include &quot;si.h&quot;<br>
+            #include &quot;siapp.h&quot;<br>
+            }</li>
+        <br />
+        <li><a href="InputFun.htm#SiOpen">SiOpen</a> returns a NULL SiHdl. Check to make sure
+            that a 3Dconnexion device is connected and that the 3DxWare driver has been installed.
+            Run one of the demos which ships with the driver to make sure that the driver is
+            configured properly. Next, verify that siappdll.dll is in the Windows system directory
+            (or system32 directory for Windows NT). Check that a valid window handle is being
+            passed to <a href="InputFun.htm#SiOpenWinInit">SiOpenWinInit</a> and from there
+            into SiOpen. If you are still having problems, try printing out the error message
+            returned from SiOpen as follows:
+            <p>
+                <b>&nbsp;&nbsp; MessageBox (hWnd, SpwErrorString&nbsp;<br>
+                    &nbsp;&nbsp; (SpwErrorVal),&quot;3DxWare Error&quot;,MB_OK);</b><br>
+                <br>
+                where hWnd is the window you are passing into SiOpenWinInit.</p>
+        </li>
+        <br />
+        <li><b>AutoStartup Issues</b>
+            <br>
+            We recommend that your users only install 3DxWare on machines that have 3Dx devices
+            attached.&nbsp; One of the reasons for this is because the 3DxWare SDK libraries
+            will automatically try to start the driver if they find 3DxWare installed.
+            <br>
+            Some systems administrators ghost machine images for hundreds/thousands of users
+            so they have a consistent image on all machines they administer.&nbsp; If they include
+            3DxWare on all the machines, but not all the machines have 3Dx devices attached,
+            these latter machines will experience a search delay.&nbsp; If this is a likely
+            scenario for your customers, you may want to test around the AutoStart feature.&nbsp;
+            You can do this with the following code that searches for a running driver before
+            calling any Si* function.
+            <br />
+            <b>#define UD_DRIVER_WINDOW_CLASS_NAME _T(&quot;SpaceWare Driver Class&quot;)</b></p>
+            <p>
+                <b>BOOL b3DxDriverRunning = (FindWindow (UD_DRIVER_WINDOW_CLASS_NAME, NULL) != NULL);</b></p>
+            <p>
+                <b>if (b3DxDriverRunning)</b></p>
+            <p>
+                <b>{</b></p>
+            <p>
+                <b>SiInitialize();</b></p>
+            <p>
+                <b>etc.</b></p>
+            <p>
+                <b>}</b></p>
+            <p>
+                Of course, the autostart feature won't work with your application, but the default
+                3DxWare installation puts the driver startup into the StartUp folder, so it will
+                normally be running on machines that have 3DxWare installed.</p>
+        </li>
+    </ul>
+    <p>
+        &nbsp;</p>
+    <p>
+        <a name="Strings"></a><b>Strings</b></p>
+    <p>
+        The API uses both Unicode and ANSI strings.&nbsp;&nbsp;</p>
+    <p>
+        All SiSync* functions use WCHAR (Unicode) strings.&nbsp; This is because these are
+        strings that are displayed to the user.&nbsp; These are guaranteed to be non-latin
+        characters in Asia.</p>
+    <p>
+        All SiCfg* functions use TCHARs (switchable between ANSI char and Unicode WCHAR).&nbsp;
+        The default library is built with WCHAR TCHARs (UNICODE &amp; _UNICODE defined).&nbsp;
+        Since these functions are just used to copy things to and from the registry for
+        your application's use only, use whichever form best matches your application.&nbsp;
+        There shouldn't be any user visible, and thus, non-latin, characters saved in the
+        registry.&nbsp; Mostly meaningful codes are saved.</p>
+    <p>
+        All other Si* functions use ANSI chars.&nbsp; This is to be backward compatible
+        with all applications that used previous versions of the library.</p>
+    <p>
+        &nbsp;</p>
+    <p>
+        <a name="Tuning"></a><b>Tuning</b></p>
+    <p>
+        3Dconnexion devices are designed to be very intuitive. To ensure that the device
+        is as simple to use as possible, it is vital that the mappings and tuning be optimized
+        for your specific application. To accomplish this, you will need to adjust the values
+        of the device data to match your application.</p>
+    <p>
+        This is done by scaling (multiplying or dividing) the input data by a constant value,
+        much the same as you would normally do with mouse or keyboard data. Sometimes it
+        is desirable to provide a sensitivity value which can be adjusted by the user but
+        this normally left to the device driver to handle. See the <a href="DevInfo.htm#Navigation Velocity">
+            Navigation Velocity</a> section for a more formal approach to the issue.</p>
+    <p>
+        Here are a few questions to ask yourself about the tuning:</p>
+    <ol>
+        <li>Can you move along each individual axis without drifting or getting unwanted motion
+            (for example, moving forward and backward without rotating)?</li>
+        <li>Can you move predictably (rotate 90 or 180 degrees, for example)?</li>
+        <li>Can you keep the object on screen while moving around?</li>
+        <li>Can you perform a multi-axis movement (move and turn at the same time)?</li>
+        <li>Can you mix movements easily (move diagonally, for example)?</li>
+    </ol>
+    <p>
+        Refer to <a href="Scoring.htm">Scoring</a> for more information about fine-tuning
+        the device in your application.</p>
+</body>
+</html>

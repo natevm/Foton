@@ -1,0 +1,110 @@
+<!--
+/* Copyright notice:
+ * Copyright (c) 3Dconnexion. All rights reserved. 
+ *
+ * This file and source code are an integral part of the "3Dconnexion
+ * Software Developer Kit", including all accompanying documentation,
+ * and is protected by intellectual property laws. All use of the
+ * 3Dconnexion Software Developer Kit is subject to the License
+ * Agreement found in the "LicenseAgreementSDK.rtf" file.
+ * All rights not expressly granted by 3Dconnexion are reserved.
+ *
+ * Last edited: $Id: Demos.htm 14759 2018-02-19 15:43:47Z ngomes $
+ */-->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Demos</title>
+    <x-sas-window top="48" bottom="576" left="35" right="911">
+    <link rel="stylesheet" type="text/css" href="style.css"/>
+</head>
+<body>
+    <a href="Integrat.htm">
+        <img src="graphics/prev1.gif" alt="graphics/prev1.gif" border="0" height="22" width="46"
+            align="bottom" /></a><a href="TandT.htm"><img src="graphics/next1.gif" alt="graphics/next1.gif"
+                border="0" x-sas-useimagewidth x-sas-useimageheight height="22" width="46"
+                align="bottom" /></a>
+    <h1>
+        Demos</h1>
+    <h2>
+        <a name="Building the Demos"></a>Building the Demos</h2>
+    <p>
+        Source code for the 3DxWare SDK demos is provided to show
+        examples of programming for 3Dconnexion devices. The demos&#39; Microsoft Visual Studio
+        solutions were created using Visual Studio 2010 or 2015 and include Release
+        and Debug configurations to build the demo programs.&nbsp;
+    </p>
+    <p>
+        To build a demo follow these steps:
+    </p>
+    <ol>
+        <li>Load the Solution file into Microsoft Visual Studio (File &gt; Open &gt; Project/Solution).</li>
+        <li>Select the type of build you want.</li>
+        <li>Compile.</li>
+    </ol>
+    <p>
+        The executable should be located in the platform-specific bin directory, as follows:</p>
+    <blockquote>
+        <p>
+            %SDK%\demos\<i>demo name</i>\bin\win32i\debug<i> (or release)</i></p>
+    </blockquote>
+    <h2>
+        <a name="Viewer"></a>Viewer</h2>
+    <p>
+        Available in binary for reference purposes only, the Viewer demo program demonstrates
+        how to operate a 3D mouse in object and different camera modes.
+    </p>
+    <p>
+        <img src="graphics/ViewerDemo.png" alt="graphics/ViewerDemo.png" height="325" border="0"
+            align="bottom" /></p>
+    <h2>
+        <a name="sbtest32"></a>3DxTest32</h2>
+    <p>
+        This is a very simple program which reads the 3D input device data and prints it
+        to a Win32 Window. It also prints out the button presses and releases as well as
+        zero events.</p>
+    <p>
+        <img src="graphics/Win00003.gif" alt="graphics/Win00003.gif" width="266" height="284"
+            border="0" align="bottom" /></p>
+    <h2>
+        <a name="sbtestmfc"></a>3DxTstMFC</h2>
+    <p>
+        This is a very simple program which reads the 3D input device data and prints it
+        to a MFC Window. It also prints out the button presses and releases as well as zero
+        events.</p>
+    <p>
+        <img src="graphics/Win00004.gif" alt="graphics/Win00004.gif" width="407" height="367"
+            border="0" align="bottom" /></p>
+    <h2>
+        <a name="action_interface_sample"></a>Action Interface</h2>
+    <p>
+        Sample program to demonstrate how to export a categorized list of application commands to the 3Dconnexion device driver using the &quot;Action Interface&quot; extension. 
+        In additon to the categorization information, each application command is exported with several attributes: identifier, name, description and icon. The &quot;Action Interface&quot; extension allows end-users to assign the exported application commands to any programmable device button.</p>
+    <p>
+        After starting the sample program, the program will automatically open a connection to the driver.</p>
+    <p>
+        After the connection is established, the menu &quot;Activate&quot; can be used to allow the export of a set of categorized commands and to notify the driver that a particular application mode (or context or environment) is active. Usually, for each application mode there&#39;s one category of commands but some programs will have multiple command categories that may or may not be shared with other application modes. Examples of application mode names are &quot;Part&quot;, &quot;Assembly&quot;, &quot;Drawing&quot;, &quot;Sketch&quot;.</p>
+    <p>
+        After exporting the command categories to the driver, the commands are available to be assigned to a device button in the &quot;Buttons&quot; panel of 3Dconnexion Properties, the driver user-interface.</p>
+    <p>
+        The image below shows the result of pressing a button that has been assigned the &quot;Main Mode&quot; command &quot;New...&quot; in category &quot;Action Interface&quot; &gt; &quot;File&quot;.</p>
+    <p>
+        The &quot;Buttons&quot; panel title can also be used to confirm if the driver is responding to changes in application contexts (or action sets) as the user clicks on the&nbsp; &quot;Activate...&quot; items of the sample&#39;s &quot;Actions&quot; menu.</p>
+    <p>
+        <img src="graphics/ActionInterfaceSample.png" alt="graphics/ActionInterfaceSample.png" width="374" height="257"
+            border="0" align="bottom" /></p>
+    <h2>
+        <a name="testsiapp_sample"></a>TestSiapp: C# sample</h2>
+    <p>
+        The &quot;TestSiapp&quot; sample demonstrates how a C# program can connect and disconnect to the driver, how to export a categorised list of application commands using the Action Interface (see previous sample) and how to decode the driver events.</p>
+    <p>
+        The sample includes a driver profile file under the &quot;profile&quot; sub-directory. To use the profile with a different application, it be must be edited to use the application&#39;s and the executable file names. The modified file can then be copied to %ProgramData%\3Dconnexion\3DxWare\Cfg. The driver must be restarted to read the new profile or any changes made to it.</p>
+    <p>
+        To use the program, start it by double-clicking on the executable file. The program will connect to the driver and export a categorized list of commands (including icon data). The commands are then available to be assigned to a device button in the &quot;Buttons&quot; panel of 3Dconnexion Properties, the driver user-interface.</p>
+    <p>
+        The image below shows the result of actuating the 3D mouse sensor and then pressing a button assigned to an exported application command.</p>
+    <p>
+        <img src="graphics/TestSiappSample.png" alt="graphics/TestSiappSample.png" width="886" height="493"
+            border="0" align="bottom" /></p>
+</body>
+</html>

@@ -1,0 +1,2354 @@
+<!--
+/* Copyright notice:
+ * (c) 3Dconnexion. All rights reserved. 
+ *
+ * This file and source code are an integral part of the "3Dconnexion
+ * Software Developer Kit", including all accompanying documentation,
+ * and is protected by intellectual property laws. All use of the
+ * 3Dconnexion Software Developer Kit is subject to the License
+ * Agreement found in the "LicenseAgreementSDK.rtf" file.
+ * All rights not expressly granted by 3Dconnexion are reserved.
+ *
+ * Last edited: $Id: InputFun.htm 14745 2018-02-15 09:38:05Z jwick $
+ */-->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>3DxWare Functions</title>
+    <x-sas-window top="60" bottom="605" left="8" right="900">
+    <link rel="stylesheet" type="text/css" href="style.css"/>
+</head>
+<body>
+    <a href="InputLib.htm">
+        <img src="graphics/prev1.gif" alt="graphics/prev1.gif" width="46" height="22" border="0"
+            align="bottom" /></a><a href="GUISync.htm"><img src="graphics/next1.gif" alt="graphics/next1.gif"
+                width="46" height="22" border="0" align="bottom" /></a>
+    <h1>3DxWare Input Library Functions</h1>
+    <p />
+    <h3><a name="SiAppCmdActivateActionSet"></a>SiAppCmdActivateActionSet</h3>
+    <p class="sourcecode">
+        enum SpwRetVal SiAppCmdActivateActionSet( SiHdl hdl, const char *action_set_id )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">hdl&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">the 3DxWare input device handle returned by <a href="#SiOpen">SiOpen</a> or <a href="#SiOpenPort">SiOpenPort</a> &nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">action_set_id&nbsp;
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">Action set id (memory owned by the function caller).
+                The id field specifies a UTF8 string identifier for the action set (application context or environment). The parameter must be non-NULL. 
+        This string needs to remain constant across application sessions and more or less constant across application releases.
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_HANDLE&nbsp;
+            </td>
+            <td valign="top">invalid handle&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_VALUE&nbsp;
+            </td>
+            <td valign="top">invalid action set id string&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiAppCmdActivateActionSet (hdl, "DrawingEnvironmentId");
+    </p>
+    <h4>Description</h4>
+    <p>
+        The application invokes the function SiAppCmdActivateActionSet immediately 
+    after enabling an action set, passing an action node for the application.
+    </p>
+    <p>
+        The function activates the action set named in the id in order to map the actions 
+    to device buttons and to support user customization of action-button mappings
+    using the 3dxware connection handle SiHdl to identify the application.
+    </p>
+    <p>
+        The application passes only a single string that identifies an action set. 
+    </p>
+    <p>
+        The action set id passed to SiAppCmdActivateActionSet has type char*.
+    </p>
+    <p>
+        The application can free memory allocated for the action set id
+    node immediately after SiAppCmdActivateActionSet returns, the function 
+    SiAppCmdActivateActionSet copies needed action data before returning.
+    </p>
+    <br />
+    <h3><a name="SiAppCmdWriteActionImages"></a>SiAppCmdWriteActionImages</h3>
+    <p class="sourcecode">
+        enum SpwRetVal SiAppCmdWriteActionImages( SiHdl hdl, const SiImage_t images[], SPWuint32 image_count );
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">hdl&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">the 3DxWare input device handle returned by <a href="#SiOpen">SiOpen</a> or <a href="#SiOpenPort">SiOpenPort</a> &nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">images
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">array of images</td>
+        </tr>
+        <tr>
+            <td valign="top">image_count
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">the number of elements in the array passed in to the "images" parameter</td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_HANDLE&nbsp;
+            </td>
+            <td valign="top">invalid handle&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiAppCmdWriteActionImages (hdl, &icons[0], icons.size());
+    </p>
+    <h4>Description</h4>
+    <p>
+        SiAppCmdWriteActionImages is invoked by the application to communicate the images
+        associated with application commands to the 3Dconnexion library. The library caches
+        the image information to support user customization of action-button mappings.
+    </p>
+    <p>
+        The passed in image list is of an contiguous array of type
+        <a href="InputLib.htm#Action Interface Icon Types and Structures">SiImage_t</a>.
+    </p>
+    <p>
+        The application can free memory allocated for the icon list immediately
+        after SiAppCmdWriteActionImages returns.
+    </p>
+    <br />
+    <h3><a name="SiAppCmdWriteActionSet"></a>SiAppCmdWriteActionSet</h3>
+    <p class="sourcecode">
+        enum SpwRetVal SiAppCmdWriteActionSet( SiHdl hdl, const SiActionNodeEx_t *action_tree )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">hdl&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">the 3DxWare input device handle returned by <a href="#SiOpen">SiOpen</a> or <a href="#SiOpenPort">SiOpenPort</a> &nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">action_tree&nbsp;
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">pointer to action tree node (memory owned by the function caller).
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_HANDLE&nbsp;
+            </td>
+            <td valign="top">invalid handle&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiAppCmdWriteActionSet (hdl, &action_tree);
+    </p>
+    <h4>Description</h4>
+    <p>
+        The application invokes the function SiAppCmdWriteActionSet, passing an 
+    action tree for the application. The function records the action 
+    information as necessary to map the actions to device buttons and to support
+    user customization of action-button mappings using the 3dxware connection handle
+    SiHdl to identify the application.
+    </p>
+    <p>
+        The application passes the entire action tree on each invocation of 
+        SiAppCmdWriteActionSet for a particular environment or context.
+    </p>
+    <p>
+        The action tree or passed to SiAppCmdWriteActionSet has type
+        <a href="InputLib.htm#Action Interface Types and Structures">SiActionNodeEx_t</a>.
+    </p>
+    <p>
+        The application can free memory allocated for the action tree or action 
+        node immediately after SiAppCmdWriteActionSet returns, the function 
+        SiAppCmdWriteActionSet copies needed action data before returning.
+    </p>
+    <br />
+    <h3><a name="SiBeep"></a>SiBeep</h3>
+    <p class="sourcecode">
+        enum SpwRetVal SiBeep( SiHdl hdl, char *pString )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">hdl&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">the 3DxWare input device handle returned by <a href="#SiOpen">SiOpen</a> or <a href="#SiOpenPort">SiOpenPort</a> &nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">pString&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">the user-defined beep string&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_HANDLE&nbsp;
+            </td>
+            <td valign="top">invalid handle&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_VALUE&nbsp;
+            </td>
+            <td valign="top">bad string&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiBeep (hdl, "CcC");
+    </p>
+    <h4>Description</h4>
+    <p>
+        SiBeep causes the device to emit a sequence of tones and pauses. Each character
+        of the string represents either a tone or a delay. Lowercase letters [a-z] represent
+        a tone; uppercase letters [A-Z] represent a pause. The closer the letter is to the
+        beginning of the alphabet the shorter the pause or tone ("a" or "A" is 1/16 second,
+        "b" or "B" is 2/16 second, and so on). Up to 14 characters in a string are processed;
+        additional characters are ignored.
+    </p>
+    <table border="1" cellpadding="5">
+        <tr>
+            <td>
+                <b>Note</b> : Devices may not have an audio capability in which case this function
+                call is ignored.&nbsp;
+            </td>
+        </tr>
+    </table>
+    <a name="SiButtonPressed"></a>
+    <br />
+    <h3>SiButtonPressed</h3>
+    <p class="sourcecode">
+        int SiButtonPressed( SiSpwEvent *pEvent )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">pEvent&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">pointer to 3DxWare event&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">Button number&nbsp;
+            </td>
+            <td valign="top">actual number of the button pressed&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_NO_BUTTON&nbsp;
+            </td>
+            <td valign="top">no button pressed&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SPW_ERROR&nbsp;
+            </td>
+            <td valign="top">not a button event&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error, it is a button event&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        int button = SiButtonPressed (&amp;event);
+    </p>
+    <h4>Description</h4>
+    <p>
+        Given a button event, this function returns the number of the button pressed. When
+        multiple buttons are pressed, the lowest button number is returned. There are three
+        special buttons: SI_PICK_BUTTON, SI_DIALOG_BUTTON, and SI_RESET_BUTTON; the other
+        buttons are numbered from 1-29. Requires 3DxWare 10 or newer.
+    </p>
+    <p>
+        See <a href="InputLib.htm#Special Button Definition">Special Button Definitions</a>
+        for more details.
+    </p>
+    <a name="SiButtonReleased"></a>
+    <br />
+    <h3>SiButtonReleased</h3>
+    <p class="sourcecode">
+        int SiButtonReleased( SiSpwEvent *pEvent )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">pEvent&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">pointer to 3DxWare event&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">Button number&nbsp;
+            </td>
+            <td valign="top">actual number of the button pressed&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_NO_BUTON&nbsp;
+            </td>
+            <td valign="top">no button pressed&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SPW_ERROR&nbsp;
+            </td>
+            <td valign="top">no button event&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error, it is a button event&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        int button = SiButtonRelease (&amp;event);
+    </p>
+    <h4>Description</h4>
+    <p>
+        Given a button event, this function returns the number of the button released. When
+        multiple buttons are released, the lowest button number is returned. There are three
+        special buttons: SI_PICK_BUTTON, SI_DIALOG_BUTTON, and SI_RESET_BUTTON; the other
+        buttons are numbered from 1-29. Requires 3DxWare 10 or newer.
+    </p>
+    <p>
+        See <a href="InputLib.htm#Special Button Definition">Special Button Definitions</a>
+        for more details.
+    </p>
+    <a name="SiClose"></a>
+    <br />
+    <h3>SiClose</h3>
+    <p class="sourcecode">
+        enum SpwRetVal SiClose( SiHdl hdl )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">hdl&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">3DxWare handle returned by SiOpen&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SPW_ERROR&nbsp;
+            </td>
+            <td valign="top">close error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_HANDLE&nbsp;
+            </td>
+            <td valign="top">invalid handle&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiClose (hdl);
+    </p>
+    <h4>Description</h4>
+    <p>
+        This function closes a device. Once closed, the 3DxWare handle is no longer valid.
+    </p>
+    <a name="SiDispatch"></a>
+    <br />
+    <h3>SiDispatch</h3>
+    <p class="sourcecode">
+        int SiDispatch( SiHdl hdl, SiGetEventData *pData, SiSpwEvent *pEvent, SiSpwHandlers
+        *pHandlers )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">hdl&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">3DxWare handle&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">pData&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">pointer to platform-specific data (as passed to SiGetEvent)&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">pEvent&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">pointer to 3DxWare event (as returned by SiGetEvent)&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">pHandlers&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">pointers to 3DxWare event handlers&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value
+    </h4>
+    <p>
+        (returned by the called event handler) Zero if handler is not defined
+    </p>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiDispatch (hdl, &amp;Edata, &amp;Event, &amp;dspHdlrs)
+    </p>
+    <h4>Description</h4>
+    <p>
+        Provided as a companion to <a href="#SiGetEvent">SiGetEvent</a>, this function calls
+        the appropriate handler to process the 3DxWare event returned by SiGetEvent. Pointers
+        to the handler functions are specified via <a href="InputLib.htm#SiSpwHandlers Structure">SiSpwHandlers Structure</a>.
+    </p>
+    <p>
+        The structure contains one handler for each event type. You can ignore an event
+        type by setting the <i>func</i> member of the appropriate SiEventHandler Structure
+        to NULL. Unlike the handler for SiGetEvent, there is no specific use for the function
+        return value of these handlers -- the interpretation is entirely the caller's.
+    </p>
+    <p>
+        See <a href="#SiGetEvent">SiGetEvent</a>, <a href="InputLib.htm#SiSpwHandler Structure">SiSpwHandler Structure</a>, <a href="InputLib.htm#SiSpwHandlers Structure">SiSpwHandlers
+                Structure</a>, and <a href="InputLib.htm#SiSpwEvent Types">SiSpwEvent Types</a>
+        for more information about event types.
+    </p>
+    <a name="SiGetButtonName"></a>
+    <br />
+    <h3>SiGetButtonName</h3>
+    <p class="sourcecode">
+        SpwReturnValue SiGetButtonName( SiHdl hdl, SPWuint32 buttonNumber, SiButtonName *pname )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">hdl&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">the 3DxWare input device handle returned by <a href="#SiOpen">SiOpen</a> or <a href="#SiOpenPort">SiOpenPort</a> &nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">buttonNumber&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">the button number whose name is being queried (1-n)&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">pname
+            </td>
+            <td valign="top">(w/o)
+            </td>
+            <td valign="top">the returned button name&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_HANDLE&nbsp;
+            </td>
+            <td valign="top">invalid handle&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_VALUE&nbsp;
+            </td>
+            <td valign="top">bad name buffer&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiGetButtonName ( m_hdl, i+1, &amp;buttons[i].name);
+    </p>
+    <h4>Description</h4>
+    <p>
+        SiGetButtonName retrieves the common name of the button at index <i>buttonNumber</i>.&nbsp;
+        This is the name that identifies the button in the driver's GUI and possibly also
+        on the device itself.&nbsp; This is for display in the application's GUI.
+    </p>
+
+    <a name="SiGetButtonNameV3DK"></a>
+    <br />
+    <h3>SiGetButtonNameV3DK</h3>
+    <p class="sourcecode">
+        enum SpwRetVal SiGetButtonNameV3DK( SiHdl hdl, SPWuint32 V3DK, SiButtonName *pname )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">hdl&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">the 3DxWare input device handle returned by <a href="#SiOpen">SiOpen</a> or <a href="#SiOpenPort">SiOpenPort</a> &nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">V3DK&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">the Virtual 3D Key (V3DK) number whose name is being queried&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">pname
+            </td>
+            <td valign="top">(w/o)
+            </td>
+            <td valign="top">pointer to structure to store the name of the V3DK
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_HANDLE&nbsp;
+            </td>
+            <td valign="top">invalid handle&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_VALUE&nbsp;
+            </td>
+            <td valign="top">invalid argument
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiGetButtonNameV3DK ( m_hdl, V3DK_TOP, &amp;oNameV3DK);
+    </p>
+    <h4>Description</h4>
+    <p>
+        Gets the name of a specific device Virtual 3D Key (V3DK). Requires 3DxWare 10 or
+        newer.
+    </p>
+    <a name="SiGetButtonV3DK"></a>
+    <br />
+    <h3>SiGetButtonV3DK</h3>
+    <p class="sourcecode">
+        enum SpwRetVal SiGetButtonV3DK( SiHdl hdl, SPWuint32 buttonNumber, SPWuint32 *pV3DK )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">hdl&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">the 3DxWare input device handle returned by <a href="#SiOpen">SiOpen</a> or <a href="#SiOpenPort">SiOpenPort</a> &nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">buttonNumber&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">the button number (1-n) to get the corresponding Virtual 3D Key (V3DK) identifier
+                number
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">pV3DK
+            </td>
+            <td valign="top">(w/o)
+            </td>
+            <td valign="top">pointer to store the V3DK number of the button
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_HANDLE&nbsp;
+            </td>
+            <td valign="top">invalid handle&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_VALUE&nbsp;
+            </td>
+            <td valign="top">invalid argument
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiGetButtonV3DK ( m_hdl, i+1, &amp;v3dkNumber);
+    </p>
+    <h4>Description</h4>
+    <p>
+        Gets the Virtual 3D Key (V3DK) identifier number of a specific device button. Requires
+        3DxWare 10 or newer.
+    </p>
+    <a name="SiGetCompanyIcon"></a>
+    <br />
+    <h3>SiGetCompanyIcon</h3>
+    <p class="sourcecode">
+        HICON SiGetCompanyIcon( );
+    </p>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">return value from ExtractIcon&nbsp;
+            </td>
+            <td valign="top">if no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">NULL&nbsp;
+            </td>
+            <td valign="top">an error loading the icon
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SHICON h = SiGetCompanyIcon();
+    </p>
+    <h4>Description</h4>
+    <p>
+        SiGetCompanyIcon loads the 3Dconnexion icon (from the 3DxWare driver exectuable).&nbsp;
+        This may be for use in an application toolbar.&nbsp; The application should call
+        DestroyIcon when it is done with it.
+    </p>
+    <a name="SiGetCompanyLogoFileName"></a>
+    <br />
+    <h3>SiGetCompanyLogoFileName</h3>
+    <p class="sourcecode">
+        SpwReturnValue SiGetCompanyLogoFileName( char name[], SPWuint32 *pmaxNameLen );
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">hdl&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">the 3DxWare input device handle returned by <a href="#SiOpen">SiOpen</a> or <a href="#SiOpenPort">SiOpenPort</a> &nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">name&nbsp;
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">ANSI char buffer for the name
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">pmaxNameLen&nbsp;
+            </td>
+            <td valign="top">(r/w)&nbsp;
+            </td>
+            <td valign="top">Number of characters in <i>name.</i> &nbsp; This is changed to the number of characters
+                required (if too small) or the number of characters written into the null-terminated
+                string.
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_NOT_ENOUGH_MEMORY&nbsp;
+            </td>
+            <td valign="top">If name buffer is too small.&nbsp; *pmaxNameLen updated with required length.&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_HANDLE&nbsp;
+            </td>
+            <td valign="top">invalid 3DxWare handle&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_VALUE&nbsp;
+            </td>
+            <td valign="top">bad argument&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiGetCompanyLogoFileName (char logoFileName, &amp;maxNameLen);
+    </p>
+    <h4>Description</h4>
+    <p>
+        SiGetCompanyLogoFileName retrieves the name of a file that contains the 3Dconnexion
+        logo.&nbsp; This is typically for display in an application's GUI or startup screen.
+        The application&nbsp; must examine the extension of the filename to make sure it
+        is a format it can display. At first implementation it was a DIBSECTION (.bmp file),
+        but that could change as new formats get incorporated.&nbsp; If the <i>name</i>
+        buffer is too small for the filename, SI_NOT_ENOUGH_MEMORY is returned and *pmaxNameLen
+        is set to the required size.
+    </p>
+    <a name="SiGetDeviceID"></a>
+    <br />
+    <h3>SiGetDeviceID</h3>
+    <p class="sourcecode">
+        SiDevID SiGetDeviceID( SiHdl hdl )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">hdl&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">3DxWare handle returned by SiOpen&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <p>
+        If there is no error, the function returns the device ID and <a href="InputLib.htm#SpwErrorVal">SpwErrorVal</a> is set to SPW_NO_ERROR. Otherwise, SpwErrorVal can be one of
+        the following:
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_NO_DEVICE&nbsp;
+            </td>
+            <td valign="top">the handle is not attached to a device&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_HANDLE&nbsp;
+            </td>
+            <td valign="top">invalid 3DxWare handle&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_UNINITIALIZED&nbsp;
+            </td>
+            <td valign="top">3DxWare has not been initialized.&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_NO_DRIVER&nbsp;
+            </td>
+            <td valign="top">the driver is not running&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        devId = SiGetDeviceID (hdl);
+    </p>
+    <h4>Description</h4>
+    <p>
+        Given a 3DxWare handle, this function returns the ID of the associated device.
+    </p>
+    <a name="SiGetDeviceImageFileName"></a>
+    <br />
+    <h3>SiGetDeviceImageFileName</h3>
+    <p class="sourcecode">
+        SpwReturnValue SiGetDeviceImageFileName( SiHdl hdl, char name[], SPWuint32 *pmaxNameLen )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">hdl&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">the 3DxWare input device handle returned by <a href="#SiOpen">SiOpen</a> or <a href="#SiOpenPort">SiOpenPort</a> &nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">name&nbsp;
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">ANSI char buffer for the name
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">pmaxNameLen&nbsp;
+            </td>
+            <td valign="top">(r/w)&nbsp;
+            </td>
+            <td valign="top">Number of characters in <i>name.</i> &nbsp; This is changed to the number of characters
+                required (if too small) or the number of characters written into the null-terminated
+                string.
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_NOT_ENOUGH_MEMORY&nbsp;
+            </td>
+            <td valign="top">If name buffer is too small.&nbsp; *pmaxNameLen updated with required length.&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_HANDLE&nbsp;
+            </td>
+            <td valign="top">invalid 3DxWare handle&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_VALUE&nbsp;
+            </td>
+            <td valign="top">bad argument&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiGetDeviceImageFileName ( m_hdl, deviceFileName, &amp;maxNameLen);
+    </p>
+    <h4>Description</h4>
+    <p>
+        SiGetDeviceImageFileName gets the name of a file that contains an image (a picture)
+        of the attached 3Dx device.&nbsp; This is meant for applications that want to display
+        a picture of the device in their GUI.&nbsp; This will probably be a .bmp file, but
+        could change in the future as better image types are supported. The application
+        should examine the filename extension.&nbsp; If the buffer is too small, it sets
+        *pmaxNameLen to the required length and returns SI_NOT_ENOUGH_MEMORY.
+    </p>
+    <a name="SiGetDeviceInfo"></a>
+    <br />
+    <h3>SiGetDeviceInfo</h3>
+    <p class="sourcecode">
+        enum SpwRetVal SiGetDeviceInfo( SiHdl hdl, SiDevInfo *pInfo )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">hdl&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">3DxWare handle returned by SiOpen&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">pInfo&nbsp;
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">pointer to storage for returned device information&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_HANDLE&nbsp;
+            </td>
+            <td valign="top">invalid 3DxWare handle&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiGetDeviceInfo (hdl, &amp;info);
+    </p>
+    <h4>Description</h4>
+    <p>
+        SiGetDeviceInfo returns a variety of information about the 3D input device: device
+        type, number of buttons, and firmware version. See the description of the <a href="InputLib.htm#SiDevInfo Structure">SiDevInfo Structure</a> for more information.
+    </p>
+    <a name="SiGetDeviceName"></a>
+    <br />
+    <h3>SiGetDeviceName</h3>
+    <p class="sourcecode">
+        enum SpwRetValue SiGetDeviceName( SiHdl hdl, SiDeviceName *pname )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">hdl&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">the 3DxWare input device handle returned by <a href="#SiOpen">SiOpen</a> or <a href="#SiOpenPort">SiOpenPort</a> &nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">pname&nbsp;
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">pointer to a SiDeviceName buffer&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_HANDLE&nbsp;
+            </td>
+            <td valign="top">invalid handle&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_VALUE&nbsp;
+            </td>
+            <td valign="top">bad argument&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiGetDeviceName ( m_hdl, &amp;currentDeviceName);
+    </p>
+    <h4>Description</h4>
+    <p>
+        SiGetDeviceName retrieves the name of the attached 3Dx device.&nbsp; This is probably
+        for display to the user in a GUI.
+    </p>
+    <a name="SiGetDevicePort"></a>
+    <br />
+    <h3>SiGetDevicePort</h3>
+    <p class="sourcecode">
+        enum SpwRetValue SiGetDevicePort( SiDevID devID, SiDevPort *pPort )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">devID&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">Device ID&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">pPort&nbsp;
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">Pointer to storage for returned device port info&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_ID&nbsp;
+            </td>
+            <td valign="top">invalid device ID&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiGetDevicePort ( devID, &amp;oDevPort);
+    </p>
+    <h4>Description</h4>
+    <p>
+        The purpose of this function is to provide a correlation between the devices and
+        the system ports to which they are connected. Each call to SiGetDevicePort returns
+        information for one device. Requires 3DxWare 10 or newer.
+    </p>
+    <a name="SiGetDriverInfo"></a>
+    <br />
+    <h3>SiGetDriverInfo</h3>
+    <p class="sourcecode">
+        enum SpwRetVal SiGetDriverInfo( SiVerInfo *pInfo )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">pInfo&nbsp;
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">pointer to storage for returned device information&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SPW_ERROR&nbsp;
+            </td>
+            <td valign="top">the driver did not return a version number&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiGetDriverInfo (&amp;info);
+    </p>
+    <h4>Description</h4>
+    <p>
+        SiGetDriverInfo returns the version number of the 3DxWare driver. See the description
+        of the <a href="InputLib.htm#SiVerInfo Structure">SiVerInfo Structure</a> for more
+        information.
+    </p>
+    <a name="SiGetEvent"></a>
+    <br />
+    <h3>SiGetEvent</h3>
+    <p class="sourcecode">
+        enum SpwRetVal SiGetEvent( SiHdl hdl, int flags, SiGetEventData *pData, SiSpwEvent *pEvent )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">hdl&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">3DxWare handle&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">flags&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">processing flags: should be 0&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">pData&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">pointer to platform-specific data&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">pEvent&nbsp;
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">pointer to storage for returned 3DxWare event&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_ERROR&nbsp;
+            </td>
+            <td valign="top">no event is pending&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_HANDLE&nbsp;
+            </td>
+            <td valign="top">invalid 3DxWare handle&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_NOT_EVENT&nbsp;
+            </td>
+            <td valign="top">the event is not a 3DxWare event&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_IS_EVENT&nbsp;
+            </td>
+            <td valign="top">the event is a 3DxWare event&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_SKIP_EVENT&nbsp;
+            </td>
+            <td valign="top">the event is a 3DxWare event but it should be skipped&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiGetEvent (hdl, 0, &amp;gData, &amp;event);
+    </p>
+    <h4>Description</h4>
+    <p>
+        This function checks to see if the specified Windows message is a message from the
+        requested 3D input device and, if so, returns the data as a 3DxWare event. SiGetEvent
+        is invoked by the application routine that receives the system messages. Event information
+        is passed via the <i>pData</i> argument. If a message is not from the API (therefore
+        not a 3DxWare message) the function return value is SI_NOT_EVENT. In this case the
+        message may need further processing. Otherwise, the function return value is SI_IS_EVENT
+        and a 3DxWare event is returned by the <i>pEvent</i> argument. For more information
+        see <a href="InputLib.htm#SiSpwEvent Structure">SiSpwEvent Structure</a>. If SiGetEvent
+        returns a value of SI_SKIP_EVENT, this indicates the event is indeed a 3DxWare event,
+        but should not be processed because it is not associated with the specified 3DxWare
+        handle.
+    </p>
+    <p>
+        Each 3DxWare event is assigned one of the following event types described below:
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SI_BUTTON_EVENT&nbsp;
+            </td>
+            <td valign="top">a 3DxWare button event&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_MOTION_EVENT&nbsp;
+            </td>
+            <td valign="top">a 3DxWare motion event&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_EXCEPTION_EVENT&nbsp;
+            </td>
+            <td valign="top">the 3DxWare device returned indecipherable data&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_ZERO_EVENT&nbsp;
+            </td>
+            <td valign="top">no information from the 3DxWare device&nbsp;
+            </td>
+        </tr>
+    </table>
+    <p>
+        If the event is a SI_BUTTON_EVENT it returns its data using the <i>spwData</i> portion
+        of the union. The <i>bData</i> field contains the states of all the buttons on the
+        device (see <a href="InputLib.htm#SiButtonData Structure">SiButtonData Structure</a>
+        for more information). For simple press and release processing, the functions <a
+            href="#SiButtonPressed">SiButtonPressed</a> and <a href="#SiButtonReleased">SiButtonReleased</a>
+        can be used to retrieve a button number from the <a href="InputLib.htm#SiSpwEvent Structure">SiSpwEvent Structure</a>.
+    </p>
+    <p>
+        If the event is a SI_MOTION_EVENT, it returns its data using spwData. Only the <i>mData</i>
+        and <i>period</i> fields are valid for a Motion event. <i>mData</i> contains the
+        axis data from the device in the following order:
+    </p>
+    <p class="sourcecode">
+        Translation along X Translation along Y Translation along Z Rotation about X Rotation
+        about Y Rotation about Z.
+    </p>
+    <p>
+        You may wish to use the <a href="InputLib.htm#3DxWare Data Offsets">3DxWare Data Offsets</a>
+        to get the axis data.
+    </p>
+    <p>
+        <i>period</i> contains the time in milliseconds since the last device event.
+    </p>
+    <p>
+        If the event is a SI_ZERO_EVENT, it returns zero for all axes in <i>spwData</i>.
+    </p>
+    <p>
+        If the event is a SI_EXCEPTION_EVENT, the data is returned in <i>exData</i>. This
+        data represents a unrecognized packet from the attached device.
+    </p>
+    <a name="SiGetEventWinInit"></a>
+    <br />
+    <h3>SiGetEventWinInit</h3>
+    <p class="sourcecode">
+        void SiGetEventWinInit( SiGetEventData *pData, UINT msg, WPARAM wParam, LPARAM lParam )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">pData&nbsp;
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">pointer to storage for returned platform-specific data&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">msg&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">Windows message&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">wParam&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">parameter one passed into the Windows message procedure&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">lParam&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">parameter two passed into the Windows message procedure&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <p>
+        Nothing
+    </p>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiGetEventWinInit (&amp;gData, msg, wParam, lParam);
+    </p>
+    <h4>Description</h4>
+    <p>
+        SiGetEventWinInit initializes the Windows platform-specific data for a subsequent
+        call to <a href="#SiGetEvent">SiGetEvent</a>.
+    </p>
+    <a name="SiGetLibraryInfo"></a>
+    <br />
+    <h3>SiGetLibraryInfo</h3>
+    <p class="sourcecode">
+        void SiGetLibraryInfo( SiVerInfo *pInfo )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">pInfo&nbsp;
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">pointer to storage for returned device information&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <p>
+        This function does not return any value.
+    </p>
+    <p>
+        <h4>Example</h4>
+        <p class="sourcecode">
+            SiGetLibraryInfo (&amp;info);
+        </p>
+    </p>
+    <h4>Description</h4>
+    <p>
+        SiGetLibraryInfo returns the version number of the 3DxWare library. See the description
+        of the <a href="InputLib.htm#SiVerInfo Structure">SiVerInfo Structure</a> for more
+        information.
+    </p>
+    <a name="SiGetNumDevices"></a>
+    <br />
+    <h3>SiGetNumDevices</h3>
+    <p class="sourcecode">
+        int SiGetNumDevices( )
+    </p>
+    <h4>Return Value</h4>
+    <p>
+        If the 3DxWare Input Library is initialized, this function returns the number of
+        devices and SpwErrorVal is set to SPW_NO_ERROR. Otherwise, the return code is -1
+        and SpwErrorVal is set to either SI_UNINITIALIZED or SI_NO_DRIVER.
+    </p>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        num = SiGetNumDevices ();
+    </p>
+    <h4>Description</h4>
+    <p>
+        This function returns the number of input devices detected by the driver.
+    </p>
+    <a name="SiGrabDevice"></a>
+    <br />
+    <h3>SiGrabDevice</h3>
+    <p class="sourcecode">
+        enum SpwRetVal SiGrabDevice( SiHdl hdl, SPWbool exclusive )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">hdl&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">3DxWare handle returned by SiOpen&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">exclusive&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">flag to determine if the &quot;grab&quot; should be exclusive (SPW_TRUE) or &quot;soft&quot; (SPW_FALSE)&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SPW_ERROR&nbsp;
+            </td>
+            <td valign="top">grab failed&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_HANDLE&nbsp;
+            </td>
+            <td valign="top">invalid 3DxWare handle&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiGrabDevice (hdl, SPW_FALSE);
+    </p>
+    <h4>Description</h4>
+    <p>
+        This function is used to &quot;grab&quot; or capture a device in multi-tasking environments.
+        For an exclusive capture, the application retains control of the device regardless
+        of which window has the focus. For a non-exclusive or &quot;soft&quot; capture, the application
+        retains control of the device only if no other application, sharing the same device,
+        has the focus.
+    </p>
+    <p>
+        Some 3DxWare implementations allow only one non-exclusive grab. Others allow multiple
+        non-exclusive grabs and provide an interface to interactively select the current
+        non-exclusive grab application.
+    </p>
+    <p>
+        An exclusive grab fails if another application already has exclusively captured
+        the device. A non-exclusive grab fails if the 3DxWare implementation allows only
+        one non-exclusive grab and another application already has non-exclusively captured
+        the device.
+    </p>
+    <table border="1" cellpadding="5">
+        <tr>
+            <td>
+                <b>Note</b> : An exclusive grab should be used sparingly, if at all.&nbsp;
+            </td>
+        </tr>
+    </table>
+    <a name="SiInitialize"></a>
+    <br />
+    <h3>SiInitialize</h3>
+    <p class="sourcecode">
+        enum SpwRetVal SiInitialize( )
+    </p>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SPW_ERROR&nbsp;
+            </td>
+            <td valign="top">initialization error&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiInitialize ();
+    </p>
+    <h4>Description</h4>
+    <p>
+        This function initializes the 3DxWare Input Library. Since most input functions
+        require the library to be initialized, call this function before you call any other
+        input functions.
+    </p>
+    <a name="SiIsInitialize"></a>
+    <br />
+    <h3>SiIsInitialize</h3>
+    <p class="sourcecode">
+        SPWbool SiIsInitialize( )
+    </p>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_TRUE&nbsp;
+            </td>
+            <td valign="top">Library is initialized.&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SPW_FALSE&nbsp;
+            </td>
+            <td valign="top">Librariy is not initialized.&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        is_init = SiIsInitialize ();
+    </p>
+    <h4>Description</h4>
+    <p>
+        This function checks if the 3DxWare Input Library is initialized.</br> Requires
+        3DxWare 10 or newer.
+    </p>
+    <a name="SiMessageBox"></a>
+    <br />
+    <h3>SiMessageBox</h3>
+    <p class="sourcecode">
+        SPWint32 SiMessageBox( HWND hwnd, const WCHAR message[], const WCHAR caption[], SPWuint32 message_type )
+    </p>
+        <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">hwnd&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">HWND handle of target window where the message box is overlaid.&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">message&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">
+                Set to string L"3Dconnexion V<i>x</i> saved" where <i>x</i> is 1, 2 or 3 if "message_type" is SI_MB_VIEW_SAVED.<br />
+                Set to L"STR_HOLD_TO_SAVE" if "message_type" is SI_MB_HOLD_TO_SAVE.
+            </td>
+        </tr>
+            <tr>
+            <td valign="top">caption&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">
+                Reserved for future use. Must be set to L"STR_HINT".
+            </td>
+        </tr>
+            </tr>
+            <tr>
+            <td valign="top">message_type&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">
+                Set to SI_MB_VIEW_SAVED if a <a href="BestPractices.htm#QuickViews">Quick View</a> was successfully saved.<br />
+                Set to SI_MB_HOLD_TO_SAVE if a <a href="BestPractices.htm#QuickViews">Quick View</a> is not yet saved.
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top"><i>Reserved</i>&nbsp;
+            </td>
+            <td valign="top">Not documented. Reserved for future use.&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiMessageBox(hWnd, L"STR_HOLD_TO_SAVE", L"STR_HINT", SI_MB_HOLD_TO_SAVE);
+    </p>
+    <h4>Description</h4>
+    <p>
+        This function displays a message box using the UI design of the current driver. The message box
+        is placed over the window identified by the hwnd handle, normally horizontally centred and 
+        25% of the hwnd window height vertically.
+    </p>
+    <p>
+        This function is currently only applicable when used to implement the
+        <a href="BestPractices.htm#QuickViews">Quick Views</a> concept.
+    </p>
+    <a name="SiOpen"></a>
+    <br />
+    <h3>SiOpen</h3>
+    <p class="sourcecode">
+        SiHdl SiOpen( char *pAppName, SiDevID devID, SiTypeMask *pTMask, int mode, SiOpenData *pData )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">pAppName&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">pointer to application name&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">devID&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">device ID or SI_ANY_DEVICE to select by device type&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">pTMask&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">pointer to device type mask if ID is SI_ANY_DEVICE&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">mode&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">3DxWare event retrieval method: SI_EVENT or SI_POLL. Only SI_EVENT is currently
+                supported.&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">pData&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">pointer to platform-specific data if mode is SI_EVENT&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <p>
+        If the function succeeds, the return value is the 3D input device handle. If this
+        function fails, it returns a NULL value and sets the global variable SpwErrorVal
+        to one of the following:
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SPW_ERROR&nbsp;
+            </td>
+            <td valign="top">device could not be opened&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_ID&nbsp;
+            </td>
+            <td valign="top">invalid device ID&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_VALUE&nbsp;
+            </td>
+            <td valign="top">invalid argument&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_UNSUPPORTED&nbsp;
+            </td>
+            <td valign="top">specified retrieval method is unsupported&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        devHandle = SiOpen ("app name", SI_ANY_DEVICE,
+    </p>
+    <p class="sourcecode">
+        SI_NO_MASK, SI_EVENT, &amp;oData);
+    </p>
+    <h4>Description</h4>
+    <p>
+        The SiOpen function checks for the input device number. Most 3DxWare functions use the
+        input device handle returned by this function to reference the requested input device.
+    </p>
+    <p>
+        Each window that is to uniquely receive events should get its own SiHdl.&nbsp; For
+        example, if an application has a 2D and a 3D window open, each would have its own
+        unique event processing -- each would do something different with the device data.&nbsp;
+        Each probably has its own WndProc.&nbsp; If each has its own handle, the driver
+        will send data uniquely to the most specific/correct window (based on keyboard focus).&nbsp;
+        If you don't register any more specific windows the driver sends data to the closest
+        parent to the current window in the windows hierarchy for the application.
+    </p>
+    <a name="SiOpenEx"></a>
+    <br />
+    <h3>SiOpenEx</h3>
+    <p class="sourcecode">
+        SiHdl SiOpenEx( WCHAR *pAppName, SiDevID devID, SiTypeMask *pTMask, int mode, SiOpenDataEx *pDataEx )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">pAppName&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">pointer to application name (Note that this is a WCHAR*)&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">devID&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">device ID or SI_ANY_DEVICE to select by device type&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">pTMask&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">pointer to device type mask if ID is SI_ANY_DEVICE&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">mode&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">3DxWare event retrieval method: SI_EVENT or SI_POLL. Only SI_EVENT is currently
+                supported.&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">pDataEx&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">pointer to platform-specific data if mode is SI_EVENT&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <p>
+        If the function succeeds, the return value is the 3D input device handle. If this
+        function fails, it returns a NULL value and sets the global variable SpwErrorVal
+        to one of the following:
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SPW_ERROR&nbsp;
+            </td>
+            <td valign="top">device could not be opened&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_ID&nbsp;
+            </td>
+            <td valign="top">invalid device ID&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_VALUE&nbsp;
+            </td>
+            <td valign="top">invalid argument&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_UNSUPPORTED&nbsp;
+            </td>
+            <td valign="top">specified retrieval method is unsupported&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        devHandle = SiOpenEx ( L"app name", SI_ANY_DEVICE,
+    </p>
+    <p class="sourcecode">
+        SI_NO_MASK, SI_EVENT, &amp;oDataEx);
+    </p>
+    <h4>Description</h4>
+    <p>
+        The SiOpenEx function is an alternative to SiOpen for use with the SiOpenWinInitEx and SiOpenWinAddHint* functions.  It differs in its use of a WCHAR appName argument and a different oDataEx structure.
+    </p>
+    <p>
+        The SiOpenEx function checks for the input device number. Most 3DxWare functions use the
+        input device handle returned by this function to reference the requested input device.
+    </p>
+    <p>
+        Each window that is to uniquely receive events should get its own SiHdl.&nbsp; For
+        example, if an application has a 2D and a 3D window open, each would have its own
+        unique event processing -- each would do something different with the device data.&nbsp;
+        Each probably has its own WndProc.&nbsp; If each has its own handle, the driver
+        will send data uniquely to the most specific/correct window (based on keyboard focus).&nbsp;
+        If you don't register any more specific windows the driver sends data to the closest
+        parent to the current window in the windows hierarchy for the application.
+    </p>
+    <a name="SiOpenPort"></a>
+    <br />
+    <h3>SiOpenPort</h3>
+    <p class="sourcecode">
+        SiHdl SiOpenPort( const char *pAppName, const SiDevPort *pPort, int mode, const
+        SiOpenData *pData );
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">pAppName&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">pointer to application name&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">pPort&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">the port info (port name) for the device&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">mode&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">3DxWare event retrieval method: SI_EVENT or SI_POLL. Only SI_EVENT is currently
+                supported.&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">pData&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">pointer to platform-specific data if mode is SI_EVENT&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <p>
+        If the function succeeds, the return value is the 3D input device handle. If this
+        function fails, it returns SI_NO_HANDLE value and sets the global variable SpwErrorVal
+        to one of the following:
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SPW_ERROR&nbsp;
+            </td>
+            <td valign="top">device could not be opened&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_ID&nbsp;
+            </td>
+            <td valign="top">invalid device ID&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_VALUE&nbsp;
+            </td>
+            <td valign="top">invalid argument&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_UNSUPPORTED&nbsp;
+            </td>
+            <td valign="top">specified retrieval method is unsupported&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        devHandle = SiOpenPort ("app name", &amp;oPort, SI_EVENT, &amp;oData);
+    </p>
+    <h4>Description</h4>
+    <p>
+        SiOpenPort is called to open a device, normally for input but also for output access.
+        The device to open is indicated by the full path name to the device. See the description
+        of <a href="#SiOpen">SiOpen</a> for information on how to use the SiHdl return value.
+        Requires 3DxWare 10 or newer.
+    </p>
+    <a name="SiOpenPortEx"></a>
+    <br />
+    <h3>SiOpenPortEx</h3>
+    <p class="sourcecode">
+        SiHdl SiOpenPortEx( const WCHAR *pAppName, const SiDevPort *pPort, int mode, const
+        SiOpenDataEx *pDataEx );
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">pAppName&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">pointer to application name (Note that this is a WCHAR*)&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">pPort&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">the port info (port name) for the device&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">mode&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">3DxWare event retrieval method: SI_EVENT or SI_POLL. Only SI_EVENT is currently
+                supported.&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">pDataEx&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">pointer to platform-specific data if mode is SI_EVENT&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <p>
+        If the function succeeds, the return value is the 3D input device handle. If this
+        function fails, it returns SI_NO_HANDLE value and sets the global variable SpwErrorVal
+        to one of the following:
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SPW_ERROR&nbsp;
+            </td>
+            <td valign="top">device could not be opened&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_ID&nbsp;
+            </td>
+            <td valign="top">invalid device ID&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_VALUE&nbsp;
+            </td>
+            <td valign="top">invalid argument&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_UNSUPPORTED&nbsp;
+            </td>
+            <td valign="top">specified retrieval method is unsupported&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        devHandle = SiOpenPortEx ( L"app name", &amp;oPort, SI_EVENT, &amp;oDataEx);
+    </p>
+    <h4>Description</h4>
+    <p>
+        The SiOpenPortEx function is an alternative to SiOpenPort for use with the SiOpenWinInitEx and SiOpenWinAddHint* functions.  It differs in its use of a WCHAR appName argument and a different oDataEx structure.
+    </p>
+    <p>
+        SiOpenPortEx is called to open a device, normally for input but also for output access.
+        The device to open is indicated by the full path name to the device. See the description
+        of <a href="#SiOpen">SiOpen</a> for information on how to use the SiHdl return value.
+        Requires 3DxWare 10 or newer.
+    </p>
+    <a name="SiOpenWinInit"></a>
+    <br />
+    <h3>SiOpenWinInit</h3>
+    <p class="sourcecode">
+        void SiOpenWinInit( SiOpenData *pData, HWND hWnd )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">pData&nbsp;
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">pointer to storage for returned platform-specific data&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">hWnd&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">Window handle&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <p>
+        Nothing
+    </p>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiOpenWinInit (&amp;oData, hWnd);
+    </p>
+    </p>
+    <h4>Description</h4>
+    <p>
+        SiOpenWinInit initializes the Windows platform-specific data for a subsequent call
+        to <a href="#SiOpen">SiOpen</a> or <a href="#SiOpenPort">SiOpenPort</a>.
+    </p>
+    <a name="SiOpenWinInitEx"></a>
+    <br />
+    <h3>SiOpenWinInitEx</h3>
+    <p class="sourcecode">
+        void SiOpenWinInitEx( SiOpenDataEx *pData, HWND hWnd )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">pData&nbsp;
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">pointer to storage for returned platform-specific data&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">hWnd&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">Window handle&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <p>
+        Nothing
+    </p>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiOpenWinInitEx (&amp;oDataEx, hWnd);
+    </p>
+    </p>
+    <h4>Description</h4>
+    <p>
+        SiOpenWinInitEx initializes the Windows platform-specific data for a subsequent call
+        to <a href="#SiOpenEx">SiOpenEx</a> or <a href="#SiOpenPortEx">SiOpenPortEx</a>.
+		This Ex version is required to use <a href="hints.htm">Hints</a>.
+    </p>
+    <a name="SiReleaseDevice"></a>
+    <br />
+    <h3>SiReleaseDevice</h3>
+    <p class="sourcecode">
+        enum SpwRetVal SiReleaseDevice( SiHdl hdl )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">hdl&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">3DxWare handle returned by SiOpen&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SPW_ERROR&nbsp;
+            </td>
+            <td valign="top">device not captured&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_HANDLE&nbsp;
+            </td>
+            <td valign="top">invalid 3DxWare handle&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiReleaseDevice (hdl);
+    </p>
+    <h4>Description</h4>
+    <p>
+        This function releases a device that has been captured via the function <a href="#SiGrabDevice">SiGrabDevice</a>. A captured device is automatically released when closed with
+        <a href="#SiClose">SiClose</a> or when the application terminates.
+    </p>
+    <a name="SiRezero"></a>
+    <br />
+    <h3>SiRezero</h3>
+    <p class="sourcecode">
+        enum SpwRetVal SiRezero( SiHdl hdl )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">hdl&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">3DxWare handle returned by SiOpen&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_HANDLE&nbsp;
+            </td>
+            <td valign="top">invalid 3DxWare handle&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiRezero (hdl);
+    </p>
+    <h4>Description</h4>
+    <p>
+        SiRezero causes the input device&apos;s current setting to be defined as the rest position.
+        Movement away from this position cause <a href="InputLib.htm#SiSpwEvent Types">motion
+            events</a>. This is used to halt image drift or set up a constant motion.
+    </p>
+    <a name="SiSetLEDs"></a>
+    <br />
+    <h3>SiSetLEDs</h3>
+    <p class="sourcecode">
+        enum SpwRetVal SiSetLEDs( SiHdl hdl, SPWuint32 mask )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">hdl&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">3DxWare handle returned by SiOpen(Ex) and SiOpenPort(Ex)&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">mask&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">mask indicating which LEDs should be turned on (only 0 and non-zero supported at
+                first) 0 all off, non-zero all on.&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_HANDLE&nbsp;
+            </td>
+            <td valign="top">invalid 3DxWare handle&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiSetLEDs (hdl, 0x01);
+    </p>
+    <h4>Description</h4>
+    <p>
+        If supported, this function turns the device's LEDs on or off. Only 0 (all off)
+        or non-zero (all on) are supported at first. If devices with individually selectable
+        LEDs are built, then we can address those individually (up to 32 of them). Requires
+        3DxWare 10 or newer.
+    </p>
+    <a name="SiSetTypeMask (Obsolete)"></a>
+    <br />
+    <h3>SiSetTypeMask (Obsolete)</h3>
+    <p class="sourcecode">
+        enum SpwRetVal SiSetTypeMask( SiTypeMask *pTMask, int type1, ..., SI_END_ARGS )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">pTMask&nbsp;
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">pointer to storage for returned device type mask&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">type1&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">first device type&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">...&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">additional device types&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SPW_NO_ERROR&nbsp;
+            </td>
+            <td valign="top">no error&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">SI_BAD_VALUE&nbsp;
+            </td>
+            <td valign="top">bad type&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Description</h4>
+    <p>
+        This function has been removed from the SDK and is included only to enable older
+        applications to link with this version of the library without changing any source
+        code.
+    </p>
+    <a name="SiSetUiMode"></a>
+    <br />
+    <h3>SiSetUiMode</h3>
+    <p class="sourcecode">
+        enum SpwRetVal SiSetUiMode( SiHdl hdl, SPWuint32 mode )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">hld&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">3DxWare handle&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">mode&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">UI Mode&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiSetUiMode (SI_ALL_HANDLES, SI_UI_ALL_CONTROLS)
+    </p>
+    <h4>Description</h4>
+    <p>
+        The SiSetUiMode function changes the state of the driver menu window from within
+        an application.
+    </p>
+    <p>
+        The function must be called with a valid handle (returned by
+        <a href="#SiOpen">SiOpen</a> or <a href="#SiOpenPort">SiOpenPort</a>) or
+        SI_ALL_HANDLES. This function allows the application to turn off the driver menu
+        by using SI_UI_NO_CONTROLS.
+    </p>
+    <p>
+        See <a href="InputLib.htm#3DxWare UI Mode Setting">3DxWare UI Mode Settings</a>
+        for more information.
+    </p>
+    <a name="SiTerminate"></a>
+    <br />
+    <h3>SiTerminate</h3>
+    <p class="sourcecode">
+        void SiTerminate( )
+    </p>
+    <h4>Return Value</h4>
+    <p>
+        None
+    </p>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiTerminate ();
+    </p>
+    <h4>Description</h4>
+    <p>
+        This function must be called to shut down the 3DxWare Input Library correctly. Once
+        the 3DxWare Input Library is shut down, use <a href="#SiInitialize">SiInitialize</a>
+        before calling any input functions.
+    </p>
+    <a name="SpwErrorString"></a>
+    <br />
+    <h3>SpwErrorString</h3>
+    <p class="sourcecode">
+        char *SpwErrorString( enum SpwRetVal val )
+    </p>
+    <h4>Return Value</h4>
+    <p>
+        A pointer to a character string representing the return value passed into the function.
+    </p>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        printf ("Error: %s\n", SpwErrorString (SpwErrorVal));
+    </p>
+    <h4>Description</h4>
+    <p>
+        This function converts the <i>SpwRetVal</i> error/return codes into a string for
+        display.
+    </p>
+</body>
+</html>

@@ -1,0 +1,458 @@
+<!--This file created 9:45 AM  5/26/98 by Claris Home Page version 2.0-->
+<HTML>
+<HEAD>
+   <TITLE>Hint Usage</TITLE>
+   <META NAME=GENERATOR CONTENT="Microsoft FrontPage 4.0">
+   <X-SAS-WINDOW TOP=85 BOTTOM=593 LEFT=14 RIGHT=928>
+    <link rel="stylesheet" type="text/css" href="style.css"/>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1"><!--This file created 1:57 PM  4/6/98 by Claris Home Page version 2.0-->
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+
+<P><a HREF="SyncFun.htm"><IMG SRC="graphics/prev1.gif"
+ALT="graphics/prev1.gif" width=46 height=22 X-SAS-UseImageWidth
+X-SAS-UseImageHeight BORDER=0
+ALIGN=bottom></a><a HREF="MathLib.htm"><IMG SRC="graphics/next1.gif"
+ALT="graphics/next1.gif" width=46 height=22 X-SAS-UseImageWidth
+X-SAS-UseImageHeight BORDER=0 ALIGN=bottom></a></P>
+
+<H1><FONT COLOR="#0000AF">Hints</FONT></H1>
+
+<P><font face="Arial">Hints are used by an application to inform the 3DxWare driver about certain implementation details that only the application knows.  
+They are often used to determine configuration settings to use with the application.  They usually set values that are matched in the AppInfo section of a cfg file.</font></P>
+
+<br/>
+<h2><font face="Arial" color="#0000AF"><a name="Why_Use_It"></a>Why Use It?</font></h2>
+
+<P><font face="Arial">While a cfg file could be created with all this information, there are times when it is not necessary to create one.  
+Much of the required configuration is similar to other applications and a common default configuration can be used.</font></p>
+<p>Hints work by matching values in Cfg files.  For example, if an application wants to use two cfg files for two different versions (v15 vs v16), 
+it can create two cfg files and send a version Hint to tell the driver which to use.  
+This typically happens when a major change is made by the application developer.  
+E.g., it might start exporting icons and commands to the driver for use in the driver's GUI and on a device's LCD.  
+The old application version may have required many predefined macros and strings, but the new version does not want any of 
+that because it is all supplied at run-time.</p>
+<p>Generally you don't have to figure this out on your own.  Your API-support email contact will help you to set one Hint or another.</p>
+
+<p>Some Hints are added automatically by the library.  The SDK and Driver version information is automatically added.</p>
+<p>One important Hint to set is SI_HINT_USESV3DCMDS (see the code sample below).  V3DCMDs are relatively new, but are our suggested mechanism for processing 
+device button events because they are not dependent on the actual hardware attached.  
+If the application does not set this hint, the application will receive legacy button events.  If you use V3DCMDs you must either set this Hint or provide a cfg file that sends V3DCMDs.</p>
+<p>The SiOpen*Ex functions destroy any memory allocated in the SiOpenDataEx structures.  Therefore the structure can only be used once before having to refill it.</p>
+
+<br/>
+
+<h2><font face="Arial" color="#0000AF"><a name="How_It_Works"></a>How It Works</font></h2>
+
+<p><font face="Arial">Essentially Hints provided by the app match values in the Cfg file.</p>
+<p><font face="Arial">For example, two cfg files for a single executable may be created.  One that uses one version of the SDK and another that uses a different version.  It's mostly about cfg file selection.  Though other uses may be added and other hints may be added as needs arise.</p>
+<br/>
+<p><font face="Arial">Step 1: Switch to the Ex structures and functions and add Hints values before calling SiOpenEx.</p>
+<p><a href="InputFun.htm#SiOpenWinInitEx">SiOpenWinInitEx</a> initializes the new <a href="InputLib.htm#SiOpenDataEx Structure">SiOpenDataEx</a> structure.
+<p><font face="Arial">Hints are set by data type (bool, float, int, string).  There are two versions of each function (Enum and non-Enum).  
+The Enum versions set a pre-defined Hint the driver may recognize.  The non-Enum versions are just passed to the cfg to look for 
+a match (match or no match).  No other interpretation is done.</p>
+    <table border="0" cellpadding="5">
+        <tr>
+			<td valign="top"><a href="Hints.htm#SiOpenWinAddHintBool">SiOpenWinAddHintBool(Enum)&nbsp;</a></td>
+			<td valign="top">Initializes a boolean value</td>
+        </tr>
+        <tr>
+			<td valign="top"><a href="Hints.htm#SiOpenWinAddHintInt">SiOpenWinAddHintInt(Enum)&nbsp;</a></td>
+			<td valign="top">Initializes an int value</td>
+        </tr>
+        <tr>
+			<td valign="top"><a href="Hints.htm#SiOpenWinAddHintFloat">SiOpenWinAddHintFloat(Enum)&nbsp;</a></td>
+			<td valign="top">Initializes a float value</td>
+        </tr>
+        <tr>
+			<td valign="top"><a href="Hints.htm#SiOpenWinAddHintString">SiOpenWinAddHintString(Enum)&nbsp;</a></td>
+			<td valign="top">Initializes a string value</td>
+        </tr>
+	</table>
+
+<p><a href="InputFun.htm#SiOpenEx">SiOpenEx</a> opens a connection to the driver using the filled SiOpenDataEx struct.</p>
+<br/>
+	<p><font face="Arial">Step 2: Create a cfg file if necessary.  Here is a sample from the 3DxTest.xml cfg file.  It specifies that the application wants to receive V3DCMDs, and that it requires a minimum of Version 3.4 of the SDK.</p>
+	<p class="sourcecode"> 
+	&nbsp;&nbsp;&lt;AppCfg Default="true" xmlns="" CfgFormatVersion="1.2" ThisFileVersion="1.4"&gt;<br/>
+  &nbsp;&nbsp;&lt;AppInfo&gt;<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;&lt;Signature&gt;<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;Name&gt;STR_3DXTEST&lt;/Name&gt;<br/>
+	  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;ExecutableName&gt;3DxTest.exe&lt;/ExecutableName&gt;<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;Transport&gt;S80&lt;/Transport&gt;<br/>
+	  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;Hints&gt;<br/>
+		  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;UsesV3DCMDs/&gt;<br/>
+		  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;SDKVersion&gt;3.4&lt;/SDKVersion&gt;<br/>
+	  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;/Hints&gt;<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;&lt;/Signature&gt;<br/>
+	...<br/>
+	  &nbsp;&nbsp;&lt;/AppInfo&gt;<br/>
+	  ...<br/>
+	&nbsp;&nbsp;&lt;/AppCfg&gt;<br/>
+	</p>
+	<br/>
+	<p>If you do not need a customized cfg file, one will be provided for you.  Something is always used.  
+	You should review whether that cfg file is satisfactory.  
+	If you specify SI_HINT_USESV3DCMDS, a default cfg file will be provided that sends your application 
+	V3DCMDs when a button is pressed/released.  You can see what cfg file is in use by hovering over 
+	the 3Dx icon in the systray.  Customized cfg files allow you the developer to determine your 
+	own default assignments, settings, macros, names, etc.  Contact API support for more details.</p>
+
+<br/>
+<h2><font face="Arial" color="#0000AF"><a name="Predefined_Hints"></a>Predefined Hints</font></h2>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">SI_HINT_SDKVERSION&nbsp;</td>
+            <td valign="top">String&nbsp;</td>
+            <td valign="top">The version of the SDK the application was built with&nbsp;</td>
+        </tr>
+        <tr>
+            <td valign="top">SI_HINT_DRIVERVERSION&nbsp;</td>
+            <td valign="top">String&nbsp;</td>
+            <td valign="top">The version of the 3DxWare driver the application was built for&nbsp;</td>
+        </tr>
+        <tr>
+            <td valign="top">SI_HINT_USESV3DCMDS&nbsp;</td>
+            <td valign="top">Bool&nbsp;</td>
+            <td valign="top">The application uses the new V3DCMDs for button events.&nbsp;</td>
+        </tr>
+        <tr>
+            <td valign="top">SI_HINT_USES3DXINPUT&nbsp;</td>
+            <td valign="top">Bool&nbsp;</td>
+            <td valign="top">The application uses the 3DxInput API to communicate with the 3DxWare driver&nbsp;</td>
+        </tr>
+        <tr>
+            <td valign="top">SI_HINT_USESNAVLIB&nbsp;</td>
+            <td valign="top">Bool&nbsp;</td>
+            <td valign="top">The application uses the 3Dconnexion NavLib to communicate with the driver&nbsp;</td>
+        </tr>
+    </table>
+
+	<br/>
+<h2><font face="Arial" color="#0000AF"><a name="Typical_Hint_Scenario"></a>Typical
+Hint Usage</font></h2>
+
+<P><font size="-1" face="Arial">This code shows how to open a connection while telling the driver the application wants to receive button events in the V3DCMD form.</font></P>
+<p class="sourcecode">
+	&nbsp;if (SiInitialize() != SPW_DLL_LOAD_ERROR) {<br />
+		&nbsp;&nbsp;SiOpenDataEx oDataEx;<br />
+		&nbsp;&nbsp;SiOpenWinInitEx (&oData, hWndMain);<br />
+		&nbsp;&nbsp;SiOpenWinAddHintBoolEnum(&oData, SI_HINT_USESV3DCMDS, SPW_TRUE);   // Tell the driver we want to receive V3DCMDs instead of V3DKeys<br />
+		&nbsp;&nbsp;SiDevHdl devHdl;<br />
+		&nbsp;&nbsp;if ((devHdl = SiOpenEx(L"YourApplicationName", SI_ANY_DEVICE, SI_NO_MASK, SI_EVENT, &oDataEx)) == NULL)<br />
+			&nbsp;&nbsp;&nbsp;return;<br />
+	<br />
+		&nbsp;&nbsp;// Else continue to use the device<br />
+		&nbsp;&nbsp;...<br />
+	&nbsp;}<br />
+  </p>
+
+
+
+    <br />
+    <h3><a name="SiOpenWinAddHintBool"></a>SiOpenWinAddHintBool</h3>
+    <p class="sourcecode">
+        void SiOpenWinAddHintBool( SiOpenDataEx *pData, WCHAR *hint, SPWbool value )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">pData&nbsp;
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">pointer to storage for returned platform-specific data&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">hWnd&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">Window handle&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <p>
+        Nothing
+    </p>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiOpenWinAddHintBool( &amp;dataEx, hint, value );
+    </p>
+    </p>
+    <h4>Description</h4>
+    <p>
+        SiOpenWinAddHintBool adds a boolean hint to the SiOpenDataEx structure. The name of the Hint is specified as a string not an Enum.
+    </p>
+
+    
+    <br />
+    <h3><a name="SiOpenWinAddHintBoolEnum"></a>SiOpenWinAddHintBoolEnum</h3>
+    <p class="sourcecode">
+        void SiOpenWinAddHintBoolEnum( SiOpenDataEx *pData, SiHintEnum hint, SPWbool value )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">pData&nbsp;
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">pointer to storage for returned platform-specific data&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">hWnd&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">Window handle&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <p>
+        Nothing
+    </p>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiOpenWinAddHintBoolEnum( &amp;dataEx, hint, value );
+    </p>
+    </p>
+    <h4>Description</h4>
+    <p>
+        SiOpenWinAddHintBoolEnum adds a boolean hint to the SiOpenDataEx structure. The Hint is a pre-defined Enum, which typically means it is a special value the driver is looking for.
+    </p>
+
+
+    
+    <br />
+    <h3><a name="SiOpenWinAddHintFloat"></a>SiOpenWinAddHintFloat</h3>
+    <p class="sourcecode">
+        void SiOpenWinAddHintFloat( SiOpenDataEx *pData, WCHAR *hint, SPWfloat32 value )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">pData&nbsp;
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">pointer to storage for returned platform-specific data&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">hWnd&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">Window handle&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <p>
+        Nothing
+    </p>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiOpenWinAddHintFloat( &amp;dataEx, hint, value );
+    </p>
+    </p>
+    <h4>Description</h4>
+    <p>
+        SiOpenWinAddHintFloat adds a float hint to the SiOpenDataEx structure. The name of the Hint is specified as a string not an Enum.
+    </p>
+
+    
+    <br />
+    <h3><a name="SiOpenWinAddHintFloatEnum"></a>SiOpenWinAddHintFloatEnum</h3>
+    <p class="sourcecode">
+        void SiOpenWinAddHintFloatEnum( SiOpenDataEx *pData, SiHintEnum hint, SPWfloat32 value )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">pData&nbsp;
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">pointer to storage for returned platform-specific data&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">hWnd&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">Window handle&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <p>
+        Nothing
+    </p>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiOpenWinAddHintFloatEnum( &amp;dataEx, hint, value );
+    </p>
+    </p>
+    <h4>Description</h4>
+    <p>
+        SiOpenWinAddHintFloatEnum adds a float hint to the SiOpenDataEx structure. The Hint is a pre-defined Enum, which typically means it is a special value the driver is looking for.
+    </p>
+
+    
+    <br />
+    <h3><a name="SiOpenWinAddHintInt"></a>SiOpenWinAddHintInt</h3>
+    <p class="sourcecode">
+        void SiOpenWinAddHintInt( SiOpenDataEx *pData, WCHAR *hint, SPWint32 value )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">pData&nbsp;
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">pointer to storage for returned platform-specific data&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">hWnd&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">Window handle&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <p>
+        Nothing
+    </p>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiOpenWinAddHintInt( &amp;dataEx, hint, value );
+    </p>
+    </p>
+    <h4>Description</h4>
+    <p>
+        SiOpenWinAddHintInt adds an int hint to the SiOpenDataEx structure. The name of the Hint is specified as a string not an Enum.
+    </p>
+
+    
+    <br />
+    <h3><a name="SiOpenWinAddHintIntEnum"></a>SiOpenWinAddHintIntEnum</h3>
+    <p class="sourcecode">
+        void SiOpenWinAddHintIntEnum( SiOpenDataEx *pData, SiHintEnum hint, SPWint32 value )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">pData&nbsp;
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">pointer to storage for returned platform-specific data&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">hWnd&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">Window handle&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <p>
+        Nothing
+    </p>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiOpenWinAddHintIntEnum( &amp;dataEx, hint, value );
+    </p>
+    </p>
+    <h4>Description</h4>
+    <p>
+        SiOpenWinAddHintIntEnum adds an int hint to the SiOpenDataEx structure. The Hint is a pre-defined Enum, which typically means it is a special value the driver is looking for.
+    </p>
+
+    
+    <br />
+    <h3><a name="SiOpenWinAddHintString"></a>SiOpenWinAddHintString</h3>
+    <p class="sourcecode">
+        void SiOpenWinAddHintString( SiOpenDataEx *pData, WCHAR *hint, WCHAR *value )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">pData&nbsp;
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">pointer to storage for returned platform-specific data&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">hWnd&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">Window handle&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <p>
+        Nothing
+    </p>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiOpenWinAddHintString( &amp;dataEx, hint, value );
+    </p>
+    </p>
+    <h4>Description</h4>
+    <p>
+        SiOpenWinAddHintString adds a string hint to the SiOpenDataEx structure. The name of the Hint is specified as a string not an Enum.
+    </p>
+
+    
+    <br />
+    <h3><a name="SiOpenWinAddHintStringEnum"></a>SiOpenWinAddHintStringEnum</h3>
+    <p class="sourcecode">
+        void SiOpenWinAddHintStringEnum( SiOpenDataEx *pData, SiHintEnum hint, WCHAR * value )
+    </p>
+    <table border="0" cellpadding="5">
+        <tr>
+            <td valign="top">pData&nbsp;
+            </td>
+            <td valign="top">(w/o)&nbsp;
+            </td>
+            <td valign="top">pointer to storage for returned platform-specific data&nbsp;
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">hWnd&nbsp;
+            </td>
+            <td valign="top">(r/o)&nbsp;
+            </td>
+            <td valign="top">Window handle&nbsp;
+            </td>
+        </tr>
+    </table>
+    <h4>Return Value</h4>
+    <p>
+        Nothing
+    </p>
+    <h4>Example</h4>
+    <p class="sourcecode">
+        SiOpenWinAddHintStringEnum( &amp;dataEx, hint, value );
+    </p>
+    </p>
+    <h4>Description</h4>
+    <p>
+        SiOpenWinAddHintStringEnum adds a string hint to the SiOpenDataEx structure. The Hint is a pre-defined Enum, which typically means it is a special value the driver is looking for.
+    </p>
+
+</BODY>
+</HTML>

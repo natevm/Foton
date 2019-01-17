@@ -1,0 +1,874 @@
+<!--
+/* Copyright notice:
+ * Copyright (c) 3Dconnexion. All rights reserved. 
+ *
+ * This file and source code are an integral part of the "3Dconnexion
+ * Software Developer Kit", including all accompanying documentation,
+ * and is protected by intellectual property laws. All use of the
+ * 3Dconnexion Software Developer Kit is subject to the License
+ * Agreement found in the "LicenseAgreementSDK.rtf" file.
+ * All rights not expressly granted by 3Dconnexion are reserved.
+ *
+ * Last edited: $Id: Integrat.htm 13306 2016-08-18 19:00:54Z ngomes $
+ */-->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Integration Basics</title>
+    <x-sas-window top="48" bottom="576" left="35" right="911">
+    <link rel="stylesheet" type="text/css" href="style.css"/>
+</head>
+<body>
+    <a href="DevInfo.htm">
+        <img src="graphics/prev1.gif" alt="graphics/prev1.gif" border="0" height="22" width="46"
+             align="bottom" />
+    </a><a href="Demos.htm">
+        <img src="graphics/next1.gif" alt="graphics/next1.gif"
+             border="0" x-sas-useimagewidth x-sas-useimageheight height="22" width="46" align="bottom" />
+    </a>
+    <h1>
+        Integration Basics
+    </h1>
+    <p>
+        To add 3DxWare support to an application, you add the appropriate libraries and
+        header files and use at least five basic functions.<br />
+        &nbsp;
+    </p>
+    <h2>
+        <a name="Lib Files for App"></a>Library Files for Applications
+    </h2>
+    <p>
+        The 3DxWare SDK for Windows contains two libraries:
+    </p>
+    <blockquote>
+        <p>
+            3DxWare Input Library (siapp.lib)<br />
+            3DxWare Math Library (spwmath.lib)
+        </p>
+    </blockquote>
+    <p>
+        These libraries are pre-built for multi-threaded release and, in the case of
+        spwmath.lib, debug applications.&nbsp;There is no dependency on the CRT in
+        siapp.lib. A library must be linked only if functions from it are used.
+    </p>
+    <p>
+        The 3DxWare Input Library is designed to enable application developers to quickly
+        get 3Dconnexion device data into an application and to insulate them from the details
+        of getting this data.
+    <p>
+        The 3DxWare Math Library contains utility functions for converting the 3Dconnexion
+        device data into matrices and for manipulating matrices and vectors.
+    </p>
+    <p>
+        See <a href="Install.htm#3DxWare_Libraries">
+            3DxWare Libraries
+        </a> for details of the library file names.
+    </p>
+    <table border="1" cellpadding="5" height="88">
+        <tr>
+            <td>
+                <p>
+                    <b>Note</b>:&nbsp;<br />
+                    It is important to match applications linked to the same release or debug run-time
+                    libraries used by the spwmath library. &nbsp;
+                </p>
+            </td>
+        </tr>
+    </table>
+    <h2>
+        <a name="Five Basic Functions"></a>Five Basic Functions
+    </h2>
+    <p>
+        There are five functions you need to use to establish communication with the 3D
+        input device and to check to see in an event is a 3DxWare event. They are:
+    </p>
+    <ol>
+        <li>
+            <a href="InputFun.htm#SiInitialize">SiInitialize</a> tells the 3DxWare library to
+            set up certain internal states. It should be the first 3DxWare SDK function you
+            call. It also needs to be called if an application has stopped receiving input (as
+            happens when you call <a href="InputFun.htm#SiTerminate">SiTerminate</a>) and you
+            want it to start again.<br />
+            <br />
+        </li>
+        <li>
+            <a href="InputFun.htm#SiOpenWinInit">SiOpenWinInit</a> is a Windows-specific call
+            that tells the 3DxWare library which window should receive data. It takes two parameters:
+            <ol>
+                <li>
+                    a pointer to a <a href="InputLib.htm#SiOpenData Structure">SiOpenData Structure</a>
+                    for platform-specific data returned by <a href="InputFun.htm#SiOpenWinInit">SiOpenWinInit</a>
+                </li>
+                <li>an HWND to which you send data. This window ID handle must be valid.</li>
+            </ol>
+            <br />
+        </li>
+        <li>
+            <a href="InputFun.htm#SiOpen">SiOpen</a> makes a connection to the 3DxWare driver
+            for the application to receive the data. This function takes several parameters:
+            <ol>
+                <li>a character string specifying the application name</li>
+                <li>a device ID number or the constant SI_ANY_DEVICE</li>
+                <li>a device type mask or the constant SI_NO_MASK</li>
+                <li>the event retrieval method, SI_EVENT</li>
+                <li>a pointer to SiOpenData from SiOpenWinInit</li>
+            </ol>
+            <p>
+                This function returns a SiHdl reference to the device opened with SiOpen if it succeeds,
+                or NULL if there was some type of connection error.
+            </p>
+            <p>
+                Once SiOpen has been called and a connection established, the 3DxWare driver starts
+                sending 3DxWare messages to the specified window. The function <a href="InputFun.htm#SiOpenPort">
+                    SiOpenPort
+                </a> may be used instead of SiOpen.
+            </p>
+            <p>
+                Each window that is to uniquely receive events should get its own SiHdl.&nbsp; For
+                example, if an application has a 2D and a 3D window open, each would have its own
+                unique event processing -- each would do something different with the device data.&nbsp;
+                Each probably has its own WndProc.&nbsp; If each has its own handle, the driver
+                will send data uniquely to the most specific/correct window (based on keyboard focus).&nbsp;
+                If you don't register any more specific windows the driver sends data to the closest
+                parent to the current window in the windows hierarchy for the application.
+            </p>
+        </li>
+        <li>
+            <a href="InputFun.htm#SiGetEventWinInit">SiGetEventWinInit</a> initializes Windows
+            specific data structures. This function call needs:
+            <ol>
+                <li>
+                    a pointer to <a href="InputLib.htm#SiGetEventData Structure">SiGetEvent Data Structure</a>
+                    that is filled in by this function call
+                </li>
+                <li>Windows message ID</li>
+                <li>WPARAM and LPARAM</li>
+            </ol>
+            <br />
+        </li>
+        <li>
+            <a href="InputFun.htm#SiGetEvent">SiGetEvent</a> returns SI_IS_EVENT if the event
+            is a 3DxWare event. SiGetEvent has other return values (SI_NOT_EVENT, SI_BAD_HANDLE,
+            SI_SKIP_EVENT) that should be checked for more robust error handling.
+            <p>
+                SiGetEvent takes four arguments:
+                <ol>
+                    <li>the SiHdl device handle from SiOpen</li>
+                    <li>the event processing flag, which should be NULL</li>
+                    <li>
+                        a pointer to a <a href="InputLib.htm#SiGetEventData Structure">SiGetEvent Data Structure</a>
+                        for platform-specific data
+                    </li>
+                    <li>
+                        a pointer to a SiSpwEvent structure, which is filled in if the function returns
+                        SI_IS_EVENT
+                    </li>
+                </ol>
+            </p>
+        </li>
+    </ol>
+    <h2>
+        <a name="3DxWareEvents"></a>Device Events
+    </h2>
+    <p>
+        There are eight types of device events (SiSpwEvent):
+    </p>
+    <ul>
+        <li>SI_MOTION_EVENT</li>
+        <li>SI_ZERO_EVENT</li>
+        <li>SI_APP_EVENT</li>
+        <li>SI_CMD_EVENT</li>
+        <li>SI_BUTTON_EVENT</li>
+        <li>SI_BUTTON_PRESS_EVENT</li>
+        <li>SI_BUTTON_RELEASE_EVENT</li>
+        <li>SI_DEVICE_CHANGE_EVENT</li>
+    </ul>
+    <p>
+        A SI_MOTION_EVENT is received if the user is moving the sensor cap of the 3D input
+        device.
+    </p>
+    <p>
+        A single SI_ZERO_EVENT is received when the user stops moving the sensor cap. This
+        can be used in applications, for example, to signal a shaded redraw. The values
+        for the motion data are contained in the <i>mData</i> field of the <a href="InputLib.htm#SiSpwEvent Structure">
+            SiSpwEvent Structure
+        </a>, in the following format:
+    </p>
+    <p class="sourcecode">
+        siSpwEvent.u.spwData.mData[0] = Translation along X axis<br />
+        siSpwEvent.u.spwData.mData[1] = Translation along Y axis<br />
+        siSpwEvent.u.spwData.mData[2] = Translation along Z axis<br />
+        siSpwEvent.u.spwData.mData[3] = Rotation about X axis<br />
+        siSpwEvent.u.spwData.mData[4] = Rotation about Y axis<br />
+        siSpwEvent.u.spwData.mData[5] = Rotation about Z axis<br />
+        siSpwEvent.u.spwData.period = Time in milliseconds since the last event<br />
+    </p>
+    <p>
+        See the <a href="DevInfo.htm#Data Supplied">Data Supplied</a> and
+        <a href="DevInfo.htm#How Data Should be Used">How Data Should be Used</a> sections
+        for more information on using the motion data.
+    </p>
+    <p>
+        A SI_APP_EVENT is received if the user has activated an action exposed by the application
+        (an "application action") through the "Action Interface" API extension. The values for
+        the action data are contained in the <i>appCommandData</i> field of the union member of the
+        <a href="InputLib.htm#SiSpwEvent Structure">SiSpwEvent Structure</a>. See the
+        <a href="#Action Interface">Action Interface</a> section for more information on
+        the implementation of support for application actions.
+    </p>
+    <p>
+        A SI_CMD_EVENT is received if the user has activated a "Virtual 3D Mouse Command" (V3DCMD)
+        pre-defined action. The values for  the action data are contained in the <i>cmdEventData</i>
+        field of the union member of the
+        <a href="InputLib.htm#SiSpwEvent Structure">SiSpwEvent Structure</a>. See the
+        <a href="DevInfo.htm#Device Buttons">Device Buttons</a> section
+        for more information on the implementation to support V3DCMD actions.
+    </p>
+    <table border="1" cellpadding="5" height="88">
+        <tr>
+            <td>
+                <p>
+                    <b>Note</b>:&nbsp;<br />
+                    The text that follows provides information details on the handling of button events but,
+                    as mentioned previously, applications should only directly support device button events
+                    if specifically required to so. A better user-experience can be achieve by exposing
+                    the application commands through the "Action Interface" API extension and implementing
+                    support for "Virtual 3D Mouse Command" (V3DCMD) commands.<br />
+            </td>
+        </tr>
+    </table>
+    <p>
+        A SI_BUTTON_EVENT can be either a button press or a button release. To determine
+        if the event was a press or a release, call <a href="InputFun.htm#SiButtonPressed">SiButtonPressed</a>
+        or <a href="InputFun.htm#SiButtonReleased">SiButtonReleased</a> with the returned
+        SiSpwEvent as the only parameter. These functions each return an integer representing
+        the corresponding device button, or SI_NO_BUTTON if the event was not of the correct
+        type. For more intensive button processing you can examine the <a href="InputLib.htm#SiButtonData Structure">
+            SiButtonData Structure
+        </a>, which provides the current and last states of each
+        button on the device.&nbsp; This method is limited to 32 buttons, but uses a mask
+        so the application can tell if more than one button was pressed and/or released
+        at the same instant.
+    </p>
+    <p>
+        A SI_BUTTON_PRESS_EVENT is sent when a user presses a button that uses the new limitless
+        button mechanism.
+    </p>
+    <p>
+        A SI_BUTTON_RELEASE_EVENT is sent when a user releases a button that uses the new
+        limitless button mechanism.
+    </p>
+    <p>
+        A SI_DEVICE_CHANGE_EVENT is sent when a device is connected or disconnected from
+        the system.
+    </p>
+    <p>
+        &nbsp;
+    </p>
+    <h2>
+        <a name="Device Button Events"></a>Device Button Events
+    </h2>
+    <table border="1" cellpadding="5" height="88">
+        <tr>
+            <td>
+                <p>
+                    <b>IMPORTANT:</b><br />
+                    Unless an application specifically requires the use of 3D mouse buttons, it is
+                    recommended to leave the handling of device buttons solely to the device driver. Applications
+                    can use the "Action Interface" extension to expose a categorized list of application commands
+                    that users will map to device buttons.<br />
+                    By "abstracting" the device type (by not targetting model-specific details such as
+                    number, name and type of buttons), programmers can ensure a better user-experience when new
+                    3Dconnexion device models are launched and on systems with multiple 3Dconnexion device models
+                    connected.<br />
+                    For more information on providing an integrated solution, see the
+                    <a href="DevInfo.htm#Application and Driver Integration">Application and Driver Integration</a> section.
+                </p>
+            </td>
+        </tr>
+    </table>
+    <br />
+    <p>
+        All 3DxWare device buttons can be remapped via the driver's configuration (profile file)
+        to return any button number, but the default order is as marked on the device.&nbsp;
+        The buttons can also be mapped to be used to trigger internal driver functions,
+        such as Toggling Translations On/Off.&nbsp;&nbsp;
+    </p>
+    <p>
+        When set to pass the buttons straight through to the application, the button can
+        generate a button mask, or individual button press and release events.&nbsp;&nbsp;
+    </p>
+    <p>
+        In the former case (SI_BUTTON_EVENT) there is a limit of 32 buttons (it is a 32-bit
+        mask).&nbsp; The mask will tell if more than 1 button was pressed or released in
+        at one instant.
+    </p>
+    <p>
+        If SI_BUTTON_PRESS_EVENT and SI_BUTTON_RELEASE_EVENT is used, the button number
+        can be any 32-bit unsigned number.&nbsp; Simultaneous events will be sent to the
+        application serially, smallest numbered buttons first.
+    </p>
+    <p>
+        The three constants, SI_RESET_BUTTON, SI_PICK_BUTTON, and SI_DIALOG_BUTTON give
+        the application some hints at how a particular button should be used.
+    </p>
+    <p>
+        The Fit button (SI_FIT_BUTTON) is typically used to reset or recenter the view.
+    </p>
+    <p>
+        The Reset button (SI_RESET_BUTTON) is normally used to rezero the device.
+    </p>
+    <p>
+        The SI_DIALOG_BUTTON is normally used to bring up the application-specific GUI related
+        to the device.
+    </p>
+    <p>
+        <b>&nbsp;</b>
+    </p>
+    <h2>
+        <a name="Action Interface"></a>Action Interface
+    </h2>
+    <p>
+        The process of exposing a categorized list of application commands (or &quot;actions&quot;) consists of the following: whenever a
+        set of application commands is available to the user, the program will create a "tree"
+        structure of action nodes (an "action set"), call
+        <a href="InputFun.htm#SiAppCmdWriteActionSet">SiAppCmdWriteActionSet</a> to export the tree structure
+        to the driver and then call
+            <a href="InputFun.htm#SiAppCmdWriteActionImages">SiAppCmdWriteActionImages</a> to export the icon information for the relevant commands. The program will notify the driver using
+        <a href="InputFun.htm#SiAppCmdActivateActionSet">SiAppCmdActivateActionSet</a> whenever
+        an action set becomes available.</p>
+    <p>
+        There is no need to repeat the create and export of an action during each program session: the program only has to notify the driver when the user switches the program to a context for which the corresponding action set was already exported. In other words, programs must call
+        <a href="InputFun.htm#SiAppCmdActivateActionSet">SiAppCmdActivateActionSet</a> only if the current
+        application context (or environment) has changed.</p>
+    <p>
+        The export and notification process can be enumerated as follows:</p>
+    <ol>
+        <li>
+            Once the program has reached the end of its initialization, it will construct a
+            categorized list of action nodes and export the list using
+            <a href="InputFun.htm#SiAppCmdWriteActionSet">SiAppCmdWriteActionSet</a>.
+            The program will also construct a corresponding list of icon data (one icon per action) and export it using <a href="InputFun.htm#SiAppCmdWriteActionImages">SiAppCmdWriteActionImages</a>.</li>
+        <li>
+            After exporting the first action set and corresponding icons, the program calls
+            <a href="InputFun.htm#SiAppCmdActivateActionSet">SiAppCmdActivateActionSet</a> to
+            notify the driver that the action set is available.
+        </li>
+        <li>
+            If the user changes the application context, the program will check if a new
+            action set has to be built. If so, the program will export this action set and its correponding icon list, repeating the first first but now for the newly-entered application content. After the export has been complete, the program
+            notifies the driver that a new action set is active using
+            <a href="InputFun.htm#SiAppCmdActivateActionSet">SiAppCmdActivateActionSet</a>.</li>
+        <li>
+            If the user has changed the application context but the corresponding action
+            set has already been exported (in previous calls to
+            <a href="InputFun.htm#SiAppCmdWriteActionSet">SiAppCmdWriteActionSet</a> and <a href="InputFun.htm#SiAppCmdWriteActionImages">SiAppCmdWriteActionImages</a>), then
+            the program will only call
+            <a href="InputFun.htm#SiAppCmdActivateActionSet">SiAppCmdActivateActionSet</a> to
+            notify the driver to switch to context just activated (the driver caches action sets
+            during a single program session).
+        </li>
+    </ol>
+    <p>
+        When a user activates an application action (by pressing a device button that was mapped
+        with that action, for example), the driver will send an
+        <a href="#3DxWareEvents">SI_APP_EVENT</a> event to the program. Upon processing the
+        event, the program will run the corresponding application command.</p>
+    <p>
+        The <a href="Demos.htm#action_interface_sample">Action Interface</a> sample demonstrates the
+        use of the "Action Interface" and how action sets are built.
+    </p>
+    <h2>
+        <a name="SB Driver  Menu"></a>3DxWare Driver Menu
+    </h2>
+    <p>
+        By default, the 3DxWare driver displays its own driver menu.&nbsp; Some applications
+        may also display their own application menu for application-specific settings.&nbsp;
+        Note that changes that are applied to the 3DxWare menu will be applied before data
+        is passed to the application, so the application's menus may not accurately reflect
+        the status of the device.
+    </p>
+    <p>
+        The <a href="InputFun.htm#SiSetUiMode">SiSetUiMode</a> function controls the behavior
+        of the 3DxWare driver GUI (see the description of that function for a full list
+        of the arguments). To have your application launch the driver GUI, execute:
+    </p>
+    <p class="sourcecode">
+        SiSetUiMode(hdl, SI_UI_ALL_CONTROLS);
+    </p>
+    <p>
+        For an application that has its own GUI and does not use the 3DxWare GUI, execute:
+    </p>
+    <p class="sourcecode">
+        SiSetUiMode(hdl, SI_UI_NO_CONTROLS);
+    </p>
+    <p>
+        When you want the application to stop receiving device data, call the functions:
+    </p>
+    <p class="sourcecode">
+        <a href="InputFun.htm#SiClose">SiClose(hdl)</a>;<br />
+        <a href="InputFun.htm#SiTerminate">SiTerminate()</a>;
+    </p>
+    <p>
+        After you call these functions, it is necessary to call <a href="InputFun.htm#SiInitialize">
+            SiInitialize
+        </a> and <a href="InputFun.htm#SiOpen">SiOpen</a> to start receiving
+        device data again.
+    </p>
+    <p>
+        <b>&nbsp;</b>
+    </p>
+    <h2>
+        <a name="SB Utility Funct"></a>3DxWare Utility Functions
+    </h2>
+    <p>
+        <b>Input Library</b>
+    </p>
+    <p>
+        <a href="InputFun.htm#SiBeep">SiBeep</a> enables the caller to cause the device
+        to beep (not all devices have beepers).
+    </p>
+    <p>
+        <a href="InputFun.htm#SiRezero">SiRezero</a> lets the caller cause the device to
+        set its current position as the rest position (stopping drift or setting up constant
+        motion).
+    </p>
+    <p>
+        <a href="InputFun.htm#SiGetDeviceInfo">SiGetDeviceInfo</a> returns information about
+        the attached device, such as type and number of buttons.
+    </p>
+    <p>
+        <a href="InputFun.htm#SiGetDeviceName">SiGetDeviceName</a> returns the human-readable
+        name of the device.
+    </p>
+    <p>
+        <a href="InputFun.htm#SiGetButtonName">SiGetButtonName&nbsp;</a> returns the text
+        used on the device to label a button.
+    </p>
+    <p>
+        <a href="InputFun.htm#SiGetCompanyIcon">SiGetCompanyIcon</a> returns a handle to
+        the 3Dconnexion icon.&nbsp; This is retrieved from the 3DxWare driver executable
+        so it will be automatically updated if the company icon changes.
+    </p>
+    <p>
+        <a href="InputFun.htm#SiGetCompanyLogoFileName">SiGetCompanyLogoFileName</a> returns
+        the name of a file that contains the 3Dconnexion logo.&nbsp; This is retrieved from
+        the 3DxWare distribution, so it will change if the company logo changes.
+    </p>
+    <p>
+        <a href="InputFun.htm#SiGetDeviceImageFileName">SiGetDeviceImageFileName</a> returns
+        the name of the a file that contains an image (picture) of the currently connected
+        device.
+    </p>
+    <p>
+        <a href="InputFun.htm#SpwErrorString">SpwErrorString</a> can be called (after any
+        function that returns a SI_ constant) to return a character string with more information
+        about the error condition or return value. Additionally, the global variable SpwErrorVal
+        can be used in conjunction with SpwErrorString to get more information from functions
+        like <a href="InputFun.htm#SiOpen">SiOpen</a> which do not return an error value.
+    </p>
+    <p>
+        <b>&nbsp;</b>
+    </p>
+    <p>
+        <b>Math Library</b>
+    </p>
+    <p>
+        While a majority of the 3DxWare Math Library functions are useful utilities, two
+        deserve special attention:
+    </p>
+    <p>
+        <a href="MathLib.htm#SPW_ArbitraryAxisToMatrix">SPW_ArbitraryAxisToMatrix</a> converts
+        an arbitrary rotation vector into a matrix. It is highly recommended that an application
+        use this function to apply the device rotation values. Treating the rotation vector
+        as three angles can lead to wobble during rotation (see <a href="DevInfo.htm#WhyAATM">
+            Why ArbitraryAxisToMatrix
+        </a> for more details).
+    </p>
+    <p>
+        <a href="MathLib.htm#SPW_HighValuePassFilter">SPW_HighValuePassFilter</a> filters
+        out all but the largest value in an array. This is useful in setting up a single
+        axis filter for the device data, giving a user fine control of the motion applied.
+    </p>
+    <p>
+        <b>&nbsp;</b>
+    </p>
+    <h2>
+        <a name="Code Samples"></a>Code Samples
+    </h2>
+    <p>
+        The following examples show how to support the 3DxWare devices using different Windows
+        programming approaches.
+    </p>
+    <p>
+        <b>&nbsp;</b>
+    </p>
+    <h3>
+        <a name="Win32"></a>Win32
+    </h3>
+    <p class="sourcecode">
+        /*<br />
+        &nbsp;* 3DxWare include files<br />
+        &nbsp;*/<br />
+        #include &quot;si.h&quot;
+        <br />
+        #include &quot;siapp.h&quot;
+        <br />
+        int WINAPI WinMain ( HINSTANCE hInstance, HINSTANCE hPrevInstance,<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        LPSTR lpszCmdLine, int nCmdShow )<br />
+        {<br />
+        &nbsp;&nbsp;&nbsp; SiOpenData oData;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* Platform-specific
+        device data */<br />
+        &nbsp;&nbsp;&nbsp; SiGetEventData eData;&nbsp; /* Platform-specific event data */<br />
+        &nbsp;&nbsp;&nbsp; SiHdl hdl;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        /* 3DxWare device handle */<br />
+        &nbsp;&nbsp;&nbsp; SiSpwEvent siEvent;&nbsp;&nbsp;&nbsp; /* 3DxWare data event */<br />
+        /* Application functions as needed */<br />
+        <br />
+        /*<br />
+        &nbsp;* Attempt to connect with the 3DxWare driver.<br />
+        &nbsp;*/<br />
+        <br />
+        &nbsp; SiOpenWinInit (&amp;oData, hWnd);<br />
+        &nbsp; if ( (hdl = SiOpen ("app name", SI_ANY_DEVICE, SI_NO_MASK,<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        SI_EVENT, &amp;oData)) == SI_NO_HANDLE);<br />
+        &nbsp;&nbsp;&nbsp; {<br />
+        &nbsp;&nbsp;&nbsp; /* Get and display initialization error */<br />
+        &nbsp;&nbsp;&nbsp; MessageBox (hWnd, "Could not open a 3DxWare device&quot;, NULL,<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        MB_ICONSTOP | MB_OK);<br />
+        &nbsp;&nbsp;&nbsp; }<br />
+        <br />
+        &nbsp; /*<br />
+        &nbsp;&nbsp; * Main messaging loop.<br />
+        &nbsp;&nbsp; */<br />
+        &nbsp; while (GetMessage (&amp;msg, NULL, 0, 0))<br />
+        &nbsp;&nbsp;&nbsp; {<br />
+        &nbsp;&nbsp;&nbsp; SiGetEventWinInit (&amp;eData, msg.message, msg.wParam,<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        msg.lParam);<br />
+        &nbsp;&nbsp;&nbsp; if (SiGetEvent (hdl, 0, &amp;eData, &amp;siEvent) == SI_IS_EVENT)<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; switch (siEvent.type)<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; case SI_MOTION_EVENT:<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; break;<br />
+        <br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; case SI_ZERO_EVENT:<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; break;<br />
+        <br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; case SI_APP_EVENT:<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; break;<br />
+        <br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; case SI_CMD_EVENT:<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; break;<br />
+        <br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; case SI_DEVICE_CHANGE_EVENT:<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; break;<br />
+        <br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; default:<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; break;<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; } /* end switch on 3DxWare event type*/<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; } /* end if the event was a 3DxWare event */<br />
+        &nbsp;&nbsp;&nbsp; else<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TranslateMessage (&amp;msg);<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DispatchMessage (&amp;msg);<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }<br />
+        &nbsp;&nbsp;&nbsp; }<br />
+        <br />
+        &nbsp; /*<br />
+        &nbsp;&nbsp; * Close connection to the 3DxWare driver.<br />
+        &nbsp;&nbsp; */<br />
+        &nbsp; SiClose (hdl);<br />
+        &nbsp; SiTerminate ();<br />
+        }<br />
+    </p>
+    <h3>
+        <a name="MFC"></a>MFC
+    </h3>
+    <p>
+        There are several ways to integrate the 3Dconnexion devices into an MFC application.
+        All of these methods are based on the Windows message sent by the 3DxWare driver
+        to the application. The Windows message ID for these messages are allocated using
+        the Windows call <b>RegisterWindowsMessage</b>. The results of this call are not
+        portable between machines or even between Windows sessions. If you wish to find
+        the Windows message ID for a particular session you can make the following call:
+    </p>
+    <p class="sourcecode">
+        spwid = RegisterWindowMessage ("SpaceWareMessage00");
+    </p>
+    <p>
+        This will give you the message ID for the first device attached. Note the driver
+        in 3DxWare 10 supports multiple devices but older versions will support only one
+        device at a time.
+    </p>
+    <p>
+        The first two approaches to integrating 3Dconnexion device support into an MFC application
+        are based on overriding function calls within an MFC class. One approach is to override
+        the <b>PreTranslateMessage</b> member of the <b>CView</b> class. This method is
+        used in the sbtstmfc demo and in the following code sample.
+    </p>
+    <p>
+        The other approach is to override the <b>WindowProc</b> member of the Window(s),
+        which should receive the 3DxWare messages. This approach is similar to the first
+        in that all the <b>WindowProc</b> member does is check to see if the given message
+        is a 3DxWare message and if not passes the message along to the base class <b>WindowProc</b>.
+        The following code sample shows an example of this style of support:
+    </p>
+    <p class="sourcecode">
+        /*<br />
+        &nbsp;* 3dxWare include files<br />
+        &nbsp;*/<br />
+        <br />
+        #include &quot;si.h&quot;<br />
+        #include &quot;siapp.h&quot;<br />
+        <br />
+        /*<br />
+        &nbsp;* appView class definition<br />
+        &nbsp;*/<br />
+        <br />
+        class appView: public CView<br />
+        { /* Application specific information */<br />
+        // Overrides<br />
+        //{{AFX_VIRTUAL(appView)<br />
+        &nbsp; public:<br />
+        &nbsp; virtual BOOL PreTranslateMessage(MSG* pMsg);<br />
+        &nbsp; // To trap the 3DxWare messages<br />
+        &nbsp; //}}AFX_VIRTUAL<br />
+        <br />
+        &nbsp; SiHdl m_DevHdl; /* Handle to 3DxWare Device */<br />
+        <br />
+        &nbsp;/* MFC Message map functions. */<br />
+        <br />
+        protected:<br />
+        <br />
+        &nbsp; //{{AFX_MSG(appView)<br />
+        &nbsp; afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);<br />
+        &nbsp; //}}AFX_MSG<br />
+        &nbsp; DECLARE_MESSAGE_MAP()<br />
+        <br />
+        } /* end of appView class declaration */<br />
+        <br />
+        &nbsp;/*<br />
+        &nbsp; * Message map declaration in the appView.cpp file.<br />
+        &nbsp; */<br />
+        <br />
+        BEGIN_MESSAGE_MAP(appView, CView)<br />
+        &nbsp; //{{AFX_MSG_MAP(appView)<br />
+        &nbsp; ON_WM_CREATE()<br />
+        &nbsp; //}}AFX_MSG_MAP<br />
+        END_MESSAGE_MAP()<br />
+        <br />
+        int appView::OnCreate( LPCREATESTRUCT lpCreateStruct )<br />
+        {<br />
+        &nbsp; if (CView::OnCreate (lpCreateStruct) == -1)<br />
+        &nbsp;&nbsp;&nbsp; {<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return -1;<br />
+        &nbsp;&nbsp;&nbsp; }<br />
+        <br />
+        &nbsp;&nbsp; /*<br />
+        &nbsp;&nbsp;&nbsp; * Initialize 3DxWare<br />
+        &nbsp;&nbsp;&nbsp; */<br />
+        <br />
+        &nbsp;&nbsp; SiOpenData oData; // OS Independent data to open device.<br />
+        &nbsp;&nbsp; SiInitialize (); // Initialize the 3DxWare input library.<br />
+        &nbsp;&nbsp; SiOpenWinInit (&amp;oData, m_hWnd); // Initialize Windows specific data.<br />
+        &nbsp;&nbsp; if ( (m_DevHdl = SiOpen ("App name", SI_ANY_DEVICE, SI_NO_MASK,<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        SI_EVENT, &amp;oData)) == NULL )<br />
+        <br />
+        &nbsp;&nbsp;&nbsp; {<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SiTerminate (); // Shut down the 3DxWare input library<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MessageBox ("Sorry - No supported 3DxWare device available.\n", NULL, MB_OK);<br />
+        <br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if (m_hWnd != NULL)<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; {<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; DestroyWindow (); // Destroy window.<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; }<br />
+        <br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ExitProcess (1); // Exit program.<br />
+        <br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // You probably don't want to exit just because a 3Dconnexion
+        device is not found.<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // Just set a flag and do not call any more Si functions.<br />
+        &nbsp;&nbsp;&nbsp; }<br />
+        <br />
+        } /* end of OnCreate */<br />
+        <br />
+        <br />
+        &nbsp;<br />
+        BOOL appView::PreTranslateMessage( MSG* pMsg )<br />
+        {<br />
+        <br />
+        &nbsp; SiSpwEvent event; /* 3DxWare Event */<br />
+        &nbsp; SiGetEventData eData; /* 3DxWare Event Data */<br />
+        <br />
+        &nbsp; /*<br />
+        &nbsp;&nbsp; * Check if this is a 3DxWare event<br />
+        &nbsp;&nbsp; */<br />
+        <br />
+        &nbsp; SiGetEventWinInit (&amp;eData, pMsg-&gt;message, pMsg-&gt;wParam, pMsg-&gt;lParam);<br />
+        <br />
+        &nbsp; if (SiGetEvent (m_DevHdl, 0, &amp;eData, &amp;event) == SI_IS_EVENT)<br />
+        &nbsp; &nbsp; {<br />
+        &nbsp; &nbsp; switch (event.type)<br />
+        &nbsp;&nbsp;&nbsp; &nbsp; {<br />
+        &nbsp;&nbsp;&nbsp; &nbsp; case SI_MOTION_EVENT:<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; break;<br />
+        <br />
+        &nbsp;&nbsp;&nbsp; &nbsp; case SI_ZERO_EVENT:<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; break;<br />
+        <br />
+        &nbsp;&nbsp;&nbsp; &nbsp; case SI_APP_EVENT:<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; break;<br />
+        <br />
+        &nbsp;&nbsp;&nbsp; &nbsp; case SI_CMD_EVENT:<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; break;<br />
+        <br />
+        &nbsp;&nbsp;&nbsp; &nbsp; case SI_DEVICE_CHANGE_EVENT:<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; break;<br />
+        <br />
+        &nbsp;&nbsp;&nbsp; &nbsp; default:<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; break;<br />
+        <br />
+        &nbsp;&nbsp;&nbsp; &nbsp; } /* end switch */<br />
+        <br />
+        &nbsp; &nbsp; return (TRUE);<br />
+        &nbsp; &nbsp; } /* end if the message was 3DxWare event */<br />
+        <br />
+        &nbsp; else<br />
+        &nbsp;&nbsp;&nbsp; { /* Send the message on to the parent class.<br />
+        &nbsp;&nbsp;&nbsp; return CView::PreTranslateMessage(pMsg);<br />
+        &nbsp;&nbsp;&nbsp; }<br />
+        <br />
+        &nbsp; } /* end of PreTranslateMessage */<br />
+        &nbsp;<br />
+        <br />
+    </p>
+    <p>
+        The second approach is to use MFC message maps. This method relies on the use of
+        the <b>ON_REGISTERED_MESSAGE</b> message map macro. This macro allows an application
+        to trap a specific registered Windows message and call a user defined message callback.
+        The following code fragment shows an example using this approach.
+    </p>
+    <p class="sourcecode">
+        /*<br />
+        &nbsp;* 3DxWare include files<br />
+        &nbsp;*/<br />
+        <br />
+        #include "si.h"<br />
+        <br />
+        #include &quot;siapp.h&quot;<br />
+        <br />
+        class appView: public CView<br />
+        { /* Application specific information */<br />
+        // Overrides<br />
+        <br />
+        SiHdl m_DevHdl; /* Handle to 3DxWare Device */<br />
+        <br />
+        /* MFC Message map functions. */<br />
+        protected:<br />
+        &nbsp; //{{AFX_MSG(appView)<br />
+        &nbsp; afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);<br />
+        &nbsp; afx_msg LONG On3DxWare( WPARAM wParam, LPARAM lParam );<br />
+        &nbsp; //}}AFX_MSG<br />
+        <br />
+        &nbsp; DECLARE_MESSAGE_MAP()<br />
+        } /* end of appView class definition */<br />
+        <br />
+        /*<br />
+        &nbsp;* Message map declaration in the appView.cpp file.<br />
+        &nbsp;*/<br />
+        <br />
+        int WM_3DXWARE = RegisterWindowMessage ("SpaceWareMessage00");<br />
+        <br />
+        BEGIN_MESSAGE_MAP(appView, CView)<br />
+        &nbsp; //{{AFX_MSG_MAP(appView)<br />
+        &nbsp; ON_WM_CREATE()<br />
+        &nbsp; ON_REGISTERED_MESSAGE( WM_3DXWARE, On3DxWare )<br />
+        &nbsp; //}}AFX_MSG_MAP<br />
+        END_MESSAGE_MAP()<br />
+        <br />
+        int appView::OnCreate( LPCREATESTRUCT lpCreateStruct )<br />
+        {<br />
+        &nbsp;&nbsp; if (CView::OnCreate (lpCreateStruct) == -1)<br />
+        &nbsp;&nbsp;&nbsp; {<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return -1;<br />
+        &nbsp;&nbsp;&nbsp; }<br />
+        <br />
+        &nbsp;&nbsp; /*<br />
+        &nbsp;&nbsp;&nbsp; * Initialize 3DxWare<br />
+        &nbsp;&nbsp;&nbsp; */<br />
+        <br />
+        &nbsp;&nbsp; SiOpenData oData; // OS Independent data to open device.<br />
+        &nbsp;&nbsp; SiInitialize (); // Initialize the 3DxWare input library.<br />
+        &nbsp;&nbsp; SiOpenWinInit (&amp;oData, m_hWnd); // Initialize Windows specific data.<br />
+        &nbsp;&nbsp; if ( (m_DevHdl = SiOpen ("App name", SI_ANY_DEVICE, SI_NO_MASK,<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SI_EVENT,
+        &amp;oData)) == NULL )<br />
+        &nbsp;&nbsp;&nbsp; {<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SiTerminate (); // Shut down the 3DxWare input library<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MessageBox ("Sorry - No supported 3DxWare device available.\n", NULL, MB_OK);<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if (m_hWnd != NULL)<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DestroyWindow (); // Destroy window.<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }<br />
+        <br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ExitProcess (1); // Exit program<br />
+        <br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // You probably don't want to exit just because a 3Dconnexion
+        device is not found.<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // Just set a flag &amp; don't call any more Si functions.<br />
+        &nbsp;&nbsp;&nbsp; }<br />
+        <br />
+        } /* end of OnCreate */
+        <br />
+        &nbsp;<br />
+        LONG appView::On3DxWare( WPARAM wParam, LPARAM lParam )<br />
+        {<br />
+        &nbsp; SiSpwEvent event; /* 3DxWare Event */<br />
+        &nbsp; SiGetEventData eData; /* 3DxWare Event Data */<br />
+        <br />
+        &nbsp; /*<br />
+        &nbsp;&nbsp; * Decode 3DxWare event.<br />
+        &nbsp;&nbsp; */<br />
+        <br />
+        &nbsp; SiGetEventWinInit (&amp;eData, WM_3DXWARE, wParam, lParam);<br />
+        <br />
+        &nbsp; if (SiGetEvent (m_DevHdl, 0, &amp;eData, &amp;event) == SI_IS_EVENT)<br />
+        &nbsp;&nbsp;&nbsp; {<br />
+        &nbsp;&nbsp;&nbsp; switch (event.type)<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; case SI_MOTION_EVENT:<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; break;<br />
+        <br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; case SI_ZERO_EVENT:<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; break;<br />
+        <br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; case SI_APP_EVENT:<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; break;<br />
+        <br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; case SI_CMD_EVENT:<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; break;<br />
+        <br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; case SI_DEVICE_CHANGE_EVENT:<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; break;<br />
+        <br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; default:<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; break;<br />
+        <br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; } /* end switch */<br />
+        <br />
+        &nbsp;&nbsp;&nbsp; } /* end if the message was 3DxWare event */<br />
+        <br />
+        &nbsp; return (TRUE);<br />
+        <br />
+        } /* end of On3DxWare */<br />
+        <br />
+        &nbsp;<br />
+    </p>
+</body>
+</html>

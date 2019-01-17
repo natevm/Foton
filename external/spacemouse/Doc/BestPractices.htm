@@ -1,0 +1,319 @@
+<!--
+/* Copyright notice:
+ * Copyright (c) 3Dconnexion. All rights reserved. 
+ *
+ * This file and source code are an integral part of the "3Dconnexion
+ * Software Developer Kit", including all accompanying documentation,
+ * and is protected by intellectual property laws. All use of the
+ * 3Dconnexion Software Developer Kit is subject to the License
+ * Agreement found in the "LicenseAgreementSDK.rtf" file.
+ * All rights not expressly granted by 3Dconnexion are reserved.
+ *
+ * Last edited: $Id: BestPractices.htm 13306 2016-08-18 19:00:54Z ngomes $
+ */-->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>3DxWare Functions</title>
+    <x-sas-window top="48" bottom="576" left="35" right="911">
+    <link rel="stylesheet" type="text/css" href="style.css"/>
+</head>
+<body>
+    <a href="Scoring.htm">
+        <img src="graphics/prev1.gif" alt="graphics/prev1.gif" border="0" height="22" width="46"
+            align="bottom"></a><a href="InputLib.htm"><img src="graphics/next1.gif" alt="graphics/next1.gif"
+                border="0" x-sas-useimagewidth x-sas-useimageheight height="22" width="46" align="bottom" /></a>
+    <h1>
+        Best Practices</h1>
+    <p>
+        This discusses characteristics of an excellent 3Dconnexion device support implementation.&nbsp;</p>
+    <p>
+        <a name="Excellent Controllability"></a><b>Excellent Controllability</b></p>
+    <p>
+        The device should be controllable in the application task that it is being applied
+        to.&nbsp; See <a href="TandT.htm#Tuning">Tuning</a> section.&nbsp; Everything the
+        user wants to do, he should be able to do.&nbsp; Don't mess with the data from the
+        user unless you are doing it for a very good reason.&nbsp; Beware of accidentally
+        losing precision bits.&nbsp; Make sure the user can do the most subtle possible
+        slow movements and also quickly get to a new position and orientation just be increasing
+        his force / torque.&nbsp; It is essential that all 6 Degrees of Freedom (DOFs) can
+        be mixed without interference from each other.&nbsp; For example, at anytime a user
+        should be able to start turning on one DOF even while already applying a large force
+        / torque along another DOF.&nbsp; That is the key to controllability.</p>
+    <p>
+        &nbsp;</p>
+    <p>
+        <a name="Screen-Based Transformations"></a><b>Screen-Based Transformations</b></p>
+    <p>
+        The operational model of all 3Dconnexion input devices is as a sort of &quot;remote
+        control&quot;.&nbsp; The idea is that the user is reaching into the screen and holding
+        the object with his hand.&nbsp; In order for that to work consistently the mathematics
+        must assume the input vectors are coming in eye/camera space and transform them
+        to the coordinate space that is to be transformed.&nbsp; For lack of a better idea
+        of where the user's eye is, assume that it is in the middle of the screen, and his
+        line of sight is perpendicular to the screen plane.&nbsp; Therefore the eye space
+        is aligned in the same way.</p>
+    <p>
+        If this is done, when the user pushes to the right, the object will always go to
+        the right.&nbsp; To the left, it goes left.&nbsp; Pull up or towards you and it
+        comes up or towards you.</p>
+    <p>
+        If the user is controlling a camera, pushing to the right, causes the camera to
+        go to the right and the scene then, obviously goes to the left from his point of
+        view. See the <a href="DevInfo.htm#How Data Should be Used">teapot figures</a>.</p>
+    <p>
+        &nbsp;</p>
+    <p>
+        <a name="Reset View"></a><b>Reset View</b></p>
+    <p>
+        No matter how good the controllability is, users (especially novice users) can always
+        move the part out of view.&nbsp; All applications should implement a button event
+        that automatically brings the object back into view.&nbsp; There is a reserved button
+        function for this, SI_FIT_BUTTON.</p>
+    <p>
+        &nbsp;</p>
+    <p>
+        <a name="Keep In View"></a><b>Keep In View (optional)</b></p>
+    <p>
+        An application may optionally provide a &quot;fence&quot; around the viewport to
+        keep the object from getting lost. A user <b>must </b>be able to disable this feature.</p>
+    <p>
+        &nbsp;</p>
+    <p>
+        <a name="Scope of 3D Device Usage"></a><b>Scope of 3D Device Usage</b></p>
+    <p>
+        The 3D input device should do everything a user expects it to do and nothing more.&nbsp;
+        Anything that can be moved in 3D space should be able to be controlled interactively
+        with the 3D input device.</p>
+    <p>
+        If it is a CAD package, the user should be able to:<br />
+        &nbsp;&nbsp;&nbsp; - move the part<br />
+        &nbsp;&nbsp;&nbsp; - move an assembly<br />
+        &nbsp;&nbsp;&nbsp; - move a subassembly while viewing the assembly<br />
+        &nbsp;&nbsp;&nbsp; - alternate between moving the part and&nbsp; the view with a
+        Shift Key<br />
+        &nbsp;&nbsp;&nbsp; - interact with a mechanism in a realistic way<br />
+        &nbsp;&nbsp;&nbsp; - pan and zoom in drafting mode</p>
+    <p>
+        If it is an animation package, the user should be able to:<br />
+        &nbsp;&nbsp;&nbsp; - move the view of individual objects while creating them<br />
+        &nbsp;&nbsp;&nbsp; - place objects in a scene<br />
+        &nbsp;&nbsp;&nbsp; - alternate between moving the object and viewing the scene with
+        a Shift Key so they can see where they are placing their objects<br />
+        &nbsp;&nbsp;&nbsp; - move groups of objects (e.g., a lamp on top of a desk should
+        move together)<br />
+        &nbsp;&nbsp;&nbsp; - move cameras<br />
+        &nbsp;&nbsp;&nbsp; - record animations of objects and cameras<br />
+        &nbsp;&nbsp;&nbsp; - move light sources with appropriate DOFs&nbsp; (for example,
+        a point light source has 3 DOF, directional light source has 5 DOF)</p>
+    <p>
+        If non3D analog/continuous parameters are to be adjusted only 1 DOF at a time should
+        be used (for example, time scrubbing an animation)<br />
+        &nbsp;&nbsp;&nbsp; - be consistent with which DOF is used (Ry is probably best)<br />
+        &nbsp;&nbsp;&nbsp; - don't map 6 arbitrary parameters to 6 arbitrary axes just because
+        they exist.&nbsp; No user will ever be able to figure out how to control them (see
+        next item).</p>
+    <p>
+        If practical, map parameters into a spatial domain.<br />
+        &nbsp;&nbsp;&nbsp; - if a parameter has a natural right/left the input device should
+        move right/left to modify it.<br />
+        &nbsp;&nbsp;&nbsp; - if a parameter can be mapped into a 3D domain, it is allowable
+        to use the multiple DOF positioning capabilities of the device.&nbsp; For example
+        RGB is often mapped to a cube.&nbsp; It would be allowable to represent the current
+        color as a position in the cube.&nbsp; Visual feedback is essential in something
+        as complicated as this.&nbsp; The user should see a 3D cube with RGB running along
+        it's edges &amp; faces and see a correctly colored cursor at the current position
+        floating in the middle of the cube.</p>
+    <p>
+        &nbsp;</p>
+    <p>
+        <a name="Apply Application-Specific Constraints"></a><b>Apply Application-Specific Constraints</b></p>
+    <p>
+        Most viewing tasks are not precise; the user is just trying to get a view of the
+        object from some new angle.&nbsp; On the other hand, any positioning task is probably
+        meant to be precise.&nbsp; An interface that provides constraints that are specific
+        to the task at hand will be easier to use.&nbsp; For instance,&nbsp; a desk that
+        is being positioned in a room benefits from not being able to go through the floor
+        or the walls.&nbsp; It is easier for a user to position such an object if it slides
+        easily along the floor or along the walls once contact is made.</p>
+    <p>
+        Control of a mechanism should not allow the part of the assembly to come apart,
+        unless it is under-constrained.&nbsp; In the latter case, it would be a good demonstration
+        of the missing constraint.</p>
+    <p>
+        &nbsp;</p>
+    <p>
+        <a name="Center of Rotation Specification"></a><b>Center of Rotation Specification</b></p>
+    <p>
+        The user should be able to specify the center of rotation.&nbsp; This could be by
+        picking on some point on the 3D object, or by using a consistent location such as
+        the center of the viewport.&nbsp; The former provides for a better more intuitive
+        experience. See the <a href="DevInfo.htm#Center of Rotation">Center of Rotation</a>
+        section for a detailed description of how to automatically define the center of
+        rotation.</p>
+    <p>
+        &nbsp;</p>
+    <p>
+        <a name="QuickViews"></a><b>Quick Views</b></p>
+    <p>
+        With the launch of the SpaceMouse Enterprise device type, 3Dconnexion introduced the
+        concept of &quot;Quick Views&quot;: a general method to access a program&#39;s
+        &quot;named views&quot; feature.</p>
+    <p>
+        When a program receives the V3CMD command V3DCMD_SAVE_VIEW_1, V3DCMD_SAVE_VIEW_2 or
+        V3DCMD_SAVE_VIEW_3 (see <a href="DevInfo.htm#Device Buttons">Device Buttons</a>),
+        it will save the current camera or view parameters (position, zoom level,
+        perspective/parallel, etc) in document context. The saved views must be named
+        &quot;3Dconnexion V1&quot;, &quot;3Dconnexion V2&quot; and &quot;3Dconnexion V3&quot;.
+        If the named view already exists, the program should update the camera or view
+        parameters. If the view is successfully saved, the program calls
+        <a href="InputFun.htm#SiMessageBox">SiMessageBox</a> with argument "message_type"
+        set to SI_MB_VIEW_SAVED.</p>
+    <p>
+        The named views should be saved with the document and be available whenever the document
+        is opened for viewing or editing.</p>
+    <p>
+        If the V3CMD command V3DCMD_VIEW_1, V3DCMD_VIEW_2 or
+        V3DCMD_VIEW_3 is received, the program will look up if the corresponding named view
+        has already been saved in the document context. If found, the program changes the 
+        current camera view to the named view using the saved camera or view parameters. If 
+        applicable, the view transition should be animated in a similar fashion as when a
+        standard view (Top, Left, Right, etc) is activated. If the named view is not found,
+        the program calls <a href="InputFun.htm#SiMessageBox">SiMessageBox</a> with
+        argument "message_type" set to SI_MB_HOLD_TO_SAVE.</p>
+    <p>
+        &nbsp;</p>
+    <p>
+        <a name="QuickZoom"></a><b>QuickZoom</b></p>
+    <p>Research conducted by 3Dconnexion together with users of CAD and other 3D visualization
+        programs showed that these users often switch between a full view of a 3D scene and a
+        zoomed-in view: users will &quot;fit the view&quot; (to show the full model or scene)
+        and then zoom in to a specific area. This &quot;fit-and-zoom&quot; action can be repeated
+        frequently (several times per minutes).</p>
+    <p>Just as users find useful the &quot;view&quot; commands to switch between the
+        &quot;top&quot;, &quot;front&quot;, &quot;left&quot;, etc views of a 3D model or scene, the
+        &quot;QuickZoom In&quot; (QZ In) and &quot;QuickZoom  Out&quot; (QZ Out) actions allow
+        a quick short-cut to and from a selected zoomed-in view.</p>
+    <p>The &quot;QuickZoom In&quot; algorithm is defined as follows:</p>
+    <ol>
+        <li>Define a window of 10% of width and height of the 3D view and centered on the
+            mouse pointer position. If the mouse pointer is not over the 3D view, place
+            the window centered on the view. See picture &quot;QuickZoom In window definition&quot; image below.</li>
+        <li>Animate the zoom transition from the current view to the window defined in the
+            previous step (&quot;zoom to window&quot;). The animation should last one to 1.5 seconds
+            or be consistent with the program's other view transition animations.
+        </li>
+        <li>After the animation terminates, the program must re-calculate any parameters as necessary: the
+            rotation center position should be placed on the model just below the view centre
+            (which was the same point on the model under the mouse pointer just before the animation
+            started).<br />
+            <dl>
+                <dt>
+                    <img alt="" src="graphics/QZ1_cursor.png" /></dt>
+                <dd>QuickZoom In window definition</dd>
+            </dl>
+            <br />
+            <dl>
+                <dt>
+                    <img alt="" src="graphics/QZ2.png" /></dt>
+                <dd>QuickZoom In after zoom in</dd>
+            </dl>
+        </li>
+    </ol>
+    <p>The &quot;QuickZoom Out&quot; command allows users to zoom out the view with a single action
+        activation returning the view to the same zoom level as the view would be before a previous
+        &quot;QuickZoom In&quot; action.
+    </p>
+    <p>The &quot;QuickZoom Out&quot; algorithm is defined as follows:</p>
+    <ol>
+        <li>Define a larger view window where the current view will occupy only the centre 10% width
+            and height: the zoom out action is along the view centre.</li>
+        <li>Animate the zoom transition from the current view to the window defined in the
+            previous step. The animation should last one to 1.5 seconds
+            or be consistent with the program's other view transition animations.
+            See picture &quot;After QuickZoom Out Action&quot; image below
+        </li>
+        <li>After the animation terminates, the program must re-calculate any parameters as necessary: the
+            rotation center position should be placed on the model just below the view centre or in the model centre if this is in full view.<br />
+            <br />
+            <dl>
+                <dt>
+                    <img alt="" src="graphics/QZ3.png" /></dt>
+                <dd>After QuickZoom Out action</dd>
+            </dl>
+        </li>
+    </ol>
+    <p>
+        Note that the &quot;QuickZoom Out&quot; action does not take the mouse pointer position in consideration.</p>
+    <p>
+        <a name="Fast Zoom"></a><b>Fast Zoom</b></p>
+    <p>
+        For very fast, controlled zoom with the input device, we suggest using what we term
+        FastZoom.&nbsp; This performs only Zoom when the middle mouse button is held down.&nbsp;
+        It is also accelerated.&nbsp; Finally it zooms to and from the mouse cursor position.&nbsp;
+        This allows very quick zoom to a specific location on a part or in a scene.</p>
+    <p>
+        &nbsp;</p>
+    <p>
+        <a name="Zoom Toward Camera"></a><b>Zoom Toward Camera</b></p>
+    <p>
+        In perspective space, it is helpful when zooming in on a part to move the center
+        of rotation towards the camera position.&nbsp; If it is brought straightforward
+        in world space and is not aligned directly with the camera viewing angle, it will
+        zoom right past the viewpoint and be lost behind the user's head.&nbsp; Bending
+        the Tz movement by also panning toward the center of the viewport makes for a much
+        more natural user experience.</p>
+    <p>
+        &nbsp;</p>
+    <p>
+        <a name="Application Commands Integration"></a><b>Application Commands Integration</b></p>
+    <p>
+        To facilitate the support of new device types, application programmer are adivsed to export
+        a categorized list of application commands using the
+        <a href="Integrat.htm#Action Interface">Action Interface</a> extension of the 3DxWare
+        Input Library. In addition to categorization, commands should be exported with the full set of attributes (nme, description ou tooltip and icon) whenever possible.</p>
+    <p>
+        The extension allows programs to update the command list dynamically and, optionally, assign
+        separate command lists to different application contexes (or environment). Using the
+        extension, the applications can notify the driver of an application context change when, for example,
+        the user has switched to edit a "part" document opened from an "assembly". </p>
+    <p>
+        &nbsp;</p>
+    <p>
+        <a name="Standard Event Responses"></a><b>Standard Event Responses</b></p>
+    <p>
+        There are some events that the driver will send to an application that all well-behaved
+        applications should respond to.&nbsp; These are:&nbsp;
+    </p>
+    <ul>
+        <li>SI_APP_FIT</li>
+        <li>Disconnect / reconnect</li>
+    </ul>
+    <p>
+        &nbsp;</p>
+    <p>
+        <a name="The Rules"></a><b><i>The Rules</i></b></p>
+    <p>
+        These are the 10 fundamental rules of 3D device integration:&nbsp;
+    </p>
+    <ol>
+        <li>Program for Real-Time Usage
+            <ul>
+                <li>Recognize and manage bottlenecks</li>
+                <li>Use LOD (Level of Detail Control)</li>
+                <li>Don't get behind the user</li>
+                <li>Don't get throttled by the input device sampling rate</li>
+            </ul>
+        </li>
+        <li>Use Screen-Based Transformations</li>
+        <li>Use an Arbitrary Axis Method of Accumulating Rotations</li>
+        <li>Use the Best View Matrix Control Method for the Task</li>
+        <li>Allow the User to Control the Center of Rotation</li>
+        <li>Don't Let the User to Lose the Part</li>
+        <li>Do All 3D Operations with a 3D Input Device</li>
+        <li>Do Only 3D Operations with a 3D Input Device</li>
+        <li>Apply Appropriate Application-Specific Constraints</li>
+        <li>Make it Controllable</li>
+    </ol>
+</body>
+</html>
