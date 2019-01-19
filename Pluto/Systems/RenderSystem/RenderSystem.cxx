@@ -96,7 +96,11 @@ void RenderSystem::acquire_swapchain_images(
         I believe this fence is used for handling vsync, but I could be wrong... */
 
     auto acquireFence = device.createFence(vk::FenceCreateInfo());
-    swapchain_index = device.acquireNextImageKHR(swapchain, std::numeric_limits<uint32_t>::max(), semaphore, acquireFence).value;
+    auto result = device.acquireNextImageKHR(swapchain, std::numeric_limits<uint32_t>::max(), semaphore, acquireFence);
+    if (result.result != vk::Result::eSuccess) {
+        std::cout<<"REALLY BAD ERROOR HERE"<<std::endl;
+    }
+    swapchain_index = result.value;
     swapchain_texture = glfw->get_texture("Window", swapchain_index);
     device.waitForFences(acquireFence, true, 100000000000);
     device.destroyFence(acquireFence);
@@ -242,13 +246,8 @@ void RenderSystem::present_glfw_frames()
     if (!swapchain_texture) return;
 
     /* Wait for the final renderpass to complete, then present to the given swapchain. */
-    vk::PresentInfoKHR presentInfo;
-    presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = &swapchain;
-    presentInfo.pImageIndices = &swapchain_index;
-    presentInfo.pWaitSemaphores = &renderCompleteSemaphores[currentFrame];
-    presentInfo.waitSemaphoreCount = 1;
-    vulkan->enqueue_present_commands(presentInfo);
+    
+    vulkan->enqueue_present_commands({swapchain}, {swapchain_index}, {renderCompleteSemaphores[currentFrame]});
 
     /* If our swapchain is out of date at this point, recreate it. */
     if (!vulkan->submit_present_commands() || glfw->is_swapchain_out_of_date("Window"))
@@ -368,18 +367,18 @@ void RenderSystem::enqueue_render_commands() {
     }
 
     auto submitPipelineStages = vk::PipelineStageFlags();
-    submitPipelineStages |= vk::PipelineStageFlagBits::eColorAttachmentOutput;
+    submitPipelineStages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 
-    vk::SubmitInfo submit_info;
-    submit_info.waitSemaphoreCount = (swapchain && swapchain_texture) ? 1 : 0;
-    submit_info.pWaitSemaphores = &imageAvailableSemaphores[currentFrame];
-    submit_info.pWaitDstStageMask = &submitPipelineStages;
-    submit_info.commandBufferCount = (uint32_t) commands.size();
-    submit_info.pCommandBuffers = commands.data();
-    submit_info.signalSemaphoreCount = (swapchain && swapchain_texture) ? 1 : 0;
-    submit_info.pSignalSemaphores = &renderCompleteSemaphores[currentFrame];
+    std::vector<vk::Semaphore> waitSemaphores;
+    std::vector<vk::PipelineStageFlags> waitDstStageMask;
+    std::vector<vk::Semaphore> signalSemaphores;
+    if (swapchain && swapchain_texture) {
+        waitSemaphores.push_back(imageAvailableSemaphores[currentFrame]);
+        waitDstStageMask.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+        signalSemaphores.push_back(renderCompleteSemaphores[currentFrame]);
+    }
 
-    vulkan->enqueue_graphics_commands(submit_info, maincmd_fences[currentFrame]);
+    vulkan->enqueue_graphics_commands(commands, waitSemaphores, waitDstStageMask, signalSemaphores, maincmd_fences[currentFrame]);
 }
 
 void RenderSystem::release_vulkan_resources() 

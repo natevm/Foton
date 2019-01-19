@@ -25,8 +25,10 @@ using namespace Libraries;
 %nodefaultdtor SpaceMouse;
 
 // Issue where swig tries to construct a std future from non-existant copy constructor...
-%ignore Libraries::Vulkan::enqueue_graphics_commands(vk::SubmitInfo submit_info, vk::Fence fence);
-%ignore Libraries::Vulkan::enqueue_present_commands(vk::PresentInfoKHR presentInfo);
+%ignore Libraries::Vulkan::enqueue_graphics_commands(std::vector<vk::CommandBuffer> commandBuffers, std::vector<vk::Semaphore> waitSemaphores, std::vector<vk::PipelineStageFlags> waitDstStageMasks, std::vector<vk::Semaphore> signalSemaphores, vk::Fence fence);
+%ignore Libraries::Vulkan::enqueue_present_commands(std::vector<vk::SwapchainKHR> swapchains, std::vector<uint32_t> swapchain_indices, std::vector<vk::Semaphore> waitSemaphores);
+
+%ignore CommandQueueItem;
 
 %include "./../Tools/Singleton.hxx";
 %include "./GLFW/GLFW.hxx";

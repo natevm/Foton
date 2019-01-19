@@ -1,3 +1,5 @@
+#pragma optimize("", off)
+
 #include <cstring>
 #include <chrono>
 #include <assert.h>
@@ -804,20 +806,16 @@ vk::CommandBuffer Vulkan::begin_one_time_graphics_command(uint32_t pool_id) {
 
 bool Vulkan::end_one_time_graphics_command(vk::CommandBuffer command_buffer, uint32_t pool_id, bool free_after_use, bool submit_immediately) {
     command_buffer.end();
-    vk::SubmitInfo submit_info;
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &command_buffer;
-    
+
     vk::FenceCreateInfo fenceInfo;
     vk::Fence fence = device.createFence(fenceInfo);
 
-    std::future<void> fut = enqueue_graphics_commands(submit_info, fence);
+    std::future<void> fut = enqueue_graphics_commands({command_buffer}, {}, {}, {}, fence);
 
     if (submit_immediately || pool_id == 0) submit_graphics_commands();
 
     fut.wait();
 
-    
     device.waitForFences(fence, true, 100000000000);
 
     if (free_after_use)
@@ -827,19 +825,41 @@ bool Vulkan::end_one_time_graphics_command(vk::CommandBuffer command_buffer, uin
 }
 
 // This could probably use a mutex...
-std::future<void> Vulkan::enqueue_graphics_commands(vk::SubmitInfo submit_info, vk::Fence fence) {
+std::future<void> Vulkan::enqueue_graphics_commands
+(
+    vector<vk::CommandBuffer> commandBuffers, 
+    vector<vk::Semaphore> waitSemaphores,
+    vector<vk::PipelineStageFlags> waitDstStageMasks,
+    vector<vk::Semaphore> signalSemaphores,
+    vk::Fence fence
+) {
+    std::lock_guard<std::mutex> lock(graphics_queue_mutex);
+
     CommandQueueItem item;
-    item.submission = submit_info;
+    item.commandBuffers = commandBuffers;
+    item.waitSemaphores = waitSemaphores;
+    item.waitDstStageMask = waitDstStageMasks;
+    item.signalSemaphores = signalSemaphores;
     item.fence = fence;
     item.promise = std::make_shared<std::promise<void>>();
+    item.should_free = false;
     auto new_future = item.promise->get_future();
     graphicsCommandQueue.push(item);
+
     return new_future;
 }
 
-std::future<void> Vulkan::enqueue_present_commands(vk::PresentInfoKHR present_info) {
+std::future<void> Vulkan::enqueue_present_commands(
+    std::vector<vk::SwapchainKHR> swapchains, 
+    std::vector<uint32_t> swapchain_indices, 
+    std::vector<vk::Semaphore> waitSemaphores) 
+{
+    std::lock_guard<std::mutex> lock(present_queue_mutex);
+
     CommandQueueItem item;
-    item.presentation = present_info;
+    item.swapchains = swapchains;
+    item.swapchain_indices = swapchain_indices;
+    item.waitSemaphores = waitSemaphores;
     item.promise = std::make_shared<std::promise<void>>();
     auto new_future = item.promise->get_future();
     presentCommandQueue.push(item);
@@ -847,12 +867,21 @@ std::future<void> Vulkan::enqueue_present_commands(vk::PresentInfoKHR present_in
 }
 
 bool Vulkan::submit_graphics_commands() {
-    // Bug here... If the size of this queue increases before an element is inserted, we segfault.
-    // Access to the graphics queue needs to be guarded by a mutex...
-    size_t size = graphicsCommandQueue.size();
-    for (size_t i = 0; i < size; ++i) {
-        auto item = graphicsCommandQueue.pop();
-        graphicsQueues[0].submit(item.submission, item.fence);
+    std::lock_guard<std::mutex> lock(graphics_queue_mutex);
+
+    while (!graphicsCommandQueue.empty()) {
+        auto item = graphicsCommandQueue.front();
+
+        vk::SubmitInfo submit_info;
+        submit_info.waitSemaphoreCount = (uint32_t) item.waitSemaphores.size();
+        submit_info.pWaitSemaphores = item.waitSemaphores.data();
+        submit_info.pWaitDstStageMask = item.waitDstStageMask.data();
+        submit_info.commandBufferCount = (uint32_t) item.commandBuffers.size();
+        submit_info.pCommandBuffers = item.commandBuffers.data();
+        submit_info.signalSemaphoreCount = (uint32_t) item.signalSemaphores.size();
+        submit_info.pSignalSemaphores = item.signalSemaphores.data();
+
+        graphicsQueues[0].submit(submit_info, item.fence);
         try {
             item.promise->set_value();
         }
@@ -862,23 +891,36 @@ bool Vulkan::submit_graphics_commands() {
             else
                 std::cout << "[unknown exception]\n";
         }
+        graphicsCommandQueue.pop();
     }
+
     return true;
 }
 
 bool Vulkan::submit_present_commands() {
+    std::lock_guard<std::mutex> lock(present_queue_mutex);
+
     bool result = true;
-    size_t size = presentCommandQueue.size();
-    for (size_t i = 0; i < size; ++i) {
-        auto item = presentCommandQueue.pop();
+    while (!presentCommandQueue.empty()) {
+        auto item = presentCommandQueue.front();
+
         try {
-            presentQueues[0].presentKHR(item.presentation);
+            vk::PresentInfoKHR presentInfo;
+            presentInfo.swapchainCount = (uint32_t) item.swapchains.size();
+            presentInfo.pSwapchains = item.swapchains.data();
+            presentInfo.pImageIndices = item.swapchain_indices.data();
+            presentInfo.pWaitSemaphores = item.waitSemaphores.data();
+            presentInfo.waitSemaphoreCount = (uint32_t) item.waitSemaphores.size();
+
+            presentQueues[0].presentKHR(presentInfo);
             //presentQueues[0].waitIdle();
         }
         catch (...) {
             result = false;
         }
         item.promise->set_value();
+
+        presentCommandQueue.pop();
     }
     return result;
 }

@@ -70,8 +70,6 @@ bool SpaceMouse::connect_to_window(std::string window)
 	auto ptr = glfw->get_ptr(window);
 	if (ptr == nullptr) return false;
 
-	glfwFocusWindow(ptr);
-
 	auto hWnd = glfwGetWin32Window(ptr);
 
 	SiOpenDataEx oData;                    /* OS Independent data to open ball  */ 

@@ -47,8 +47,17 @@ namespace Libraries {
         
         uint32_t find_memory_type(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
         
-        std::future<void> enqueue_graphics_commands(vk::SubmitInfo submit_info, vk::Fence fence);
-        std::future<void> enqueue_present_commands(vk::PresentInfoKHR presentInfo);
+        std::future<void> enqueue_graphics_commands(
+            std::vector<vk::CommandBuffer> commandBuffers, 
+            std::vector<vk::Semaphore> waitSemaphores,
+            std::vector<vk::PipelineStageFlags> waitDstStageMasks,
+            std::vector<vk::Semaphore> signalSemaphores,
+            vk::Fence fence);
+        std::future<void> enqueue_present_commands(
+            std::vector<vk::SwapchainKHR> swapchains, 
+            std::vector<uint32_t> swapchain_indices, 
+            std::vector<vk::Semaphore> waitSemaphores
+        );
         bool submit_graphics_commands();
         bool submit_present_commands();
         bool is_ray_tracing_enabled();
@@ -106,24 +115,24 @@ namespace Libraries {
         std::vector<vk::Queue> graphicsQueues;
         std::vector<vk::Queue> presentQueues;	
 
+            // vk::SubmitInfo submission;
+
         struct CommandQueueItem {
-            vk::PresentInfoKHR presentation;
-            vk::SubmitInfo submission;
+            std::vector<vk::SwapchainKHR> swapchains;
+            std::vector<uint32_t> swapchain_indices;
+            std::vector<vk::PipelineStageFlags> waitDstStageMask;
+            std::vector<vk::Semaphore> waitSemaphores;
+            std::vector<vk::CommandBuffer> commandBuffers;
+            std::vector<vk::Semaphore> signalSemaphores;
             vk::Fence fence;
             std::shared_ptr<std::promise<void>> promise;
             bool should_free;
         };
 
-        // struct CommandQueue {
-        //     std::vector<> presentations;
-        //     std::vector<vk::SubmitInfo> submissions;
-        //     std::vector<vk::Fence> fences;
-        //     threadsafe_queue<std::shared_ptr<std::promise<void>>> promises;
-        //     std::vector<bool> should_free;
-        // };
-
-        threadsafe_queue<CommandQueueItem> graphicsCommandQueue;
-        threadsafe_queue<CommandQueueItem> presentCommandQueue;
+        std::mutex graphics_queue_mutex;
+        std::mutex present_queue_mutex;
+        std::queue<CommandQueueItem> graphicsCommandQueue;
+        std::queue<CommandQueueItem> presentCommandQueue;
         
         vk::DebugReportCallbackEXT internalCallback;
         function<void()> externalCallback;
