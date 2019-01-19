@@ -8,11 +8,10 @@
 #include "./RenderSystem.hxx"
 #include "Pluto/Tools/Colors.hxx"
 #include "Pluto/Camera/Camera.hxx"
+#include "Pluto/Texture/Texture.hxx"
 #include "Pluto/Entity/Entity.hxx"
 #include "Pluto/Tools/Options.hxx"
 #include "Pluto/Material/Material.hxx"
-
-#include "Pluto/Material/PushConstants.hxx"
 
 #include "Pluto/Libraries/OpenVR/OpenVR.hxx"
 
@@ -68,6 +67,12 @@ bool RenderSystem::initialize()
         int64_t rate = 100000;
         zmq_setsockopt(socket, ZMQ_RATE, &rate, sizeof(int64_t));
     }
+
+    push_constants.gamma = 1.0;
+    push_constants.exposure = 1.0;
+    push_constants.environment_id = -1;
+    push_constants.diffuse_environment_id = -1;
+    push_constants.specular_environment_id = -1;
 
     initialized = true;
     return true;
@@ -137,10 +142,30 @@ void RenderSystem::record_render_commands()
     Entity::UploadSSBO();
     Material::UpdateDescriptorSets();
 
+    auto brdf_id = Texture::Get("BRDF")->get_id();
+    push_constants.brdf_lut_id = brdf_id;
+    push_constants.time = (float) glfwGetTime();
+
+    auto entities = Entity::GetFront();
+
+    /* Get light list */
+    std::vector<int32_t> light_entity_ids(MAX_LIGHTS, -1);
+    int32_t light_count = 0;
+    for (uint32_t i = 0; i < Entity::GetCount(); ++i)
+    {
+        if (entities[i].is_initialized() && (entities[i].get_light() != -1))
+        {
+            light_entity_ids[light_count] = i;
+            light_count++;
+        }
+        if (light_count == MAX_LIGHTS)
+            break;
+    }
+    memcpy(push_constants.light_entity_ids, light_entity_ids.data(), sizeof(push_constants.light_entity_ids)/*sizeof(int32_t) * light_entity_ids.size()*/);
+
 
     /* Render all cameras */
     auto main_entity = Entity::GetEntityFromWindow("Window");
-    auto entities = Entity::GetFront();
     auto cameras = Camera::GetFront();
     for (uint32_t entity_id = 0; entity_id < Entity::GetCount(); ++entity_id) {
         /* Entity must be initialized */
@@ -163,20 +188,6 @@ void RenderSystem::record_render_commands()
         /* If we're the client, we recieve color data from "stream_frames". Only render a scene if not the client. */
         if (!Options::IsClient())
         {
-            /* Get light list */
-            std::vector<int32_t> light_entity_ids(MAX_LIGHTS, -1);
-            int32_t light_count = 0;
-            for (uint32_t i = 0; i < Entity::GetCount(); ++i)
-            {
-                if (entities[i].is_initialized() && (entities[i].get_light() != -1))
-                {
-                    light_entity_ids[light_count] = i;
-                    light_count++;
-                }
-                if (light_count == MAX_LIGHTS)
-                    break;
-            }
-
             /* Get the renderpass for the current camera */
             vk::RenderPass rp = cameras[cam_id].get_renderpass();
 
@@ -189,7 +200,10 @@ void RenderSystem::record_render_commands()
             {
                 if (entities[i].is_initialized())
                 {
-                    Material::DrawEntity(command_buffer, rp, entities[i], entity_id, environment_id, diffuse_id, irradiance_id, gamma, exposure, light_entity_ids);
+                    // Push constants
+                    push_constants.target_id = i;
+                    push_constants.camera_id = entity_id;
+                    Material::DrawEntity(command_buffer, rp, entities[i], push_constants);
                 }
             }
             cameras[cam_id].end_renderpass(command_buffer);
@@ -525,58 +539,74 @@ RenderSystem::~RenderSystem() {}
 
 void RenderSystem::set_gamma(float gamma)
 {
-    this->gamma = gamma;
+    this->push_constants.gamma = gamma;
 }
 
 void RenderSystem::set_exposure(float exposure)
 {
-    this->exposure = exposure;
+    this->push_constants.exposure = exposure;
 }
 
 void RenderSystem::set_environment_map(int32_t id) 
 {
-    this->environment_id = id;
+    this->push_constants.environment_id = id;
 }
 
 void RenderSystem::set_environment_map(Texture *texture) 
 {
-    this->environment_id = texture->get_id();
+    this->push_constants.environment_id = texture->get_id();
 }
 
 void RenderSystem::clear_environment_map()
 {
-    this->environment_id = -1;
+    this->push_constants.environment_id = -1;
 }
 
 void RenderSystem::set_irradiance_map(int32_t id)
 {
-    this->irradiance_id = id;
+    this->push_constants.specular_environment_id = id;
 }
 
 void RenderSystem::set_irradiance_map(Texture *texture)
 {
-    this->irradiance_id = texture->get_id();
+    this->push_constants.specular_environment_id = texture->get_id();
 }
 
 void RenderSystem::clear_irradiance_map()
 {
-    this->irradiance_id = -1;
+    this->push_constants.specular_environment_id = -1;
 }
 
 void RenderSystem::set_diffuse_map(int32_t id)
 {
-    this->diffuse_id = id;
+    this->push_constants.diffuse_environment_id = id;
 }
 
 void RenderSystem::set_diffuse_map(Texture *texture)
 {
-    this->diffuse_id = texture->get_id();
+    this->push_constants.diffuse_environment_id = texture->get_id();
 }
 
 void RenderSystem::clear_diffuse_map()
 {
-    this->diffuse_id = -1;
+    this->push_constants.diffuse_environment_id = -1;
 }
+
+void RenderSystem::set_top_sky_color(glm::vec3 color) 
+{
+    push_constants.top_sky_color = glm::vec4(color.r, color.g, color.b, 1.0);
+}
+
+void RenderSystem::set_bottom_sky_color(glm::vec3 color) 
+{
+    push_constants.bottom_sky_color = glm::vec4(color.r, color.g, color.b, 1.0);
+}
+
+void RenderSystem::set_sky_transition(float transition) 
+{
+    push_constants.sky_transition = transition;
+}
+
 
 void RenderSystem::use_openvr(bool useOpenVR) {
     this->using_openvr = useOpenVR;

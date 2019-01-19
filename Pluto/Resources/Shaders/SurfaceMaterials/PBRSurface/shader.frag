@@ -61,6 +61,8 @@ vec3 sampleIrradiance(vec3 N)
 			samplerCube(texture_cubes[push.consts.diffuse_environment_id], samplers[push.consts.diffuse_environment_id]), 
 			adjusted
 		).rgb;
+	} else {
+		irradiance = getSky(adjusted);
 	}
 	return irradiance;
 }
@@ -115,12 +117,13 @@ vec3 F_SchlickR(float cosTheta, vec3 F0, float roughness)
 vec3 prefilteredReflection(vec3 R, float roughness)
 {
 	vec3 reflection = vec3(0.0, 0.0, 0.0);
+	float lod = roughness * 10.0; // Hard coded for now //uboParams.prefilteredCubeMipLevels;
+	float lodf = floor(lod);
+	float lodc = ceil(lod);
+	vec3 adjusted = vec3(R.x, R.z, R.y);
+
 	if (push.consts.specular_environment_id != -1) {
 	
-		float lod = roughness * 10.0; // Hard coded for now //uboParams.prefilteredCubeMipLevels;
-		float lodf = floor(lod);
-		float lodc = ceil(lod);
-		vec3 adjusted = vec3(R.x, R.z, R.y);
 		vec3 a = textureLod(
 			samplerCube(texture_cubes[push.consts.specular_environment_id], samplers[push.consts.specular_environment_id]), 
 			adjusted, lodf).rgb;
@@ -130,6 +133,9 @@ vec3 prefilteredReflection(vec3 R, float roughness)
 			adjusted, lodc).rgb;
 
 		reflection = mix(a, b, lod - lodf);
+	}
+	 else {
+		reflection = mix(getSky(adjusted), (push.consts.top_sky_color.rgb + push.consts.bottom_sky_color.rgb) * .5, roughness);
 	}
 
 	return reflection;
@@ -207,10 +213,7 @@ void main() {
 
 	/* Transition between refraction and black (metal takes priority) */
 	vec3 refraction_mix = mix(vec3(0.0), refraction, max((transmission - metallic), 0));
-	
-	/* Transition between reflection and black */
-	vec3 reflection_mix = mix(vec3(0.04), refraction, reflection);
-	
+		
 	/* First compute diffuse (None if metal/glass.) */
 	vec3 diffuse = irradiance * albedo.rgb;
 	
@@ -224,7 +227,7 @@ void main() {
 	vec3 albedo_mix_schlicked = albedo_mix + ((max(vec3(1.0 - roughness), albedo_mix) - albedo_mix) * s);
 	vec3 refraction_schlicked = refraction_mix * (1.0 - s);
 	vec3 reflection_schlicked = reflection * (mix(s, 1.0, metallic));
-	vec3 specular_reflection = reflection_schlicked * (albedo_mix_schlicked * brdf.x + brdf.y);
+	vec3 specular_reflection = reflection_schlicked * (albedo_mix_schlicked * brdf.x + brdf.y); // brdf.x seems to never reach 1.0
 	vec3 specular_refraction = refraction_schlicked * (albedo_mix * brdf.x); // brdf.y adds frensel like ring, which shouldn't exist on glass
 
 	/* This is really subtle. Brightens schlicked areas, but only if not metal. */

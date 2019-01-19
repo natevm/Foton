@@ -9,6 +9,7 @@ layout (location = 1) in vec3 camPos;
 
 layout (location = 0) out vec4 outFragColor;
 
+
 // From http://filmicgames.com/archives/75
 vec3 Uncharted2Tonemap(vec3 x)
 {
@@ -21,6 +22,23 @@ vec3 Uncharted2Tonemap(vec3 x)
 	return ((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F;
 }
 
+vec3 get_environment_color(vec3 dir) {
+	
+	if (push.consts.environment_id != -1) {
+		return texture(
+				samplerCube(texture_cubes[push.consts.environment_id], samplers[push.consts.environment_id]), 
+				dir
+		).rgb;
+	}
+
+	return getSky(dir);// + getSun(dir);
+
+
+	// vec3 up = vec3(0.0, 1.0, 0.0);
+	// float alpha = dot(up, dir);
+	// return vec3(alpha, alpha, alpha);
+}
+
 void main() 
 {
 	vec3 color = vec3(0.00, 0.00, 0.00);
@@ -28,12 +46,7 @@ void main()
 	vec3 dir = normalize(inUVW - camPos);
 	vec3 adjusted = vec3(dir.x, dir.z, dir.y);
 	
-	if (push.consts.environment_id != -1) {
-		color = texture(
-			samplerCube(texture_cubes[push.consts.environment_id], samplers[push.consts.environment_id]), 
-			adjusted
-		).rgb;
-	}
+	color = get_environment_color(adjusted);
 
 	// Tone mapping
 	color = Uncharted2Tonemap(color * push.consts.exposure);

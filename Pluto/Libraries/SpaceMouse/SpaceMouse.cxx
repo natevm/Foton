@@ -70,6 +70,8 @@ bool SpaceMouse::connect_to_window(std::string window)
 	auto ptr = glfw->get_ptr(window);
 	if (ptr == nullptr) return false;
 
+	glfwFocusWindow(ptr);
+
 	auto hWnd = glfwGetWin32Window(ptr);
 
 	SiOpenDataEx oData;                    /* OS Independent data to open ball  */ 
@@ -157,8 +159,17 @@ bool SpaceMouse::poll_event()
 
 	handled = SPW_FALSE;     /* init handled */
 
+	BOOL res;
+	UINT_PTR timerId = SetTimer(NULL, NULL, 10, NULL);
+	
 	/* start message loop */ 
-	GetMessage( &msg, NULL, 0, 0 );
+	res = GetMessage( &msg, NULL, 0, 0 );
+
+	KillTimer(NULL, timerId);
+
+	if (!res) {
+		return false;
+	}
 
 	/* init Window platform specific data for a call to SiGetEvent */
 	SiGetEventWinInit(&EData, msg.message, msg.wParam, msg.lParam);

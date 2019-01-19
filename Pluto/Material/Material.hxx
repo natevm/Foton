@@ -79,7 +79,7 @@ class Material : public StaticFactory
         static bool BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
 
         /* Records a draw of the supplied entity to the current command buffer. Call this during a renderpass. */
-        static bool DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids);
+        static bool DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants); // int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time
 
         /* Creates an uninitialized material. Useful for preallocation. */
         Material();
