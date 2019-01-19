@@ -4,6 +4,8 @@
 #include "Pluto/Libraries/GLFW/GLFW.hxx"
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
 
+#include "Pluto/Material/PushConstants.hxx"
+
 class Texture;
 
 namespace Systems 
@@ -30,16 +32,24 @@ namespace Systems
             void set_diffuse_map(int32_t id);
             void set_diffuse_map(Texture *texture);
             void clear_diffuse_map();
+
+            void set_top_sky_color(glm::vec3 color);
+            void set_bottom_sky_color(glm::vec3 color);
+            void set_sky_transition(float transition);
+
             void use_openvr(bool useOpenVR);
         private:
+            PushConsts push_constants;
+
+            
 
             bool using_openvr = false;
             void *zmq_context;
-            float gamma = 1.0;
-            float exposure = 1.0;
-            int environment_id = -1;
-            int diffuse_id = -1;
-            int irradiance_id = -1;
+            
+
+            // glm::vec3 top_sky_color;
+            // glm::vec3 bottom_sky_color;
+            // float sky_transition;
 
             double lastTime, currentTime;
 

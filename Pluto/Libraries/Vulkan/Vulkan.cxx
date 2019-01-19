@@ -847,6 +847,8 @@ std::future<void> Vulkan::enqueue_present_commands(vk::PresentInfoKHR present_in
 }
 
 bool Vulkan::submit_graphics_commands() {
+    // Bug here... If the size of this queue increases before an element is inserted, we segfault.
+    // Access to the graphics queue needs to be guarded by a mutex...
     size_t size = graphicsCommandQueue.size();
     for (size_t i = 0; i < size; ++i) {
         auto item = graphicsCommandQueue.pop();

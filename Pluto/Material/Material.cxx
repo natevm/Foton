@@ -858,8 +858,7 @@ bool Material::BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderP
     return true;
 }
 
-bool Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, 
-    int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids)
+bool Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants) //int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time)
 {    
     /* Need a mesh to render. */
     auto mesh_id = entity.get_mesh();
@@ -876,19 +875,6 @@ bool Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &ren
     if (material_id < 0 || material_id >= MAX_MATERIALS) return false;
     auto material = Material::Get(material_id);
     if (!material) return false;
-
-    // Push constants
-    PushConsts push_constants = {};
-    push_constants.target_id = entity.get_id();
-    push_constants.camera_id = camera_id;
-    push_constants.brdf_lut_id = Texture::Get("BRDF")->get_id();
-    push_constants.diffuse_environment_id = diffuse_id; //Texture::Get("DiffuseEnvironment")->get_id()
-    push_constants.specular_environment_id = irradiance_id; //Texture::Get("SpecularEnvironment")->get_id();
-    push_constants.environment_id = environment_id;
-    push_constants.exposure = exposure;
-    push_constants.gamma = gamma;
-
-    memcpy(push_constants.light_entity_ids, light_entity_ids.data(), sizeof(push_constants.light_entity_ids)/*sizeof(int32_t) * light_entity_ids.size()*/);
 
     if (material->renderMode == NORMAL) {
         command_buffer.pushConstants(normalsurface[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
