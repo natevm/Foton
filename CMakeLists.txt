@@ -69,7 +69,7 @@ find_package(ZMQ REQUIRED)
 include_directories(${ZMQ_INCLUDE_DIRS})
 
 # python
-find_package (Python3 COMPONENTS Interpreter Development REQUIRED)
+find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 include_directories(SYSTEM ${Python3_INCLUDE_DIRS})
 
 # tiny
@@ -82,9 +82,11 @@ include_directories(SYSTEM ${OPENVR_SDK_INCLUDE_DIR})
 
 # spacemouse
 # Todo: make a cmake file for this
-set(SPACEMOUSE_LIBRARIES "${CMAKE_CURRENT_SOURCE_DIR}/external/spacemouse/Lib/x64/siapp.lib")
-set(SPACEMOUSE_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/spacemouse/Inc")
-include_directories(SYSTEM ${SPACEMOUSE_INCLUDE_DIR})
+if (WIN32)
+	set(SPACEMOUSE_LIBRARIES "${CMAKE_CURRENT_SOURCE_DIR}/external/spacemouse/Lib/x64/siapp.lib")
+	set(SPACEMOUSE_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/spacemouse/Inc")
+	include_directories(SYSTEM ${SPACEMOUSE_INCLUDE_DIR})
+endif()
 
 # add libraries to a list for linking
 set (

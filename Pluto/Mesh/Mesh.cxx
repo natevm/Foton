@@ -6,6 +6,9 @@
 // #define TINYGLTF_NO_FS
 // #define TINYGLTF_NO_STB_IMAGE_WRITE
 
+#include <sys/types.h>
+#include <sys/stat.h>
+
 #include "./Mesh.hxx"
 
 #include "Pluto/Tools/Options.hxx"
@@ -243,8 +246,10 @@ bool Mesh::load_glb(std::string glbPath)
     unsigned char *file_buffer = NULL;
 	uint32_t file_size = 0;
 	{
-        FILE *fp;
-        if (0 != fopen_s(&fp, glbPath.c_str(), "rb")) fp=0;
+        FILE *fp = fopen(glbPath.c_str(), "rb");
+        if (!fp) {
+            return false;
+        }
 		assert(fp);
 		fseek(fp, 0, SEEK_END);
 		file_size = (uint32_t)ftell(fp);

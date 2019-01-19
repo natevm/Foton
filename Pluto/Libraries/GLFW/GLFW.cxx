@@ -414,7 +414,7 @@ namespace Libraries {
         if (window.surfaceCapabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
             uint32_t width, height;
             glfwGetWindowSize(window.ptr, (int*)&width, (int*)&height);
-            window.surfaceExtent = { width, height };
+            window.surfaceExtent = vk::Extent2D{width, height};
             window.surfaceExtent.width = std::max(window.surfaceCapabilities.minImageExtent.width, 
                 std::min(window.surfaceCapabilities.maxImageExtent.width, window.surfaceExtent.width));
             window.surfaceExtent.height = std::max(window.surfaceCapabilities.minImageExtent.height, 

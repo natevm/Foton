@@ -34,7 +34,7 @@ set (SRC
 add_library(PlutoLib SHARED ${SRC})
 target_link_libraries(PlutoLib PUBLIC ${LIBRARIES})
 set_target_properties(PlutoLib PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS true)
-target_compile_definitions(PlutoLib PRIVATE ZMQ_BUILD_DRAFT_API=1)
+#target_compile_definitions(PlutoLib PRIVATE ZMQ_BUILD_DRAFT_API=1)
 install(FILES ${CMAKE_BINARY_DIR}/PlutoLib.dll DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 
@@ -45,7 +45,7 @@ install(FILES ${CMAKE_BINARY_DIR}/PlutoLib.dll DESTINATION ${CMAKE_INSTALL_PREFI
 add_executable(PlutoEngine ${CMAKE_CURRENT_SOURCE_DIR}/Pluto.cxx)
 target_link_libraries(PlutoEngine PUBLIC PlutoLib ${LIBRARIES} )
 target_include_directories(PlutoEngine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_compile_definitions(PlutoEngine PRIVATE ZMQ_BUILD_DRAFT_API=1)
+#target_compile_definitions(PlutoEngine PRIVATE ZMQ_BUILD_DRAFT_API=1)
 install(FILES ${CMAKE_BINARY_DIR}/PlutoEngine.exe DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 # ┌──────────────────────────────────────────────────────────────────┐

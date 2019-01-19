@@ -46,10 +46,12 @@ find_path(OPENVR_SDK_INCLUDE_DIR openvr.h
 # 	endif()
 # endif()
 
-find_library(OPENVR_SDK_LIBRARY NAMES openvr_api.lib
+find_library(OPENVR_SDK_LIBRARY NAMES openvr_api openvr_api.lib
 	HINTS
 	${OPENVR_SDK}
-	PATH_SUFFIXES lib/win64/
+	PATH_SUFFIXES
+    lib/win64/
+    lib/linux64/
 	# TODO: I don't know if these will be correct if people have installed
 	# the library on to their system instead of just using the git repo or w/e
 	PATHS
@@ -66,7 +68,6 @@ find_library(OPENVR_SDK_LIBRARY NAMES openvr_api.lib
 # 	set(OPENVR_SDK_FOUND TRUE)
 # endif()
 
-message(WARN ${OPENVR_SDK})
-
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(OpenVRSDK REQUIRED_VARS OPENVR_SDK_LIBRARY OPENVR_SDK_INCLUDE_DIR)
+
