@@ -8,10 +8,12 @@
 find_path(ZMQ_INCLUDE_DIR zmq.h
     HINTS
     ${ZMQ_DIR}
+    ${PROJECT_SOURCE_DIR}/external/libzmq/include
 )
-find_library(ZMQ_LIBRARY NAMES zmq
+find_library(ZMQ_LIBRARY NAMES zmq libzmq-v141-mt-4_3_1.lib
     HINTS
     ${ZMQ_DIR}
+    ${PROJECT_SOURCE_DIR}/external/libzmq/lib
 )
 
 set(ZMQ_LIBRARIES ${ZMQ_LIBRARY})
