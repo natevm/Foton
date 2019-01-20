@@ -48,10 +48,10 @@ class Material : public StaticFactory
 	    static uint32_t GetCount();
 
         /* Deallocates a material with the given name */
-        static bool Delete(std::string name);
+        static void Delete(std::string name);
 
         /* Deallocates a material with the given id */
-        static bool Delete(uint32_t id);
+        static void Delete(uint32_t id);
 
         /* Initializes the vulkan resources required to render during the specified renderpass */
         static void SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sampleCount);
@@ -76,10 +76,10 @@ class Material : public StaticFactory
         static void CleanUp();
 
         /* Records a bind of all descriptor sets to each possible pipeline to the given command buffer. Call this at the beginning of a renderpass. */
-        static bool BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
+        static void BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
 
         /* Records a draw of the supplied entity to the current command buffer. Call this during a renderpass. */
-        static bool DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants); // int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time
+        static void DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants); // int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time
 
         /* Creates an uninitialized material. Useful for preallocation. */
         Material();

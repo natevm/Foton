@@ -179,6 +179,9 @@ void RenderSystem::record_render_commands()
         auto cam_id = entities[entity_id].get_camera();
         if (cam_id < 0) continue;
 
+        /* Camera must allow recording. */
+        if (!cameras[cam_id].allows_recording()) continue;
+
         /* Camera needs a texture */
         Texture * texture = cameras[cam_id].get_texture();
         if (!texture) continue;

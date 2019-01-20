@@ -24,8 +24,8 @@ class Light : public StaticFactory
         static Light* Get(uint32_t id);
         static Light* GetFront();
 	    static uint32_t GetCount();
-        static bool Delete(std::string name);
-        static bool Delete(uint32_t id);
+        static void Delete(std::string name);
+        static void Delete(uint32_t id);
     
         static void Initialize();
         static void UploadSSBO();
@@ -35,31 +35,11 @@ class Light : public StaticFactory
 
         /* Instance functions */
 
-        Light()
-        {
-            this->initialized = false;
-        }
+        Light();
 
-        Light(std::string name, uint32_t id)
-        {
-            this->initialized = true;
-            this->name = name;
-            this->id = id;
-        }
+        Light(std::string name, uint32_t id);
 
-        void set_color(float r, float g, float b)
-        {
-            light_struct.ambient = glm::vec4(r, g, b, 1.0);
-            light_struct.diffuse = glm::vec4(r, g, b, 1.0);
-            light_struct.specular = glm::vec4(r, g, b, 1.0);
-        }
+        void set_color(float r, float g, float b);
 
-        std::string to_string() {
-            std::string output;
-            output += "{\n";
-            output += "\ttype: \"Light\",\n";
-            output += "\tname: \"" + name + "\"\n";
-            output += "}";
-            return output;
-        }
+        std::string to_string();
 };

@@ -55,10 +55,10 @@ class Texture : public StaticFactory
 		static uint32_t GetCount();
 
 		/* Deallocates a texture with the given name */
-		static bool Delete(std::string name);
+		static void Delete(std::string name);
 
 		/* Deallocates a texture with the given id */
-		static bool Delete(uint32_t id);
+		static void Delete(uint32_t id);
 
 		/* Initializes the Mesh factory. Loads default meshes. */
 		static void Initialize();
@@ -106,10 +106,10 @@ class Texture : public StaticFactory
 		std::vector<float> download_color_data(uint32_t width, uint32_t height, uint32_t depth, uint32_t pool = 1);
 
 		/* Blits the provided image of shape (width, height, depth, 4) to the current texture. */
-		bool upload_color_data(uint32_t width, uint32_t height, uint32_t depth, std::vector<float> color_data, uint32_t pool_id = 1);
+		void upload_color_data(uint32_t width, uint32_t height, uint32_t depth, std::vector<float> color_data, uint32_t pool_id = 1);
 
 		/* Records a blit of this texture onto another. */
-		bool record_blit_to(vk::CommandBuffer command_buffer, Texture *other, uint32_t layer = 0);
+		void record_blit_to(vk::CommandBuffer command_buffer, Texture *other, uint32_t layer = 0);
 
 		/* Replace the current image resources with external resources. Note, these resources must be freed externally. */
 		void setData(Data data);
@@ -147,10 +147,10 @@ class Texture : public StaticFactory
 		void cleanup();
 
 		/* Allocates vulkan resources required for a colored image */
-		bool create_color_image_resources();
+		void create_color_image_resources();
 
 		/* Allocates vulkan resources required for a depth/stencil image */
-		bool create_depth_stencil_resources();
+		void create_depth_stencil_resources();
 
 		/* Creates a color ImageView, which allows the color image resources to be interpreted for use in shaders, blits, etc */
 		void createColorImageView();
@@ -159,5 +159,5 @@ class Texture : public StaticFactory
 		bool get_supported_depth_format(vk::PhysicalDevice physicalDevice, vk::Format *depthFormat);
 
 		/* Creates a texture from a khronos texture file, replacing any vulkan resources with new ones containing the ktx data. */
-		bool loadKTX(std::string imagePath);
+		void loadKTX(std::string imagePath);
 };

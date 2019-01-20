@@ -6,12 +6,48 @@ std::map<std::string, uint32_t> Light::lookupTable;
 vk::Buffer Light::ssbo;
 vk::DeviceMemory Light::ssboMemory;
 
+Light::Light()
+{
+    this->initialized = false;
+}
+
+Light::Light(std::string name, uint32_t id)
+{
+    this->initialized = true;
+    this->name = name;
+    this->id = id;
+}
+
+void Light::set_color(float r, float g, float b)
+{
+    light_struct.ambient = glm::vec4(r, g, b, 1.0);
+    light_struct.diffuse = glm::vec4(r, g, b, 1.0);
+    light_struct.specular = glm::vec4(r, g, b, 1.0);
+}
+
+std::string Light::to_string() {
+    std::string output;
+    output += "{\n";
+    output += "\ttype: \"Light\",\n";
+    output += "\tname: \"" + name + "\"\n";
+    output += "}";
+    return output;
+}
+
 /* SSBO logic */
 void Light::Initialize()
 {
     auto vulkan = Libraries::Vulkan::Get();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error( std::string("Vulkan library is not initialized"));
+
     auto device = vulkan->get_device();
+    if (device == vk::Device())
+        throw std::runtime_error( std::string("Invalid vulkan device"));
+
     auto physical_device = vulkan->get_physical_device();
+    if (physical_device == vk::PhysicalDevice())
+        throw std::runtime_error( std::string("Invalid vulkan physical device"));
 
     vk::BufferCreateInfo bufferInfo = {};
     bufferInfo.size = MAX_LIGHTS * sizeof(LightStruct);
@@ -63,7 +99,12 @@ uint32_t Light::GetSSBOSize()
 void Light::CleanUp()
 {
     auto vulkan = Libraries::Vulkan::Get();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error( std::string("Vulkan library is not initialized"));
     auto device = vulkan->get_device();
+    if (device == vk::Device())
+        throw std::runtime_error( std::string("Invalid vulkan device"));
+
     device.destroyBuffer(ssbo);
     device.unmapMemory(ssboMemory);
     device.freeMemory(ssboMemory);
@@ -82,12 +123,12 @@ Light* Light::Get(uint32_t id) {
     return StaticFactory::Get(id, "Light", lookupTable, lights, MAX_LIGHTS);
 }
 
-bool Light::Delete(std::string name) {
-    return StaticFactory::Delete(name, "Light", lookupTable, lights, MAX_LIGHTS);
+void Light::Delete(std::string name) {
+    StaticFactory::Delete(name, "Light", lookupTable, lights, MAX_LIGHTS);
 }
 
-bool Light::Delete(uint32_t id) {
-    return StaticFactory::Delete(id, "Light", lookupTable, lights, MAX_LIGHTS);
+void Light::Delete(uint32_t id) {
+    StaticFactory::Delete(id, "Light", lookupTable, lights, MAX_LIGHTS);
 }
 
 Light* Light::GetFront() {

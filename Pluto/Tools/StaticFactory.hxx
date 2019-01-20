@@ -20,13 +20,21 @@
 #include <memory>
 #include <typeindex>
 
+#include <exception>
+
 class StaticFactory {
     public:
 
+    /* items must be printable. */
     virtual std::string to_string() = 0;
+
+    /* returns the name (or key) of the current item. This can be used to look up this components id. */
     virtual std::string get_name() { return name; };
+
+    /* returns the id of the current item. */
     virtual int32_t get_id() { return id; };
     
+    /* an item may be empty, in which case 'initialized' will return false. */
     bool is_initialized() {
         return initialized;
     }
@@ -52,18 +60,13 @@ class StaticFactory {
     template<class T>
     static T* Create(std::string name, std::string type, std::map<std::string, uint32_t> &lookupTable, T* items, uint32_t maxItems) 
     {
-        if (DoesItemExist(lookupTable, name)) {
-            std::cout << "Error, " << type<< " \"" << name << "\" already exists." << std::endl;
-            auto id = lookupTable[name];
-            return &items[id];
-        }
+        if (DoesItemExist(lookupTable, name))
+            throw std::runtime_error(std::string("Error: " + type + " \"" + name + "\" already exists."));
 
         int32_t id = FindAvailableID(items, maxItems);
 
-        if (id < 0) {
-            std::cout << "Error, max " << type << " limit reached." << std::endl;
-            return nullptr;
-        }
+        if (id < 0) 
+            throw std::runtime_error(std::string("Error: max " + type + " limit reached."));
 
         std::cout << "Adding " << type << " \"" << name << "\"" << std::endl;
         items[id] = T(name, id);
@@ -79,7 +82,8 @@ class StaticFactory {
             uint32_t id = lookupTable[name];
             return &items[id];
         }
-        std::cout << "Error, " << type << " \"" << name << "\" does not exist." << std::endl;
+
+        throw std::runtime_error(std::string("Error: " + type + " \"" + name + "\" does not exist."));
         return nullptr;
     }
 
@@ -87,61 +91,49 @@ class StaticFactory {
     template<class T>
     static T* Get(uint32_t id, std::string type, std::map<std::string, uint32_t> &lookupTable, T* items, uint32_t maxItems) 
     {
-        if (id >= maxItems) {
-            std::cout<<"Error, id greater than max " << type << std::endl;
-            return nullptr;
-        }
+        if (id >= maxItems) 
+            throw std::runtime_error(std::string("Error: id greater than max " + type));
 
-        else if (!items[id].initialized) {
-            std::cout<<"Error, entity with id " << id << " does not exist"<<std::endl; 
-            return nullptr;
-        }
-    
+        else if (!items[id].initialized) 
+            throw std::runtime_error(std::string("Error: entity with id " + std::to_string(id) + " does not exist"));
+         
         return &items[id];
     }
 
     /* Removes an element with a lookup table indirection, removing from both items and the lookup table */
     template<class T>
-    static bool Delete(std::string name, std::string type, std::map<std::string, uint32_t> &lookupTable, T* items, uint32_t maxItems)
+    static void Delete(std::string name, std::string type, std::map<std::string, uint32_t> &lookupTable, T* items, uint32_t maxItems)
     {
-        if (!DoesItemExist(lookupTable, name)) {
-            std::cout << "Error, " << type << " \"" << name << "\" does not exist." << std::endl;
-            return false;
-        }
+        if (!DoesItemExist(lookupTable, name))
+            throw std::runtime_error(std::string("Error: " + type + " \"" + name + "\" does not exist."));
 
         items[lookupTable[name]] = T();
         lookupTable.erase(name);
-        return true;
     }
 
     /* Removes an element by ID directly, removing from both items and the lookup table */
     template<class T>
-    static bool Delete(uint32_t id, std::string type, std::map<std::string, uint32_t> &lookupTable, T* items, uint32_t maxItems)
+    static void Delete(uint32_t id, std::string type, std::map<std::string, uint32_t> &lookupTable, T* items, uint32_t maxItems)
     {
-        if (id >= maxItems) {
-            std::cout<<"Error, id greater than max " << type <<std::endl;
-            return false;
-        }
+        if (id >= maxItems)
+            throw std::runtime_error(std::string("Error: id greater than max " + type));
 
-        if (!items[id].initialized) {
-            std::cout<<"Error, " << type << " with id " << id << " does not exist" << std::endl;
-            return false;
-        }
+        if (!items[id].initialized)
+            throw std::runtime_error(std::string("Error: " + type + " with id " + std::to_string(id) + " does not exist"));
 
         lookupTable.erase(items[id].name);
         items[id] = T();
-        return true;
     }
 
-    // static void CreateSSBO();
-    // static void UploadSSBO();
-    // static void FreeSSBO();
-    // static vk::Buffer GetSSBO();
-    
     protected:
 
+    /* Inheriting factories should set this field to true when a component is considered initialied. */
     bool initialized = false;
+    
+    /* Inheriting factories should set these fields when a component is created. */
     std::string name = "";
     uint32_t id = -1;
+
+    /* All items keep track of the entities which use them. */
     std::set<uint32_t> entities;
 };

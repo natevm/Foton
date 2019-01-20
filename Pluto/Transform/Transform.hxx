@@ -71,8 +71,8 @@ class Transform : public StaticFactory
     static Transform* Get(uint32_t id);
     static Transform* GetFront();
 	static uint32_t GetCount();
-    static bool Delete(std::string name);
-    static bool Delete(uint32_t id);
+    static void Delete(std::string name);
+    static void Delete(uint32_t id);
 
     static void Initialize();
     static void UploadSSBO();

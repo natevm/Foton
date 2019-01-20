@@ -12,7 +12,6 @@
 #include <stb_image_write.h>
 #include <gli/gli.hpp>
 
-
 Texture Texture::textures[MAX_TEXTURES];
 std::map<std::string, uint32_t> Texture::lookupTable;
 
@@ -62,8 +61,14 @@ std::vector<float> Texture::download_color_data(uint32_t width, uint32_t height,
 {
     /* I'm assuming an image was already loaded for now */
     auto vulkan = Libraries::Vulkan::Get();
-    auto physicalDevice = vulkan->get_physical_device();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error( std::string("Vulkan library is not initialized"));
     auto device = vulkan->get_device();
+    if (device == vk::Device())
+        throw std::runtime_error( std::string("Invalid vulkan device"));
+    auto physicalDevice = vulkan->get_physical_device();
+    if (physicalDevice == vk::PhysicalDevice())
+        throw std::runtime_error( std::string("Invalid vulkan physical device"));
 
     /* Since the image memory is device local and tiled, we need to 
         make a copy, transform to an untiled format. */
@@ -228,19 +233,23 @@ void Texture::setData(Data data)
     this->data = data;
 }
 
-bool Texture::upload_color_data(uint32_t width, uint32_t height, uint32_t depth, std::vector<float> color_data, uint32_t pool_id)
+void Texture::upload_color_data(uint32_t width, uint32_t height, uint32_t depth, std::vector<float> color_data, uint32_t pool_id)
 {
     /* I'm assuming an image was already loaded for now */
     auto vulkan = Libraries::Vulkan::Get();
-    auto physicalDevice = vulkan->get_physical_device();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error( std::string("Vulkan library is not initialized"));
     auto device = vulkan->get_device();
+    if (device == vk::Device())
+        throw std::runtime_error( std::string("Invalid vulkan device"));
+    auto physicalDevice = vulkan->get_physical_device();
+    if (physicalDevice == vk::PhysicalDevice())
+        throw std::runtime_error( std::string("Invalid vulkan physical device"));
 
     uint32_t textureSize = width * height * depth * 4 * sizeof(float);
     if (color_data.size() < width * height * depth)
-    {
-        std::cout << "Not enough data for provided image dimensions" << std::endl;
-        return false;
-    }
+        throw std::runtime_error( std::string("Not enough data for provided image dimensions"));
+
 
     /* Create staging buffer */
     vk::BufferCreateInfo bufferInfo;
@@ -253,7 +262,7 @@ bool Texture::upload_color_data(uint32_t width, uint32_t height, uint32_t depth,
     vk::MemoryAllocateInfo stagingAllocInfo;
     stagingAllocInfo.allocationSize = (uint32_t)stagingMemRequirements.size;
     stagingAllocInfo.memoryTypeIndex = vulkan->find_memory_type(stagingMemRequirements.memoryTypeBits,
-                                                                vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
     vk::DeviceMemory stagingBufferMemory = device.allocateMemory(stagingAllocInfo);
 
     device.bindBufferMemory(stagingBuffer, stagingBufferMemory, 0);
@@ -367,12 +376,13 @@ bool Texture::upload_color_data(uint32_t width, uint32_t height, uint32_t depth,
     device.freeMemory(src_image_memory);
     device.destroyBuffer(stagingBuffer);
     device.freeMemory(stagingBufferMemory);
-
-    return true;
 }
 
-bool Texture::record_blit_to(vk::CommandBuffer command_buffer, Texture * other, uint32_t layer)
+void Texture::record_blit_to(vk::CommandBuffer command_buffer, Texture * other, uint32_t layer)
 {
+    if (!other)
+        throw std::runtime_error( std::string("Invalid target texture"));
+
     auto src_image = data.colorImage;
     auto dst_image = other->get_color_image();
 
@@ -430,8 +440,6 @@ bool Texture::record_blit_to(vk::CommandBuffer command_buffer, Texture * other, 
 
     /* transition source back VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL  */
     setImageLayout(command_buffer, dst_image, vk::ImageLayout::eTransferDstOptimal, dst_layout, dstSubresourceRange);
-
-    return true;
 }
 
 // TODO
@@ -444,9 +452,6 @@ void Texture::Initialize()
     CreateFromKTX("DefaultTexCube", resource_path + "/Defaults/missing-texcube.ktx");
     CreateFromKTX("DefaultTex3D", resource_path + "/Defaults/missing-volume.ktx");    
     // fatal error here if result is nullptr...
-
-    auto vulkan = Libraries::Vulkan::Get();
-    auto properties = vulkan->get_physical_device_properties();
 }
 
 void Texture::CleanUp()
@@ -624,15 +629,12 @@ void Texture::setImageLayout(
         1, &imageMemoryBarrier);
 }
 
-bool Texture::loadKTX(std::string imagePath)
+void Texture::loadKTX(std::string imagePath)
 {
     /* First, check if file exists. */
     struct stat st;
     if (stat(imagePath.c_str(), &st) != 0)
-    {
-        std::cout << "Texture: Error, image " << imagePath << " does not exist!" << std::endl;
-        return false;
-    }
+        throw std::runtime_error( std::string("Error: image " + imagePath + " does not exist!"));
 
     /* Load the texture */
     auto texture = gli::load(imagePath);
@@ -653,10 +655,7 @@ bool Texture::loadKTX(std::string imagePath)
         tex2D = gli::texture2d(texture);
 
         if (tex2D.empty())
-        {
-            std::cout << "Texture: Error, image " << imagePath << " is empty!" << std::endl;
-            return false;
-        }
+            throw std::runtime_error( std::string("Error: image " + imagePath + " is empty"));
 
         data.width = (uint32_t)(tex2D.extent().x);
         data.height = (uint32_t)(tex2D.extent().y);
@@ -683,10 +682,7 @@ bool Texture::loadKTX(std::string imagePath)
         tex3D = gli::texture3d(texture);
 
         if (tex3D.empty())
-        {
-            std::cout << "Texture: Error, image " << imagePath << " is empty!" << std::endl;
-            return false;
-        }
+            throw std::runtime_error( std::string("Error: image " + imagePath + " is empty"));
 
         data.width = (uint32_t)(tex3D.extent().x);
         data.height = (uint32_t)(tex3D.extent().y);
@@ -712,10 +708,7 @@ bool Texture::loadKTX(std::string imagePath)
         texCube = gli::texture_cube(texture);
 
         if (texCube.empty())
-        {
-            std::cout << "Texture: Error, image " << imagePath << " is empty!" << std::endl;
-            return false;
-        }
+            throw std::runtime_error( std::string("Error: image " + imagePath + " is empty"));
 
         data.width = (uint32_t)(texCube.extent().x);
         data.height = (uint32_t)(texCube.extent().y);
@@ -742,25 +735,28 @@ bool Texture::loadKTX(std::string imagePath)
         data.imageType = vk::ImageType::e2D;
     }
     else
-    {
-        std::cout << "Texture: Error, image " << imagePath << " has unsupported target type!" << std::endl;
-        return false;
-    }
+        throw std::runtime_error( std::string("Error: image " + imagePath + " uses an unsupported target type. "));
 
     /* Clean up any existing vulkan stuff */
     cleanup();
 
     auto vulkan = Libraries::Vulkan::Get();
-    auto physicalDevice = vulkan->get_physical_device();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error( std::string("Vulkan library is not initialized"));
     auto device = vulkan->get_device();
+    if (device == vk::Device())
+        throw std::runtime_error( std::string("Invalid vulkan device"));
+    auto physicalDevice = vulkan->get_physical_device();
+    if (physicalDevice == vk::PhysicalDevice())
+        throw std::runtime_error( std::string("Invalid vulkan physical device"));
 
     /* Get device properties for the requested texture format. */
     vk::FormatProperties formatProperties = physicalDevice.getFormatProperties(data.colorFormat);
-    if (formatProperties.bufferFeatures == vk::FormatFeatureFlags() && formatProperties.linearTilingFeatures == vk::FormatFeatureFlags() && formatProperties.optimalTilingFeatures == vk::FormatFeatureFlags())
-    {
-        std::cout << "Unsupported image format for " << imagePath << std::endl;
-        return false;
-    }
+
+    if (formatProperties.bufferFeatures == vk::FormatFeatureFlags() 
+        && formatProperties.linearTilingFeatures == vk::FormatFeatureFlags() 
+        && formatProperties.optimalTilingFeatures == vk::FormatFeatureFlags())
+        throw std::runtime_error( std::string("Error: Unsupported image format used in " + imagePath));
 
     /* Create staging buffer */
     vk::BufferCreateInfo bufferInfo;
@@ -773,7 +769,7 @@ bool Texture::loadKTX(std::string imagePath)
     vk::MemoryAllocateInfo stagingAllocInfo;
     stagingAllocInfo.allocationSize = (uint32_t)stagingMemRequirements.size;
     stagingAllocInfo.memoryTypeIndex = vulkan->find_memory_type(stagingMemRequirements.memoryTypeBits,
-                                                                vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
     vk::DeviceMemory stagingBufferMemory = device.allocateMemory(stagingAllocInfo);
 
     device.bindBufferMemory(stagingBuffer, stagingBufferMemory, 0);
@@ -912,15 +908,19 @@ bool Texture::loadKTX(std::string imagePath)
     sInfo.maxLod = (float) data.colorMipLevels;
     sInfo.borderColor = vk::BorderColor::eFloatOpaqueBlack;
     data.colorSampler = device.createSampler(sInfo);
-    
-    return true;
 }
 
-bool Texture::create_color_image_resources()
+void Texture::create_color_image_resources()
 {
     auto vulkan = Libraries::Vulkan::Get();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error( std::string("Vulkan library is not initialized"));
     auto device = vulkan->get_device();
+    if (device == vk::Device())
+        throw std::runtime_error( std::string("Invalid vulkan device"));
     auto physicalDevice = vulkan->get_physical_device();
+    if (physicalDevice == vk::PhysicalDevice())
+        throw std::runtime_error( std::string("Invalid vulkan physical device"));
 
     /* Destroy samplers */
     if (data.colorSampler)
@@ -1004,14 +1004,19 @@ bool Texture::create_color_image_resources()
     sInfo.maxLod = (float) data.colorMipLevels;
     sInfo.borderColor = vk::BorderColor::eFloatOpaqueBlack;
     data.colorSampler = device.createSampler(sInfo);
-    return true;
 }
 
-bool Texture::create_depth_stencil_resources()
+void Texture::create_depth_stencil_resources()
 {
     auto vulkan = Libraries::Vulkan::Get();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error( std::string("Vulkan library is not initialized"));
     auto device = vulkan->get_device();
+    if (device == vk::Device())
+        throw std::runtime_error( std::string("Invalid vulkan device"));
     auto physicalDevice = vulkan->get_physical_device();
+    if (physicalDevice == vk::PhysicalDevice())
+        throw std::runtime_error( std::string("Invalid vulkan physical device"));
 
     /* Destroy samplers */
     if (data.depthSampler)
@@ -1031,14 +1036,10 @@ bool Texture::create_depth_stencil_resources()
 
     bool result = get_supported_depth_format(physicalDevice, &data.depthFormat);
     if (!result)
-    {
-        std::cout << "Error, unable to find suitable depth format" << std::endl;
-        return false;
-    }
+        throw std::runtime_error( std::string("Error: Unable to find a suitable depth format"));
 
     data.depthImageLayout = vk::ImageLayout::eUndefined;
-    ;
-
+    
     vk::ImageCreateInfo imageInfo;
     imageInfo.imageType = vk::ImageType::e2D;
     imageInfo.format = data.depthFormat;
@@ -1098,13 +1099,16 @@ bool Texture::create_depth_stencil_resources()
     sInfo.maxLod = 1.0;
     sInfo.borderColor = vk::BorderColor::eFloatOpaqueBlack;
     data.depthSampler = device.createSampler(sInfo);
-    return true;
 }
 
 void Texture::createColorImageView()
 {
     auto vulkan = Libraries::Vulkan::Get();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error( std::string("Vulkan library is not initialized"));
     auto device = vulkan->get_device();
+    if (device == vk::Device())
+        throw std::runtime_error( std::string("Invalid vulkan device"));
 
     // Create image view
     vk::ImageViewCreateInfo info;
@@ -1152,7 +1156,11 @@ void Texture::cleanup()
         return;
 
     auto vulkan = Libraries::Vulkan::Get();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error( std::string("Vulkan library is not initialized"));
     auto device = vulkan->get_device();
+    if (device == vk::Device())
+        throw std::runtime_error( std::string("Invalid vulkan device"));
 
     /* Destroy samplers */
     if (data.colorSampler)
@@ -1239,7 +1247,7 @@ Texture *Texture::CreateFromKTX(std::string name, std::string filepath)
 {
     auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
     if (!tex) return nullptr;
-    if (!tex->loadKTX(filepath)) return nullptr;
+    tex->loadKTX(filepath);
     return tex;
 }
 
@@ -1266,6 +1274,8 @@ Texture* Texture::Create2D(
     if (!tex) return nullptr;
 
     auto vulkan = Libraries::Vulkan::Get();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error( std::string("Vulkan library is not initialized"));
     auto sampleFlag = vulkan->highest(vulkan->min(vulkan->get_closest_sample_count_flag(sampleCount), vulkan->get_msaa_sample_flags()));
 
     tex->data.width = width;
@@ -1315,12 +1325,12 @@ Texture* Texture::Get(uint32_t id) {
     return StaticFactory::Get(id, "Texture", lookupTable, textures, MAX_TEXTURES);
 }
 
-bool Texture::Delete(std::string name) {
-    return StaticFactory::Delete(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+void Texture::Delete(std::string name) {
+    StaticFactory::Delete(name, "Texture", lookupTable, textures, MAX_TEXTURES);
 }
 
-bool Texture::Delete(uint32_t id) {
-    return StaticFactory::Delete(id, "Texture", lookupTable, textures, MAX_TEXTURES);
+void Texture::Delete(uint32_t id) {
+    StaticFactory::Delete(id, "Texture", lookupTable, textures, MAX_TEXTURES);
 }
 
 Texture* Texture::GetFront() {

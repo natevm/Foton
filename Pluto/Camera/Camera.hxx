@@ -33,10 +33,10 @@ class Camera : public StaticFactory
 	static std::vector<Camera *> GetCamerasByOrder(uint32_t order);
 
 	/* Deallocates a camera with the given name. */
-	static bool Delete(std::string name);
+	static void Delete(std::string name);
 
 	/* Deallocates a camera with the given id. */
-	static bool Delete(uint32_t id);
+	static void Delete(uint32_t id);
 
 	/* Initializes the Camera factory. Loads any default components. */
 	static void Initialize();
@@ -63,11 +63,11 @@ class Camera : public StaticFactory
 	// bool set_orthographic_projection(float left, float right, float bottom, float top, float near_pos, uint32_t multiview = 0);
 
 	/* Constructs a reverse Z perspective projection for the given multiview. */
-	bool set_perspective_projection(float fov_in_radians, float width, float height, float near_pos, uint32_t multiview = 0);
+	void set_perspective_projection(float fov_in_radians, float width, float height, float near_pos, uint32_t multiview = 0);
 
 	/* Uses an external projection matrix for the given multiview. 
 		Note, the projection must be a reversed Z projection. */
-	bool set_custom_projection(glm::mat4 custom_projection, float near_pos, uint32_t multiview = 0);
+	void set_custom_projection(glm::mat4 custom_projection, float near_pos, uint32_t multiview = 0);
 
 	/* Returns the near position of the given multiview */
 	float get_near_pos(uint32_t multiview = 0);
@@ -80,7 +80,7 @@ class Camera : public StaticFactory
 	/* Sets the entity transform to camera matrix for the given multiview. 
 		This additional transform is applied on top of an entity transform during a renderpass
 		to see a particular "view". */
-	bool set_view(glm::mat4 view, uint32_t multiview = 0);
+	void set_view(glm::mat4 view, uint32_t multiview = 0);
 
 	/* Returns the camera to projection matrix for the given multiview.
 		This transform can be used to achieve perspective (eg a vanishing point), or for scaling
@@ -97,7 +97,7 @@ class Camera : public StaticFactory
 	/* If recording is allowed, records vulkan commands to the given command buffer required to 
 		start a renderpass for the current camera setup. This should only be called by the render 
 		system, and only after the command buffer has begun recording commands. */
-	bool begin_renderpass(vk::CommandBuffer command_buffer);
+	void begin_renderpass(vk::CommandBuffer command_buffer);
 
 	/* If recording is allowed, returns the vulkan renderpass handle. 
 		Note: This handle might change throughout the lifetime of this camera component. */
@@ -105,7 +105,7 @@ class Camera : public StaticFactory
 
 	/* If recording is allowed, records vulkan commands to the given command buffer required to 
 		end a renderpass for the current camera setup. */
-	bool end_renderpass(vk::CommandBuffer command_buffer);
+	void end_renderpass(vk::CommandBuffer command_buffer);
 
 	/* Returns the vulkan command buffer handle. */
 	vk::CommandBuffer get_command_buffer();
@@ -126,6 +126,9 @@ class Camera : public StaticFactory
 	/* Sets the renderpass order of the current camera. This is used to render this camera first, so that
 		other cameras later on can use the results. Eg, rendering shadow maps or reflections. */
 	void set_render_order(uint32_t order);
+
+	/* Returns whether or not a camera is allowed to record draw calls. */
+	bool allows_recording();
 
   private:
 	/* Marks the total number of multiviews being used by the current camera. */
@@ -189,7 +192,7 @@ class Camera : public StaticFactory
 	static vk::DeviceMemory ssboMemory;
 
 	/* Allocates (and possibly frees existing) textures, renderpass, and framebuffer required for rendering. */
-	bool setup(bool allow_recording = false, bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1, uint32_t layers = 1);
+	void setup(bool allow_recording = false, bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1, uint32_t layers = 1);
 
 	/* Creates a vulkan renderpass handle which will be used when recording from the current camera component. */
 	void create_render_pass(uint32_t framebufferWidth, uint32_t framebufferHeight, uint32_t layers = 1, uint32_t sample_count = 1);
@@ -206,7 +209,7 @@ class Camera : public StaticFactory
 
 	/* Checks to see if a given multiview index is within the multiview bounds, bounded either by MAX_MULTIVIEW, or the 
 		camera's texture layers when recording is allowed..  */
-	bool check_multiview_index(uint32_t multiview);
+	void check_multiview_index(uint32_t multiview);
 
 	/* Releases any vulkan resources. */
 	void cleanup();

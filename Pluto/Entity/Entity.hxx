@@ -41,8 +41,8 @@ public:
 	static Entity* Get(uint32_t id);
 	static Entity* GetFront();
 	static uint32_t GetCount();
-	static bool Delete(std::string name);
-	static bool Delete(uint32_t id);
+	static void Delete(std::string name);
+	static void Delete(uint32_t id);
 	
     static void Initialize();
     static void UploadSSBO();
@@ -50,152 +50,55 @@ public:
 	static uint32_t GetSSBOSize();
     static void CleanUp();	
 
-	Entity() {
-		this->initialized = false;
-		entity_struct.initialized = false;
-		entity_struct.transform_id = -1;
-		entity_struct.camera_id = -1;
-		entity_struct.material_id = -1;
-		entity_struct.light_id = -1;
-		entity_struct.mesh_id = -1;
-	}
+	Entity();
 
-	Entity(std::string name, uint32_t id) {
-		this->initialized = true;
-		this->name = name;
-		this->id = id;
-		entity_struct.initialized = true;
-		entity_struct.transform_id = -1;
-		entity_struct.camera_id = -1;
-		entity_struct.material_id = -1;
-		entity_struct.light_id = -1;
-		entity_struct.mesh_id = -1;
-	}
+	Entity(std::string name, uint32_t id);
 
-	std::string to_string()
-    {
-        std::string output;
-        output += "{\n";
-        output += "\ttype: \"Entity\",\n";
-        output += "\tname: \"" + name + "\",\n";
-        output += "\tid: \"" + std::to_string(id) + "\",\n";
-        output += "\ttransform_id: " + std::to_string(entity_struct.transform_id) + "\n";
-        output += "\tcamera_id: " + std::to_string(entity_struct.camera_id) + "\n";
-        output += "\tmaterial_id: " + std::to_string(entity_struct.material_id) + "\n";
-        output += "\tlight_id: " + std::to_string(entity_struct.light_id) + "\n";
-        output += "\tmesh_id: " + std::to_string(entity_struct.mesh_id) + "\n";
-        output += "}";
-        return output;
-    }
+	std::string to_string();
 
-	bool connect_to_window(std::string key);
+	void connect_to_window(std::string key);
 
 	static int32_t GetEntityFromWindow(std::string key);
 
-	void set_transform(int32_t transform_id) 
-	{
-		this->entity_struct.transform_id = transform_id;
-	}
+	void set_transform(int32_t transform_id);
 
-	void set_transform(Transform* transform) 
-	{
-		if (!transform) return;
-		this->entity_struct.transform_id = transform->get_id();
-	}
+	void set_transform(Transform* transform);
 
-	void clear_transform()
-	{
-		this->entity_struct.transform_id = -1;
-	}
+	void clear_transform();
 
-	int32_t get_transform() 
-	{
-		return this->entity_struct.transform_id;
-	}
+	int32_t get_transform();
 
-	void set_camera(int32_t camera_id) 
-	{
-		this->entity_struct.camera_id = camera_id;
-	}
+	void set_camera(int32_t camera_id);
 
-	void set_camera(Camera *camera) 
-	{
-		if (!camera) return;
-		this->entity_struct.camera_id = camera->get_id();
-	}
+	void set_camera(Camera *camera);
 
-	void clear_camera()
-	{
-		this->entity_struct.camera_id = -1;
-	}
+	void clear_camera();
 
-	int32_t get_camera() 
-	{
-		return this->entity_struct.camera_id;
-	}
+	int32_t get_camera();
 
-	void set_material(int32_t material_id) 
-	{
-		this->entity_struct.material_id = material_id;
-	}
+	void set_material(int32_t material_id);
 
-	void set_material(Material *material) 
-	{
-		if (!material) return;
-		this->entity_struct.material_id = material->get_id();
-	}
+	void set_material(Material *material);
 
-	void clear_material()
-	{
-		this->entity_struct.material_id = -1;
-	}
+	void clear_material();
 
-	int32_t get_material() 
-	{
-		return this->entity_struct.material_id;
-	}
+	int32_t get_material();
 
-	void set_light(int32_t light_id) 
-	{
-		this->entity_struct.light_id = light_id;
-	}
+	void set_light(int32_t light_id);
 
-	void set_light(Light* light) 
-	{
-		if (!light) return;
-		this->entity_struct.light_id = light->get_id();
-	}
+	void set_light(Light* light);
 
-	void clear_light()
-	{
-		this->entity_struct.light_id = -1;
-	}
+	void clear_light();
 
-	int32_t get_light() 
-	{
-		return this->entity_struct.light_id;
-	}
+	int32_t get_light();
 
-	void set_mesh(int32_t mesh_id) 
-	{
-		this->entity_struct.mesh_id = mesh_id;
-	}
+	void set_mesh(int32_t mesh_id);
 
-	void set_mesh(Mesh* mesh) 
-	{
-		if (!mesh) return;
-		this->entity_struct.mesh_id = mesh->get_id();
-	}
+	void set_mesh(Mesh* mesh);
 
-	void clear_mesh()
-	{
-		this->entity_struct.mesh_id = -1;
-	}
+	void clear_mesh();
 
-	int32_t get_mesh() 
-	{
-		return this->entity_struct.mesh_id;
-	}
+	int32_t get_mesh();
 
 	void setParent(uint32_t parent);
 

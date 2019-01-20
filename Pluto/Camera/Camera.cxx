@@ -11,13 +11,11 @@ vk::DeviceMemory Camera::ssboMemory;
 
 using namespace Libraries;
 
-bool Camera::setup(bool allow_recording, bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers)
+void Camera::setup(bool allow_recording, bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers)
 {
 	if (layers > MAX_MULTIVIEW)
-	{
-		std::cout<<"Error, Camera component cannot render to more than " << MAX_MULTIVIEW << " layers simultaneously."<<std::endl;
-		return false;
-	}
+		throw std::runtime_error( std::string("Error: Camera component cannot render to more than " + std::to_string(MAX_MULTIVIEW) + " layers simultaneously."));
+
 	maxMultiview = layers;
 	set_view(glm::mat4(1.0), 0);
 	// set_orthographic_projection(-1, 1, -1, 1, -1, 1);
@@ -41,7 +39,6 @@ bool Camera::setup(bool allow_recording, bool cubemap, uint32_t tex_width, uint3
 		create_frame_buffer();
 		Material::SetupGraphicsPipelines(renderpass, msaa_samples);
 	}
-	return true;
 }
 
 void Camera::create_command_buffer()
@@ -190,10 +187,6 @@ void Camera::create_render_pass(uint32_t framebufferWidth, uint32_t framebufferH
 
 	renderpass = device.createRenderPass(renderPassInfo);
 
-	if (renderpass == vk::RenderPass()) {
-		std::cout << "GLFW: Not initialized, can't create vulkan resources." << std::endl;
-		return;
-	}
 	#pragma endregion
 }
 
@@ -222,12 +215,9 @@ void Camera::update_used_views(uint32_t multiview) {
 	usedViews = (usedViews >= multiview) ? usedViews : multiview;
 }
 
-bool Camera::check_multiview_index(uint32_t multiview) {
-	if (multiview >= maxMultiview) {
-		std::cout<<"Error, multiview index is larger than " << maxMultiview <<std::endl;
-		return false;
-	}
-	return true;
+void Camera::check_multiview_index(uint32_t multiview) {
+	if (multiview >= maxMultiview)
+		throw std::runtime_error( std::string("Error: multiview index is larger than " + std::to_string(maxMultiview) ));
 }
 
 Camera::Camera() {
@@ -252,7 +242,7 @@ Camera::Camera(std::string name, uint32_t id) {
 
 // bool Camera::set_orthographic_projection(float left, float right, float bottom, float top, float near_pos, uint32_t multiview)
 // {
-// 	if (!check_multiview_index(multiview)) return false;
+// 	check_multiview_index(multiview);
 // 	camera_struct.multiviews[multiview].near_pos = near_pos;
 // 	camera_struct.multiviews[multiview].proj = MakeInfReversedZOrthoRH(left, right, bottom, top, near_pos);
 // 	camera_struct.multiviews[multiview].projinv = glm::inverse(camera_struct.multiviews[multiview].proj);
@@ -269,42 +259,39 @@ glm::mat4 MakeInfReversedZProjRH(float fovY_radians, float aspectWbyH, float zNe
                   0.0f, 0.0f, zNear,  0.0f);
 }
 
-bool Camera::set_perspective_projection(float fov_in_radians, float width, float height, float near_pos, uint32_t multiview)
+void Camera::set_perspective_projection(float fov_in_radians, float width, float height, float near_pos, uint32_t multiview)
 {
-	if (!check_multiview_index(multiview)) return false;
+	check_multiview_index(multiview);
 	camera_struct.multiviews[multiview].near_pos = near_pos;
 	camera_struct.multiviews[multiview].proj = MakeInfReversedZProjRH(fov_in_radians, width / height, near_pos);
 	camera_struct.multiviews[multiview].projinv = glm::inverse(camera_struct.multiviews[multiview].proj);
-	return true;
 };
 
-bool Camera::set_custom_projection(glm::mat4 custom_projection, float near_pos, uint32_t multiview)
+void Camera::set_custom_projection(glm::mat4 custom_projection, float near_pos, uint32_t multiview)
 {
-	if (!check_multiview_index(multiview)) return false;
+	check_multiview_index(multiview);
 	camera_struct.multiviews[multiview].near_pos = near_pos;
 	camera_struct.multiviews[multiview].proj = custom_projection;
 	camera_struct.multiviews[multiview].projinv = glm::inverse(custom_projection);
-	return true;
 }
 
 float Camera::get_near_pos(uint32_t multiview) { 
-	if (!check_multiview_index(multiview)) return -1;
+	check_multiview_index(multiview);
 	return camera_struct.multiviews[multiview].near_pos; 
 }
 
 glm::mat4 Camera::get_view(uint32_t multiview) { 
-	if (!check_multiview_index(multiview)) return glm::mat4();
+	check_multiview_index(multiview);
 	return camera_struct.multiviews[multiview].view; 
 };
 
-bool Camera::set_view(glm::mat4 view, uint32_t multiview)
+void Camera::set_view(glm::mat4 view, uint32_t multiview)
 {
-	if (!check_multiview_index(multiview)) return false;
+	check_multiview_index(multiview);
 	update_used_views(multiview);
 	usedViews = (usedViews >= multiview) ? usedViews : multiview;
 	camera_struct.multiviews[multiview].view = view;
 	camera_struct.multiviews[multiview].viewinv = glm::inverse(view);
-	return true;
 };
 
 void Camera::set_render_order(uint32_t order) {
@@ -312,7 +299,7 @@ void Camera::set_render_order(uint32_t order) {
 }
 
 glm::mat4 Camera::get_projection(uint32_t multiview) { 
-	if (!check_multiview_index(multiview)) return glm::mat4();
+	check_multiview_index(multiview);
 	return camera_struct.multiviews[multiview].proj; 
 };
 
@@ -352,12 +339,17 @@ std::string Camera::to_string()
 	return output;
 }
 
+bool Camera::allows_recording()
+{
+	return allow_recording;
+}
+
 // this should be in the render system...
-bool Camera::begin_renderpass(vk::CommandBuffer command_buffer)
+void Camera::begin_renderpass(vk::CommandBuffer command_buffer)
 {
 	/* Not all cameras allow recording. */
 	if (!allow_recording)
-		return false;
+		throw std::runtime_error( std::string("Error: this camera does not allow recording"));
 
 	vk::RenderPassBeginInfo rpInfo;
 	rpInfo.renderPass = renderpass;
@@ -394,8 +386,6 @@ bool Camera::begin_renderpass(vk::CommandBuffer command_buffer)
 	rect2D.offset.y = 0;
 
 	command_buffer.setScissor(0, {rect2D});
-
-	return true;
 }
 
 vk::RenderPass Camera::get_renderpass()
@@ -403,12 +393,11 @@ vk::RenderPass Camera::get_renderpass()
 	return renderpass;
 }
 
-bool Camera::end_renderpass(vk::CommandBuffer command_buffer) {
+void Camera::end_renderpass(vk::CommandBuffer command_buffer) {
 	if (!allow_recording) 
-		return false;
+		throw std::runtime_error( std::string("Error: this camera does not allow recording"));
 		
 	command_buffer.endRenderPass();
-	return true;
 }
 
 vk::CommandBuffer Camera::get_command_buffer() {
@@ -500,9 +489,7 @@ void Camera::CleanUp()
 Camera* Camera::Create(std::string name, bool allow_recording, bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers)
 {
 	auto camera = StaticFactory::Create(name, "Camera", lookupTable, cameras, MAX_CAMERAS);
-	if (camera->setup(allow_recording, cubemap, tex_width, tex_height, msaa_samples, layers) == false) {
-		return nullptr;
-	}
+	camera->setup(allow_recording, cubemap, tex_width, tex_height, msaa_samples, layers);
 	return camera;
 }
 
@@ -514,12 +501,12 @@ Camera* Camera::Get(uint32_t id) {
 	return StaticFactory::Get(id, "Camera", lookupTable, cameras, MAX_CAMERAS);
 }
 
-bool Camera::Delete(std::string name) {
-	return StaticFactory::Delete(name, "Camera", lookupTable, cameras, MAX_CAMERAS);
+void Camera::Delete(std::string name) {
+	StaticFactory::Delete(name, "Camera", lookupTable, cameras, MAX_CAMERAS);
 }
 
-bool Camera::Delete(uint32_t id) {
-	return StaticFactory::Delete(id, "Camera", lookupTable, cameras, MAX_CAMERAS);
+void Camera::Delete(uint32_t id) {
+	StaticFactory::Delete(id, "Camera", lookupTable, cameras, MAX_CAMERAS);
 }
 
 Camera* Camera::GetFront() {

@@ -86,12 +86,12 @@ Transform* Transform::Get(uint32_t id) {
     return StaticFactory::Get(id, "Transform", lookupTable, transforms, MAX_TRANSFORMS);
 }
 
-bool Transform::Delete(std::string name) {
-    return StaticFactory::Delete(name, "Transform", lookupTable, transforms, MAX_TRANSFORMS);
+void Transform::Delete(std::string name) {
+    StaticFactory::Delete(name, "Transform", lookupTable, transforms, MAX_TRANSFORMS);
 }
 
-bool Transform::Delete(uint32_t id) {
-    return StaticFactory::Delete(id, "Transform", lookupTable, transforms, MAX_TRANSFORMS);
+void Transform::Delete(uint32_t id) {
+    StaticFactory::Delete(id, "Transform", lookupTable, transforms, MAX_TRANSFORMS);
 }
 
 Transform* Transform::GetFront() {

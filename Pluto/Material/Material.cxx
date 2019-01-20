@@ -846,7 +846,7 @@ void Material::CreateVertexAttributeDescriptions() {
     vertexInputAttributeDescriptions = attributeDescriptions;
 }
 
-bool Material::BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass) 
+void Material::BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass) 
 {
     std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet};
     command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, normalsurface[render_pass].pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
@@ -855,26 +855,25 @@ bool Material::BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderP
     command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pbr[render_pass].pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
     command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, skybox[render_pass].pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
     command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, depth[render_pass].pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
-    return true;
 }
 
-bool Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants) //int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time)
+void Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants) //int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time)
 {    
     /* Need a mesh to render. */
     auto mesh_id = entity.get_mesh();
-    if (mesh_id < 0 || mesh_id >= MAX_MESHES) return false;
+    if (mesh_id < 0 || mesh_id >= MAX_MESHES) return;
     auto m = Mesh::Get((uint32_t) mesh_id);
-    if (!m) return false;
+    if (!m) return;
 
     /* Need a transform to render. */
     auto transform_id = entity.get_transform();
-    if (transform_id < 0 || transform_id >= MAX_TRANSFORMS) return false;
+    if (transform_id < 0 || transform_id >= MAX_TRANSFORMS) return;
 
     /* Need a material to render. */
     auto material_id = entity.get_material();
-    if (material_id < 0 || material_id >= MAX_MATERIALS) return false;
+    if (material_id < 0 || material_id >= MAX_MATERIALS) return;
     auto material = Material::Get(material_id);
-    if (!material) return false;
+    if (!material) return;
 
     if (material->renderMode == NORMAL) {
         command_buffer.pushConstants(normalsurface[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
@@ -904,8 +903,6 @@ bool Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &ren
     command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
     command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
     command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
-
-    return true;
 }
 
 void Material::CreateSSBO() 
@@ -963,7 +960,12 @@ uint32_t Material::GetSSBOSize()
 void Material::CleanUp()
 {
     auto vulkan = Libraries::Vulkan::Get();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error( std::string("Vulkan library is not initialized"));
     auto device = vulkan->get_device();
+    if (device == vk::Device())
+        throw std::runtime_error( std::string("Invalid vulkan device"));
+
     device.destroyBuffer(ssbo);
     device.unmapMemory(ssboMemory);
     device.freeMemory(ssboMemory);
@@ -988,12 +990,12 @@ Material* Material::Get(uint32_t id) {
     return StaticFactory::Get(id, "Material", lookupTable, materials, MAX_MATERIALS);
 }
 
-bool Material::Delete(std::string name) {
-    return StaticFactory::Delete(name, "Material", lookupTable, materials, MAX_MATERIALS);
+void Material::Delete(std::string name) {
+    StaticFactory::Delete(name, "Material", lookupTable, materials, MAX_MATERIALS);
 }
 
-bool Material::Delete(uint32_t id) {
-    return StaticFactory::Delete(id, "Material", lookupTable, materials, MAX_MATERIALS);
+void Material::Delete(uint32_t id) {
+    StaticFactory::Delete(id, "Material", lookupTable, materials, MAX_MATERIALS);
 }
 
 Material* Material::GetFront() {
@@ -1004,8 +1006,6 @@ uint32_t Material::GetCount() {
     return MAX_MATERIALS;
 }
 
-
-
 void Material::use_base_color_texture(uint32_t texture_id) 
 {
     this->material_struct.base_color_texture_id = texture_id;
@@ -1013,7 +1013,8 @@ void Material::use_base_color_texture(uint32_t texture_id)
 
 void Material::use_base_color_texture(Texture *texture) 
 {
-    if (!texture) return;
+    if (!texture) 
+        throw std::runtime_error( std::string("Invalid texture handle"));
     this->material_struct.base_color_texture_id = texture->get_id();
 }
 
@@ -1028,7 +1029,8 @@ void Material::use_roughness_texture(uint32_t texture_id)
 
 void Material::use_roughness_texture(Texture *texture) 
 {
-    if (!texture) return;
+    if (!texture) 
+        throw std::runtime_error( std::string("Invalid texture handle"));
     this->material_struct.roughness_texture_id = texture->get_id();
 }
 
