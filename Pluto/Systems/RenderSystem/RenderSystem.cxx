@@ -89,6 +89,11 @@ void RenderSystem::acquire_swapchain_images(
 
     /* Todo: acquire more than one window's swapchain image. */
     if (!glfw->does_window_exist("Window")) return;
+
+    /* For now, only render the camera associated with the window named "Window" */
+    auto entity_id = Entity::GetEntityFromWindow("Window");
+
+    if (entity_id == -1) return;
     
     /* The current window must have a valid swapchain which we can acquire from. */
     swapchain = glfw->get_swapchain("Window");
@@ -247,6 +252,12 @@ void RenderSystem::present_glfw_frames()
     if (!swapchain) return;
     if (!swapchain_texture) return;
 
+    /* For now, only render the camera associated with the window named "Window" */
+    auto entity_id = Entity::GetEntityFromWindow("Window");
+    
+    /* Dont render anything if no entity is connected to the window. */
+    if (entity_id == -1) return;
+
     /* Wait for the final renderpass to complete, then present to the given swapchain. */
     
     vulkan->enqueue_present_commands({swapchain}, {swapchain_index}, {renderCompleteSemaphores[currentFrame]});
@@ -376,7 +387,12 @@ void RenderSystem::enqueue_render_commands() {
     std::vector<vk::Semaphore> waitSemaphores;
     std::vector<vk::PipelineStageFlags> waitDstStageMask;
     std::vector<vk::Semaphore> signalSemaphores;
-    if (swapchain && swapchain_texture) {
+
+    /* For now, only render the camera associated with the window named "Window" */
+    auto entity_id = Entity::GetEntityFromWindow("Window");
+    
+    
+    if (swapchain && swapchain_texture && (entity_id != -1)) {
         waitSemaphores.push_back(imageAvailableSemaphores[currentFrame]);
         waitDstStageMask.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
         signalSemaphores.push_back(renderCompleteSemaphores[currentFrame]);

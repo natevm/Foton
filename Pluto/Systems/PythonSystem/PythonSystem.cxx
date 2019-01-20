@@ -71,6 +71,7 @@ namespace Systems {
                     PySys_SetArgv(3, argv.data());
                     PyRun_SimpleString("import sys");
                     PyRun_SimpleString("if sys.path[0] == '': del sys.path[0]\n\n");
+					PyRun_SimpleString("sys.path.insert(0, \"/home/will/repos/Pluto/build/install/\")");
                     PyRun_SimpleString("from ipykernel import kernelapp as app");
                     PyRun_SimpleString("app.launch_new_instance()");
                 #else
@@ -80,6 +81,8 @@ namespace Systems {
 
             }
             else {
+			  PyRun_SimpleString("import sys");
+			  PyRun_SimpleString("sys.path.insert(0, \"./\")");
               PyRun_InteractiveLoop(stdin, "<stdin>");
             }
 
