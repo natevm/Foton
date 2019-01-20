@@ -58,7 +58,7 @@ find_package(GLI REQUIRED)
 include_directories(SYSTEM ${GLI_INCLUDE_DIR})
 
 # use GLM
-find_package(GLM REQUIRED)
+find_package(GLM 0.9.7 REQUIRED)
 include_directories(SYSTEM ${GLM_INCLUDE_DIR})
 
 # swig
@@ -66,7 +66,7 @@ find_package(SWIG 3.0.12 REQUIRED)
 include(${SWIG_USE_FILE})
 
 # vulkan
-find_package(Vulkan REQUIRED)
+find_package(Vulkan 1.1.85 REQUIRED)
 include_directories(${Vulkan_INCLUDE_DIRS})
 
 # zeromq
@@ -74,14 +74,13 @@ find_package(ZMQ REQUIRED)
 include_directories(${ZMQ_INCLUDE_DIRS})
 
 # python
-find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+find_package(Python3 3.6 COMPONENTS Interpreter Development REQUIRED)
 include_directories(SYSTEM ${Python3_INCLUDE_DIRS})
 
 # tiny
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/tiny)
 
 # openvr
-set(SpaceMouse_Libs "${CMAKE_CURRENT_SOURCE_DIR}/external/openvr")
 find_package(OpenVRSDK REQUIRED)
 include_directories(SYSTEM ${OPENVR_SDK_INCLUDE_DIR})
 
