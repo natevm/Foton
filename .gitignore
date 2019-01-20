@@ -3,3 +3,4 @@ install
 *.code-workspace
 PlutoEngine.code-workspace
 *_wrap.cxx
+__pycache__
