@@ -11,6 +11,7 @@
 #include <future>
 #include <vector>
 #include <unordered_map>
+#include <mutex>
 
 #include "Pluto/Tools/Singleton.hxx"
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
@@ -62,6 +63,7 @@ namespace Libraries {
         int get_key_mods(std::string window_key, int key);
         static int get_key_code(std::string key);
         GLFWwindow* get_ptr(std::string key);
+        std::shared_ptr<std::mutex> get_mutex(std::string key);
 
         private:
         GLFW();
@@ -79,6 +81,7 @@ namespace Libraries {
         };
 
         struct Window {
+            std::shared_ptr<std::mutex> window_mutex;
             GLFWwindow* ptr;
             vk::SurfaceKHR surface;
             vk::SurfaceCapabilitiesKHR surfaceCapabilities;

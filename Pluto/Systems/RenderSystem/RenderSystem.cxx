@@ -85,6 +85,10 @@ void RenderSystem::acquire_swapchain_images(
     auto vulkan = Vulkan::Get();
     auto device = vulkan->get_device();
 
+    /* Assume that these are null at first. */
+    swapchain = vk::SwapchainKHR();
+    swapchain_texture = nullptr;
+
     /* Todo: acquire more than one window's swapchain image. */
     if (!glfw->does_window_exist("Window")) return;
     
@@ -219,7 +223,7 @@ void RenderSystem::record_render_commands()
         if (entity_id == main_entity)
         {
             /* Record blit to swapchain */
-            if (swapchain && swapchain_texture) {
+            if (swapchain && swapchain_texture && swapchain_texture->is_initialized()) {
                 texture->record_blit_to(command_buffer, swapchain_texture, 0);
             }
         
@@ -255,9 +259,13 @@ void RenderSystem::present_glfw_frames()
     /* If our swapchain is out of date at this point, recreate it. */
     if (!vulkan->submit_present_commands() || glfw->is_swapchain_out_of_date("Window"))
     {
-        /* Conditionally recreate the swapchain resources if out of date. */
-        glfw->create_vulkan_swapchain("Window", true);
-        swapchain = glfw->get_swapchain("Window");
+        if (glfw->does_window_exist("Window")) {
+            /* Conditionally recreate the swapchain resources if out of date. */
+            glfw->create_vulkan_swapchain("Window", true);
+            swapchain = glfw->get_swapchain("Window");
+        } else {
+            swapchain = vk::SwapchainKHR();
+        }
     }
 }
 
@@ -375,7 +383,7 @@ void RenderSystem::enqueue_render_commands() {
     std::vector<vk::Semaphore> waitSemaphores;
     std::vector<vk::PipelineStageFlags> waitDstStageMask;
     std::vector<vk::Semaphore> signalSemaphores;
-    if (swapchain && swapchain_texture) {
+    if (swapchain && swapchain_texture && swapchain_texture->is_initialized()) {
         waitSemaphores.push_back(imageAvailableSemaphores[currentFrame]);
         waitDstStageMask.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
         signalSemaphores.push_back(renderCompleteSemaphores[currentFrame]);
@@ -459,6 +467,7 @@ bool RenderSystem::start()
 
     auto loop = [this](future<void> futureObj) {
         lastTime = glfwGetTime();
+        auto glfw = GLFW::Get();
 
         while (true)
         {
@@ -475,6 +484,14 @@ bool RenderSystem::start()
 
             /* 0. Allocate the resources we'll need to render this scene. */
             allocate_vulkan_resources();
+
+            std::shared_ptr<std::lock_guard<std::mutex>> window_lock;
+            /* Todo: acquire more than one window's swapchain image. */
+            if (glfw->does_window_exist("Window")) {
+                auto window_mutex = glfw->get_mutex("Window");
+                auto mutex = window_mutex.get();
+                window_lock = std::make_shared<std::lock_guard<std::mutex>>(*mutex);
+            }
 
             /* 1. Optionally aquire swapchain image. Signal image available semaphore. */
             acquire_swapchain_images(swapchain, swapchain_index, swapchain_texture, imageAvailableSemaphores[currentFrame]);

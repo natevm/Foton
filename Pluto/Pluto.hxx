@@ -35,13 +35,13 @@ void Initialize(
     event_system->use_openvr(useOpenVR);
     render_system->use_openvr(useOpenVR);
 
-    if (useGLFW) event_system->create_window("Window", 512, 512, true, true, true);
+    if (useGLFW) event_system->create_window("Window", 1, 1, false, false, false, false);
     vulkan->create_instance(validation_layers.size() > 0, validation_layers, instance_extensions, useOpenVR);
     
     auto surface = (useGLFW) ? glfw->create_vulkan_surface(vulkan, "Window") : vk::SurfaceKHR();
     vulkan->create_device(device_extensions, device_features, 8, surface, useOpenVR);
-    if (useGLFW) glfw->create_vulkan_swapchain("Window", useOpenVR);
-
+    if (useGLFW) event_system->destroy_window("Window");
+    
     /* Initialize Component Factories. Order is important. */
     Transform::Initialize();
     Light::Initialize();

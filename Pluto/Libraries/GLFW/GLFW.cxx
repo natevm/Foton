@@ -67,10 +67,8 @@ namespace Libraries {
     }
     
     bool GLFW::initialize() {
-        if (!glfwInit()) {
-            cout<<"GLFW failed to initialize!"<<endl;
-            return false;
-        }
+        if (!glfwInit())
+            throw std::runtime_error( std::string("Error: Failed to initialize"));
         initialized = true;
         return true;
     }
@@ -83,15 +81,11 @@ namespace Libraries {
 
     bool GLFW::create_window(string key, uint32_t width, uint32_t height, bool floating, bool resizable, bool decorated) {
         /* If uninitialized, or if window already exists, return false */
-        if (initialized == false) {
-            std::cout << "GLFW: Uninitialized, cannot create window."<<std::endl;
-            return false;
-        }
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: uninitialized, cannot create window."));
         auto ittr = Windows().find(key);
-        if ( ittr != Windows().end() ) {
-            std::cout << "GLFW: Error, window already exists."<<std::endl;
-            return false;
-        }
+        if ( ittr != Windows().end() )
+            throw std::runtime_error( std::string("Error: window already exists, cannot create window"));
 
         /* For Vulkan, request no OGL api */
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -101,16 +95,15 @@ namespace Libraries {
         glfwWindowHint(GLFW_FLOATING, (floating) ? GLFW_TRUE : GLFW_FALSE);
         Window window = {};
         auto ptr = glfwCreateWindow(width, height, key.c_str(), NULL, NULL);
-        if (!ptr) {
-            cout<<"GLFW: Failed to create GLFW window"<<endl;
-            return false;
-        }
+        if (!ptr)
+            throw std::runtime_error( std::string("Error: Failed to create GLFW window."));
 
         glfwSetWindowSizeCallback(ptr, &resize_window_callback);
         glfwSetCursorPosCallback(ptr, &cursor_position_callback);
         glfwSetMouseButtonCallback(ptr, &mouse_button_callback);
         glfwSetKeyCallback(ptr, &key_callback);
 
+        window.window_mutex = std::make_shared<std::mutex>();
         window.ptr = ptr;
         window.swapchain_ready = false;
         Windows()[key] = window;
@@ -119,15 +112,11 @@ namespace Libraries {
 
     bool GLFW::resize_window(std::string key, uint32_t width, uint32_t height) {
         /* If uninitialized, or if window already exists, return false */
-        if (initialized == false) {
-            std::cout << "GLFW: Uninitialized, cannot resize window."<<std::endl;
-            return false;
-        }
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot resize window."));
         auto ittr = Windows().find(key);
-        if ( ittr == Windows().end() ) {
-            std::cout << "GLFW: Error, window does not exists."<<std::endl;
-            return false;
-        }
+        if ( ittr == Windows().end() )
+            throw std::runtime_error( std::string("Error: window does not exist, cannot resize window."));
 
         auto window = Windows()[key];
         glfwSetWindowSize(window.ptr, width, height);
@@ -135,15 +124,11 @@ namespace Libraries {
     }
 
     bool GLFW::set_window_visibility(std::string key, bool visible) {
-        if (initialized == false) {
-            std::cout << "GLFW: Uninitialized, cannot set window visibility."<<std::endl;
-            return false;
-        }
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot set window visibility."));
         auto ittr = Windows().find(key);
-        if ( ittr == Windows().end() ) {
-            std::cout << "GLFW: Error, window does not exists."<<std::endl;
-            return false;
-        }
+        if ( ittr == Windows().end() )
+            throw std::runtime_error( std::string("Error: window does not exist, cannot set window visibility."));
 
         auto window = Windows()[key];
         if (visible)
@@ -155,16 +140,13 @@ namespace Libraries {
 
     bool GLFW::set_window_pos(std::string key, uint32_t x, uint32_t y) {
         /* If uninitialized, or if window already exists, return false */
-        if (initialized == false) {
-            std::cout << "GLFW: Uninitialized, cannot set window pos."<<std::endl;
-            return false;
-        }
-        auto ittr = Windows().find(key);
-        if ( ittr == Windows().end() ) {
-            std::cout << "GLFW: Error, window does not exists."<<std::endl;
-            return false;
-        }
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot set window pos."));
 
+        auto ittr = Windows().find(key);
+        if ( ittr == Windows().end() )
+            throw std::runtime_error( std::string("Error: window does not exists, cannot set window pos."));
+        
         auto window = Windows()[key];
         glfwSetWindowPos(window.ptr, x, y);
         return true;
@@ -174,20 +156,23 @@ namespace Libraries {
         auto vulkan = Libraries::Vulkan::Get();
         auto device = vulkan->get_device();
 
-        if (initialized == false) { 
-            std::cout << "GLFW: Uninitialized, cannot destroy window."<<std::endl;
-            return false;
-        }
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot destroy window."));
+
         auto ittr = Windows().find(key);
-        if ( ittr == Windows().end() ) {
-            std::cout << "GLFW: Error, window does not exist."<<std::endl;
-            return false;
-        }
+        if ( ittr == Windows().end() )
+            throw std::runtime_error( std::string("Error: window does not exist, cannot destroy window."));
         auto window = Windows()[key];
-        
+
+        auto mutex = window.window_mutex.get();
+        std::lock_guard<std::mutex> lock(*mutex);
+
         if (window.swapchain) {
             device.destroySwapchainKHR(window.swapchain);
-            return false;
+        }
+
+        for (uint32_t j = 0;  j < window.textures.size(); ++j) {
+            Texture::Delete(window.textures[j]->get_id());
         }
 
         glfwDestroyWindow(window.ptr);
@@ -196,11 +181,9 @@ namespace Libraries {
     }
 
     GLFWwindow* GLFW::get_ptr(std::string key) {
-        if (initialized == false) { 
-            std::cout << "GLFW: Uninitialized, cannot get window ptr from key."<<std::endl;
-            return nullptr;
-        }
-
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot get window ptr from key."));
+        
         for (auto &window : Windows()) {
             if (window.first.compare(key) == 0)
                 return window.second.ptr;
@@ -209,10 +192,8 @@ namespace Libraries {
     }
 
     std::string GLFW::get_key_from_ptr(GLFWwindow* ptr) {
-        if (initialized == false) { 
-            std::cout << "GLFW: Uninitialized, cannot get window key from ptr."<<std::endl;
-            return "";
-        }
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot get window key from ptr."));
 
         for (auto &window : Windows()) {
             if (window.second.ptr == ptr)
@@ -225,11 +206,9 @@ namespace Libraries {
         std::vector<std::string> result;
 
         /* If not initialized, or window doesnt exist, return false. */
-        if (initialized == false) { 
-            std::cout << "GLFW: Uninitialized, cannot get window keys."<<std::endl;
-            return result;
-        }
-
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot get window keys."));
+     
         for (auto &window : Windows()) {
             result.push_back(window.first);
         }
@@ -238,20 +217,17 @@ namespace Libraries {
 
     bool GLFW::does_window_exist(string key) {
         /* If not initialized, or window doesnt exist, return false. */
-        if (initialized == false) { 
-            std::cout << "GLFW: Uninitialized, cannot query window existance."<<std::endl;
-            return false;
-        }
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot query window existance."));
+           
         auto window = Windows().find(key);
         return ( window != Windows().end() );
     }
 
     bool GLFW::poll_events() {
         /* If not initialized, or window doesnt exist, return false. */
-        if (initialized == false) { 
-            std::cout << "GLFW: Uninitialized, cannot poll events."<<std::endl;
-            return false;
-        }
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot poll events."));
 
         if (should_close()) return false;
 
@@ -259,6 +235,10 @@ namespace Libraries {
 
         for (auto &i : Windows()) {
             if (glfwWindowShouldClose(i.second.ptr)) {
+                for (uint32_t j = 0;  j < i.second.textures.size(); ++j) {
+                    Texture::Delete(i.second.textures[j]->get_id());
+                }
+
                 glfwDestroyWindow(i.second.ptr);
                 i.second.ptr = nullptr;
                 Windows().erase(i.first);
@@ -271,21 +251,17 @@ namespace Libraries {
     }
 
     bool GLFW::wait_events() {
-        if (initialized == false) { 
-            std::cout << "GLFW: Uninitialized, cannot wait events."<<std::endl;
-            return false;
-        }
-
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot wait for vents."));
+            
         glfwWaitEvents();
         return true;
     }
 
     bool GLFW::post_empty_event() {
         /* If not initialized, or window doesnt exist, return false. */
-        if (initialized == false) { 
-            std::cout << "GLFW: Uninitialized, cannot post an empty event."<<std::endl;
-            return false;
-        }
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot post an empty event."));
 
         glfwPostEmptyEvent();
         return true;
@@ -301,15 +277,11 @@ namespace Libraries {
     {
         /* vkInstance + GLFWWindow => vkSurfaceKHR */
 
-        if (initialized == false) {
-            std::cout << "GLFW: Not initialized, can't create vulkan surface." << std::endl;
-            return vk::SurfaceKHR();
-        }
-        
-        if (!does_window_exist(key)) {
-            std::cout << "GLFW: Window with key " << key << " missing. Can't create vulkan surface." << std::endl;
-            return vk::SurfaceKHR();
-        }
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, can't create vulkan surface."));
+           
+        if (!does_window_exist(key))
+            throw std::runtime_error( std::string("Error: Window with key " + key + " missing. Can't create vulkan surface."));
 
         auto instance = vulkan->get_instance();
 
@@ -323,6 +295,18 @@ namespace Libraries {
         return psurf;
     }
 
+    std::shared_ptr<std::mutex> GLFW::get_mutex(std::string key)
+    {
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, can't get window mutex."));
+        
+        if (!does_window_exist(key))
+            throw std::runtime_error( std::string("Error: Window with key " + key + " missing. Can't get window mutex."));
+        
+        Window &window = Windows().at(key);
+        return window.window_mutex;
+    }
+
     bool GLFW::create_vulkan_swapchain(std::string key, bool submit_immediately)
     {
         auto vulkan = Libraries::Vulkan::Get();
@@ -332,20 +316,14 @@ namespace Libraries {
             depth attachment + color attachment + subpass info => renderpass
         */
         #pragma region ErrorChecking
-        if (initialized == false) {
-            std::cout << "GLFW: Not initialized, can't create vulkan swapchain." << std::endl;
-            return false;
-        }
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, can't create vulkan swapchain."));
         
-        if (!does_window_exist(key)) {
-            std::cout << "GLFW: Window with key " << key << " missing. Can't create vulkan swapchain." << std::endl;
-            return false;
-        }
+        if (!does_window_exist(key))
+            throw std::runtime_error( std::string("Error: Window with key " + key + " missing. Can't create vulkan swapchain."));
 
-        if (!vulkan->is_initialized()) {
-            std::cout << "GLFW: Vulkan library not initialized. Can't create vulkan swapchain." << std::endl;
-            return false;
-        }
+        if (!vulkan->is_initialized())
+            throw std::runtime_error( std::string("Error: Vulkan library not initialized. Can't create vulkan swapchain."));
         #pragma endregion
 
         Window &window = Windows().at(key);
@@ -429,6 +407,7 @@ namespace Libraries {
         }
         #pragma endregion
         #pragma region CreateSwapchain
+        
         /* Create the swapchain */
         if (window.swapchain) {
             device.destroySwapchainKHR(window.swapchain);
@@ -471,13 +450,11 @@ namespace Libraries {
         info.clipped = VK_TRUE;
        
         /* Create the swap chain */
-        std::cout<<"Creating vulkan swapchain for window: " << key <<std::endl;        
+        std::cout<<"Creating vulkan swapchain for window: " << key <<std::endl;
         window.swapchain = device.createSwapchainKHR(info);
 
-        if (!window.swapchain) {
-            std::cout << "GLFW: Failed to create swapchain." << std::endl;
-            return false;
-        }
+        if (!window.swapchain)
+            throw std::runtime_error( std::string("Error: Failed to create swapchain."));
 
         /* Retrieve handles to the swap chain images */
         window.swapchainColorImages = device.getSwapchainImagesKHR(window.swapchain);
@@ -522,20 +499,16 @@ namespace Libraries {
 
     void GLFW::set_swapchain_out_of_date(std::string key) {
         auto it = Windows().find(key);
-        if (it == Windows().end()) {
-            std::cout<<"Window " << key << "does not exist, cannot mark swapchain as out of date"<<std::endl;
-            return;
-        }
+        if (it == Windows().end())
+            throw std::runtime_error( std::string("Error: Window " + key + " does not exist, cannot mark swapchain as out of date"));
 
         auto window = Windows()[key].swapchain_out_of_date = true;
     }
 
     bool GLFW::is_swapchain_out_of_date(std::string key) {
         auto it = Windows().find(key);
-        if (it == Windows().end()) {
-            std::cout<<"Window " << key << "does not exist, cannot checkk if swapchain is out of date"<<std::endl;
-            return false;
-        }
+        if (it == Windows().end())
+            throw std::runtime_error( std::string("Error: Window " + key + "does not exist, cannot check if swapchain is out of date"));
 
         auto window = Windows()[key];
         return window.swapchain_out_of_date;
@@ -564,15 +537,12 @@ namespace Libraries {
     }
 
     bool GLFW::set_cursor_pos(std::string key, double xpos, double ypos) {
-        if (initialized == false) {
-            std::cout << "GLFW: Uninitialized, cannot set cursor position."<<std::endl;
-            return false;
-        }
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot set cursor position."));
+
         auto ittr = Windows().find(key);
-        if ( ittr == Windows().end() ) {
-            std::cout << "GLFW: Error, window does not exists."<<std::endl;
-            return false;
-        }
+        if ( ittr == Windows().end() )
+            throw std::runtime_error( std::string("Error: window does not exist, cannot set cursor position."));
 
         auto window = &Windows()[key];
         window->xpos = xpos;
@@ -581,34 +551,25 @@ namespace Libraries {
     }
 
     std::vector<double> GLFW::get_cursor_pos(std::string key) {
-        if (initialized == false) {
-            std::cout << "GLFW: Uninitialized, cannot get cursor position."<<std::endl;
-            return {0.0,0.0};
-        }
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot get cursor position."));
+
         auto ittr = Windows().find(key);
-        if ( ittr == Windows().end() ) {
-            std::cout << "GLFW: Error, window does not exists."<<std::endl;
-            return {0.0,0.0};
-        }
+        if ( ittr == Windows().end() )
+            throw std::runtime_error( std::string("Error: window does not exist, cannot get cursor position."));
         auto window = &Windows()[key];
         return {window->xpos, window->ypos};
     }
 
     bool GLFW::set_button_data(std::string key, int button, int action, int mods) {
-        if (initialized == false) {
-            std::cout << "GLFW: Uninitialized, cannot set button data."<<std::endl;
-            return false;
-        }
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot set button data."));
         auto ittr = Windows().find(key);
-        if ( ittr == Windows().end() ) {
-            std::cout << "GLFW: Error, window does not exists."<<std::endl;
-            return false;
-        }
+        if ( ittr == Windows().end() )
+            throw std::runtime_error( std::string("Error: window does not exist, cannot set button data"));
         
-        if ((button >= 7) || (button < 0)) {
-            std::cout << "GLFW: Error, Button must be between 0 and 7."<<std::endl;
-            return false;
-        }
+        if ((button >= 7) || (button < 0))
+            throw std::runtime_error( std::string("Error: Button must be between 0 and 7."));
 
         auto window = &Windows()[key];
         window->buttons[button].action = action;
@@ -617,20 +578,15 @@ namespace Libraries {
     }
 
     int GLFW::get_button_action(std::string key, int button) {
-        if (initialized == false) {
-            std::cout << "GLFW: Uninitialized, cannot get button action."<<std::endl;
-            return false;
-        }
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot get button action."));
+
         auto ittr = Windows().find(key);
-        if ( ittr == Windows().end() ) {
-            std::cout << "GLFW: Error, window does not exists."<<std::endl;
-            return false;
-        }
+        if ( ittr == Windows().end() )
+            throw std::runtime_error( std::string("Error: window does not exist, cannot get button action."));
         
-        if ((button >= 7) || (button < 0)) {
-            std::cout << "GLFW: Error, Button must be between 0 and 7."<<std::endl;
-            return false;
-        }
+        if ((button >= 7) || (button < 0))
+            throw std::runtime_error( std::string("Error: Button must be between 0 and 7."));
 
         auto window = &Windows()[key];
         return window->buttons[button].action;
@@ -638,39 +594,31 @@ namespace Libraries {
 
     int GLFW::get_button_mods(std::string key, int button) {
         if (initialized == false) {
-            std::cout << "GLFW: Uninitialized, cannot get button mods."<<std::endl;
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot get button mods."));
+            std::cout << "GLFW: "<<std::endl;
             return false;
         }
         auto ittr = Windows().find(key);
-        if ( ittr == Windows().end() ) {
-            std::cout << "GLFW: Error, window does not exists."<<std::endl;
-            return false;
-        }
+        if ( ittr == Windows().end() )
+            throw std::runtime_error( std::string("Error: window does not exist, cannot get button mods."));
         
-        if ((button >= 7) || (button < 0)) {
-            std::cout << "GLFW: Error, Button must be between 0 and 7."<<std::endl;
-            return false;
-        }
+        if ((button >= 7) || (button < 0))
+            throw std::runtime_error( std::string("Error: Button must be between 0 and 7."));
 
         auto window = &Windows()[key];
         return window->buttons[button].mods;
     }
 
     bool GLFW::set_key_data(std::string window_key, int key, int scancode, int action, int mods) {
-        if (initialized == false) {
-            std::cout << "GLFW: Uninitialized, cannot set key data."<<std::endl;
-            return false;
-        }
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot set key data."));
+
         auto ittr = Windows().find(window_key);
-        if ( ittr == Windows().end() ) {
-            std::cout << "GLFW: Error, window does not exists."<<std::endl;
-            return false;
-        }
+        if ( ittr == Windows().end() )
+            throw std::runtime_error( std::string("Error: window does not exist, cannot set key data."));
         
-        if ((key >= 348) || (key < 0)) {
-            std::cout << "GLFW: Error, Button must be between 0 and 348."<<std::endl;
-            return false;
-        }
+        if ((key >= 348) || (key < 0))
+            throw std::runtime_error( std::string("Error: Button must be between 0 and 348."));
 
         auto window = &Windows()[window_key];
         window->keys[key].scancode = mods;
@@ -680,60 +628,45 @@ namespace Libraries {
     }
 
     int GLFW::get_key_action(std::string window_key, int key) {
-        if (initialized == false) {
-            std::cout << "GLFW: Uninitialized, cannot get button mods."<<std::endl;
-            return false;
-        }
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot get button mods."));
+
         auto ittr = Windows().find(window_key);
-        if ( ittr == Windows().end() ) {
-            std::cout << "GLFW: Error, window does not exists."<<std::endl;
-            return false;
-        }
-        
-        if ((key >= 348) || (key < 0)) {
-            std::cout << "GLFW: Error, Button must be between 0 and 348."<<std::endl;
-            return false;
-        }
+        if ( ittr == Windows().end() )
+            throw std::runtime_error( std::string("Error: window does not exist, cannot get button mods."));
+
+        if ((key >= 348) || (key < 0))
+            throw std::runtime_error( std::string("Error: Button must be between 0 and 348."));
 
         auto window = &Windows()[window_key];
         return window->keys[key].action;
     }
 
     int GLFW::get_key_scancode(std::string window_key, int key) {
-        if (initialized == false) {
-            std::cout << "GLFW: Uninitialized, cannot get button mods."<<std::endl;
-            return false;
-        }
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot get button mods."));
+
         auto ittr = Windows().find(window_key);
-        if ( ittr == Windows().end() ) {
-            std::cout << "GLFW: Error, window does not exists."<<std::endl;
-            return false;
-        }
+        if ( ittr == Windows().end() )
+            throw std::runtime_error( std::string("Error: window does not exist, cannot get button mods."));
         
-        if ((key >= 348) || (key < 0)) {
-            std::cout << "GLFW: Error, Button must be between 0 and 348."<<std::endl;
-            return false;
-        }
+        if ((key >= 348) || (key < 0))
+            throw std::runtime_error( std::string("Error: Button must be between 0 and 348."));
 
         auto window = &Windows()[window_key];
         return window->keys[key].scancode;
     }
 
     int GLFW::get_key_mods(std::string window_key, int key) {
-        if (initialized == false) {
-            std::cout << "GLFW: Uninitialized, cannot get key mods."<<std::endl;
-            return false;
-        }
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot get key mods."));
+
         auto ittr = Windows().find(window_key);
-        if ( ittr == Windows().end() ) {
-            std::cout << "GLFW: Error, window does not exists."<<std::endl;
-            return false;
-        }
+        if ( ittr == Windows().end() )
+            throw std::runtime_error( std::string("Error: window does not exist, cannot get key mods."));
         
-        if ((key >= 348) || (key < 0)) {
-            std::cout << "GLFW: Error, Button must be between 0 and 348."<<std::endl;
-            return false;
-        }
+        if ((key >= 348) || (key < 0))
+            throw std::runtime_error( std::string("Error: Button must be between 0 and 348."));
 
         auto window = &Windows()[window_key];
         return window->keys[key].mods;

@@ -84,14 +84,42 @@ namespace Systems
 
     /* These commands can be called from separate threads, but must be run on the event thread. */
 
-    bool EventSystem::create_window(string key, uint32_t width, uint32_t height, bool floating, bool resizable, bool decorated) {
-        auto createWindow = [key, width, height, floating, resizable, decorated]() {
+    bool EventSystem::create_window(string key, uint32_t width, uint32_t height, bool floating, bool resizable, bool decorated, bool create_vulkan_resources) {
+        using namespace Libraries;
+        auto glfw = GLFW::Get();
+        if (glfw->does_window_exist(key))
+            throw std::runtime_error( std::string("Error: window already exists, cannot create window"));
+        
+        auto createWindow = [key, width, height, floating, resizable, decorated, create_vulkan_resources]() {
             using namespace Libraries;
             auto glfw = GLFW::Get();
             glfw->create_window(key, width, height, floating, resizable, decorated);
+
+            if (create_vulkan_resources) {
+                auto vulkan = Vulkan::Get();
+                glfw->create_vulkan_surface(vulkan, key);
+                glfw->create_vulkan_swapchain(key, false);
+            }
         };
 
         auto future = enqueueCommand(createWindow);
+        future.wait();
+        return true;
+    }
+
+    bool EventSystem::destroy_window(string key) {
+        using namespace Libraries;
+        auto glfw = GLFW::Get();
+        if (!glfw->does_window_exist(key))
+            throw std::runtime_error( std::string("Error: window does not exist, cannot close window"));
+        
+        auto closeWindow = [key]() {
+            using namespace Libraries;
+            auto glfw = GLFW::Get();
+            glfw->destroy_window(key);
+        };
+
+        auto future = enqueueCommand(closeWindow);
         future.wait();
         return true;
     }
