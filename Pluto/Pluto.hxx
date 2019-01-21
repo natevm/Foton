@@ -72,10 +72,13 @@ void CleanUp()
     auto glfw = Libraries::GLFW::Get();
     auto vulkan = Libraries::Vulkan::Get();
     auto openvr = Libraries::Vulkan::Get();
-    
-    Material::CleanUp();
-    Transform::CleanUp();
-    Light::CleanUp();
-    Camera::CleanUp();
-    Entity::CleanUp();
+
+    if (vulkan->is_initialized())
+    {
+        Material::CleanUp();
+        Transform::CleanUp();
+        Light::CleanUp();
+        Camera::CleanUp();
+        Entity::CleanUp();
+    }
 }

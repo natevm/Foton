@@ -4,8 +4,6 @@
 #include <iostream>
 #include <cstdlib>
 
-#pragma optimize("", off)
-
 #include <string>
 #include <sstream>
 #include <algorithm>
@@ -82,9 +80,6 @@ namespace Systems {
             else {
               PyRun_InteractiveLoop(stdin, "<stdin>");
             }
-
-            Py_Finalize();
-            
 
             Systems::EventSystem::Get()->stop();
         };

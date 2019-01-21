@@ -462,6 +462,8 @@ bool RenderSystem::start()
 
         while (true)
         {
+            if (futureObj.wait_for(.1ms) == future_status::ready) break;
+
             /* Regulate the framerate. */
             currentTime = glfwGetTime();
             if ((!using_openvr) && ((currentTime - lastTime) < .008)) continue;
@@ -499,8 +501,6 @@ bool RenderSystem::start()
             present_glfw_frames();
 
             currentFrame = (currentFrame + 1) % max_frames_in_flight;
-
-            if (futureObj.wait_for(.1ms) == future_status::ready) break;
         }
 
         release_vulkan_resources();

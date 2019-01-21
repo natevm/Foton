@@ -23,7 +23,7 @@ using namespace std;
 
 int main(int argc, char** argv)
 {
-    std::cout<<"Starting Pluto, thread id: " << std::this_thread::get_id()<<std::endl;
+    // std::cout<<"Starting Pluto, thread id: " << std::this_thread::get_id()<<std::endl;
 
     Options::ProcessArgs(argc, argv);
     
@@ -53,5 +53,7 @@ int main(int argc, char** argv)
     CleanUp();
     
     std::cout<<"Shutting down Pluto"<<std::endl;
+    
+    Py_Finalize();
     return 0;
 }
