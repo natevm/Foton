@@ -8,6 +8,8 @@ std::map<std::string, uint32_t> Entity::lookupTable;
 vk::Buffer Entity::ssbo;
 vk::DeviceMemory Entity::ssboMemory;
 std::map<std::string, uint32_t> Entity::windowToEntity;
+std::map<uint32_t, std::string> Entity::entityToWindow;
+uint32_t Entity::entityToVR = -1;
 
 Entity::Entity() {
     this->initialized = false;
@@ -178,6 +180,11 @@ int32_t Entity::GetEntityFromWindow(std::string key)
     return (int32_t) windowToEntity[key];
 }
 
+int32_t Entity::GetEntityForVR()
+{
+    return entityToVR;
+}
+
 void Entity::connect_to_window(std::string key) {
     auto glfw = Libraries::GLFW::Get();
     if (!glfw->does_window_exist(key))
@@ -187,6 +194,26 @@ void Entity::connect_to_window(std::string key) {
         throw std::runtime_error( std::string("Entity not initialized"));
     
     windowToEntity[key] = this->id;
+    entityToWindow[this->id] = key;
+}
+
+std::string Entity::get_connected_window() {
+    auto glfw = Libraries::GLFW::Get();
+
+    if (!initialized) 
+        throw std::runtime_error( std::string("Entity not initialized"));
+
+    auto it = entityToWindow.find(this->id);
+    if (it == entityToWindow.end()) return "";
+    return entityToWindow[this->id];
+}
+
+void Entity::connect_to_vr()
+{
+    if (!initialized) 
+        throw std::runtime_error( std::string("Entity not initialized"));
+    
+    entityToVR = this->id;
 }
 
 void Entity::setParent(uint32_t parent) {

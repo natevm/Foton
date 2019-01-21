@@ -52,7 +52,8 @@ namespace Libraries {
             std::vector<vk::Semaphore> waitSemaphores,
             std::vector<vk::PipelineStageFlags> waitDstStageMasks,
             std::vector<vk::Semaphore> signalSemaphores,
-            vk::Fence fence);
+            vk::Fence fence,
+            std::string hint);
         std::future<void> enqueue_present_commands(
             std::vector<vk::SwapchainKHR> swapchains, 
             std::vector<uint32_t> swapchain_indices, 
@@ -71,7 +72,7 @@ namespace Libraries {
         vk::SampleCountFlags get_msaa_sample_flags();
 
         vk::CommandBuffer begin_one_time_graphics_command(uint32_t pool_id = 0);
-        bool end_one_time_graphics_command(vk::CommandBuffer command_buffer, uint32_t pool_id = 0, bool free_after_use = true, bool submit_immediately = false);
+        bool end_one_time_graphics_command(vk::CommandBuffer command_buffer, std::string hint, uint32_t pool_id = 0, bool free_after_use = true, bool submit_immediately = false);
 
     private:
         bool validationEnabled = true;
@@ -118,6 +119,7 @@ namespace Libraries {
             // vk::SubmitInfo submission;
 
         struct CommandQueueItem {
+            std::string hint;
             std::vector<vk::SwapchainKHR> swapchains;
             std::vector<uint32_t> swapchain_indices;
             std::vector<vk::PipelineStageFlags> waitDstStageMask;

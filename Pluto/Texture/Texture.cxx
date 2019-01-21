@@ -209,7 +209,7 @@ std::vector<float> Texture::download_color_data(uint32_t width, uint32_t height,
         originalLayout,
         srcSubresourceRange);
     data.colorImageLayout = originalLayout;
-    vulkan->end_one_time_graphics_command(cmdBuffer, pool);
+    vulkan->end_one_time_graphics_command(cmdBuffer, "download color data", pool);
 
     /* Memcpy from host visable image here... */
     /* Copy texture data into staging buffer */
@@ -370,7 +370,7 @@ void Texture::upload_color_data(uint32_t width, uint32_t height, uint32_t depth,
     /* transition source back VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL  */
     setImageLayout(command_buffer, data.colorImage, vk::ImageLayout::eTransferDstOptimal, data.colorImageLayout, dstSubresourceRange);
 
-    vulkan->end_one_time_graphics_command(command_buffer, pool_id);
+    vulkan->end_one_time_graphics_command(command_buffer, "upload color data", pool_id);
 
     device.destroyImage(src_image);
     device.freeMemory(src_image_memory);
@@ -879,7 +879,7 @@ void Texture::loadKTX(std::string imagePath)
         vk::ImageLayout::eShaderReadOnlyOptimal,
         subresourceRange);
 
-    vulkan->end_one_time_graphics_command(copyCmd, 1);
+    vulkan->end_one_time_graphics_command(copyCmd, "transition new ktx image", 1);
 
     /* Clean up staging resources */
     device.destroyBuffer(stagingBuffer);
@@ -979,7 +979,7 @@ void Texture::create_color_image_resources()
     vk::CommandBuffer cmdBuffer = vulkan->begin_one_time_graphics_command(1);
     setImageLayout(cmdBuffer, data.colorImage, vk::ImageLayout::eUndefined, vk::ImageLayout::eColorAttachmentOptimal, subresourceRange);
     data.colorImageLayout = vk::ImageLayout::eColorAttachmentOptimal;
-    vulkan->end_one_time_graphics_command(cmdBuffer, 1);
+    vulkan->end_one_time_graphics_command(cmdBuffer, "transition new color image", 1);
 
     /* Create the image view */
     vk::ImageViewCreateInfo vInfo;
@@ -1075,7 +1075,7 @@ void Texture::create_depth_stencil_resources()
     vk::CommandBuffer cmdBuffer = vulkan->begin_one_time_graphics_command(1);
     setImageLayout(cmdBuffer, data.depthImage, vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthStencilAttachmentOptimal, subresourceRange);
     data.depthImageLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-    vulkan->end_one_time_graphics_command(cmdBuffer, 1);
+    vulkan->end_one_time_graphics_command(cmdBuffer, "transition new depth image", 1);
 
     /* Create the image view */
     vk::ImageViewCreateInfo vInfo;

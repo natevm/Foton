@@ -78,69 +78,37 @@ bool RenderSystem::initialize()
     return true;
 }
 
-void RenderSystem::acquire_swapchain_images(
-    vk::SwapchainKHR &swapchain, uint32_t &swapchain_index, Texture* &swapchain_texture, vk::Semaphore &semaphore)
-{
-    auto glfw = GLFW::Get();
-    auto vulkan = Vulkan::Get();
-    auto device = vulkan->get_device();
-
-    /* Assume that these are null at first. */
-    swapchain = vk::SwapchainKHR();
-    swapchain_texture = nullptr;
-
-    /* Todo: acquire more than one window's swapchain image. */
-    if (!glfw->does_window_exist("Window")) return;
-    
-    /* The current window must have a valid swapchain which we can acquire from. */
-    swapchain = glfw->get_swapchain("Window");
-    if (!swapchain) return;
-    
-    /* Acquire a swapchain image, waiting on the acquire fence. 
-        I believe this fence is used for handling vsync, but I could be wrong... */
-
-    auto acquireFence = device.createFence(vk::FenceCreateInfo());
-    auto result = device.acquireNextImageKHR(swapchain, std::numeric_limits<uint32_t>::max(), semaphore, acquireFence);
-    if (result.result != vk::Result::eSuccess) {
-        std::cout<<"REALLY BAD ERROOR HERE"<<std::endl;
-    }
-    swapchain_index = result.value;
-    swapchain_texture = glfw->get_texture("Window", swapchain_index);
-    device.waitForFences(acquireFence, true, 100000000000);
-    device.destroyFence(acquireFence);
-}
-
 void RenderSystem::record_render_commands()
 {
-    {
-        /* For now, only render the camera associated with the window named "Window" */
-        auto entity_id = Entity::GetEntityFromWindow("Window");
+    auto glfw = GLFW::Get();
+
+    /* We need some windows in order to render. */
+    auto keys = glfw->get_window_keys();
+    if (keys.size() == 0) return;
+
+    if (using_openvr) {
+        auto entity_id = Entity::GetEntityForVR();
         
-        /* Dont render anything if no entity is connected to the window. */
-        if (entity_id == -1) return;
+        /* If there's an entity connected to VR */
+        if (entity_id != -1) {
+            auto entity = Entity::Get(entity_id);
+            auto cam_id = entity->get_camera();
 
-        auto entity = Entity::Get(entity_id);
-        auto cam_id = entity->get_camera();
+            /* If that entity has a camera */
+            if (cam_id != -1) {
+                Camera* current_camera = Camera::Get(cam_id);
 
-        /* Dont render anything if the connected entity does not have a camera component attached. */
-        if (cam_id == -1) return;
-        Camera* current_camera = Camera::Get(cam_id);
-
-        /* Don't render anything if the camera component doesn't have a color texture. */
-        Texture * texture = current_camera->get_texture();
-        if (texture == nullptr) return;
-
-
-        /* If using openvr, wait for poses before rendering. */
-        if (using_openvr) {
-            auto ovr = OpenVR::Get();
-            ovr->wait_get_poses();
-            current_camera->set_view(ovr->get_left_view_matrix(), 0);
-            current_camera->set_custom_projection(ovr->get_left_projection_matrix(.1f), .1f, 0);
-            current_camera->set_view(ovr->get_right_view_matrix(), 1);
-            current_camera->set_custom_projection(ovr->get_right_projection_matrix(.1f), .1f, 1);
+                /* Wait get poses. Move the camera to where the headset is. */
+                auto ovr = OpenVR::Get();
+                ovr->wait_get_poses();
+                current_camera->set_view(ovr->get_left_view_matrix(), 0);
+                current_camera->set_custom_projection(ovr->get_left_projection_matrix(.1f), .1f, 0);
+                current_camera->set_view(ovr->get_right_view_matrix(), 1);
+                current_camera->set_custom_projection(ovr->get_right_projection_matrix(.1f), .1f, 1);
+            }
         }
     }
+
 
     /* Upload SSBO data */
     Material::UploadSSBO();
@@ -173,7 +141,6 @@ void RenderSystem::record_render_commands()
 
 
     /* Render all cameras */
-    auto main_entity = Entity::GetEntityFromWindow("Window");
     auto cameras = Camera::GetFront();
     for (uint32_t entity_id = 0; entity_id < Entity::GetCount(); ++entity_id) {
         /* Entity must be initialized */
@@ -193,7 +160,7 @@ void RenderSystem::record_render_commands()
         auto command_buffer = cameras[cam_id].get_command_buffer();
         vk::CommandBufferBeginInfo beginInfo;
         // beginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
-        beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+        beginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
         command_buffer.begin(beginInfo);
 
         /* If we're the client, we recieve color data from "stream_frames". Only render a scene if not the client. */
@@ -220,15 +187,30 @@ void RenderSystem::record_render_commands()
             cameras[cam_id].end_renderpass(command_buffer);
         }
 
-        if (entity_id == main_entity)
+        /* See if we should blit to a GLFW window. */
+        auto connected_window_key = entities[entity_id].get_connected_window();
+        if (connected_window_key.size() > 0)
         {
-            /* Record blit to swapchain */
-            if (swapchain && swapchain_texture && swapchain_texture->is_initialized()) {
-                texture->record_blit_to(command_buffer, swapchain_texture, 0);
+            /* It's possible the connected window was destroyed. Make sure it still exists... */
+            if (glfw->does_window_exist(connected_window_key)) {
+                
+                /* Window needs a swapchain */
+                auto swapchain = glfw->get_swapchain(connected_window_key);
+                if (!swapchain) continue;
+
+                /* Need to be able to get swapchain/texture by key...*/
+                auto swapchain_texture = glfw->get_texture(connected_window_key);
+
+                /* Record blit to swapchain */
+                if (swapchain_texture && swapchain_texture->is_initialized()) {
+                    texture->record_blit_to(command_buffer, swapchain_texture, 0);
+                }
             }
-        
-            /* Record blit to OpenVR eyes. */
-            if (using_openvr) {
+        }
+
+        /* Record blit to OpenVR eyes. */
+        if (using_openvr) {
+            if (entity_id == Entity::GetEntityForVR()) {
                 auto ovr = OpenVR::Get();
                 auto left_eye_texture = ovr->get_left_eye_texture();
                 auto right_eye_texture = ovr->get_right_eye_texture();
@@ -242,43 +224,17 @@ void RenderSystem::record_render_commands()
     }
 }
 
-void RenderSystem::present_glfw_frames()
-{
-    auto glfw = GLFW::Get();
-    auto vulkan = Vulkan::Get();
-
-    /* Require the swapchain and texture be acquired by "acquire_swapchain_image". */
-    /* Todo: allow multiple swapchains/swapchain textures... */
-    if (!swapchain) return;
-    if (!swapchain_texture) return;
-
-    /* Wait for the final renderpass to complete, then present to the given swapchain. */
-    
-    vulkan->enqueue_present_commands({swapchain}, {swapchain_index}, {renderCompleteSemaphores[currentFrame]});
-
-    /* If our swapchain is out of date at this point, recreate it. */
-    if (!vulkan->submit_present_commands() || glfw->is_swapchain_out_of_date("Window"))
-    {
-        if (glfw->does_window_exist("Window")) {
-            /* Conditionally recreate the swapchain resources if out of date. */
-            glfw->create_vulkan_swapchain("Window", true);
-            swapchain = glfw->get_swapchain("Window");
-        } else {
-            swapchain = vk::SwapchainKHR();
-        }
-    }
-}
-
-
 void RenderSystem::present_openvr_frames()
 {
     /* Ignore if openvr isn't in use. */
     if (!using_openvr) return;
 
-    /* For now, only render the camera associated with the window named "Window" */
-    auto entity_id = Entity::GetEntityFromWindow("Window");
+    /* TODO: see if the below checks are required for submitting textures to OpenVR... */
+
+    /* Get the entity connected to the headset */
+    auto entity_id = Entity::GetEntityForVR();
     
-    /* Dont render anything if no entity is connected to the window. */
+    /* Dont render anything if no entity is connected. */
     if (entity_id == -1) return;
 
     auto entity = Entity::Get(entity_id);
@@ -357,6 +313,7 @@ void RenderSystem::stream_frames()
 
 void RenderSystem::enqueue_render_commands() {
     auto vulkan = Vulkan::Get();
+    auto glfw = GLFW::Get();
     std::vector<vk::CommandBuffer> commands;
 
     auto entities = Entity::GetFront();
@@ -380,16 +337,18 @@ void RenderSystem::enqueue_render_commands() {
     auto submitPipelineStages = vk::PipelineStageFlags();
     submitPipelineStages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 
-    std::vector<vk::Semaphore> waitSemaphores;
+    std::vector<vk::Semaphore> waitSemaphores = glfw->get_image_available_semaphores(currentFrame);
     std::vector<vk::PipelineStageFlags> waitDstStageMask;
     std::vector<vk::Semaphore> signalSemaphores;
-    if (swapchain && swapchain_texture && swapchain_texture->is_initialized()) {
-        waitSemaphores.push_back(imageAvailableSemaphores[currentFrame]);
-        waitDstStageMask.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+
+    if (waitSemaphores.size() > 0) {
         signalSemaphores.push_back(renderCompleteSemaphores[currentFrame]);
     }
+    for (uint32_t i = 0; i < waitSemaphores.size(); ++i) {
+        waitDstStageMask.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+    }
 
-    vulkan->enqueue_graphics_commands(commands, waitSemaphores, waitDstStageMask, signalSemaphores, maincmd_fences[currentFrame]);
+    vulkan->enqueue_graphics_commands(commands, waitSemaphores, waitDstStageMask, signalSemaphores, maincmd_fences[currentFrame], "drawcalls");
 }
 
 void RenderSystem::release_vulkan_resources() 
@@ -411,10 +370,6 @@ void RenderSystem::release_vulkan_resources()
     
     for (int idx = 0; idx < maincmd_fences.size(); ++idx) {
         device.destroyFence(maincmd_fences[idx]);
-    }
-
-    for (int idx = 0; idx < imageAvailableSemaphores.size(); ++idx) {
-        device.destroySemaphore(imageAvailableSemaphores[idx]);
     }
 
     for (int idx = 0; idx < renderCompleteSemaphores.size(); ++idx) {
@@ -442,17 +397,15 @@ void RenderSystem::allocate_vulkan_resources()
     maincmd_fences.resize(max_frames_in_flight);
     for (uint32_t idx = 0; idx < max_frames_in_flight; ++idx) {
         vk::FenceCreateInfo fenceInfo;
-        fenceInfo.flags |= vk::FenceCreateFlagBits::eSignaled;
+        // fenceInfo.flags |= vk::FenceCreateFlagBits::eSignaled;
         maincmd_fences[idx] = device.createFence(fenceInfo);
     }
 
     /* Create semaphores to synchronize GPU between renderpasses and presenting. */
-    imageAvailableSemaphores.resize(max_frames_in_flight);
     renderCompleteSemaphores.resize(max_frames_in_flight);
 
     vk::SemaphoreCreateInfo semaphoreInfo;
     for (uint32_t idx = 0; idx < max_frames_in_flight; ++idx) {
-        imageAvailableSemaphores[idx] = device.createSemaphore(semaphoreInfo);
         renderCompleteSemaphores[idx] = device.createSemaphore(semaphoreInfo);
     }
 
@@ -473,28 +426,26 @@ bool RenderSystem::start()
         {
             if (futureObj.wait_for(.1ms) == future_status::ready) break;
 
+            /* Lock the window mutex to get access to swapchains and window textures. */
+            std::shared_ptr<std::lock_guard<std::mutex>> window_lock;
+            auto window_mutex = glfw->get_mutex();
+            auto mutex = window_mutex.get();
+            window_lock = std::make_shared<std::lock_guard<std::mutex>>(*mutex);
+
             /* Regulate the framerate. */
             currentTime = glfwGetTime();
             if ((!using_openvr) && ((currentTime - lastTime) < .008)) continue;
             lastTime = currentTime;
 
-            /* Without vulkan, we cannot render. Wait until vulkan is initialized before rendering.*/
+            /* Wait until vulkan is initialized before rendering. */
             auto vulkan = Vulkan::Get();
             if (!vulkan->is_initialized()) continue;
 
             /* 0. Allocate the resources we'll need to render this scene. */
             allocate_vulkan_resources();
-
-            std::shared_ptr<std::lock_guard<std::mutex>> window_lock;
-            /* Todo: acquire more than one window's swapchain image. */
-            if (glfw->does_window_exist("Window")) {
-                auto window_mutex = glfw->get_mutex("Window");
-                auto mutex = window_mutex.get();
-                window_lock = std::make_shared<std::lock_guard<std::mutex>>(*mutex);
-            }
-
-            /* 1. Optionally aquire swapchain image. Signal image available semaphore. */
-            acquire_swapchain_images(swapchain, swapchain_index, swapchain_texture, imageAvailableSemaphores[currentFrame]);
+            
+            /* 1. Optionally aquire swapchain images. Signal image available semaphores. */
+            glfw->acquire_swapchain_images(currentFrame);
 
             /* 2. Record render commands. */
             record_render_commands();
@@ -515,7 +466,7 @@ bool RenderSystem::start()
             /* 4. Optional: Wait on render complete. Present a frame. */
             stream_frames();
             present_openvr_frames();
-            present_glfw_frames();
+            glfw->present_glfw_frames({renderCompleteSemaphores[currentFrame]});
 
             currentFrame = (currentFrame + 1) % max_frames_in_flight;
         }

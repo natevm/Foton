@@ -47,7 +47,7 @@ namespace Libraries {
         vk::SwapchainKHR get_swapchain(std::string key);
         vk::SurfaceKHR create_vulkan_surface(const Libraries::Vulkan *vulkan, std::string key);
         bool create_vulkan_swapchain(std::string key, bool submit_immediately);
-        Texture* get_texture(std::string key, uint32_t index);
+        Texture* get_texture(std::string key);
         std::string get_key_from_ptr(GLFWwindow* ptr);
         void set_swapchain_out_of_date(std::string key);
         bool is_swapchain_out_of_date(std::string key);
@@ -63,7 +63,11 @@ namespace Libraries {
         int get_key_mods(std::string window_key, int key);
         static int get_key_code(std::string key);
         GLFWwindow* get_ptr(std::string key);
-        std::shared_ptr<std::mutex> get_mutex(std::string key);
+        std::shared_ptr<std::mutex> get_mutex();
+        
+        void acquire_swapchain_images(uint32_t current_frame);
+        std::vector<vk::Semaphore> get_image_available_semaphores(uint32_t current_frame);
+        void present_glfw_frames(std::vector<vk::Semaphore> semaphores);
 
         private:
         GLFW();
@@ -80,8 +84,12 @@ namespace Libraries {
             unsigned char mods;
         };
 
+        // mutex used to guarantee exclusive access to windows
+        std::shared_ptr<std::mutex> window_mutex;
+        
         struct Window {
-            std::shared_ptr<std::mutex> window_mutex;
+            std::vector<vk::Semaphore> imageAvailableSemaphores;
+            uint32_t current_image_index;
             GLFWwindow* ptr;
             vk::SurfaceKHR surface;
             vk::SurfaceCapabilitiesKHR surfaceCapabilities;

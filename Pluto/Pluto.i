@@ -36,6 +36,8 @@
 %shared_ptr(Material)
 %shared_ptr(Light)
 
+%ignore Initialized;
+
 # %ignore threadFunction;
 # %include "Pluto.hxx"
 
@@ -87,3 +89,4 @@
     %feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
     std::string __repr__() { return $self->to_string(); }
 }
+

@@ -34,6 +34,8 @@ private:
     static vk::DeviceMemory ssboMemory;
 
 	static std::map<std::string, uint32_t> windowToEntity;
+	static std::map<uint32_t, std::string> entityToWindow;
+	static uint32_t Entity::entityToVR;
 
 public:
 	static Entity* Create(std::string name);
@@ -58,7 +60,13 @@ public:
 
 	void connect_to_window(std::string key);
 
+	void connect_to_vr();
+
+	std::string get_connected_window();
+
 	static int32_t GetEntityFromWindow(std::string key);
+
+	static int32_t GetEntityForVR();
 
 	void set_transform(int32_t transform_id);
 

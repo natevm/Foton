@@ -804,13 +804,13 @@ vk::CommandBuffer Vulkan::begin_one_time_graphics_command(uint32_t pool_id) {
     return cmdBuffer;
 }
 
-bool Vulkan::end_one_time_graphics_command(vk::CommandBuffer command_buffer, uint32_t pool_id, bool free_after_use, bool submit_immediately) {
+bool Vulkan::end_one_time_graphics_command(vk::CommandBuffer command_buffer, std::string hint, uint32_t pool_id, bool free_after_use, bool submit_immediately) {
     command_buffer.end();
 
     vk::FenceCreateInfo fenceInfo;
     vk::Fence fence = device.createFence(fenceInfo);
 
-    std::future<void> fut = enqueue_graphics_commands({command_buffer}, {}, {}, {}, fence);
+    std::future<void> fut = enqueue_graphics_commands({command_buffer}, {},{}, {}, fence, hint);
 
     if (submit_immediately || pool_id == 0) submit_graphics_commands();
 
@@ -831,7 +831,8 @@ std::future<void> Vulkan::enqueue_graphics_commands
     vector<vk::Semaphore> waitSemaphores,
     vector<vk::PipelineStageFlags> waitDstStageMasks,
     vector<vk::Semaphore> signalSemaphores,
-    vk::Fence fence
+    vk::Fence fence,
+    std::string hint
 ) {
     std::lock_guard<std::mutex> lock(graphics_queue_mutex);
 
@@ -843,6 +844,7 @@ std::future<void> Vulkan::enqueue_graphics_commands
     item.fence = fence;
     item.promise = std::make_shared<std::promise<void>>();
     item.should_free = false;
+    item.hint = hint;
     auto new_future = item.promise->get_future();
     graphicsCommandQueue.push(item);
 

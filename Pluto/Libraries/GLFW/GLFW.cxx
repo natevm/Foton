@@ -69,6 +69,8 @@ namespace Libraries {
     bool GLFW::initialize() {
         if (!glfwInit())
             throw std::runtime_error( std::string("Error: Failed to initialize"));
+
+        window_mutex = std::make_shared<std::mutex>();
         initialized = true;
         return true;
     }
@@ -103,7 +105,6 @@ namespace Libraries {
         glfwSetMouseButtonCallback(ptr, &mouse_button_callback);
         glfwSetKeyCallback(ptr, &key_callback);
 
-        window.window_mutex = std::make_shared<std::mutex>();
         window.ptr = ptr;
         window.swapchain_ready = false;
         Windows()[key] = window;
@@ -159,19 +160,20 @@ namespace Libraries {
         if (initialized == false)
             throw std::runtime_error( std::string("Error: Uninitialized, cannot destroy window."));
 
+        auto mutex = window_mutex.get();
+        std::lock_guard<std::mutex> lock(*mutex);
+
         auto ittr = Windows().find(key);
         if ( ittr == Windows().end() )
             throw std::runtime_error( std::string("Error: window does not exist, cannot destroy window."));
         auto window = Windows()[key];
-
-        auto mutex = window.window_mutex.get();
-        std::lock_guard<std::mutex> lock(*mutex);
 
         if (window.swapchain) {
             device.destroySwapchainKHR(window.swapchain);
         }
 
         for (uint32_t j = 0;  j < window.textures.size(); ++j) {
+            device.destroySemaphore(window.imageAvailableSemaphores[j]);
             Texture::Delete(window.textures[j]->get_id());
         }
 
@@ -235,13 +237,7 @@ namespace Libraries {
 
         for (auto &i : Windows()) {
             if (glfwWindowShouldClose(i.second.ptr)) {
-                for (uint32_t j = 0;  j < i.second.textures.size(); ++j) {
-                    Texture::Delete(i.second.textures[j]->get_id());
-                }
-
-                glfwDestroyWindow(i.second.ptr);
-                i.second.ptr = nullptr;
-                Windows().erase(i.first);
+                destroy_window(i.first);
                 /* Break here required. Erase modifies iterator used by for loop. */
                 break;
             }
@@ -295,16 +291,12 @@ namespace Libraries {
         return psurf;
     }
 
-    std::shared_ptr<std::mutex> GLFW::get_mutex(std::string key)
+    std::shared_ptr<std::mutex> GLFW::get_mutex()
     {
         if (initialized == false)
             throw std::runtime_error( std::string("Error: Uninitialized, can't get window mutex."));
         
-        if (!does_window_exist(key))
-            throw std::runtime_error( std::string("Error: Window with key " + key + " missing. Can't get window mutex."));
-        
-        Window &window = Windows().at(key);
-        return window.window_mutex;
+        return window_mutex;
     }
 
     bool GLFW::create_vulkan_swapchain(std::string key, bool submit_immediately)
@@ -462,6 +454,10 @@ namespace Libraries {
         #pragma endregion
 
         for (uint32_t i = 0; i < imageCount; ++i) {
+            /* Create semaphores which will be used to signal the image is ready */
+            vk::SemaphoreCreateInfo semaphoreInfo;
+            window.imageAvailableSemaphores.push_back(device.createSemaphore(semaphoreInfo));
+
             Texture::Data data = {};
             data.colorFormat = window.surfaceFormat.format;
             data.colorImage = window.swapchainColorImages[i];
@@ -489,7 +485,7 @@ namespace Libraries {
 
             vk::CommandBuffer cmdBuffer = vulkan->begin_one_time_graphics_command(submit_immediately == true ? 0 : 1);
             window.textures[i]->setImageLayout( cmdBuffer, data.colorImage, vk::ImageLayout::eUndefined, vk::ImageLayout::ePresentSrcKHR, subresourceRange);
-            auto fut = vulkan->end_one_time_graphics_command(cmdBuffer, submit_immediately == true ? 0 : 1, true, submit_immediately);
+            auto fut = vulkan->end_one_time_graphics_command(cmdBuffer, "Transition swapchain image", submit_immediately == true ? 0 : 1, true, submit_immediately);
         }
         
         window.swapchain_out_of_date = false;
@@ -525,14 +521,14 @@ namespace Libraries {
         return window.swapchain;
     }
 
-    Texture* GLFW::get_texture(std::string key, uint32_t index) {
+    Texture* GLFW::get_texture(std::string key) {
         auto it = Windows().find(key);
         if (it == Windows().end())
             return nullptr;
 
         auto window = Windows()[key];
-        if (window.textures.size() > index)
-            return window.textures[index];
+        if (window.textures.size() > window.current_image_index)
+            return window.textures[window.current_image_index];
         return nullptr;
     }
 
@@ -801,5 +797,86 @@ namespace Libraries {
         else if (key.compare("LAST") == 0) return GLFW_KEY_LAST;
 
         return -1;
+    }
+
+    void GLFW::acquire_swapchain_images(uint32_t current_frame) {
+        auto vulkan = Vulkan::Get();
+        auto device = vulkan->get_device();
+
+        for (auto &window : Windows()) {
+            /* The current window must have a valid swapchain which we can acquire from. */
+            if (!window.second.swapchain) continue;
+            if (!window.second.swapchain_ready) continue;
+
+            /* Acquire a swapchain image, waiting on the acquire fence. 
+            I believe this fence is used for handling vsync, but I could be wrong... */
+            
+            auto acquireFence = device.createFence(vk::FenceCreateInfo());
+            auto result = device.acquireNextImageKHR(window.second.swapchain, std::numeric_limits<uint32_t>::max(), window.second.imageAvailableSemaphores[current_frame], acquireFence);
+            window.second.current_image_index = result.value;
+            //auto swapchain_texture = glfw->get_texture(keys[i], swapchain_index);
+            device.waitForFences(acquireFence, true, 100000000000);
+            device.destroyFence(acquireFence);
+        }
+    }
+
+    std::vector<vk::Semaphore> GLFW::get_image_available_semaphores(uint32_t current_frame)
+    {
+        auto vulkan = Vulkan::Get();
+        auto device = vulkan->get_device();
+        std::vector<vk::Semaphore> semaphores;
+
+        for (auto &window : Windows()) {
+            /* The current window must have a valid swapchain which we can acquire from. */
+            if (!window.second.swapchain) continue;
+            if (!window.second.swapchain_ready) continue;
+            semaphores.push_back(window.second.imageAvailableSemaphores[current_frame]);
+        }
+
+        return semaphores;
+    }
+
+    void GLFW::present_glfw_frames(std::vector<vk::Semaphore> semaphores)
+    {
+        auto vulkan = Vulkan::Get();
+
+        std::vector<vk::SwapchainKHR> swapchains;
+        std::vector<uint32_t> swapchain_indices;
+
+        for (auto &window : Windows()) {
+            /* The current window must have a valid swapchain which we can acquire from. */
+            if (!window.second.swapchain) continue;
+            if (!window.second.swapchain_ready) continue;
+
+            swapchains.push_back(window.second.swapchain);
+            swapchain_indices.push_back(window.second.current_image_index);
+        }
+
+        if (swapchains.size() == 0) return;
+        
+
+        /* Wait for the semaphore to complete, then present the swapchains. */
+        vulkan->enqueue_present_commands(swapchains, swapchain_indices, semaphores);
+
+        /* If we can't present, we need to recreate all swapchains. */
+        if (!vulkan->submit_present_commands())
+        {
+            for (auto &window : Windows()) {
+                if (does_window_exist(window.first)) {
+                    /* Conditionally recreate the swapchain resources if out of date. */
+                    create_vulkan_swapchain(window.first, true);
+                }
+            }
+        }
+
+        /* If a particular window thinks it's swapchain is out of date, update it. */
+        for (auto &window : Windows()) {
+            if (is_swapchain_out_of_date(window.first)) {
+                if (does_window_exist(window.first)) {
+                    /* Conditionally recreate the swapchain resources if out of date. */
+                    create_vulkan_swapchain(window.first, true);
+                }
+            }
+        }
     }
 }

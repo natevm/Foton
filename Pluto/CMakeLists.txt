@@ -16,6 +16,7 @@ add_subdirectory(Tools)
 add_subdirectory(Transform)
 
 set (SRC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/Pluto.cxx
     ${Camera_SRC}
     ${Entity_SRC}
     ${Libraries_SRC}
@@ -42,7 +43,7 @@ install(FILES ${CMAKE_BINARY_DIR}/PlutoLib.dll DESTINATION ${CMAKE_INSTALL_PREFI
 # │  Pluto Engine Executable                                         │
 # └──────────────────────────────────────────────────────────────────┘
 
-add_executable(PlutoEngine ${CMAKE_CURRENT_SOURCE_DIR}/Pluto.cxx)
+add_executable(PlutoEngine ${CMAKE_CURRENT_SOURCE_DIR}/main.cxx)
 target_link_libraries(PlutoEngine PUBLIC PlutoLib ${LIBRARIES} )
 target_include_directories(PlutoEngine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(PlutoEngine PRIVATE ZMQ_BUILD_DRAFT_API=1)

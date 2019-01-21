@@ -659,7 +659,7 @@ void Mesh::createPointBuffer()
     vk::BufferCopy copyRegion;
     copyRegion.size = bufferSize;
     cmd.copyBuffer(stagingBuffer, pointBuffer, copyRegion);
-    vulkan->end_one_time_graphics_command(cmd, 1);
+    vulkan->end_one_time_graphics_command(cmd, "copy point buffer", 1);
 
     /* Clean up the staging buffer */
     device.destroyBuffer(stagingBuffer);
@@ -689,7 +689,7 @@ void Mesh::createColorBuffer()
     vk::BufferCopy copyRegion;
     copyRegion.size = bufferSize;
     cmd.copyBuffer(stagingBuffer, colorBuffer, copyRegion);
-    vulkan->end_one_time_graphics_command(cmd, 1);
+    vulkan->end_one_time_graphics_command(cmd, "copy point color buffer", 1);
 
     /* Clean up the staging buffer */
     device.destroyBuffer(stagingBuffer);
@@ -716,7 +716,7 @@ void Mesh::createIndexBuffer()
     vk::BufferCopy copyRegion;
     copyRegion.size = bufferSize;
     cmd.copyBuffer(stagingBuffer, indexBuffer, copyRegion);
-    vulkan->end_one_time_graphics_command(cmd, 1);
+    vulkan->end_one_time_graphics_command(cmd, "copy point index buffer", 1);
 
     device.destroyBuffer(stagingBuffer);
     device.freeMemory(stagingBufferMemory);
@@ -745,7 +745,7 @@ void Mesh::createNormalBuffer()
     vk::BufferCopy copyRegion;
     copyRegion.size = bufferSize;
     cmd.copyBuffer(stagingBuffer, normalBuffer, copyRegion);
-    vulkan->end_one_time_graphics_command(cmd, 1);
+    vulkan->end_one_time_graphics_command(cmd, "copy point normal buffer", 1);
 
     /* Clean up the staging buffer */
     device.destroyBuffer(stagingBuffer);
@@ -775,7 +775,7 @@ void Mesh::createTexCoordBuffer()
     vk::BufferCopy copyRegion;
     copyRegion.size = bufferSize;
     cmd.copyBuffer(stagingBuffer, texCoordBuffer, copyRegion);
-    vulkan->end_one_time_graphics_command(cmd, 1);
+    vulkan->end_one_time_graphics_command(cmd, "copy point texcoord buffer", 1);
 
     /* Clean up the staging buffer */
     device.destroyBuffer(stagingBuffer);
