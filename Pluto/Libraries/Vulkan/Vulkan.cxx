@@ -198,6 +198,11 @@ vk::Instance Vulkan::get_instance() const
     return instance;
 }
 
+vk::DispatchLoaderDynamic Vulkan::get_dldi()
+{
+    return dldi;
+}
+
 /* Vulkan Device */ 
 bool Vulkan::create_device(set<string> device_extensions, set<string> device_features, uint32_t num_command_pools, vk::SurfaceKHR surface, bool use_openvr)
 {
@@ -228,7 +233,7 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
     for (auto &string : device_extensions)
     {
         deviceExtensions.insert(string);
-        if (string.compare("VK_NVX_raytracing") == 0) {
+        if (string.compare("VK_NV_ray_tracing") == 0) {
             rayTracingEnabled = true;
         }
     }
@@ -390,7 +395,7 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
 
     if (!physicalDevice)
     {
-        cout << "Failed to find a GPU which meets demands!" << endl;
+        throw std::runtime_error("Failed to find a GPU which meets demands!" );
         return false;
     }
     

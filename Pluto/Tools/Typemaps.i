@@ -20,4 +20,9 @@ namespace std {
    %template(DoubleVector) vector<double>;
    %template(FloatVector) vector<float>;
    %template(StringVector) vector<string>;
+
+   %template(IntSet) set<int>;
+   %template(DoubleSet) set<double>;
+   %template(FloatSet) set<float>;
+   %template(StringSet) set<string>;
 };

@@ -43,6 +43,25 @@ class Mesh : public StaticFactory
     vk::Buffer texCoordBuffer;
     vk::DeviceMemory texCoordBufferMemory;
 
+    /* RTX raytracing stuff */
+    struct VkGeometryInstance
+    {
+        float transform[12];
+        uint32_t instanceId : 24;
+        uint32_t mask : 8;
+        uint32_t instanceOffset : 24;
+        uint32_t flags : 8;
+        uint64_t accelerationStructureHandle;
+    };
+
+    vk::GeometryNV geometry;
+    VkGeometryInstance instance;
+    vk::AccelerationStructureNV accelerationStructure;
+    vk::DeviceMemory accelerationStructureMemory;
+    
+    vk::Buffer instanceBuffer;
+    vk::DeviceMemory instanceBufferMemory;
+
   public:
     static Mesh* Get(std::string name);
 	static Mesh* Get(uint32_t id);
@@ -136,6 +155,8 @@ class Mesh : public StaticFactory
         std::vector<glm::vec4> &colors, 
         std::vector<glm::vec2> &texcoords
     );
+
+    void build_acceleration_structure();
 
   private:
     void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer &buffer, vk::DeviceMemory &bufferMemory);

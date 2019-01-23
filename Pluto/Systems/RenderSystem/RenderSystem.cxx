@@ -68,8 +68,8 @@ bool RenderSystem::initialize()
         zmq_setsockopt(socket, ZMQ_RATE, &rate, sizeof(int64_t));
     }
 
-    push_constants.gamma = 1.0;
-    push_constants.exposure = 1.0;
+    push_constants.gamma = 2.2;
+    push_constants.exposure = 2.0;
     push_constants.environment_id = -1;
     push_constants.diffuse_environment_id = -1;
     push_constants.specular_environment_id = -1;

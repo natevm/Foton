@@ -9,7 +9,6 @@
 #include "Pluto/Tools/Singleton.hxx"
 #include "threadsafe_queue.hpp"
 
-
 namespace Libraries {
     using namespace std;
     class Vulkan : public Singleton
@@ -74,6 +73,7 @@ namespace Libraries {
         vk::CommandBuffer begin_one_time_graphics_command(uint32_t pool_id = 0);
         bool end_one_time_graphics_command(vk::CommandBuffer command_buffer, std::string hint, uint32_t pool_id = 0, bool free_after_use = true, bool submit_immediately = false);
 
+        vk::DispatchLoaderDynamic get_dldi();
     private:
         bool validationEnabled = true;
         bool rayTracingEnabled = false;

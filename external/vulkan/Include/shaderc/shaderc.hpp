@@ -47,11 +47,20 @@ class CompilationResult {
   // CompilationResult, the shaderc_compilation_result will be released.
   explicit CompilationResult(shaderc_compilation_result_t compilation_result)
       : compilation_result_(compilation_result) {}
+  CompilationResult() : compilation_result_(nullptr) {}
   ~CompilationResult() { shaderc_result_release(compilation_result_); }
 
-  CompilationResult(CompilationResult&& other) {
+  CompilationResult(CompilationResult&& other) : compilation_result_(nullptr) {
+    *this = std::move(other);
+  }
+
+  CompilationResult& operator=(CompilationResult&& other) {
+    if (compilation_result_) {
+      shaderc_result_release(compilation_result_);
+    }
     compilation_result_ = other.compilation_result_;
     other.compilation_result_ = nullptr;
+    return *this;
   }
 
   // Returns any error message found during compilation.
