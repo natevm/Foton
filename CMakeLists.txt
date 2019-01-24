@@ -61,7 +61,7 @@ find_package(SWIG 3.0.12 REQUIRED)
 include(${SWIG_USE_FILE})
 
 # vulkan
-find_package(Vulkan REQUIRED)
+find_package(Vulkan 1.1.92 REQUIRED)
 include_directories(${Vulkan_INCLUDE_DIRS})
 
 # zeromq
