@@ -177,8 +177,10 @@ void Mesh::Initialize() {
             Does the given resource directory include the required default meshes?"));
 }
 
-void Mesh::load_obj(std::string objPath, bool submit_immediately)
+void Mesh::load_obj(std::string objPath, bool allow_edits, bool submit_immediately)
 {
+    allowEdits = allow_edits;
+
     struct stat st;
     if (stat(objPath.c_str(), &st) != 0)
         throw std::runtime_error( std::string(objPath + " does not exist!"));
@@ -279,15 +281,17 @@ void Mesh::load_obj(std::string objPath, bool submit_immediately)
 
     cleanup();
     compute_centroid();
-    createPointBuffer(submit_immediately);
-    createColorBuffer(submit_immediately);
-    createIndexBuffer(submit_immediately);
-    createNormalBuffer(submit_immediately);
-    createTexCoordBuffer(submit_immediately);
+    createPointBuffer(allow_edits, submit_immediately);
+    createColorBuffer(allow_edits, submit_immediately);
+    createIndexBuffer(allow_edits, submit_immediately);
+    createNormalBuffer(allow_edits, submit_immediately);
+    createTexCoordBuffer(allow_edits, submit_immediately);
 }
 
 
-void Mesh::load_stl(std::string stlPath, bool submit_immediately) {
+void Mesh::load_stl(std::string stlPath, bool allow_edits, bool submit_immediately) {
+    allowEdits = allow_edits;
+
     struct stat st;
     if (stat(stlPath.c_str(), &st) != 0)
         throw std::runtime_error( std::string(stlPath + " does not exist!"));
@@ -342,15 +346,17 @@ void Mesh::load_stl(std::string stlPath, bool submit_immediately) {
 
     cleanup();
     compute_centroid();
-    createPointBuffer(submit_immediately);
-    createColorBuffer(submit_immediately);
-    createIndexBuffer(submit_immediately);
-    createNormalBuffer(submit_immediately);
-    createTexCoordBuffer(submit_immediately);
+    createPointBuffer(allow_edits, submit_immediately);
+    createColorBuffer(allow_edits, submit_immediately);
+    createIndexBuffer(allow_edits, submit_immediately);
+    createNormalBuffer(allow_edits, submit_immediately);
+    createTexCoordBuffer(allow_edits, submit_immediately);
 }
 
-void Mesh::load_glb(std::string glbPath, bool submit_immediately)
+void Mesh::load_glb(std::string glbPath, bool allow_edits, bool submit_immediately)
 {
+    allowEdits = allow_edits;
+
     struct stat st;
     if (stat(glbPath.c_str(), &st) != 0)
         throw std::runtime_error( std::string(glbPath + " does not exist!"));
@@ -457,20 +463,22 @@ void Mesh::load_glb(std::string glbPath, bool submit_immediately)
 
     cleanup();
     compute_centroid();
-    createPointBuffer(submit_immediately);
-    createColorBuffer(submit_immediately);
-    createIndexBuffer(submit_immediately);
-    createNormalBuffer(submit_immediately);
-    createTexCoordBuffer(submit_immediately);
+    createPointBuffer(allow_edits, submit_immediately);
+    createColorBuffer(allow_edits, submit_immediately);
+    createIndexBuffer(allow_edits, submit_immediately);
+    createNormalBuffer(allow_edits, submit_immediately);
+    createTexCoordBuffer(allow_edits, submit_immediately);
 }
 
 void Mesh::load_raw(
     std::vector<glm::vec3> &points_, 
     std::vector<glm::vec3> &normals_, 
     std::vector<glm::vec4> &colors_, 
-    std::vector<glm::vec2> &texcoords_, bool submit_immediately
+    std::vector<glm::vec2> &texcoords_, 
+    bool allow_edits, bool submit_immediately
 )
 {
+    allowEdits = allow_edits;
     bool reading_normals = normals_.size() > 0;
     bool reading_colors = colors_.size() > 0;
     bool reading_texcoords = texcoords_.size() > 0;
@@ -528,50 +536,74 @@ void Mesh::load_raw(
 
     cleanup();
     compute_centroid();
-    createPointBuffer(submit_immediately);
-    createColorBuffer(submit_immediately);
-    createIndexBuffer(submit_immediately);
-    createNormalBuffer(submit_immediately);
-    createTexCoordBuffer(submit_immediately);
+    createPointBuffer(allow_edits, submit_immediately);
+    createColorBuffer(allow_edits, submit_immediately);
+    createIndexBuffer(allow_edits, submit_immediately);
+    createNormalBuffer(allow_edits, submit_immediately);
+    createTexCoordBuffer(allow_edits, submit_immediately);
 }
 
 void Mesh::edit_position(uint32_t index, glm::vec3 new_position)
 {
+    if (!allowEdits)
+        throw std::runtime_error("Error: editing this component is not allowed. \
+            Edits can be enabled during creation.");
     throw std::runtime_error("Error: Not yet implemented");
 }
 
 void Mesh::edit_positions(uint32_t index, std::vector<glm::vec3> new_positions)
 {
+    if (!allowEdits)
+        throw std::runtime_error("Error: editing this component is not allowed. \
+            Edits can be enabled during creation.");
     throw std::runtime_error("Error: Not yet implemented");
 }
 
 void Mesh::edit_normal(uint32_t index, glm::vec3 new_normal)
 {
+    if (!allowEdits)
+        throw std::runtime_error("Error: editing this component is not allowed. \
+            Edits can be enabled during creation.");
     throw std::runtime_error("Error: Not yet implemented");
 }
 
 void Mesh::edit_normals(uint32_t index, std::vector<glm::vec3> new_normals)
 {
+    if (!allowEdits)
+        throw std::runtime_error("Error: editing this component is not allowed. \
+            Edits can be enabled during creation.");
     throw std::runtime_error("Error: Not yet implemented");
 }
 
 void Mesh::edit_vertex_color(uint32_t index, glm::vec4 new_color)
 {
+    if (!allowEdits)
+        throw std::runtime_error("Error: editing this component is not allowed. \
+            Edits can be enabled during creation.");
     throw std::runtime_error("Error: Not yet implemented");
 }
 
 void Mesh::edit_vertex_colors(uint32_t index, std::vector<glm::vec4> new_colors)
 {
+    if (!allowEdits)
+        throw std::runtime_error("Error: editing this component is not allowed. \
+            Edits can be enabled during creation.");
     throw std::runtime_error("Error: Not yet implemented");
 }
 
 void Mesh::edit_texture_coordinate(uint32_t index, glm::vec2 new_texcoord)
 {
+    if (!allowEdits)
+        throw std::runtime_error("Error: editing this component is not allowed. \
+            Edits can be enabled during creation.");
     throw std::runtime_error("Error: Not yet implemented");
 }
 
 void Mesh::edit_texture_coordinates(uint32_t index, std::vector<glm::vec2> new_texcoords)
 {
+    if (!allowEdits)
+        throw std::runtime_error("Error: editing this component is not allowed. \
+            Edits can be enabled during creation.");
     throw std::runtime_error("Error: Not yet implemented");
 }
 
@@ -903,48 +935,48 @@ Mesh* Mesh::Get(uint32_t id) {
     return StaticFactory::Get(id, "Mesh", lookupTable, meshes, MAX_MESHES);
 }
 
-Mesh* Mesh::CreateCube(std::string name, bool submit_immediately)
+Mesh* Mesh::CreateCube(std::string name, bool allow_edits, bool submit_immediately)
 {
     auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
     if (!mesh) return nullptr;
-    mesh->make_cube(submit_immediately);
+    mesh->make_cube(allow_edits, submit_immediately);
     return mesh;
 }
 
-Mesh* Mesh::CreatePlane(std::string name, bool submit_immediately)
+Mesh* Mesh::CreatePlane(std::string name, bool allow_edits, bool submit_immediately)
 {
     auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
     if (!mesh) return nullptr;
-    mesh->make_plane(submit_immediately);
+    mesh->make_plane(allow_edits, submit_immediately);
     return mesh;
 }
 
-Mesh* Mesh::CreateSphere(std::string name, bool submit_immediately)
+Mesh* Mesh::CreateSphere(std::string name, bool allow_edits, bool submit_immediately)
 {
     auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
     if (!mesh) return nullptr;
-    mesh->make_sphere(submit_immediately);
+    mesh->make_sphere(allow_edits, submit_immediately);
     return mesh;
 }
 
-Mesh* Mesh::CreateFromOBJ(std::string name, std::string objPath, bool submit_immediately)
+Mesh* Mesh::CreateFromOBJ(std::string name, std::string objPath, bool allow_edits, bool submit_immediately)
 {
     auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
-    mesh->load_obj(objPath, submit_immediately);
+    mesh->load_obj(objPath, allow_edits, submit_immediately);
     return mesh;
 }
 
-Mesh* Mesh::CreateFromSTL(std::string name, std::string stlPath, bool submit_immediately)
+Mesh* Mesh::CreateFromSTL(std::string name, std::string stlPath, bool allow_edits, bool submit_immediately)
 {
     auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
-    mesh->load_stl(stlPath, submit_immediately);
+    mesh->load_stl(stlPath, allow_edits, submit_immediately);
     return mesh;
 }
 
-Mesh* Mesh::CreateFromGLB(std::string name, std::string glbPath, bool submit_immediately)
+Mesh* Mesh::CreateFromGLB(std::string name, std::string glbPath, bool allow_edits, bool submit_immediately)
 {
     auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
-    mesh->load_glb(glbPath, submit_immediately);
+    mesh->load_glb(glbPath, allow_edits, submit_immediately);
     return mesh;
 }
 
@@ -954,10 +986,11 @@ Mesh* Mesh::CreateFromRaw(
     std::vector<glm::vec3> normals, 
     std::vector<glm::vec4> colors, 
     std::vector<glm::vec2> texcoords, 
+    bool allow_edits, 
     bool submit_immediately)
 {
     auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
-    mesh->load_raw(points, normals, colors, texcoords, submit_immediately);
+    mesh->load_raw(points, normals, colors, texcoords, allow_edits, submit_immediately);
     return mesh;
 }
 
@@ -1006,7 +1039,7 @@ void Mesh::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::Mem
     device.bindBufferMemory(buffer, bufferMemory, 0);
 }
 
-void Mesh::createPointBuffer(bool submit_immediately)
+void Mesh::createPointBuffer(bool allow_edits, bool submit_immediately)
 {
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
@@ -1036,7 +1069,7 @@ void Mesh::createPointBuffer(bool submit_immediately)
     device.freeMemory(stagingBufferMemory);
 }
 
-void Mesh::createColorBuffer(bool submit_immediately)
+void Mesh::createColorBuffer(bool allow_edits, bool submit_immediately)
 {
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
@@ -1066,7 +1099,7 @@ void Mesh::createColorBuffer(bool submit_immediately)
     device.freeMemory(stagingBufferMemory);
 }
 
-void Mesh::createIndexBuffer(bool submit_immediately)
+void Mesh::createIndexBuffer(bool allow_edits, bool submit_immediately)
 {
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
@@ -1092,7 +1125,7 @@ void Mesh::createIndexBuffer(bool submit_immediately)
     device.freeMemory(stagingBufferMemory);
 }
 
-void Mesh::createNormalBuffer(bool submit_immediately)
+void Mesh::createNormalBuffer(bool allow_edits, bool submit_immediately)
 {
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
@@ -1122,7 +1155,7 @@ void Mesh::createNormalBuffer(bool submit_immediately)
     device.freeMemory(stagingBufferMemory);
 }
 
-void Mesh::createTexCoordBuffer(bool submit_immediately)
+void Mesh::createTexCoordBuffer(bool allow_edits, bool submit_immediately)
 {
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
@@ -1152,8 +1185,9 @@ void Mesh::createTexCoordBuffer(bool submit_immediately)
     device.freeMemory(stagingBufferMemory);
 }
 
-void Mesh::make_cube(bool submit_immediately)
+void Mesh::make_cube(bool allow_edits, bool submit_immediately)
 {
+    allowEdits = allow_edits;
     points.assign({
         {1.0, -1.0, -1.0},  {1.0, -1.0, -1.0},  {1.0, -1.0, -1.0}, 
         {1.0, -1.0, 1.0},   {1.0, -1.0, 1.0},   {1.0, -1.0, 1.0},
@@ -1198,15 +1232,16 @@ void Mesh::make_cube(bool submit_immediately)
 
     indices.assign({0,3,6,0,6,9,12,21,18,12,18,15,1,13,16,1,16,4,5,17,19,5,19,7,8,20,22,8,22,10,14,2,11,14,11,23,});
     compute_centroid();
-    createPointBuffer(submit_immediately);
-    createColorBuffer(submit_immediately);
-    createNormalBuffer(submit_immediately);
-    createTexCoordBuffer(submit_immediately);
-    createIndexBuffer(submit_immediately);
+    createPointBuffer(allow_edits, submit_immediately);
+    createColorBuffer(allow_edits, submit_immediately);
+    createNormalBuffer(allow_edits, submit_immediately);
+    createTexCoordBuffer(allow_edits, submit_immediately);
+    createIndexBuffer(allow_edits, submit_immediately);
 }
 
-void Mesh::make_plane(bool submit_immediately)
+void Mesh::make_plane(bool allow_edits, bool submit_immediately)
 {
+    allowEdits = allow_edits;
     points.assign({
         {-1.f, -1.f, 0.f},
         {1.f, -1.f, 0.f},
@@ -1234,15 +1269,16 @@ void Mesh::make_plane(bool submit_immediately)
     indices.assign({0,1,3,0,3,2});
 
     compute_centroid();
-    createPointBuffer(submit_immediately);
-    createColorBuffer(submit_immediately);
-    createNormalBuffer(submit_immediately);
-    createTexCoordBuffer(submit_immediately);
-    createIndexBuffer(submit_immediately);
+    createPointBuffer(allow_edits, submit_immediately);
+    createColorBuffer(allow_edits, submit_immediately);
+    createNormalBuffer(allow_edits, submit_immediately);
+    createTexCoordBuffer(allow_edits, submit_immediately);
+    createIndexBuffer(allow_edits, submit_immediately);
 }
 
-void Mesh::make_sphere(bool submit_immediately)
+void Mesh::make_sphere(bool allow_edits, bool submit_immediately)
 {
+    allowEdits = allow_edits;
     points.assign({
         { 0.0 ,  0.0 ,  -1.0 }, { 0.72 ,  -0.53 ,  -0.45 }, { 0.72 ,  -0.53 ,  -0.45 }, 
         { -0.28 ,  -0.85 ,  -0.45 }, { -0.89 ,  0.0 ,  -0.45 }, { -0.28 ,  0.85 ,  -0.45 }, 
@@ -1670,9 +1706,9 @@ void Mesh::make_sphere(bool submit_immediately)
     });
 
     compute_centroid();
-    createPointBuffer(submit_immediately);
-    createColorBuffer(submit_immediately);
-    createNormalBuffer(submit_immediately);
-    createTexCoordBuffer(submit_immediately);
-    createIndexBuffer(submit_immediately);
+    createPointBuffer(allow_edits, submit_immediately);
+    createColorBuffer(allow_edits, submit_immediately);
+    createNormalBuffer(allow_edits, submit_immediately);
+    createTexCoordBuffer(allow_edits, submit_immediately);
+    createIndexBuffer(allow_edits, submit_immediately);
 }

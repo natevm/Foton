@@ -63,22 +63,24 @@ class Mesh : public StaticFactory
     vk::AccelerationStructureNV lowAS;
     vk::DeviceMemory lowASMemory;
     bool lowBVHBuilt = false;
+    bool allowEdits = false;
 
   public:
     static Mesh* Get(std::string name);
 	static Mesh* Get(uint32_t id);
-    static Mesh* CreateCube(std::string name, bool submit_immediately = false);
-    static Mesh* CreatePlane(std::string name, bool submit_immediately = false);
-    static Mesh* CreateSphere(std::string name, bool submit_immediately = false);
-    static Mesh* CreateFromOBJ(std::string name, std::string objPath, bool submit_immediately = false);
-    static Mesh* CreateFromSTL(std::string name, std::string stlPath, bool submit_immediately = false);
-    static Mesh* CreateFromGLB(std::string name, std::string glbPath, bool submit_immediately = false);
+    static Mesh* CreateCube(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreatePlane(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateSphere(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateFromOBJ(std::string name, std::string objPath, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateFromSTL(std::string name, std::string stlPath, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateFromGLB(std::string name, std::string glbPath, bool allow_edits = false, bool submit_immediately = false);
     static Mesh* CreateFromRaw(
         std::string name,
         std::vector<glm::vec3> points, 
         std::vector<glm::vec3> normals = {}, 
         std::vector<glm::vec4> colors = {}, 
-        std::vector<glm::vec2> texcoords = {}, bool submit_immediately = false);
+        std::vector<glm::vec2> texcoords = {}, 
+        bool allow_edits = false, bool submit_immediately = false);
     //static Mesh* Create(std::string name);
 	static Mesh* GetFront();
 	static uint32_t GetCount();
@@ -137,28 +139,6 @@ class Mesh : public StaticFactory
 
     glm::vec3 get_centroid();
 
-    void cleanup();
-
-    void make_cube(bool submit_immediately);
-   
-    void make_plane(bool submit_immediately);
-    
-    void make_sphere(bool submit_immediately);
-    
-    void load_obj(std::string objPath, bool submit_immediately);
-
-    void load_stl(std::string stlPath, bool submit_immediately);
-
-    void load_glb(std::string glbPath, bool submit_immediately);
-
-    void load_raw(
-        std::vector<glm::vec3> &points, 
-        std::vector<glm::vec3> &normals, 
-        std::vector<glm::vec4> &colors, 
-        std::vector<glm::vec2> &texcoords,
-        bool submit_immediately
-    );
-
     void edit_position(uint32_t index, glm::vec3 new_position);
     
     void edit_positions(uint32_t index, std::vector<glm::vec3> new_positions);
@@ -180,15 +160,39 @@ class Mesh : public StaticFactory
     static void build_top_level_bvh(bool submit_immediately = false);
 
   private:
+    
+    void cleanup();
+
+    void make_cube(bool allow_edits, bool submit_immediately);
+   
+    void make_plane(bool allow_edits, bool submit_immediately);
+    
+    void make_sphere(bool allow_edits, bool submit_immediately);
+    
+    void load_obj(std::string objPath, bool allow_edits, bool submit_immediately);
+
+    void load_stl(std::string stlPath, bool allow_edits, bool submit_immediately);
+
+    void load_glb(std::string glbPath, bool allow_edits, bool submit_immediately);
+
+    void load_raw (
+        std::vector<glm::vec3> &points, 
+        std::vector<glm::vec3> &normals, 
+        std::vector<glm::vec4> &colors, 
+        std::vector<glm::vec2> &texcoords,
+        bool allow_edits,
+        bool submit_immediately
+    );
+
     void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer &buffer, vk::DeviceMemory &bufferMemory);
 
-    void createPointBuffer(bool submit_immediately);
+    void createPointBuffer(bool allow_edits, bool submit_immediately);
 
-    void createColorBuffer(bool submit_immediately);
+    void createColorBuffer(bool allow_edits, bool submit_immediately);
 
-    void createIndexBuffer(bool submit_immediately);
+    void createIndexBuffer(bool allow_edits, bool submit_immediately);
 
-    void createNormalBuffer(bool submit_immediately);
+    void createNormalBuffer(bool allow_edits, bool submit_immediately);
 
-    void createTexCoordBuffer(bool submit_immediately);
+    void createTexCoordBuffer(bool allow_edits, bool submit_immediately);
 };
