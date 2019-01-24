@@ -535,6 +535,45 @@ void Mesh::load_raw(
     createTexCoordBuffer(submit_immediately);
 }
 
+void Mesh::edit_position(uint32_t index, glm::vec3 new_position)
+{
+    throw std::runtime_error("Error: Not yet implemented");
+}
+
+void Mesh::edit_positions(uint32_t index, std::vector<glm::vec3> new_positions)
+{
+    throw std::runtime_error("Error: Not yet implemented");
+}
+
+void Mesh::edit_normal(uint32_t index, glm::vec3 new_normal)
+{
+    throw std::runtime_error("Error: Not yet implemented");
+}
+
+void Mesh::edit_normals(uint32_t index, std::vector<glm::vec3> new_normals)
+{
+    throw std::runtime_error("Error: Not yet implemented");
+}
+
+void Mesh::edit_vertex_color(uint32_t index, glm::vec4 new_color)
+{
+    throw std::runtime_error("Error: Not yet implemented");
+}
+
+void Mesh::edit_vertex_colors(uint32_t index, std::vector<glm::vec4> new_colors)
+{
+    throw std::runtime_error("Error: Not yet implemented");
+}
+
+void Mesh::edit_texture_coordinate(uint32_t index, glm::vec2 new_texcoord)
+{
+    throw std::runtime_error("Error: Not yet implemented");
+}
+
+void Mesh::edit_texture_coordinates(uint32_t index, std::vector<glm::vec2> new_texcoords)
+{
+    throw std::runtime_error("Error: Not yet implemented");
+}
 
 void Mesh::build_top_level_bvh(bool submit_immediately)
 {

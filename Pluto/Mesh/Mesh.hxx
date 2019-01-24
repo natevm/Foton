@@ -159,6 +159,22 @@ class Mesh : public StaticFactory
         bool submit_immediately
     );
 
+    void edit_position(uint32_t index, glm::vec3 new_position);
+    
+    void edit_positions(uint32_t index, std::vector<glm::vec3> new_positions);
+    
+    void edit_normal(uint32_t index, glm::vec3 new_normal);
+    
+    void edit_normals(uint32_t index, std::vector<glm::vec3> new_normals);
+    
+    void edit_vertex_color(uint32_t index, glm::vec4 new_color);
+    
+    void edit_vertex_colors(uint32_t index, std::vector<glm::vec4> new_colors);
+    
+    void edit_texture_coordinate(uint32_t index, glm::vec2 new_texcoord);
+    
+    void edit_texture_coordinates(uint32_t index, std::vector<glm::vec2> new_texcoords);
+    
     void build_low_level_bvh(bool submit_immediately = false);
 
     static void build_top_level_bvh(bool submit_immediately = false);
