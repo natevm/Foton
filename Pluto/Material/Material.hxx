@@ -146,18 +146,26 @@ class Material : public StaticFactory
         
         /* A struct aggregating pipeline parameters, which configure each stage within a graphics pipeline 
             (rasterizer, input assembly, etc), with their corresponding graphics pipeline. */
-        struct PipelineResources {
+        struct RasterPipelineResources {
             PipelineParameters pipelineParameters;
             vk::Pipeline pipeline;
             vk::PipelineLayout pipelineLayout;
         };
-        
+
+        struct RaytracePipelineResources {
+            vk::Pipeline pipeline;
+            vk::PipelineLayout pipelineLayout;
+        };
         
         /* The descriptor set layout describing where component SSBOs are bound */
         static vk::DescriptorSetLayout componentDescriptorSetLayout;
 
         /* The descriptor set layout describing where the array of textures are bound */
         static vk::DescriptorSetLayout textureDescriptorSetLayout;
+
+        /* The descriptor set layout describing where acceleration structures and 
+            raytracing related data are bound */
+        static vk::DescriptorSetLayout raytraceDescriptorSetLayout;
 
         /* The descriptor pool used to allocate the component descriptor set. */
         static vk::DescriptorPool componentDescriptorPool;
@@ -172,19 +180,22 @@ class Material : public StaticFactory
         static vk::DescriptorSet textureDescriptorSet;
 
         /* The pipeline resources for each of the possible material types */
-        static std::map<vk::RenderPass, PipelineResources> uniformColor;
-        static std::map<vk::RenderPass, PipelineResources> blinn;
-        static std::map<vk::RenderPass, PipelineResources> pbr;
-        static std::map<vk::RenderPass, PipelineResources> texcoordsurface;
-        static std::map<vk::RenderPass, PipelineResources> normalsurface;
-        static std::map<vk::RenderPass, PipelineResources> skybox;
-        static std::map<vk::RenderPass, PipelineResources> depth;
+        static std::map<vk::RenderPass, RasterPipelineResources> uniformColor;
+        static std::map<vk::RenderPass, RasterPipelineResources> blinn;
+        static std::map<vk::RenderPass, RasterPipelineResources> pbr;
+        static std::map<vk::RenderPass, RasterPipelineResources> texcoordsurface;
+        static std::map<vk::RenderPass, RasterPipelineResources> normalsurface;
+        static std::map<vk::RenderPass, RasterPipelineResources> skybox;
+        static std::map<vk::RenderPass, RasterPipelineResources> depth;
+
+        static std::map<vk::RenderPass, RaytracePipelineResources> rttest;
+
 
         /* Wrapper for shader module creation.  */
         static vk::ShaderModule CreateShaderModule(const std::vector<char>& code);
 
         /* Wraps the vulkan boilerplate for creation of a graphics pipeline */
-        static void CreatePipeline(
+        static void CreateRasterPipeline(
             std::vector<vk::PipelineShaderStageCreateInfo> shaderStages,
             std::vector<vk::VertexInputBindingDescription> bindingDescriptions,
             std::vector<vk::VertexInputAttributeDescription> attributeDescriptions,
@@ -196,8 +207,11 @@ class Material : public StaticFactory
             vk::PipelineLayout &layout 
         );
 
-        /* Creates all possible descriptor set layout combinations */
-        static void CreateDescriptorSetLayouts();
+        /* Creates all possible rasterized descriptor set layout combinations */
+        static void CreateRasterDescriptorSetLayouts();
+
+        /* Creates all possible raytraced descriptor set layout combinations */
+        static void CreateRaytracedDescriptorSetLayouts();
 
         /* Creates the descriptor pool where the descriptor sets will be allocated from. */
         static void CreateDescriptorPool();

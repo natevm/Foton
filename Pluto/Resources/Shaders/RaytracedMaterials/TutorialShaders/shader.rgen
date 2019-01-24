@@ -1,0 +1,15 @@
+#version 460
+#extension GL_NV_ray_tracing : require
+
+layout(binding = 0) uniform accelerationStructureNV topLevelAS;
+layout(binding = 1, rgba8) uniform image2D image;
+
+layout(location = 0) rayPayloadNV float hitValue;
+
+void main() 
+{
+    const vec2 pixelCenter = vec2(gl_LaunchIDNV.xy) + vec2(0.5);
+    const vec2 inUV = pixelCenter/vec2(gl_LaunchSizeNV.xy);
+
+    imageStore(image, ivec2(gl_LaunchIDNV.xy), vec4(inUV.x, inUV.y, 0.0, 0.0));
+}

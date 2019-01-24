@@ -16,6 +16,7 @@ vk::DeviceMemory Material::ssboMemory;
 
 vk::DescriptorSetLayout Material::componentDescriptorSetLayout;
 vk::DescriptorSetLayout Material::textureDescriptorSetLayout;
+vk::DescriptorSetLayout Material::raytraceDescriptorSetLayout;
 vk::DescriptorPool Material::componentDescriptorPool;
 vk::DescriptorPool Material::textureDescriptorPool;
 std::vector<vk::VertexInputBindingDescription> Material::vertexInputBindingDescriptions;
@@ -23,13 +24,15 @@ std::vector<vk::VertexInputAttributeDescription> Material::vertexInputAttributeD
 vk::DescriptorSet Material::componentDescriptorSet;
 vk::DescriptorSet Material::textureDescriptorSet;
 
-std::map<vk::RenderPass, Material::PipelineResources> Material::uniformColor;
-std::map<vk::RenderPass, Material::PipelineResources> Material::blinn;
-std::map<vk::RenderPass, Material::PipelineResources> Material::pbr;
-std::map<vk::RenderPass, Material::PipelineResources> Material::texcoordsurface;
-std::map<vk::RenderPass, Material::PipelineResources> Material::normalsurface;
-std::map<vk::RenderPass, Material::PipelineResources> Material::skybox;
-std::map<vk::RenderPass, Material::PipelineResources> Material::depth;
+std::map<vk::RenderPass, Material::RasterPipelineResources> Material::uniformColor;
+std::map<vk::RenderPass, Material::RasterPipelineResources> Material::blinn;
+std::map<vk::RenderPass, Material::RasterPipelineResources> Material::pbr;
+std::map<vk::RenderPass, Material::RasterPipelineResources> Material::texcoordsurface;
+std::map<vk::RenderPass, Material::RasterPipelineResources> Material::normalsurface;
+std::map<vk::RenderPass, Material::RasterPipelineResources> Material::skybox;
+std::map<vk::RenderPass, Material::RasterPipelineResources> Material::depth;
+
+std::map<vk::RenderPass, Material::RaytracePipelineResources> Material::rttest;
 
 Material::Material() {
     this->initialized = false;
@@ -103,7 +106,7 @@ vk::ShaderModule Material::CreateShaderModule(const std::vector<char>& code) {
 }
 
 /* Under the hood, all material types have a set of Vulkan pipeline objects. */
-void Material::CreatePipeline(
+void Material::CreateRasterPipeline(
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages, // yes
     std::vector<vk::VertexInputBindingDescription> bindingDescriptions, // yes
     std::vector<vk::VertexInputAttributeDescription> attributeDescriptions, // yes
@@ -168,9 +171,11 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 
     auto sampleFlag = vulkan->highest(vulkan->min(vulkan->get_closest_sample_count_flag(sampleCount), vulkan->get_msaa_sample_flags()));
 
+    /* RASTER GRAPHICS PIPELINES */
+
     /* ------ UNIFORM COLOR  ------ */
     {
-        uniformColor[renderpass] = PipelineResources();
+        uniformColor[renderpass] = RasterPipelineResources();
 
         std::string ResourcePath = Options::GetResourcePath();
         auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/UniformColor/vert.spv"));
@@ -197,7 +202,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         uniformColor[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
         uniformColor[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
 
-        CreatePipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+        CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
             { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
             uniformColor[renderpass].pipelineParameters, 
             renderpass, 0, 
@@ -210,7 +215,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 
     /* ------ BLINN GRAPHICS ------ */
     {
-        blinn[renderpass] = PipelineResources();
+        blinn[renderpass] = RasterPipelineResources();
 
         std::string ResourcePath = Options::GetResourcePath();
         auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Blinn/vert.spv"));
@@ -237,7 +242,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         blinn[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
         blinn[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
 
-        CreatePipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+        CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
             { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
             blinn[renderpass].pipelineParameters, 
             renderpass, 0, 
@@ -249,7 +254,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 
     /* ------ PBR  ------ */
     {
-        pbr[renderpass] = PipelineResources();
+        pbr[renderpass] = RasterPipelineResources();
 
         std::string ResourcePath = Options::GetResourcePath();
         auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/PBRSurface/vert.spv"));
@@ -276,7 +281,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         pbr[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
         pbr[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
 
-        CreatePipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+        CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
             { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
             pbr[renderpass].pipelineParameters, 
             renderpass, 0, 
@@ -288,7 +293,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 
     /* ------ NORMAL SURFACE ------ */
     {
-        normalsurface[renderpass] = PipelineResources();
+        normalsurface[renderpass] = RasterPipelineResources();
 
         std::string ResourcePath = Options::GetResourcePath();
         auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/NormalSurface/vert.spv"));
@@ -315,7 +320,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         normalsurface[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
         normalsurface[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
 
-        CreatePipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+        CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
             { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
             normalsurface[renderpass].pipelineParameters, 
             renderpass, 0, 
@@ -327,7 +332,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 
     /* ------ TEXCOORD SURFACE  ------ */
     {
-        texcoordsurface[renderpass] = PipelineResources();
+        texcoordsurface[renderpass] = RasterPipelineResources();
 
         std::string ResourcePath = Options::GetResourcePath();
         auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/TexCoordSurface/vert.spv"));
@@ -354,7 +359,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         texcoordsurface[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
         texcoordsurface[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
 
-        CreatePipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+        CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
             { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
             texcoordsurface[renderpass].pipelineParameters, 
             renderpass, 0, 
@@ -366,7 +371,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 
     /* ------ SKYBOX  ------ */
     {
-        skybox[renderpass] = PipelineResources();
+        skybox[renderpass] = RasterPipelineResources();
 
         std::string ResourcePath = Options::GetResourcePath();
         auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Skybox/vert.spv"));
@@ -396,7 +401,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         skybox[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
         skybox[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
 
-        CreatePipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+        CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
             { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
             skybox[renderpass].pipelineParameters, 
             renderpass, 0, 
@@ -408,7 +413,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 
     /* ------ DEPTH  ------ */
     {
-        depth[renderpass] = PipelineResources();
+        depth[renderpass] = RasterPipelineResources();
 
         std::string ResourcePath = Options::GetResourcePath();
         auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Depth/vert.spv"));
@@ -435,7 +440,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         depth[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
         depth[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
 
-        CreatePipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+        CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
             { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
             depth[renderpass].pipelineParameters, 
             renderpass, 0, 
@@ -444,11 +449,66 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         device.destroyShaderModule(fragShaderModule);
         device.destroyShaderModule(vertShaderModule);
     }
+
+    if (!vulkan->is_ray_tracing_enabled()) return;
+    auto dldi = vulkan->get_dldi();
+
+    /* RAY TRACING PIPELINES */
+    {
+        rttest[renderpass] = RaytracePipelineResources();
+
+        std::string ResourcePath = Options::GetResourcePath();
+        auto raygenShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracedMaterials/TutorialShaders/rgen.spv"));
+        
+        /* Create shader modules */
+        auto raygenShaderModule = CreateShaderModule(raygenShaderCode);
+
+        /* Info for shader stages */
+        vk::PipelineShaderStageCreateInfo raygenShaderStageInfo;
+        raygenShaderStageInfo.stage = vk::ShaderStageFlagBits::eRaygenNV;
+        raygenShaderStageInfo.module = raygenShaderModule;
+        raygenShaderStageInfo.pName = "main"; 
+
+        std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { raygenShaderStageInfo };
+        
+        vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+        pipelineLayoutCreateInfo.setLayoutCount = 1;
+        pipelineLayoutCreateInfo.pSetLayouts = &raytraceDescriptorSetLayout;
+        pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
+        pipelineLayoutCreateInfo.pPushConstantRanges = nullptr;
+
+        rttest[renderpass].pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+
+        std::vector<vk::RayTracingShaderGroupCreateInfoNV> shaderGroups;
+        vk::RayTracingShaderGroupCreateInfoNV rayGenGroupInfo;
+        rayGenGroupInfo.type = vk::RayTracingShaderGroupTypeNV::eGeneral;
+        rayGenGroupInfo.generalShader = 0;
+        rayGenGroupInfo.closestHitShader = VK_SHADER_UNUSED_NV;
+        rayGenGroupInfo.anyHitShader = VK_SHADER_UNUSED_NV;
+        rayGenGroupInfo.intersectionShader = VK_SHADER_UNUSED_NV;
+        shaderGroups.push_back(rayGenGroupInfo);
+
+        vk::RayTracingPipelineCreateInfoNV rayPipelineInfo;
+        rayPipelineInfo.stageCount = (uint32_t) shaderStages.size();
+        rayPipelineInfo.pStages = shaderStages.data();
+        rayPipelineInfo.groupCount = (uint32_t) shaderGroups.size();
+        rayPipelineInfo.pGroups = shaderGroups.data();
+        rayPipelineInfo.maxRecursionDepth = 1;
+        rayPipelineInfo.layout = rttest[renderpass].pipelineLayout;
+        rayPipelineInfo.basePipelineHandle = vk::Pipeline();
+        rayPipelineInfo.basePipelineIndex = 0;
+
+        rttest[renderpass].pipeline = device.createRayTracingPipelinesNV(vk::PipelineCache(), 
+            {rayPipelineInfo}, nullptr, dldi)[0];
+
+        device.destroyShaderModule(raygenShaderModule);        
+    }
 }
 
 void Material::Initialize()
 {
-    Material::CreateDescriptorSetLayouts();
+    Material::CreateRasterDescriptorSetLayouts();
+    Material::CreateRaytracedDescriptorSetLayouts();
     Material::CreateDescriptorPool();
     Material::CreateVertexInputBindingDescriptions();
     Material::CreateVertexAttributeDescriptions();
@@ -456,7 +516,7 @@ void Material::Initialize()
     Material::UpdateDescriptorSets();
 }
 
-void Material::CreateDescriptorSetLayouts()
+void Material::CreateRasterDescriptorSetLayouts()
 {
     /* Descriptor set layouts are standardized across shaders for optimized runtime binding */
 
@@ -552,6 +612,36 @@ void Material::CreateDescriptorSetLayouts()
     // Create the layouts
     componentDescriptorSetLayout = device.createDescriptorSetLayout(ssboLayoutInfo);
     textureDescriptorSetLayout = device.createDescriptorSetLayout(textureLayoutInfo);
+}
+
+void Material::CreateRaytracedDescriptorSetLayouts()
+{
+    auto vulkan = Libraries::Vulkan::Get();
+    auto device = vulkan->get_device();
+
+    if (!vulkan->is_ray_tracing_enabled()) return;
+
+    vk::DescriptorSetLayoutBinding accelerationStructureLayoutBinding;
+    accelerationStructureLayoutBinding.binding = 0;
+    accelerationStructureLayoutBinding.descriptorType = vk::DescriptorType::eAccelerationStructureNV;
+    accelerationStructureLayoutBinding.descriptorCount = 1;
+    accelerationStructureLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV;
+    accelerationStructureLayoutBinding.pImmutableSamplers = nullptr;
+
+    vk::DescriptorSetLayoutBinding outputImageLayoutBinding;
+    outputImageLayoutBinding.binding = 1;
+    outputImageLayoutBinding.descriptorType = vk::DescriptorType::eStorageImage;
+    outputImageLayoutBinding.descriptorCount = 1;
+    outputImageLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV;
+    outputImageLayoutBinding.pImmutableSamplers = nullptr;
+
+    std::vector<vk::DescriptorSetLayoutBinding> bindings({ accelerationStructureLayoutBinding, outputImageLayoutBinding });
+
+    vk::DescriptorSetLayoutCreateInfo layoutInfo;
+    layoutInfo.bindingCount = (uint32_t)(bindings.size());
+    layoutInfo.pBindings = bindings.data();
+
+    raytraceDescriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
 }
 
 void Material::CreateDescriptorPool()
