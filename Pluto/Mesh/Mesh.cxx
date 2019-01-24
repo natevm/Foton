@@ -177,7 +177,7 @@ void Mesh::Initialize() {
             Does the given resource directory include the required default meshes?"));
 }
 
-void Mesh::load_obj(std::string objPath)
+void Mesh::load_obj(std::string objPath, bool submit_immediately)
 {
     struct stat st;
     if (stat(objPath.c_str(), &st) != 0)
@@ -279,15 +279,15 @@ void Mesh::load_obj(std::string objPath)
 
     cleanup();
     compute_centroid();
-    createPointBuffer();
-    createColorBuffer();
-    createIndexBuffer();
-    createNormalBuffer();
-    createTexCoordBuffer();
+    createPointBuffer(submit_immediately);
+    createColorBuffer(submit_immediately);
+    createIndexBuffer(submit_immediately);
+    createNormalBuffer(submit_immediately);
+    createTexCoordBuffer(submit_immediately);
 }
 
 
-void Mesh::load_stl(std::string stlPath) {
+void Mesh::load_stl(std::string stlPath, bool submit_immediately) {
     struct stat st;
     if (stat(stlPath.c_str(), &st) != 0)
         throw std::runtime_error( std::string(stlPath + " does not exist!"));
@@ -342,14 +342,14 @@ void Mesh::load_stl(std::string stlPath) {
 
     cleanup();
     compute_centroid();
-    createPointBuffer();
-    createColorBuffer();
-    createIndexBuffer();
-    createNormalBuffer();
-    createTexCoordBuffer();
+    createPointBuffer(submit_immediately);
+    createColorBuffer(submit_immediately);
+    createIndexBuffer(submit_immediately);
+    createNormalBuffer(submit_immediately);
+    createTexCoordBuffer(submit_immediately);
 }
 
-void Mesh::load_glb(std::string glbPath)
+void Mesh::load_glb(std::string glbPath, bool submit_immediately)
 {
     struct stat st;
     if (stat(glbPath.c_str(), &st) != 0)
@@ -457,18 +457,18 @@ void Mesh::load_glb(std::string glbPath)
 
     cleanup();
     compute_centroid();
-    createPointBuffer();
-    createColorBuffer();
-    createIndexBuffer();
-    createNormalBuffer();
-    createTexCoordBuffer();
+    createPointBuffer(submit_immediately);
+    createColorBuffer(submit_immediately);
+    createIndexBuffer(submit_immediately);
+    createNormalBuffer(submit_immediately);
+    createTexCoordBuffer(submit_immediately);
 }
 
 void Mesh::load_raw(
     std::vector<glm::vec3> &points_, 
     std::vector<glm::vec3> &normals_, 
     std::vector<glm::vec4> &colors_, 
-    std::vector<glm::vec2> &texcoords_
+    std::vector<glm::vec2> &texcoords_, bool submit_immediately
 )
 {
     bool reading_normals = normals_.size() > 0;
@@ -528,15 +528,15 @@ void Mesh::load_raw(
 
     cleanup();
     compute_centroid();
-    createPointBuffer();
-    createColorBuffer();
-    createIndexBuffer();
-    createNormalBuffer();
-    createTexCoordBuffer();
+    createPointBuffer(submit_immediately);
+    createColorBuffer(submit_immediately);
+    createIndexBuffer(submit_immediately);
+    createNormalBuffer(submit_immediately);
+    createTexCoordBuffer(submit_immediately);
 }
 
 
-void Mesh::build_top_level_bvh()
+void Mesh::build_top_level_bvh(bool submit_immediately)
 {
     auto vulkan = Libraries::Vulkan::Get();
     if (!vulkan->is_initialized()) throw std::runtime_error("Error: vulkan is not initialized");
@@ -666,7 +666,7 @@ void Mesh::build_top_level_bvh()
         memoryBarrier.dstAccessMask  = vk::AccessFlagBits::eAccelerationStructureWriteNV;
         memoryBarrier.dstAccessMask |= vk::AccessFlagBits::eAccelerationStructureReadNV;
 
-        auto cmd = vulkan->begin_one_time_graphics_command(1);
+        auto cmd = vulkan->begin_one_time_graphics_command();
 
         /* TODO: MOVE INSTANCE STUFF INTO HERE */
         {
@@ -687,12 +687,12 @@ void Mesh::build_top_level_bvh()
         //     vk::PipelineStageFlagBits::eRayTracingShaderNV, 
         //     vk::DependencyFlags(), {memoryBarrier}, {}, {});
 
-        vulkan->end_one_time_graphics_command(cmd, "build acceleration structure", 1);
+        vulkan->end_one_time_graphics_command(cmd, "build acceleration structure", true, submit_immediately);
     }
 
 }
 
-void Mesh::build_low_level_bvh()
+void Mesh::build_low_level_bvh(bool submit_immediately)
 {
     auto vulkan = Libraries::Vulkan::Get();
     if (!vulkan->is_initialized()) throw std::runtime_error("Error: vulkan is not initialized");
@@ -828,7 +828,7 @@ void Mesh::build_low_level_bvh()
         memoryBarrier.dstAccessMask  = vk::AccessFlagBits::eAccelerationStructureWriteNV;
         memoryBarrier.dstAccessMask |= vk::AccessFlagBits::eAccelerationStructureReadNV;
 
-        auto cmd = vulkan->begin_one_time_graphics_command(1);
+        auto cmd = vulkan->begin_one_time_graphics_command();
 
         {
             vk::AccelerationStructureInfoNV asInfo;
@@ -848,7 +848,7 @@ void Mesh::build_low_level_bvh()
         //     vk::PipelineStageFlagBits::eAccelerationStructureBuildNV, 
         //     vk::DependencyFlags(), {memoryBarrier}, {}, {});
 
-        vulkan->end_one_time_graphics_command(cmd, "build acceleration structure", 1);
+        vulkan->end_one_time_graphics_command(cmd, "build acceleration structure", true, submit_immediately);
     }
 
     /* Might need a fence here */
@@ -864,48 +864,48 @@ Mesh* Mesh::Get(uint32_t id) {
     return StaticFactory::Get(id, "Mesh", lookupTable, meshes, MAX_MESHES);
 }
 
-Mesh* Mesh::CreateCube(std::string name)
+Mesh* Mesh::CreateCube(std::string name, bool submit_immediately)
 {
     auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
     if (!mesh) return nullptr;
-    mesh->make_cube();
+    mesh->make_cube(submit_immediately);
     return mesh;
 }
 
-Mesh* Mesh::CreatePlane(std::string name)
+Mesh* Mesh::CreatePlane(std::string name, bool submit_immediately)
 {
     auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
     if (!mesh) return nullptr;
-    mesh->make_plane();
+    mesh->make_plane(submit_immediately);
     return mesh;
 }
 
-Mesh* Mesh::CreateSphere(std::string name)
+Mesh* Mesh::CreateSphere(std::string name, bool submit_immediately)
 {
     auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
     if (!mesh) return nullptr;
-    mesh->make_sphere();
+    mesh->make_sphere(submit_immediately);
     return mesh;
 }
 
-Mesh* Mesh::CreateFromOBJ(std::string name, std::string objPath)
+Mesh* Mesh::CreateFromOBJ(std::string name, std::string objPath, bool submit_immediately)
 {
     auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
-    mesh->load_obj(objPath);
+    mesh->load_obj(objPath, submit_immediately);
     return mesh;
 }
 
-Mesh* Mesh::CreateFromSTL(std::string name, std::string stlPath)
+Mesh* Mesh::CreateFromSTL(std::string name, std::string stlPath, bool submit_immediately)
 {
     auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
-    mesh->load_stl(stlPath);
+    mesh->load_stl(stlPath, submit_immediately);
     return mesh;
 }
 
-Mesh* Mesh::CreateFromGLB(std::string name, std::string glbPath)
+Mesh* Mesh::CreateFromGLB(std::string name, std::string glbPath, bool submit_immediately)
 {
     auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
-    mesh->load_glb(glbPath);
+    mesh->load_glb(glbPath, submit_immediately);
     return mesh;
 }
 
@@ -914,10 +914,11 @@ Mesh* Mesh::CreateFromRaw(
     std::vector<glm::vec3> points, 
     std::vector<glm::vec3> normals, 
     std::vector<glm::vec4> colors, 
-    std::vector<glm::vec2> texcoords)
+    std::vector<glm::vec2> texcoords, 
+    bool submit_immediately)
 {
     auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
-    mesh->load_raw(points, normals, colors, texcoords);
+    mesh->load_raw(points, normals, colors, texcoords, submit_immediately);
     return mesh;
 }
 
@@ -966,7 +967,7 @@ void Mesh::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::Mem
     device.bindBufferMemory(buffer, bufferMemory, 0);
 }
 
-void Mesh::createPointBuffer()
+void Mesh::createPointBuffer(bool submit_immediately)
 {
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
@@ -985,18 +986,18 @@ void Mesh::createPointBuffer()
 
     createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, pointBuffer, pointBufferMemory);
     
-    auto cmd = vulkan->begin_one_time_graphics_command(1);
+    auto cmd = vulkan->begin_one_time_graphics_command();
     vk::BufferCopy copyRegion;
     copyRegion.size = bufferSize;
     cmd.copyBuffer(stagingBuffer, pointBuffer, copyRegion);
-    vulkan->end_one_time_graphics_command(cmd, "copy point buffer", 1);
+    vulkan->end_one_time_graphics_command(cmd, "copy point buffer", true, submit_immediately);
 
     /* Clean up the staging buffer */
     device.destroyBuffer(stagingBuffer);
     device.freeMemory(stagingBufferMemory);
 }
 
-void Mesh::createColorBuffer()
+void Mesh::createColorBuffer(bool submit_immediately)
 {
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
@@ -1015,18 +1016,18 @@ void Mesh::createColorBuffer()
 
     createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, colorBuffer, colorBufferMemory);
     
-    auto cmd = vulkan->begin_one_time_graphics_command(1);
+    auto cmd = vulkan->begin_one_time_graphics_command();
     vk::BufferCopy copyRegion;
     copyRegion.size = bufferSize;
     cmd.copyBuffer(stagingBuffer, colorBuffer, copyRegion);
-    vulkan->end_one_time_graphics_command(cmd, "copy point color buffer", 1);
+    vulkan->end_one_time_graphics_command(cmd, "copy point color buffer", true, submit_immediately);
 
     /* Clean up the staging buffer */
     device.destroyBuffer(stagingBuffer);
     device.freeMemory(stagingBufferMemory);
 }
 
-void Mesh::createIndexBuffer()
+void Mesh::createIndexBuffer(bool submit_immediately)
 {
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
@@ -1042,17 +1043,17 @@ void Mesh::createIndexBuffer()
 
     createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, indexBuffer, indexBufferMemory);
     
-    auto cmd = vulkan->begin_one_time_graphics_command(1);
+    auto cmd = vulkan->begin_one_time_graphics_command();
     vk::BufferCopy copyRegion;
     copyRegion.size = bufferSize;
     cmd.copyBuffer(stagingBuffer, indexBuffer, copyRegion);
-    vulkan->end_one_time_graphics_command(cmd, "copy point index buffer", 1);
+    vulkan->end_one_time_graphics_command(cmd, "copy point index buffer", true, submit_immediately);
 
     device.destroyBuffer(stagingBuffer);
     device.freeMemory(stagingBufferMemory);
 }
 
-void Mesh::createNormalBuffer()
+void Mesh::createNormalBuffer(bool submit_immediately)
 {
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
@@ -1071,18 +1072,18 @@ void Mesh::createNormalBuffer()
 
     createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, normalBuffer, normalBufferMemory);
     
-    auto cmd = vulkan->begin_one_time_graphics_command(1);
+    auto cmd = vulkan->begin_one_time_graphics_command();
     vk::BufferCopy copyRegion;
     copyRegion.size = bufferSize;
     cmd.copyBuffer(stagingBuffer, normalBuffer, copyRegion);
-    vulkan->end_one_time_graphics_command(cmd, "copy point normal buffer", 1);
+    vulkan->end_one_time_graphics_command(cmd, "copy point normal buffer", true, submit_immediately);
 
     /* Clean up the staging buffer */
     device.destroyBuffer(stagingBuffer);
     device.freeMemory(stagingBufferMemory);
 }
 
-void Mesh::createTexCoordBuffer()
+void Mesh::createTexCoordBuffer(bool submit_immediately)
 {
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
@@ -1101,18 +1102,18 @@ void Mesh::createTexCoordBuffer()
 
     createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, texCoordBuffer, texCoordBufferMemory);
     
-    auto cmd = vulkan->begin_one_time_graphics_command(1);
+    auto cmd = vulkan->begin_one_time_graphics_command();
     vk::BufferCopy copyRegion;
     copyRegion.size = bufferSize;
     cmd.copyBuffer(stagingBuffer, texCoordBuffer, copyRegion);
-    vulkan->end_one_time_graphics_command(cmd, "copy point texcoord buffer", 1);
+    vulkan->end_one_time_graphics_command(cmd, "copy point texcoord buffer", true, submit_immediately);
 
     /* Clean up the staging buffer */
     device.destroyBuffer(stagingBuffer);
     device.freeMemory(stagingBufferMemory);
 }
 
-void Mesh::make_cube()
+void Mesh::make_cube(bool submit_immediately)
 {
     points.assign({
         {1.0, -1.0, -1.0},  {1.0, -1.0, -1.0},  {1.0, -1.0, -1.0}, 
@@ -1158,14 +1159,14 @@ void Mesh::make_cube()
 
     indices.assign({0,3,6,0,6,9,12,21,18,12,18,15,1,13,16,1,16,4,5,17,19,5,19,7,8,20,22,8,22,10,14,2,11,14,11,23,});
     compute_centroid();
-    createPointBuffer();
-    createColorBuffer();
-    createNormalBuffer();
-    createTexCoordBuffer();
-    createIndexBuffer();
+    createPointBuffer(submit_immediately);
+    createColorBuffer(submit_immediately);
+    createNormalBuffer(submit_immediately);
+    createTexCoordBuffer(submit_immediately);
+    createIndexBuffer(submit_immediately);
 }
 
-void Mesh::make_plane()
+void Mesh::make_plane(bool submit_immediately)
 {
     points.assign({
         {-1.f, -1.f, 0.f},
@@ -1194,14 +1195,14 @@ void Mesh::make_plane()
     indices.assign({0,1,3,0,3,2});
 
     compute_centroid();
-    createPointBuffer();
-    createColorBuffer();
-    createNormalBuffer();
-    createTexCoordBuffer();
-    createIndexBuffer();
+    createPointBuffer(submit_immediately);
+    createColorBuffer(submit_immediately);
+    createNormalBuffer(submit_immediately);
+    createTexCoordBuffer(submit_immediately);
+    createIndexBuffer(submit_immediately);
 }
 
-void Mesh::make_sphere()
+void Mesh::make_sphere(bool submit_immediately)
 {
     points.assign({
         { 0.0 ,  0.0 ,  -1.0 }, { 0.72 ,  -0.53 ,  -0.45 }, { 0.72 ,  -0.53 ,  -0.45 }, 
@@ -1630,9 +1631,9 @@ void Mesh::make_sphere()
     });
 
     compute_centroid();
-    createPointBuffer();
-    createColorBuffer();
-    createNormalBuffer();
-    createTexCoordBuffer();
-    createIndexBuffer();
+    createPointBuffer(submit_immediately);
+    createColorBuffer(submit_immediately);
+    createNormalBuffer(submit_immediately);
+    createTexCoordBuffer(submit_immediately);
+    createIndexBuffer(submit_immediately);
 }

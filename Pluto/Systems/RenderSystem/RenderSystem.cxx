@@ -280,7 +280,7 @@ void RenderSystem::stream_frames()
     /* If we're the server, send the frame over UDP */
     if (Options::IsServer())
     {
-        std::vector<float> color_data = texture->download_color_data(16, 16, 1, 0);
+        std::vector<float> color_data = texture->download_color_data(16, 16, 1, true);
 
         bucket.x = 0;
         bucket.y = 0;

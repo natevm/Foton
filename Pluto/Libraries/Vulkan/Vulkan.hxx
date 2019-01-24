@@ -70,11 +70,12 @@ namespace Libraries {
         vk::SampleCountFlagBits get_closest_sample_count_flag(uint32_t samples);
         vk::SampleCountFlags get_msaa_sample_flags();
 
-        vk::CommandBuffer begin_one_time_graphics_command(uint32_t pool_id = 0);
-        bool end_one_time_graphics_command(vk::CommandBuffer command_buffer, std::string hint, uint32_t pool_id = 0, bool free_after_use = true, bool submit_immediately = false);
+        vk::CommandBuffer begin_one_time_graphics_command();
+        bool end_one_time_graphics_command(vk::CommandBuffer command_buffer, std::string hint, bool free_after_use = true, bool submit_immediately = false);
 
         vk::DispatchLoaderDynamic get_dldi();
     private:
+        uint32_t registered_threads = 0; 
         bool validationEnabled = true;
         bool rayTracingEnabled = false;
         vk::SampleCountFlags supportedMSAASamples;
@@ -140,5 +141,7 @@ namespace Libraries {
         function<void()> externalCallback;
 
         bool GetFeaturesFromList(set<string> device_features, vk::PhysicalDeviceFeatures &supportedFeatures);
+
+        uint32_t get_thread_id();
     };
 }

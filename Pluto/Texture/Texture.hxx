@@ -28,19 +28,19 @@ class Texture : public StaticFactory
 		};
 
 		/* Creates a texture from a khronos texture file (.ktx) */
-		static Texture *CreateFromKTX(std::string name, std::string filepath);
+		static Texture *CreateFromKTX(std::string name, std::string filepath, bool submit_immediately = false);
 
 		/* Creates a texture from data allocated outside this class. Helpful for swapchains, external libraries, etc */
 		static Texture *CreateFromExternalData(std::string name, Data data);
 
 		/* Creates a texture from a flattened sequence of RGBA floats, whose shape was originally (width, height, 4) */
-		static Texture *Create2DFromColorData(std::string name, uint32_t width, uint32_t height, std::vector<float> data);
+		static Texture *Create2DFromColorData(std::string name, uint32_t width, uint32_t height, std::vector<float> data, bool submit_immediately = false);
 
 		/* Creates a cubemap texture of a given width and height, and with color and/or depth resources. */
-		static Texture *CreateCubemap(std::string name, uint32_t width, uint32_t height, bool hasColor, bool hasDepth);
+		static Texture *CreateCubemap(std::string name, uint32_t width, uint32_t height, bool hasColor, bool hasDepth, bool submit_immediately = false);
 
 		/* Creates a 2d texture of a given width and height, consisting of possibly several layers, and with color and/or depth resources. */
-		static Texture *Create2D(std::string name, uint32_t width, uint32_t height, bool hasColor, bool hasDepth, uint32_t sampleCount, uint32_t layers);
+		static Texture *Create2D(std::string name, uint32_t width, uint32_t height, bool hasColor, bool hasDepth, uint32_t sampleCount, uint32_t layers, bool submit_immediately = false);
 
 		/* Retrieves a texture component by name */
 		static Texture *Get(std::string name);
@@ -103,10 +103,10 @@ class Texture : public StaticFactory
 		vk::SampleCountFlagBits get_sample_count();		
 
 		/* Blits the texture to an image of the given width, height, and depth, then downloads from the GPU to the CPU. */
-		std::vector<float> download_color_data(uint32_t width, uint32_t height, uint32_t depth, uint32_t pool = 1);
+		std::vector<float> download_color_data(uint32_t width, uint32_t height, uint32_t depth, bool submit_immediately = false);
 
 		/* Blits the provided image of shape (width, height, depth, 4) to the current texture. */
-		void upload_color_data(uint32_t width, uint32_t height, uint32_t depth, std::vector<float> color_data, uint32_t pool_id = 1);
+		void upload_color_data(uint32_t width, uint32_t height, uint32_t depth, std::vector<float> color_data, bool submit_immediately = false);
 
 		/* Records a blit of this texture onto another. */
 		void record_blit_to(vk::CommandBuffer command_buffer, Texture *other, uint32_t layer = 0);
@@ -147,10 +147,10 @@ class Texture : public StaticFactory
 		void cleanup();
 
 		/* Allocates vulkan resources required for a colored image */
-		void create_color_image_resources();
+		void create_color_image_resources(bool submit_immediately = false);
 
 		/* Allocates vulkan resources required for a depth/stencil image */
-		void create_depth_stencil_resources();
+		void create_depth_stencil_resources(bool submit_immediately = false);
 
 		/* Creates a color ImageView, which allows the color image resources to be interpreted for use in shaders, blits, etc */
 		void createColorImageView();
@@ -159,5 +159,5 @@ class Texture : public StaticFactory
 		bool get_supported_depth_format(vk::PhysicalDevice physicalDevice, vk::Format *depthFormat);
 
 		/* Creates a texture from a khronos texture file, replacing any vulkan resources with new ones containing the ktx data. */
-		void loadKTX(std::string imagePath);
+		void loadKTX(std::string imagePath, bool submit_immediately = false);
 };

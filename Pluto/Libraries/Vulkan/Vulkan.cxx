@@ -16,6 +16,8 @@
 #include "../GLFW/GLFW.hxx"
 #include "../OpenVR/OpenVR.hxx"
 
+thread_local int32_t thread_id = -1;
+
 namespace Libraries
 {
 
@@ -796,7 +798,8 @@ uint32_t Vulkan::find_memory_type(uint32_t typeFilter, vk::MemoryPropertyFlags p
     return -1;
 }
 
-vk::CommandBuffer Vulkan::begin_one_time_graphics_command(uint32_t pool_id) {
+vk::CommandBuffer Vulkan::begin_one_time_graphics_command() {
+    uint32_t pool_id = get_thread_id();
     vk::CommandBufferAllocateInfo cmdAllocInfo;
     cmdAllocInfo.commandPool = get_command_pool(pool_id);
     cmdAllocInfo.level = vk::CommandBufferLevel::ePrimary;
@@ -809,15 +812,17 @@ vk::CommandBuffer Vulkan::begin_one_time_graphics_command(uint32_t pool_id) {
     return cmdBuffer;
 }
 
-bool Vulkan::end_one_time_graphics_command(vk::CommandBuffer command_buffer, std::string hint, uint32_t pool_id, bool free_after_use, bool submit_immediately) {
+bool Vulkan::end_one_time_graphics_command(vk::CommandBuffer command_buffer, std::string hint, bool free_after_use, bool submit_immediately) {
     command_buffer.end();
+
+    uint32_t pool_id = get_thread_id();
 
     vk::FenceCreateInfo fenceInfo;
     vk::Fence fence = device.createFence(fenceInfo);
 
     std::future<void> fut = enqueue_graphics_commands({command_buffer}, {},{}, {}, fence, hint);
 
-    if (submit_immediately || pool_id == 0) submit_graphics_commands();
+    if (submit_immediately) submit_graphics_commands();
 
     fut.wait();
 
@@ -932,12 +937,13 @@ bool Vulkan::submit_present_commands() {
     return result;
 }
 
-uint32_t get_thread_id() {
-    return 0;
-    // Determine if thread is in our map.
-    // If it isn't, increment the registered number of threads, add this thread to the map.
-    // Return this thread's mapped id.
-    /* Could eventually be mapped to a range of ids for different pools. */
+uint32_t Vulkan::get_thread_id() {
+    /* Todo: make this thread safe */
+    if (thread_id == -1){
+        thread_id = registered_threads;
+        registered_threads++;
+    }
+    return thread_id;
 }
 
 bool Vulkan::is_ray_tracing_enabled() {

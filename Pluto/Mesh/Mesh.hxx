@@ -67,18 +67,18 @@ class Mesh : public StaticFactory
   public:
     static Mesh* Get(std::string name);
 	static Mesh* Get(uint32_t id);
-    static Mesh* CreateCube(std::string name);
-    static Mesh* CreatePlane(std::string name);
-    static Mesh* CreateSphere(std::string name);
-    static Mesh* CreateFromOBJ(std::string name, std::string objPath);
-    static Mesh* CreateFromSTL(std::string name, std::string stlPath);
-    static Mesh* CreateFromGLB(std::string name, std::string glbPath);
+    static Mesh* CreateCube(std::string name, bool submit_immediately = false);
+    static Mesh* CreatePlane(std::string name, bool submit_immediately = false);
+    static Mesh* CreateSphere(std::string name, bool submit_immediately = false);
+    static Mesh* CreateFromOBJ(std::string name, std::string objPath, bool submit_immediately = false);
+    static Mesh* CreateFromSTL(std::string name, std::string stlPath, bool submit_immediately = false);
+    static Mesh* CreateFromGLB(std::string name, std::string glbPath, bool submit_immediately = false);
     static Mesh* CreateFromRaw(
         std::string name,
         std::vector<glm::vec3> points, 
         std::vector<glm::vec3> normals = {}, 
         std::vector<glm::vec4> colors = {}, 
-        std::vector<glm::vec2> texcoords = {});
+        std::vector<glm::vec2> texcoords = {}, bool submit_immediately = false);
     //static Mesh* Create(std::string name);
 	static Mesh* GetFront();
 	static uint32_t GetCount();
@@ -139,39 +139,40 @@ class Mesh : public StaticFactory
 
     void cleanup();
 
-    void make_cube();
+    void make_cube(bool submit_immediately);
    
-    void make_plane();
+    void make_plane(bool submit_immediately);
     
-    void make_sphere();
+    void make_sphere(bool submit_immediately);
     
-    void load_obj(std::string objPath);
+    void load_obj(std::string objPath, bool submit_immediately);
 
-    void load_stl(std::string stlPath);
+    void load_stl(std::string stlPath, bool submit_immediately);
 
-    void load_glb(std::string glbPath);
+    void load_glb(std::string glbPath, bool submit_immediately);
 
     void load_raw(
         std::vector<glm::vec3> &points, 
         std::vector<glm::vec3> &normals, 
         std::vector<glm::vec4> &colors, 
-        std::vector<glm::vec2> &texcoords
+        std::vector<glm::vec2> &texcoords,
+        bool submit_immediately
     );
 
-    void build_low_level_bvh();
+    void build_low_level_bvh(bool submit_immediately = false);
 
-    static void build_top_level_bvh();
+    static void build_top_level_bvh(bool submit_immediately = false);
 
   private:
     void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer &buffer, vk::DeviceMemory &bufferMemory);
 
-    void createPointBuffer();
+    void createPointBuffer(bool submit_immediately);
 
-    void createColorBuffer();
+    void createColorBuffer(bool submit_immediately);
 
-    void createIndexBuffer();
+    void createIndexBuffer(bool submit_immediately);
 
-    void createNormalBuffer();
+    void createNormalBuffer(bool submit_immediately);
 
-    void createTexCoordBuffer();
+    void createTexCoordBuffer(bool submit_immediately);
 };
