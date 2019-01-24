@@ -668,6 +668,10 @@ namespace Libraries {
         return window->keys[key].mods;
     }
 
+    double GLFW::get_time() {
+        return glfwGetTime();
+    }
+
     int GLFW::get_key_code(std::string key) {
         std::transform(key.begin(), key.end(), key.begin(), [](char c){ return std::toupper(c); });
         if (key.compare("SPACE") == 0) return GLFW_KEY_SPACE;

@@ -64,6 +64,7 @@ namespace Libraries {
         static int get_key_code(std::string key);
         GLFWwindow* get_ptr(std::string key);
         std::shared_ptr<std::mutex> get_mutex();
+        double get_time();
         
         void acquire_swapchain_images(uint32_t current_frame);
         std::vector<vk::Semaphore> get_image_available_semaphores(uint32_t current_frame);
