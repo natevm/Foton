@@ -400,6 +400,13 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
         throw std::runtime_error("Failed to find a GPU which meets demands!" );
         return false;
     }
+
+    /* If we're using raytracing, query raytracing properties */
+    if (rayTracingEnabled) {
+        vk::PhysicalDeviceProperties2 props;
+        props.pNext = &deviceRaytracingProperties;
+        physicalDevice.getProperties2(&props, dldi);
+    }
     
     /* We now need to create a logical device, which is like an instance of a physical device */
     std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
@@ -499,6 +506,16 @@ vk::PhysicalDeviceProperties Vulkan::get_physical_device_properties() const
         return vk::PhysicalDeviceProperties();
     return deviceProperties;
 }
+
+vk::PhysicalDeviceRayTracingPropertiesNV Vulkan::get_physical_device_ray_tracing_properties() const
+{
+    if (!physicalDevice)
+        throw std::runtime_error("Error: physical device is null");
+    if (!rayTracingEnabled)
+        throw std::runtime_error("Error: raytracing is not enabled");
+    return deviceRaytracingProperties;
+}
+
 
 vk::Device Vulkan::get_device() const
 {

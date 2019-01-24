@@ -116,7 +116,8 @@ void RenderSystem::record_render_commands()
     Light::UploadSSBO();
     Camera::UploadSSBO();
     Entity::UploadSSBO();
-    Material::UpdateDescriptorSets();
+    Material::UpdateRasterDescriptorSets();
+    Material::UpdateRaytracingDescriptorSets();
 
     auto brdf_id = Texture::Get("BRDF")->get_id();
     push_constants.brdf_lut_id = brdf_id;

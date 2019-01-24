@@ -36,6 +36,7 @@ namespace Libraries {
         vk::Instance get_instance() const;
         vk::PhysicalDevice get_physical_device() const;
         vk::PhysicalDeviceProperties get_physical_device_properties() const;
+        vk::PhysicalDeviceRayTracingPropertiesNV get_physical_device_ray_tracing_properties() const;
         vk::Device get_device() const;
         uint32_t get_graphics_family() const;
         uint32_t get_present_family() const;
@@ -111,6 +112,7 @@ namespace Libraries {
         
         vk::PhysicalDevice physicalDevice;
         vk::PhysicalDeviceProperties deviceProperties;
+        vk::PhysicalDeviceRayTracingPropertiesNV deviceRaytracingProperties;
         vk::PhysicalDeviceFeatures deviceFeatures;
         
         vk::Device device;

@@ -55,7 +55,10 @@ class Material : public StaticFactory
 
         /* Initializes the vulkan resources required to render during the specified renderpass */
         static void SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sampleCount);
-    
+
+        /* EXPLAIN THIS */
+        static void SetupRaytracingShaderBindingTable(vk::RenderPass renderpass);
+
         /* Initializes all vulkan descriptor resources, as well as the Mesh factory. */
         static void Initialize();
 
@@ -64,7 +67,10 @@ class Material : public StaticFactory
 
         /* Copies SSBO / texture handles into the texture and component descriptor sets. 
             Also, allocates the descriptor sets if not yet allocated. */
-        static void UpdateDescriptorSets();
+        static void UpdateRasterDescriptorSets();
+
+        /* EXPLAIN THIS */
+        static void UpdateRaytracingDescriptorSets();
 
         /* Returns the SSBO vulkan buffer handle */
         static vk::Buffer GetSSBO();
@@ -152,9 +158,11 @@ class Material : public StaticFactory
             vk::PipelineLayout pipelineLayout;
         };
 
-        struct RaytracePipelineResources {
+        struct RaytracingPipelineResources {
             vk::Pipeline pipeline;
             vk::PipelineLayout pipelineLayout;
+            vk::Buffer shaderBindingTable;
+            vk::DeviceMemory shaderBindingTableMemory;
         };
         
         /* The descriptor set layout describing where component SSBOs are bound */
@@ -165,7 +173,7 @@ class Material : public StaticFactory
 
         /* The descriptor set layout describing where acceleration structures and 
             raytracing related data are bound */
-        static vk::DescriptorSetLayout raytraceDescriptorSetLayout;
+        static vk::DescriptorSetLayout raytracingDescriptorSetLayout;
 
         /* The descriptor pool used to allocate the component descriptor set. */
         static vk::DescriptorPool componentDescriptorPool;
@@ -173,12 +181,15 @@ class Material : public StaticFactory
         /* The descriptor pool used to allocate the texture descriptor set. */
         static vk::DescriptorPool textureDescriptorPool;
 
+        /* The descriptor pool used to allocate the raytracing descriptor set */
+        static vk::DescriptorPool raytracingDescriptorPool;
+
         /* The descriptor set containing references to all component SSBO buffers to be used as uniforms. */
         static vk::DescriptorSet componentDescriptorSet;
 
         /* The descriptor set containing references to all array of textues to be used as uniforms. */
         static vk::DescriptorSet textureDescriptorSet;
-
+        
         /* The pipeline resources for each of the possible material types */
         static std::map<vk::RenderPass, RasterPipelineResources> uniformColor;
         static std::map<vk::RenderPass, RasterPipelineResources> blinn;
@@ -188,7 +199,7 @@ class Material : public StaticFactory
         static std::map<vk::RenderPass, RasterPipelineResources> skybox;
         static std::map<vk::RenderPass, RasterPipelineResources> depth;
 
-        static std::map<vk::RenderPass, RaytracePipelineResources> rttest;
+        static std::map<vk::RenderPass, RaytracingPipelineResources> rttest;
 
 
         /* Wrapper for shader module creation.  */
@@ -211,10 +222,10 @@ class Material : public StaticFactory
         static void CreateRasterDescriptorSetLayouts();
 
         /* Creates all possible raytraced descriptor set layout combinations */
-        static void CreateRaytracedDescriptorSetLayouts();
+        static void CreateRaytracingDescriptorSetLayouts();
 
         /* Creates the descriptor pool where the descriptor sets will be allocated from. */
-        static void CreateDescriptorPool();
+        static void CreateDescriptorPools();
 
         /* Creates the vulkan vertex input binding descriptions required to create a pipeline. */
         static void CreateVertexInputBindingDescriptions();

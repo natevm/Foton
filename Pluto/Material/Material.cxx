@@ -16,9 +16,10 @@ vk::DeviceMemory Material::ssboMemory;
 
 vk::DescriptorSetLayout Material::componentDescriptorSetLayout;
 vk::DescriptorSetLayout Material::textureDescriptorSetLayout;
-vk::DescriptorSetLayout Material::raytraceDescriptorSetLayout;
+vk::DescriptorSetLayout Material::raytracingDescriptorSetLayout;
 vk::DescriptorPool Material::componentDescriptorPool;
 vk::DescriptorPool Material::textureDescriptorPool;
+vk::DescriptorPool Material::raytracingDescriptorPool;
 std::vector<vk::VertexInputBindingDescription> Material::vertexInputBindingDescriptions;
 std::vector<vk::VertexInputAttributeDescription> Material::vertexInputAttributeDescriptions;
 vk::DescriptorSet Material::componentDescriptorSet;
@@ -32,7 +33,7 @@ std::map<vk::RenderPass, Material::RasterPipelineResources> Material::normalsurf
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::skybox;
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::depth;
 
-std::map<vk::RenderPass, Material::RaytracePipelineResources> Material::rttest;
+std::map<vk::RenderPass, Material::RaytracingPipelineResources> Material::rttest;
 
 Material::Material() {
     this->initialized = false;
@@ -455,7 +456,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 
     /* RAY TRACING PIPELINES */
     {
-        rttest[renderpass] = RaytracePipelineResources();
+        rttest[renderpass] = RaytracingPipelineResources();
 
         std::string ResourcePath = Options::GetResourcePath();
         auto raygenShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracedMaterials/TutorialShaders/rgen.spv"));
@@ -473,7 +474,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         
         vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
         pipelineLayoutCreateInfo.setLayoutCount = 1;
-        pipelineLayoutCreateInfo.pSetLayouts = &raytraceDescriptorSetLayout;
+        pipelineLayoutCreateInfo.pSetLayouts = &raytracingDescriptorSetLayout;
         pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
         pipelineLayoutCreateInfo.pPushConstantRanges = nullptr;
 
@@ -501,19 +502,66 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         rttest[renderpass].pipeline = device.createRayTracingPipelinesNV(vk::PipelineCache(), 
             {rayPipelineInfo}, nullptr, dldi)[0];
 
-        device.destroyShaderModule(raygenShaderModule);        
+        device.destroyShaderModule(raygenShaderModule);
     }
+
+    SetupRaytracingShaderBindingTable(renderpass);
+}
+
+void Material::SetupRaytracingShaderBindingTable(vk::RenderPass renderpass)
+{
+    auto vulkan = Libraries::Vulkan::Get();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error("Error: Vulkan not initialized");
+    
+    if (!vulkan->is_ray_tracing_enabled())
+        throw std::runtime_error("Error: Vulkan raytracing is not enabled. ");
+
+    auto device = vulkan->get_device();
+    auto dldi = vulkan->get_dldi();
+
+    auto rayTracingProps = vulkan->get_physical_device_ray_tracing_properties();
+
+
+    /* Currently only works with rttest */
+
+    
+    const uint32_t groupNum = 1; // 1 group is listed in pGroupNumbers in VkRayTracingPipelineCreateInfoNV
+    const uint32_t shaderBindingTableSize = rayTracingProps.shaderGroupHandleSize * groupNum;
+
+    /* Create binding table buffer */
+    vk::BufferCreateInfo bufferInfo;
+    bufferInfo.size = shaderBindingTableSize;
+    bufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+    bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+    rttest[renderpass].shaderBindingTable = device.createBuffer(bufferInfo);
+
+    /* Create memory for binding table */
+    vk::MemoryRequirements memRequirements = device.getBufferMemoryRequirements(rttest[renderpass].shaderBindingTable);
+    vk::MemoryAllocateInfo allocInfo;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = vulkan->find_memory_type(memRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible);
+    rttest[renderpass].shaderBindingTableMemory = device.allocateMemory(allocInfo);
+
+    /* Bind buffer to memeory */
+    device.bindBufferMemory(rttest[renderpass].shaderBindingTable, rttest[renderpass].shaderBindingTableMemory, 0);
+
+    /* Map the binding table, then fill with shader group handles */
+    void* mappedMemory = device.mapMemory(rttest[renderpass].shaderBindingTableMemory, 0, shaderBindingTableSize, vk::MemoryMapFlags());
+    device.getRayTracingShaderGroupHandlesNV(rttest[renderpass].pipeline, 0, groupNum, shaderBindingTableSize, mappedMemory, dldi);
+    device.unmapMemory(rttest[renderpass].shaderBindingTableMemory);
 }
 
 void Material::Initialize()
 {
     Material::CreateRasterDescriptorSetLayouts();
-    Material::CreateRaytracedDescriptorSetLayouts();
-    Material::CreateDescriptorPool();
+    Material::CreateRaytracingDescriptorSetLayouts();
+    Material::CreateDescriptorPools();
     Material::CreateVertexInputBindingDescriptions();
     Material::CreateVertexAttributeDescriptions();
     Material::CreateSSBO();
-    Material::UpdateDescriptorSets();
+    Material::UpdateRasterDescriptorSets();
+    Material::UpdateRaytracingDescriptorSets();
 }
 
 void Material::CreateRasterDescriptorSetLayouts()
@@ -614,7 +662,7 @@ void Material::CreateRasterDescriptorSetLayouts()
     textureDescriptorSetLayout = device.createDescriptorSetLayout(textureLayoutInfo);
 }
 
-void Material::CreateRaytracedDescriptorSetLayouts()
+void Material::CreateRaytracingDescriptorSetLayouts()
 {
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
@@ -641,10 +689,10 @@ void Material::CreateRaytracedDescriptorSetLayouts()
     layoutInfo.bindingCount = (uint32_t)(bindings.size());
     layoutInfo.pBindings = bindings.data();
 
-    raytraceDescriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
+    raytracingDescriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
 }
 
-void Material::CreateDescriptorPool()
+void Material::CreateDescriptorPools()
 {
     /* Since the descriptor layout is consistent across shaders, the descriptor
         pool can be shared. */
@@ -706,12 +754,32 @@ void Material::CreateDescriptorPool()
     texturePoolInfo.maxSets = MAX_MATERIALS;
     texturePoolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 
+    /* Raytrace Descriptor Pool Info */
+    std::array<vk::DescriptorPoolSize, 2> raytracingPoolSizes = {};
+    
+    // Sampler
+    raytracingPoolSizes[0].type = vk::DescriptorType::eStorageImage;
+    raytracingPoolSizes[0].descriptorCount = 1;
+    
+    // 2D Texture array
+    raytracingPoolSizes[1].type = vk::DescriptorType::eAccelerationStructureNV;
+    raytracingPoolSizes[1].descriptorCount = 1;
+    
+    vk::DescriptorPoolCreateInfo raytracingPoolInfo;
+    raytracingPoolInfo.poolSizeCount = (uint32_t)raytracingPoolSizes.size();
+    raytracingPoolInfo.pPoolSizes = raytracingPoolSizes.data();
+    raytracingPoolInfo.maxSets = 1;
+    raytracingPoolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
+
     // Create the pools
     componentDescriptorPool = device.createDescriptorPool(ssboPoolInfo);
     textureDescriptorPool = device.createDescriptorPool(texturePoolInfo);
+
+    if (vulkan->is_ray_tracing_enabled())
+        raytracingDescriptorPool = device.createDescriptorPool(raytracingPoolInfo);
 }
 
-void Material::UpdateDescriptorSets()
+void Material::UpdateRasterDescriptorSets()
 {
     if (  (componentDescriptorPool == vk::DescriptorPool()) || (textureDescriptorPool == vk::DescriptorPool())) return;
     auto vulkan = Libraries::Vulkan::Get();
@@ -882,6 +950,11 @@ void Material::UpdateDescriptorSets()
     textureDescriptorWrites[3].pImageInfo = texture3DDescriptorInfos;
     
     device.updateDescriptorSets((uint32_t)textureDescriptorWrites.size(), textureDescriptorWrites.data(), 0, nullptr);
+}
+
+void Material::UpdateRaytracingDescriptorSets()
+{
+    // TODO
 }
 
 void Material::CreateVertexInputBindingDescriptions() {
