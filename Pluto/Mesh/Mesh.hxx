@@ -17,6 +17,10 @@ class Mesh : public StaticFactory
   private:
     static Mesh meshes[MAX_MESHES];
     static std::map<std::string, uint32_t> lookupTable;
+    static vk::AccelerationStructureNV topAS;
+    static vk::DeviceMemory topASMemory;
+    static vk::Buffer instanceBuffer;
+    static vk::DeviceMemory instanceBufferMemory;
 
     glm::vec3 centroid;
 
@@ -56,11 +60,9 @@ class Mesh : public StaticFactory
 
     vk::GeometryNV geometry;
     VkGeometryInstance instance;
-    vk::AccelerationStructureNV accelerationStructure;
-    vk::DeviceMemory accelerationStructureMemory;
-    
-    vk::Buffer instanceBuffer;
-    vk::DeviceMemory instanceBufferMemory;
+    vk::AccelerationStructureNV lowAS;
+    vk::DeviceMemory lowASMemory;
+    bool lowBVHBuilt = false;
 
   public:
     static Mesh* Get(std::string name);
@@ -156,7 +158,9 @@ class Mesh : public StaticFactory
         std::vector<glm::vec2> &texcoords
     );
 
-    void build_acceleration_structure();
+    void build_low_level_bvh();
+
+    static void build_top_level_bvh();
 
   private:
     void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer &buffer, vk::DeviceMemory &bufferMemory);
