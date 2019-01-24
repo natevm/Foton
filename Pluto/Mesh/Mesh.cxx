@@ -545,10 +545,22 @@ void Mesh::load_raw(
 
 void Mesh::edit_position(uint32_t index, glm::vec3 new_position)
 {
+    auto vulkan = Libraries::Vulkan::Get();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error("Error: Vulkan is not initialized");
+    auto device = vulkan->get_device();
+
     if (!allowEdits)
         throw std::runtime_error("Error: editing this component is not allowed. \
             Edits can be enabled during creation.");
-    throw std::runtime_error("Error: Not yet implemented");
+    
+    if (index >= this->points.size())
+        throw std::runtime_error("Error: index out of bounds. Max index is " + std::to_string(this->points.size() - 1));
+    
+    void *data = device.mapMemory(pointBufferMemory, (index * sizeof(glm::vec3)), sizeof(glm::vec3), vk::MemoryMapFlags());
+    memcpy(data, &new_position, sizeof(glm::vec3));
+    device.unmapMemory(pointBufferMemory);
+
 }
 
 void Mesh::edit_positions(uint32_t index, std::vector<glm::vec3> new_positions)
@@ -1056,7 +1068,13 @@ void Mesh::createPointBuffer(bool allow_edits, bool submit_immediately)
     memcpy(data, points.data(), (size_t)bufferSize);
     device.unmapMemory(stagingBufferMemory);
 
-    createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, pointBuffer, pointBufferMemory);
+    vk::MemoryPropertyFlags memoryProperties;
+    if (!allowEdits) memoryProperties = vk::MemoryPropertyFlagBits::eDeviceLocal;
+    else {
+        memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible;
+        memoryProperties |= vk::MemoryPropertyFlagBits::eHostCoherent;
+    }
+    createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, memoryProperties, pointBuffer, pointBufferMemory);
     
     auto cmd = vulkan->begin_one_time_graphics_command();
     vk::BufferCopy copyRegion;
@@ -1086,7 +1104,13 @@ void Mesh::createColorBuffer(bool allow_edits, bool submit_immediately)
     memcpy(data, colors.data(), (size_t)bufferSize);
     device.unmapMemory(stagingBufferMemory);
 
-    createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, colorBuffer, colorBufferMemory);
+    vk::MemoryPropertyFlags memoryProperties;
+    if (!allowEdits) memoryProperties = vk::MemoryPropertyFlagBits::eDeviceLocal;
+    else {
+        memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible;
+        memoryProperties |= vk::MemoryPropertyFlagBits::eHostCoherent;
+    }
+    createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, memoryProperties, colorBuffer, colorBufferMemory);
     
     auto cmd = vulkan->begin_one_time_graphics_command();
     vk::BufferCopy copyRegion;
@@ -1113,7 +1137,13 @@ void Mesh::createIndexBuffer(bool allow_edits, bool submit_immediately)
     memcpy(data, indices.data(), (size_t)bufferSize);
     device.unmapMemory(stagingBufferMemory);
 
-    createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, indexBuffer, indexBufferMemory);
+    vk::MemoryPropertyFlags memoryProperties;
+    if (!allowEdits) memoryProperties = vk::MemoryPropertyFlagBits::eDeviceLocal;
+    else {
+        memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible;
+        memoryProperties |= vk::MemoryPropertyFlagBits::eHostCoherent;
+    }
+    createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, memoryProperties, indexBuffer, indexBufferMemory);
     
     auto cmd = vulkan->begin_one_time_graphics_command();
     vk::BufferCopy copyRegion;
@@ -1142,7 +1172,13 @@ void Mesh::createNormalBuffer(bool allow_edits, bool submit_immediately)
     memcpy(data, normals.data(), (size_t)bufferSize);
     device.unmapMemory(stagingBufferMemory);
 
-    createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, normalBuffer, normalBufferMemory);
+    vk::MemoryPropertyFlags memoryProperties;
+    if (!allowEdits) memoryProperties = vk::MemoryPropertyFlagBits::eDeviceLocal;
+    else {
+        memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible;
+        memoryProperties |= vk::MemoryPropertyFlagBits::eHostCoherent;
+    }
+    createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, memoryProperties, normalBuffer, normalBufferMemory);
     
     auto cmd = vulkan->begin_one_time_graphics_command();
     vk::BufferCopy copyRegion;
@@ -1172,7 +1208,13 @@ void Mesh::createTexCoordBuffer(bool allow_edits, bool submit_immediately)
     memcpy(data, texcoords.data(), (size_t)bufferSize);
     device.unmapMemory(stagingBufferMemory);
 
-    createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, texCoordBuffer, texCoordBufferMemory);
+    vk::MemoryPropertyFlags memoryProperties;
+    if (!allowEdits) memoryProperties = vk::MemoryPropertyFlagBits::eDeviceLocal;
+    else {
+        memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible;
+        memoryProperties |= vk::MemoryPropertyFlagBits::eHostCoherent;
+    }
+    createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, memoryProperties, texCoordBuffer, texCoordBufferMemory);
     
     auto cmd = vulkan->begin_one_time_graphics_command();
     vk::BufferCopy copyRegion;
