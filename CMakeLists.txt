@@ -16,6 +16,7 @@ set(CMAKE_CXX_EXTENSIONS ON)
 if(MSVC)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 endif(MSVC)
 
 # Set the install prefix

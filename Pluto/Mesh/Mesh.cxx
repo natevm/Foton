@@ -362,8 +362,7 @@ void Mesh::load_glb(std::string glbPath, bool allow_edits, bool submit_immediate
     struct stat st;
     if (stat(glbPath.c_str(), &st) != 0)
     {
-        std::cout << glbPath + " does not exist!" << std::endl;
-        return false;
+        throw std::runtime_error(std::string("Error: " + glbPath + " does not exist"));
     }
 
     // read file
@@ -372,7 +371,7 @@ void Mesh::load_glb(std::string glbPath, bool allow_edits, bool submit_immediate
 	{
         FILE *fp = fopen(glbPath.c_str(), "rb");
         if (!fp) {
-        throw std::runtime_error( std::string(glbPath + " does not exist!"));
+            throw std::runtime_error( std::string(glbPath + " does not exist!"));
         }
 		assert(fp);
 		fseek(fp, 0, SEEK_END);
