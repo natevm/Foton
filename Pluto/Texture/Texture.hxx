@@ -42,6 +42,9 @@ class Texture : public StaticFactory
 		/* Creates a 2d texture of a given width and height, consisting of possibly several layers, and with color and/or depth resources. */
 		static Texture *Create2D(std::string name, uint32_t width, uint32_t height, bool hasColor, bool hasDepth, uint32_t sampleCount, uint32_t layers, bool submit_immediately = false);
 
+		/* Creates a procedural checker texture. */
+		static Texture* CreateChecker(std::string name, bool submit_immediately = false);
+
 		/* Retrieves a texture component by name */
 		static Texture *Get(std::string name);
 

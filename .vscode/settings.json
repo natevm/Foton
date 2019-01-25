@@ -78,7 +78,10 @@
         "xlocmon": "cpp",
         "xloctime": "cpp",
         "typeindex": "cpp",
-        "csignal": "cpp"
+        "csignal": "cpp",
+        "filesystem": "cpp",
+        "forward_list": "cpp",
+        "valarray": "cpp"
     },
     "C_Cpp.intelliSenseEngineFallback": "Enabled",
     "python.linting.enabled": true,

@@ -15,6 +15,7 @@
 #include <vulkan/vulkan.hpp>
 #include <iostream>
 #include <glm/glm.hpp>
+
 #include <openvr.h>
 
 #include "Pluto/Tools/Singleton.hxx"

@@ -1267,6 +1267,18 @@ Texture* Texture::CreateCubemap(
     return tex;
 }
 
+Texture* Texture::CreateChecker(std::string name, bool submit_immediately)
+{
+    // This is just temporary. Planning on using a procedural texture
+    std::string ResourcePath = Options::GetResourcePath();
+    auto checkerTexturePath = ResourcePath + std::string("/Defaults/checker.ktx");
+
+    auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+    if (!tex) return nullptr;
+    tex->loadKTX(checkerTexturePath, submit_immediately);
+    return tex;
+}
+
 Texture* Texture::Create2D(
     std::string name, uint32_t width, uint32_t height, 
     bool hasColor, bool hasDepth, uint32_t sampleCount, uint32_t layers, 

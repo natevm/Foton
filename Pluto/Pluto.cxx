@@ -6,7 +6,14 @@ bool Initialized = false;
 
 #include "Libraries/GLFW/GLFW.hxx"
 #include "Libraries/Vulkan/Vulkan.hxx"
+
+#if BUILD_OPENVR
 #include "Libraries/OpenVR/OpenVR.hxx"
+#endif
+
+#include "Systems/EventSystem/EventSystem.hxx"
+#include "Systems/PythonSystem/PythonSystem.hxx"
+#include "Systems/RenderSystem/RenderSystem.hxx"
 
 #include "Pluto/Camera/Camera.hxx"
 #include "Pluto/Texture/Texture.hxx"
@@ -66,10 +73,12 @@ void Initialize(
     skybox->set_material(material);
     skybox->set_transform(transform);
 
+#if BUILD_OPENVR
 	if (useOpenVR) {
 		auto ovr = Libraries::OpenVR::Get();
         ovr->create_eye_textures();
 	}
+#endif
 }
 
 void CleanUp()
