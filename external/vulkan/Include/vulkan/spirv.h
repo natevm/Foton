@@ -31,14 +31,21 @@
 
 /*
 ** Enumeration tokens for SPIR-V, in various styles:
+<<<<<<< HEAD
 **   C, C++, C++11, JSON, Lua, Python, C#
+=======
+**   C, C++, C++11, JSON, Lua, Python
+>>>>>>> linux
 ** 
 ** - C will have tokens with a "Spv" prefix, e.g.: SpvSourceLanguageGLSL
 ** - C++ will have tokens in the "spv" name space, e.g.: spv::SourceLanguageGLSL
 ** - C++11 will use enum classes in the spv namespace, e.g.: spv::SourceLanguage::GLSL
 ** - Lua will use tables, e.g.: spv.SourceLanguage.GLSL
 ** - Python will use dictionaries, e.g.: spv['SourceLanguage']['GLSL']
+<<<<<<< HEAD
 ** - C# will use enum classes in the Specification class located in the "Spv" namespace, e.g.: Spv.Specification.SourceLanguage.GLSL
+=======
+>>>>>>> linux
 ** 
 ** Some tokens act like mask values, which can be OR'd together,
 ** while others are mutually exclusive.  The mask-like ones have
@@ -80,12 +87,21 @@ typedef enum SpvExecutionModel_ {
     SpvExecutionModelKernel = 6,
     SpvExecutionModelTaskNV = 5267,
     SpvExecutionModelMeshNV = 5268,
+<<<<<<< HEAD
     SpvExecutionModelRayGenerationNV = 5313,
     SpvExecutionModelIntersectionNV = 5314,
     SpvExecutionModelAnyHitNV = 5315,
     SpvExecutionModelClosestHitNV = 5316,
     SpvExecutionModelMissNV = 5317,
     SpvExecutionModelCallableNV = 5318,
+=======
+    SpvExecutionModelRayGenerationNVX = 5313,
+    SpvExecutionModelIntersectionNVX = 5314,
+    SpvExecutionModelAnyHitNVX = 5315,
+    SpvExecutionModelClosestHitNVX = 5316,
+    SpvExecutionModelMissNVX = 5317,
+    SpvExecutionModelCallableNVX = 5318,
+>>>>>>> linux
     SpvExecutionModelMax = 0x7fffffff,
 } SpvExecutionModel;
 
@@ -167,12 +183,19 @@ typedef enum SpvStorageClass_ {
     SpvStorageClassAtomicCounter = 10,
     SpvStorageClassImage = 11,
     SpvStorageClassStorageBuffer = 12,
+<<<<<<< HEAD
     SpvStorageClassCallableDataNV = 5328,
     SpvStorageClassIncomingCallableDataNV = 5329,
     SpvStorageClassRayPayloadNV = 5338,
     SpvStorageClassHitAttributeNV = 5339,
     SpvStorageClassIncomingRayPayloadNV = 5342,
     SpvStorageClassShaderRecordBufferNV = 5343,
+=======
+    SpvStorageClassRayPayloadNVX = 5338,
+    SpvStorageClassHitAttributeNVX = 5339,
+    SpvStorageClassIncomingRayPayloadNVX = 5342,
+    SpvStorageClassShaderRecordBufferNVX = 5343,
+>>>>>>> linux
     SpvStorageClassMax = 0x7fffffff,
 } SpvStorageClass;
 
@@ -519,6 +542,7 @@ typedef enum SpvBuiltIn_ {
     SpvBuiltInBaryCoordNoPerspNV = 5287,
     SpvBuiltInFragmentSizeNV = 5292,
     SpvBuiltInInvocationsPerPixelNV = 5293,
+<<<<<<< HEAD
     SpvBuiltInLaunchIdNV = 5319,
     SpvBuiltInLaunchSizeNV = 5320,
     SpvBuiltInWorldRayOriginNV = 5321,
@@ -533,6 +557,21 @@ typedef enum SpvBuiltIn_ {
     SpvBuiltInHitTNV = 5332,
     SpvBuiltInHitKindNV = 5333,
     SpvBuiltInIncomingRayFlagsNV = 5351,
+=======
+    SpvBuiltInLaunchIdNVX = 5319,
+    SpvBuiltInLaunchSizeNVX = 5320,
+    SpvBuiltInWorldRayOriginNVX = 5321,
+    SpvBuiltInWorldRayDirectionNVX = 5322,
+    SpvBuiltInObjectRayOriginNVX = 5323,
+    SpvBuiltInObjectRayDirectionNVX = 5324,
+    SpvBuiltInRayTminNVX = 5325,
+    SpvBuiltInRayTmaxNVX = 5326,
+    SpvBuiltInInstanceCustomIndexNVX = 5327,
+    SpvBuiltInObjectToWorldNVX = 5330,
+    SpvBuiltInWorldToObjectNVX = 5331,
+    SpvBuiltInHitTNVX = 5332,
+    SpvBuiltInHitKindNVX = 5333,
+>>>>>>> linux
     SpvBuiltInMax = 0x7fffffff,
 } SpvBuiltIn;
 
@@ -789,7 +828,11 @@ typedef enum SpvCapability_ {
     SpvCapabilityInputAttachmentArrayNonUniformIndexingEXT = 5310,
     SpvCapabilityUniformTexelBufferArrayNonUniformIndexingEXT = 5311,
     SpvCapabilityStorageTexelBufferArrayNonUniformIndexingEXT = 5312,
+<<<<<<< HEAD
     SpvCapabilityRayTracingNV = 5340,
+=======
+    SpvCapabilityRaytracingNVX = 5340,
+>>>>>>> linux
     SpvCapabilityVulkanMemoryModelKHR = 5345,
     SpvCapabilityVulkanMemoryModelDeviceScopeKHR = 5346,
     SpvCapabilityComputeDerivativeGroupLinearNV = 5350,
@@ -1159,12 +1202,20 @@ typedef enum SpvOp_ {
     SpvOpImageSampleFootprintNV = 5283,
     SpvOpGroupNonUniformPartitionNV = 5296,
     SpvOpWritePackedPrimitiveIndices4x8NV = 5299,
+<<<<<<< HEAD
     SpvOpReportIntersectionNV = 5334,
     SpvOpIgnoreIntersectionNV = 5335,
     SpvOpTerminateRayNV = 5336,
     SpvOpTraceNV = 5337,
     SpvOpTypeAccelerationStructureNV = 5341,
     SpvOpExecuteCallableNV = 5344,
+=======
+    SpvOpReportIntersectionNVX = 5334,
+    SpvOpIgnoreIntersectionNVX = 5335,
+    SpvOpTerminateRayNVX = 5336,
+    SpvOpTraceNVX = 5337,
+    SpvOpTypeAccelerationStructureNVX = 5341,
+>>>>>>> linux
     SpvOpSubgroupShuffleINTEL = 5571,
     SpvOpSubgroupShuffleDownINTEL = 5572,
     SpvOpSubgroupShuffleUpINTEL = 5573,

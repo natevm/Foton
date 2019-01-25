@@ -35,10 +35,10 @@ set (SRC
 add_library(PlutoLib SHARED ${SRC})
 target_link_libraries(PlutoLib PUBLIC ${LIBRARIES})
 set_target_properties(PlutoLib PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS true)
-target_compile_definitions(PlutoLib PRIVATE ZMQ_BUILD_DRAFT_API=1)
 target_compile_definitions(PlutoLib PUBLIC BUILD_OPENVR=${BUILD_OPENVR})
 target_compile_definitions(PlutoLib PUBLIC BUILD_SPACEMOUSE=${BUILD_SPACEMOUSE})
-install(FILES ${CMAKE_BINARY_DIR}/PlutoLib.dll DESTINATION ${CMAKE_INSTALL_PREFIX})
+#target_compile_definitions(PlutoLib PRIVATE ZMQ_BUILD_DRAFT_API=1)
+install(TARGETS PlutoLib DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 
 # ┌──────────────────────────────────────────────────────────────────┐
@@ -48,8 +48,8 @@ install(FILES ${CMAKE_BINARY_DIR}/PlutoLib.dll DESTINATION ${CMAKE_INSTALL_PREFI
 add_executable(PlutoEngine ${CMAKE_CURRENT_SOURCE_DIR}/main.cxx)
 target_link_libraries(PlutoEngine PUBLIC PlutoLib ${LIBRARIES} )
 target_include_directories(PlutoEngine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_compile_definitions(PlutoEngine PRIVATE ZMQ_BUILD_DRAFT_API=1)
-install(FILES ${CMAKE_BINARY_DIR}/PlutoEngine.exe DESTINATION ${CMAKE_INSTALL_PREFIX})
+#target_compile_definitions(PlutoEngine PRIVATE ZMQ_BUILD_DRAFT_API=1)
+install(TARGETS PlutoEngine DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Pluto Module                                                    │
@@ -69,7 +69,7 @@ if (WIN32)
 install(FILES ${CMAKE_BINARY_DIR}/_Pluto.pyd DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 install(FILES ${CMAKE_BINARY_DIR}/_Pluto.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto OPTIONAL)
 else()
-install(FILES ${CMAKE_BINARY_DIR}/Pluto/_Pluto.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
+install(FILES ${CMAKE_BINARY_DIR}/_Pluto.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 endif()
 
 # ┌──────────────────────────────────────────────────────────────────┐
@@ -90,7 +90,7 @@ if (WIN32)
 install(FILES ${CMAKE_BINARY_DIR}/_Libraries.pyd DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
 install(FILES ${CMAKE_BINARY_DIR}/_Libraries.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries OPTIONAL)
 else()
-install(FILES ${CMAKE_BINARY_DIR}/Pluto/Libraries/_Libraries.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
+install(FILES ${CMAKE_BINARY_DIR}/_Libraries.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
 endif()
 
 # Build GLM SWIG module 
@@ -106,7 +106,7 @@ if (WIN32)
 install(FILES ${CMAKE_BINARY_DIR}/_GLM.pyd DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
 install(FILES ${CMAKE_BINARY_DIR}/_GLM.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries OPTIONAL)
 else()
-install(FILES ${CMAKE_BINARY_DIR}/Pluto/Libraries/GLM.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
+install(FILES ${CMAKE_BINARY_DIR}/_GLM.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
 endif()
 
 # ┌──────────────────────────────────────────────────────────────────┐
@@ -127,7 +127,7 @@ if (WIN32)
 install(FILES ${CMAKE_BINARY_DIR}/_Systems.pyd DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems)
 install(FILES ${CMAKE_BINARY_DIR}/_Systems.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems OPTIONAL)
 else()
-install(FILES ${CMAKE_BINARY_DIR}/Pluto/Systems/_Systems.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems)
+install(FILES ${CMAKE_BINARY_DIR}/_Systems.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems)
 endif()
 
 # ┌──────────────────────────────────────────────────────────────────┐

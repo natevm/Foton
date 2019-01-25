@@ -20,6 +20,11 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/install/" CACHE PATH "..." FORCE)
 endif()
 
+# Default to release build
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the build configuration" FORCE)
+endif()
+
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Definitions                                                     │
 # └──────────────────────────────────────────────────────────────────┘
@@ -45,7 +50,7 @@ endforeach( OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES )
 set(GLFW_BUILD_EXAMPLES OFF CACHE STRING "" FORCE)
 set(GLFW_BUILD_TESTS    OFF CACHE STRING "" FORCE)
 set(GLFW_INSTALL        OFF CACHE STRING "" FORCE)
-find_package(GLFW REQUIRED)
+find_package(GLFW 3.2 REQUIRED)
 include_directories(SYSTEM ${GLFW_INCLUDE_DIR})
 
 # use GLI
@@ -53,7 +58,7 @@ find_package(GLI REQUIRED)
 include_directories(SYSTEM ${GLI_INCLUDE_DIR})
 
 # use GLM
-find_package(GLM REQUIRED)
+find_package(GLM 0.9.7 REQUIRED)
 include_directories(SYSTEM ${GLM_INCLUDE_DIR})
 
 # swig
@@ -69,7 +74,7 @@ find_package(ZMQ REQUIRED)
 include_directories(${ZMQ_INCLUDE_DIRS})
 
 # python
-find_package (Python3 COMPONENTS Interpreter Development REQUIRED)
+find_package(Python3 3.6 COMPONENTS Interpreter Development REQUIRED)
 include_directories(SYSTEM ${Python3_INCLUDE_DIRS})
 
 # tiny

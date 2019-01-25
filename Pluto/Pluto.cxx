@@ -1,12 +1,17 @@
 #include "Pluto.hxx"
 
 bool Initialized = false;
+#include <thread>
+#include <iostream>
 
 #include "Tools/Options.hxx"
 
 #include "Libraries/GLFW/GLFW.hxx"
 #include "Libraries/Vulkan/Vulkan.hxx"
-#include "Libraries/OpenVR/OpenVR.hxx"
+
+#include "Systems/EventSystem/EventSystem.hxx"
+#include "Systems/PythonSystem/PythonSystem.hxx"
+#include "Systems/RenderSystem/RenderSystem.hxx"
 
 #include "Pluto/Camera/Camera.hxx"
 #include "Pluto/Texture/Texture.hxx"
@@ -15,9 +20,6 @@ bool Initialized = false;
 #include "Pluto/Mesh/Mesh.hxx"
 #include "Pluto/Light/Light.hxx"
 #include "Pluto/Entity/Entity.hxx"
-
-#include "Systems/EventSystem/EventSystem.hxx"
-#include "Systems/RenderSystem/RenderSystem.hxx"
 
 void Initialize(
     bool useGLFW,

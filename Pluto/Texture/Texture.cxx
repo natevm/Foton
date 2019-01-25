@@ -7,7 +7,8 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#define STBI_MSC_SECURE_CRT
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <stb_image.h>
 #include <stb_image_write.h>
 #include <gli/gli.hpp>
@@ -94,7 +95,7 @@ std::vector<float> Texture::download_color_data(uint32_t width, uint32_t height,
     // imInfo.flags; // May need this later for cubemaps, texture arrays, etc
     imInfo.imageType = data.imageType;
     imInfo.format = vk::Format::eR32G32B32A32Sfloat;
-    imInfo.extent = {width, height, depth};
+    imInfo.extent = vk::Extent3D{width, height, depth};
     imInfo.mipLevels = 1;
     imInfo.arrayLayers = 1;
     imInfo.samples = vk::SampleCountFlagBits::e1;
@@ -132,11 +133,11 @@ std::vector<float> Texture::download_color_data(uint32_t width, uint32_t height,
 
     vk::ImageBlit region;
     region.srcSubresource = srcSubresourceLayers;
-    region.srcOffsets[0] = {0, 0, 0};
-    region.srcOffsets[1] = {(int32_t)this->data.width, (int32_t)this->data.height, (int32_t)this->data.depth};
+    region.srcOffsets[0] = vk::Offset3D{0, 0, 0};
+    region.srcOffsets[1] = vk::Offset3D{(int32_t)this->data.width, (int32_t)this->data.height, (int32_t)this->data.depth};
     region.dstSubresource = dstSubresourceLayers;
-    region.dstOffsets[0] = {0, 0, 0};
-    region.dstOffsets[1] = {(int32_t)width, (int32_t)height, (int32_t)depth};
+    region.dstOffsets[0] = vk::Offset3D{0, 0, 0};
+    region.dstOffsets[1] = vk::Offset3D{(int32_t)width, (int32_t)height, (int32_t)depth};
 
     /* Next, specify the filter we'd like to use */
     vk::Filter filter = vk::Filter::eLinear;
@@ -196,8 +197,8 @@ std::vector<float> Texture::download_color_data(uint32_t width, uint32_t height,
     // imgCopyRegion.bufferRowLength =
     // imgCopyRegion.bufferImageHeight = 0;
     imgCopyRegion.imageSubresource = dstSubresourceLayers;
-    imgCopyRegion.imageOffset = {0, 0, 0};
-    imgCopyRegion.imageExtent = {(uint32_t)width, (uint32_t)height, (uint32_t)depth};
+    imgCopyRegion.imageOffset = vk::Offset3D{0, 0, 0};
+    imgCopyRegion.imageExtent = vk::Extent3D{(uint32_t)width, (uint32_t)height, (uint32_t)depth};
 
     cmdBuffer.copyImageToBuffer(blitImage, vk::ImageLayout::eTransferSrcOptimal, stagingBuffer, imgCopyRegion);
 
@@ -293,7 +294,7 @@ void Texture::upload_color_data(uint32_t width, uint32_t height, uint32_t depth,
     imageCreateInfo.tiling = vk::ImageTiling::eOptimal;
     imageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
     imageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
-    imageCreateInfo.extent = {width, height, depth};
+    imageCreateInfo.extent = vk::Extent3D{width, height, depth};
     imageCreateInfo.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc;
     vk::Image src_image = device.createImage(imageCreateInfo);
 
@@ -346,11 +347,11 @@ void Texture::upload_color_data(uint32_t width, uint32_t height, uint32_t depth,
     /* Region to copy (Possibly multiple in the future) */
     vk::ImageBlit region;
     region.dstSubresource = dstSubresourceLayers;
-    region.dstOffsets[0] = {0, 0, 0};
-    region.dstOffsets[1] = {(int32_t)this->data.width, (int32_t)this->data.height, (int32_t)this->data.depth};
+    region.dstOffsets[0] = vk::Offset3D{0, 0, 0};
+    region.dstOffsets[1] = vk::Offset3D{(int32_t)this->data.width, (int32_t)this->data.height, (int32_t)this->data.depth};
     region.srcSubresource = srcSubresourceLayers;
-    region.srcOffsets[0] = {0, 0, 0};
-    region.srcOffsets[1] = {(int32_t)width, (int32_t)height, (int32_t)depth};
+    region.srcOffsets[0] = vk::Offset3D{0, 0, 0};
+    region.srcOffsets[1] = vk::Offset3D{(int32_t)width, (int32_t)height, (int32_t)depth};
 
     /* Next, specify the filter we'd like to use */
     vk::Filter filter = vk::Filter::eLinear;
@@ -404,11 +405,11 @@ void Texture::record_blit_to(vk::CommandBuffer command_buffer, Texture * other, 
 
     vk::ImageBlit region;
     region.srcSubresource = srcSubresourceLayers;
-    region.srcOffsets[0] = {0, 0, 0};
-    region.srcOffsets[1] = {(int32_t)this->data.width, (int32_t)this->data.height, (int32_t)this->data.depth};
+    region.srcOffsets[0] = vk::Offset3D{0, 0, 0};
+    region.srcOffsets[1] = vk::Offset3D{(int32_t)this->data.width, (int32_t)this->data.height, (int32_t)this->data.depth};
     region.dstSubresource = dstSubresourceLayers;
-    region.dstOffsets[0] = {0, 0, 0};
-    region.dstOffsets[1] = {(int32_t)other->get_width(), (int32_t)other->get_height(), (int32_t)other->get_depth()};
+    region.dstOffsets[0] = vk::Offset3D{0, 0, 0};
+    region.dstOffsets[1] = vk::Offset3D{(int32_t)other->get_width(), (int32_t)other->get_height(), (int32_t)other->get_depth()};
 
     /* Next, specify the filter we'd like to use */
     vk::Filter filter = vk::Filter::eLinear;
@@ -827,7 +828,7 @@ void Texture::loadKTX(std::string imagePath, bool submit_immediately)
     imageCreateInfo.tiling = vk::ImageTiling::eOptimal;
     imageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
     imageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
-    imageCreateInfo.extent = {data.width, data.height, data.depth};
+    imageCreateInfo.extent = vk::Extent3D{data.width, data.height, data.depth};
     imageCreateInfo.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eSampled;
     if (data.viewType == vk::ImageViewType::eCube) {
         imageCreateInfo.flags |= vk::ImageCreateFlagBits::eCubeCompatible;

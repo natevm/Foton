@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "Pluto/Libraries/GLFW/GLFW.hxx"
+#include "SpaceMouse.hxx"
 
 // YUCK! 
 #ifdef WIN32
@@ -14,7 +15,6 @@
 #include <stdlib.h>
 #include <crtdbg.h>
 
-#include "SpaceMouse.hxx"
 #include "spwmacro.h"
 #include "si.h"
 #include "siapp.h"
@@ -30,9 +30,10 @@
 namespace Libraries
 {
 
+#ifdef _WIN32
 SiHdl devHdl = nullptr;      /* Handle to 3D Mouse Device */
 SiSpwEvent Event = {};    /* SpaceWare Event */ 
-
+#endif
 
 SpaceMouse *SpaceMouse::Get()
 {
@@ -57,8 +58,10 @@ SpaceMouse::SpaceMouse() {}
 
 SpaceMouse::~SpaceMouse()
 {
+#ifdef _WIN32
 	// Shutdown here...
 	if (initialized) SiTerminate();
+#endif
 }
 
 bool SpaceMouse::connect_to_window(std::string window)
@@ -115,12 +118,14 @@ glm::vec3 SpaceMouse::get_rotation()
 
 void SpaceMouse::SbMotionEvent()
 {
+#ifdef _WIN32
 	translation.x = (float) Event.u.spwData.mData[SI_TX] / 1000.0f;
 	translation.y = (float) Event.u.spwData.mData[SI_TY] / 1000.0f;
 	translation.z = (float) Event.u.spwData.mData[SI_TZ] / 1000.0f;
 	rotation.x = (float) Event.u.spwData.mData[SI_RX] / 1000.0f;
 	rotation.y = (float) Event.u.spwData.mData[SI_RY] / 1000.0f;
 	rotation.z = (float) Event.u.spwData.mData[SI_RZ] / 1000.0f;
+#endif
 }
 
 void SpaceMouse::SbZeroEvent()
@@ -147,11 +152,11 @@ bool SpaceMouse::poll_event()
 {
 	translation = glm::vec3(0.0);
 	rotation = glm::vec3(0.0);
+#ifdef WIN32
 	if (devHdl == nullptr) return false;
 
 	SiGetEventData EData;    /* SpaceWare Event Data */
 
-	#ifdef WIN32
 	MSG            msg;      /* incoming message to be evaluated */
 	BOOL           handled;  /* is message handled yet */ 
 
@@ -209,7 +214,7 @@ bool SpaceMouse::poll_event()
 	// return( (int) msg.wParam );
 	
 	return true;
-	#endif
+#endif
 	return false;
 }
 

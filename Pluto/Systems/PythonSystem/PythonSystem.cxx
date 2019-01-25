@@ -47,8 +47,8 @@ namespace Systems {
         auto loop = [this]() {
             // std::cout<<"Starting PythonSystem, thread id: " << std::this_thread::get_id()<<std::endl;
 
-            wchar_t *name = L"Pluto";
-            Py_SetProgramName(name);
+            const wchar_t *name = L"Pluto";
+            Py_SetProgramName(const_cast<wchar_t*>(name));
             Py_Initialize();
 
             Py_InspectFlag = 1;
@@ -69,6 +69,7 @@ namespace Systems {
                     PySys_SetArgv(3, argv.data());
                     PyRun_SimpleString("import sys");
                     PyRun_SimpleString("if sys.path[0] == '': del sys.path[0]\n\n");
+					//PyRun_SimpleString("sys.path.insert(0, \"/home/will/repos/Pluto/build/install/\")");
                     PyRun_SimpleString("from ipykernel import kernelapp as app");
                     PyRun_SimpleString("app.launch_new_instance()");
                 #else
@@ -78,8 +79,13 @@ namespace Systems {
 
             }
             else {
+			  PyRun_SimpleString("import sys");
+			  PyRun_SimpleString("sys.path.insert(0, \"./\")");
               PyRun_InteractiveLoop(stdin, "<stdin>");
             }
+
+            Py_Finalize();
+            
 
             Systems::EventSystem::Get()->stop();
         };

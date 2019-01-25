@@ -15,8 +15,8 @@ namespace Systems {
         virtual bool start() {return false;}
         virtual bool stop() {return false;}
     protected:
-        System::System() {}
-        System::~System() {}
+        System() {}
+        ~System() {}
         System(const System&) = delete;
         System& operator=(const System&) = delete;
         System(System&&) = delete;

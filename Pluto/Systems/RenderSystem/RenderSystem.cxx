@@ -38,6 +38,7 @@ bool RenderSystem::initialize()
     if (initialized)
         return false;
 
+#if ZMQ_BUILD_DRAFT_API == 1
     /* Setup Server/Client */
     if (Options::IsServer() || Options::IsClient())
     {
@@ -67,6 +68,7 @@ bool RenderSystem::initialize()
         int64_t rate = 100000;
         zmq_setsockopt(socket, ZMQ_RATE, &rate, sizeof(int64_t));
     }
+#endif
 
     push_constants.gamma = 2.2;
     push_constants.exposure = 2.0;
@@ -278,6 +280,7 @@ void RenderSystem::stream_frames()
     
     Bucket bucket = {};
 
+#if ZMQ_BUILD_DRAFT_API == 1
     /* If we're the server, send the frame over UDP */
     if (Options::IsServer())
     {
@@ -310,6 +313,7 @@ void RenderSystem::stream_frames()
         //     memcpy(color_data.data(), bucket.data, 16 * 16 * 4 * sizeof(float));
         //     current_camera->get_texture()->upload_color_data(16, 16, 1, color_data, 0);
     }
+#endif
 }
 
 void RenderSystem::enqueue_render_commands() {

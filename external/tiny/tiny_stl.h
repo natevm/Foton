@@ -3,7 +3,12 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+<<<<<<< HEAD
 #include <filesystem>
+=======
+#include <sys/types.h>
+#include <sys/stat.h>
+>>>>>>> linux
 
 class v3
 {
@@ -28,9 +33,16 @@ class v3
 
 inline bool read_stl(std::string fname, std::vector<float> &p, std::vector<float> &n){
     using namespace std;
+<<<<<<< HEAD
     using namespace std::filesystem;
 
     auto size = file_size(fname);
+=======
+
+    struct stat st;
+    stat(fname.c_str(), &st);
+    auto size = st.st_size;
+>>>>>>> linux
 
     //!!
     //don't forget ios::binary
@@ -109,4 +121,8 @@ inline bool read_stl(std::string fname, std::vector<float> &p, std::vector<float
 
     return true;
 
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> linux

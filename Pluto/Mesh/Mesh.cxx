@@ -6,6 +6,9 @@
 // #define TINYGLTF_NO_FS
 // #define TINYGLTF_NO_STB_IMAGE_WRITE
 
+#include <sys/types.h>
+#include <sys/stat.h>
+
 #include "./Mesh.hxx"
 
 #include "Pluto/Tools/Options.hxx"
@@ -356,17 +359,21 @@ void Mesh::load_stl(std::string stlPath, bool allow_edits, bool submit_immediate
 void Mesh::load_glb(std::string glbPath, bool allow_edits, bool submit_immediately)
 {
     allowEdits = allow_edits;
-
     struct stat st;
     if (stat(glbPath.c_str(), &st) != 0)
-        throw std::runtime_error( std::string(glbPath + " does not exist!"));
+    {
+        std::cout << glbPath + " does not exist!" << std::endl;
+        return false;
+    }
 
     // read file
     unsigned char *file_buffer = NULL;
 	uint32_t file_size = 0;
 	{
-        FILE *fp;
-        if (0 != fopen_s(&fp, glbPath.c_str(), "rb")) fp=0;
+        FILE *fp = fopen(glbPath.c_str(), "rb");
+        if (!fp) {
+        throw std::runtime_error( std::string(glbPath + " does not exist!"));
+        }
 		assert(fp);
 		fseek(fp, 0, SEEK_END);
 		file_size = (uint32_t)ftell(fp);

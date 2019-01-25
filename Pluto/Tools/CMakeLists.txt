@@ -5,4 +5,5 @@ set(Tools_SRC
 	${CMAKE_CURRENT_SOURCE_DIR}/Options.cxx
 	${CMAKE_CURRENT_SOURCE_DIR}/Options.hxx
 	${CMAKE_CURRENT_SOURCE_DIR}/StaticFactory.hxx
+	${CMAKE_CURRENT_SOURCE_DIR}/StaticFactory.cxx
 	PARENT_SCOPE)

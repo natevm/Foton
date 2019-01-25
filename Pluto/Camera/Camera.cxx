@@ -14,7 +14,9 @@ using namespace Libraries;
 void Camera::setup(bool allow_recording, bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers)
 {
 	if (layers > MAX_MULTIVIEW)
+    {
 		throw std::runtime_error( std::string("Error: Camera component cannot render to more than " + std::to_string(MAX_MULTIVIEW) + " layers simultaneously."));
+    }
 
 	maxMultiview = layers;
 	set_view(glm::mat4(1.0), 0);
@@ -217,7 +219,9 @@ void Camera::update_used_views(uint32_t multiview) {
 
 void Camera::check_multiview_index(uint32_t multiview) {
 	if (multiview >= maxMultiview)
+    {
 		throw std::runtime_error( std::string("Error: multiview index is larger than " + std::to_string(maxMultiview) ));
+    }
 }
 
 Camera::Camera() {
