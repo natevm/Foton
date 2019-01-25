@@ -35,7 +35,7 @@ private:
 
 	static std::map<std::string, uint32_t> windowToEntity;
 	static std::map<uint32_t, std::string> entityToWindow;
-	static uint32_t Entity::entityToVR;
+	static uint32_t entityToVR;
 
 public:
 	static Entity* Create(std::string name);

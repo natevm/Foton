@@ -354,8 +354,8 @@ void Camera::begin_renderpass(vk::CommandBuffer command_buffer)
 	vk::RenderPassBeginInfo rpInfo;
 	rpInfo.renderPass = renderpass;
 	rpInfo.framebuffer = framebuffer;
-	rpInfo.renderArea.offset = {0, 0};
-	rpInfo.renderArea.extent = {renderTexture->get_width(), renderTexture->get_height()};
+    rpInfo.renderArea.offset = vk::Offset2D{0, 0};
+	rpInfo.renderArea.extent = vk::Extent2D{renderTexture->get_width(), renderTexture->get_height()};
 
 	std::array<vk::ClearValue, 2> clearValues = {};
 	clearValues[0].color = vk::ClearColorValue(std::array<float, 4>{clearColor.r, clearColor.g, clearColor.b, clearColor.a});

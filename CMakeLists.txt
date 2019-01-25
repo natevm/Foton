@@ -76,15 +76,21 @@ include_directories(SYSTEM ${Python3_INCLUDE_DIRS})
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/tiny)
 
 # openvr
-set(SpaceMouse_Libs "${CMAKE_CURRENT_SOURCE_DIR}/external/openvr")
-find_package(OpenVRSDK REQUIRED)
-include_directories(SYSTEM ${OPENVR_SDK_INCLUDE_DIR})
+option(BUILD_OPENVR "Build with OpenVR support" OFF)
+if(BUILD_OPENVR)
+    set(SpaceMouse_Libs "${CMAKE_CURRENT_SOURCE_DIR}/external/openvr")
+    find_package(OpenVRSDK REQUIRED)
+    include_directories(SYSTEM ${OPENVR_SDK_INCLUDE_DIR})
+endif(BUILD_OPENVR)
 
 # spacemouse
 # Todo: make a cmake file for this
-set(SPACEMOUSE_LIBRARIES "${CMAKE_CURRENT_SOURCE_DIR}/external/spacemouse/Lib/x64/siapp.lib")
-set(SPACEMOUSE_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/spacemouse/Inc")
-include_directories(SYSTEM ${SPACEMOUSE_INCLUDE_DIR})
+option(BUILD_SPACEMOUSE "Build with SpaceMouse support" OFF)
+if(BUILD_SPACEMOUSE)
+    set(SPACEMOUSE_LIBRARIES "${CMAKE_CURRENT_SOURCE_DIR}/external/spacemouse/Lib/x64/siapp.lib")
+    set(SPACEMOUSE_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/spacemouse/Inc")
+    include_directories(SYSTEM ${SPACEMOUSE_INCLUDE_DIR})
+endif(BUILD_SPACEMOUSE)
 
 # add libraries to a list for linking
 set (

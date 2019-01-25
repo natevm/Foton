@@ -1,6 +1,7 @@
 #pragma once
 
 #define GLFW_INCLUDE_VULKAN
+#include <vulkan/vulkan.hpp>
 #include <GLFW/glfw3.h>
 #include <iostream>
 
@@ -16,7 +17,6 @@
 #include "Pluto/Tools/Singleton.hxx"
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
 #include "Pluto/Texture/Texture.hxx"
-#include  <vulkan/vulkan.hpp>
 
 // /* For access to HWND handle on windows. */
 // #ifdef WIN32

@@ -36,6 +36,8 @@ add_library(PlutoLib SHARED ${SRC})
 target_link_libraries(PlutoLib PUBLIC ${LIBRARIES})
 set_target_properties(PlutoLib PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS true)
 target_compile_definitions(PlutoLib PRIVATE ZMQ_BUILD_DRAFT_API=1)
+target_compile_definitions(PlutoLib PUBLIC BUILD_OPENVR=${BUILD_OPENVR})
+target_compile_definitions(PlutoLib PUBLIC BUILD_SPACEMOUSE=${BUILD_SPACEMOUSE})
 install(FILES ${CMAKE_BINARY_DIR}/PlutoLib.dll DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 
