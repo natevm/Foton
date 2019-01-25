@@ -26,21 +26,14 @@
 -- the Binary Section of the SPIR-V specification.
 
 -- Enumeration tokens for SPIR-V, in various styles:
-<<<<<<< HEAD
 --   C, C++, C++11, JSON, Lua, Python, C#
-=======
---   C, C++, C++11, JSON, Lua, Python
->>>>>>> linux
 -- 
 -- - C will have tokens with a "Spv" prefix, e.g.: SpvSourceLanguageGLSL
 -- - C++ will have tokens in the "spv" name space, e.g.: spv::SourceLanguageGLSL
 -- - C++11 will use enum classes in the spv namespace, e.g.: spv::SourceLanguage::GLSL
 -- - Lua will use tables, e.g.: spv.SourceLanguage.GLSL
 -- - Python will use dictionaries, e.g.: spv['SourceLanguage']['GLSL']
-<<<<<<< HEAD
 -- - C# will use enum classes in the Specification class located in the "Spv" namespace, e.g.: Spv.Specification.SourceLanguage.GLSL
-=======
->>>>>>> linux
 -- 
 -- Some tokens act like mask values, which can be OR'd together,
 -- while others are mutually exclusive.  The mask-like ones have
@@ -73,21 +66,12 @@ spv = {
         Kernel = 6,
         TaskNV = 5267,
         MeshNV = 5268,
-<<<<<<< HEAD
         RayGenerationNV = 5313,
         IntersectionNV = 5314,
         AnyHitNV = 5315,
         ClosestHitNV = 5316,
         MissNV = 5317,
         CallableNV = 5318,
-=======
-        RayGenerationNVX = 5313,
-        IntersectionNVX = 5314,
-        AnyHitNVX = 5315,
-        ClosestHitNVX = 5316,
-        MissNVX = 5317,
-        CallableNVX = 5318,
->>>>>>> linux
     },
 
     AddressingModel = {
@@ -165,19 +149,12 @@ spv = {
         AtomicCounter = 10,
         Image = 11,
         StorageBuffer = 12,
-<<<<<<< HEAD
         CallableDataNV = 5328,
         IncomingCallableDataNV = 5329,
         RayPayloadNV = 5338,
         HitAttributeNV = 5339,
         IncomingRayPayloadNV = 5342,
         ShaderRecordBufferNV = 5343,
-=======
-        RayPayloadNVX = 5338,
-        HitAttributeNVX = 5339,
-        IncomingRayPayloadNVX = 5342,
-        ShaderRecordBufferNVX = 5343,
->>>>>>> linux
     },
 
     Dim = {
@@ -510,7 +487,6 @@ spv = {
         BaryCoordNoPerspNV = 5287,
         FragmentSizeNV = 5292,
         InvocationsPerPixelNV = 5293,
-<<<<<<< HEAD
         LaunchIdNV = 5319,
         LaunchSizeNV = 5320,
         WorldRayOriginNV = 5321,
@@ -525,21 +501,6 @@ spv = {
         HitTNV = 5332,
         HitKindNV = 5333,
         IncomingRayFlagsNV = 5351,
-=======
-        LaunchIdNVX = 5319,
-        LaunchSizeNVX = 5320,
-        WorldRayOriginNVX = 5321,
-        WorldRayDirectionNVX = 5322,
-        ObjectRayOriginNVX = 5323,
-        ObjectRayDirectionNVX = 5324,
-        RayTminNVX = 5325,
-        RayTmaxNVX = 5326,
-        InstanceCustomIndexNVX = 5327,
-        ObjectToWorldNVX = 5330,
-        WorldToObjectNVX = 5331,
-        HitTNVX = 5332,
-        HitKindNVX = 5333,
->>>>>>> linux
     },
 
     SelectionControlShift = {
@@ -786,11 +747,7 @@ spv = {
         InputAttachmentArrayNonUniformIndexingEXT = 5310,
         UniformTexelBufferArrayNonUniformIndexingEXT = 5311,
         StorageTexelBufferArrayNonUniformIndexingEXT = 5312,
-<<<<<<< HEAD
         RayTracingNV = 5340,
-=======
-        RaytracingNVX = 5340,
->>>>>>> linux
         VulkanMemoryModelKHR = 5345,
         VulkanMemoryModelDeviceScopeKHR = 5346,
         ComputeDerivativeGroupLinearNV = 5350,
@@ -1159,20 +1116,12 @@ spv = {
         OpImageSampleFootprintNV = 5283,
         OpGroupNonUniformPartitionNV = 5296,
         OpWritePackedPrimitiveIndices4x8NV = 5299,
-<<<<<<< HEAD
         OpReportIntersectionNV = 5334,
         OpIgnoreIntersectionNV = 5335,
         OpTerminateRayNV = 5336,
         OpTraceNV = 5337,
         OpTypeAccelerationStructureNV = 5341,
         OpExecuteCallableNV = 5344,
-=======
-        OpReportIntersectionNVX = 5334,
-        OpIgnoreIntersectionNVX = 5335,
-        OpTerminateRayNVX = 5336,
-        OpTraceNVX = 5337,
-        OpTypeAccelerationStructureNVX = 5341,
->>>>>>> linux
         OpSubgroupShuffleINTEL = 5571,
         OpSubgroupShuffleDownINTEL = 5572,
         OpSubgroupShuffleUpINTEL = 5573,

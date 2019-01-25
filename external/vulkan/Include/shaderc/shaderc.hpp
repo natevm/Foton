@@ -47,7 +47,6 @@ class CompilationResult {
   // CompilationResult, the shaderc_compilation_result will be released.
   explicit CompilationResult(shaderc_compilation_result_t compilation_result)
       : compilation_result_(compilation_result) {}
-<<<<<<< HEAD
   CompilationResult() : compilation_result_(nullptr) {}
   ~CompilationResult() { shaderc_result_release(compilation_result_); }
 
@@ -62,13 +61,6 @@ class CompilationResult {
     compilation_result_ = other.compilation_result_;
     other.compilation_result_ = nullptr;
     return *this;
-=======
-  ~CompilationResult() { shaderc_result_release(compilation_result_); }
-
-  CompilationResult(CompilationResult&& other) {
-    compilation_result_ = other.compilation_result_;
-    other.compilation_result_ = nullptr;
->>>>>>> linux
   }
 
   // Returns any error message found during compilation.
