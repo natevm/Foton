@@ -5,6 +5,9 @@ cmake_minimum_required (VERSION 3.13)
 project(Pluto)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}")
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+set(CMAKE_MACOSX_RPATH 1)
 
 # Use c++17
 set(CMAKE_CXX_STANDARD 17)
@@ -70,8 +73,12 @@ find_package(Vulkan 1.1.92 REQUIRED)
 include_directories(${Vulkan_INCLUDE_DIRS})
 
 # zeromq
-find_package(ZMQ REQUIRED)
-include_directories(${ZMQ_INCLUDE_DIRS})
+find_package(ZMQ QUIET)
+if(${ZMQ_FOUND})
+    include_directories(${ZMQ_INCLUDE_DIRS})
+else()
+    set(ZMQ_LIBRARIES)
+endif(${ZMQ_FOUND})
 
 # python
 find_package(Python3 3.6 COMPONENTS Interpreter Development REQUIRED)

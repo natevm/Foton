@@ -1,7 +1,11 @@
 #include "EventSystem.hxx"
 
+#if BUILD_OPENVR
 #include "Pluto/Libraries/OpenVR/OpenVR.hxx"
+#endif
+#if BUILD_SPACEMOUSE
 #include "Pluto/Libraries/SpaceMouse/SpaceMouse.hxx"
+#endif
 
 namespace Systems 
 {
@@ -52,18 +56,22 @@ namespace Systems
                     commandQueue.clear();
                 }
             }
+#if BUILD_OPENVR
             if (useOpenVR) {
                 auto OpenVR = OpenVR::Get();
                 if (OpenVR) {
                     OpenVR->poll_event();
                 }
             }
+#endif
 
+#if BUILD_SPACEMOUSE
             auto sm = SpaceMouse::Get();
             if (sm->is_initialized())
             {
                 sm->poll_event();
             }
+#endif
             //close |= (glfw->should_close());
             /* TODO: REGULATE FREQUENCY */
         }

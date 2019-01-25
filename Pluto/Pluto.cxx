@@ -69,8 +69,10 @@ void Initialize(
     skybox->set_transform(transform);
 
 	if (useOpenVR) {
+#if BUILD_OPENVR
 		auto ovr = Libraries::OpenVR::Get();
         ovr->create_eye_textures();
+#endif
 	}
 }
 

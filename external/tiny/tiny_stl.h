@@ -3,7 +3,6 @@
 #include <string>
 #include <fstream>
 #include <iostream>
-#include <filesystem>
 
 class v3
 {
@@ -28,9 +27,11 @@ class v3
 
 inline bool read_stl(std::string fname, std::vector<float> &p, std::vector<float> &n){
     using namespace std;
-    using namespace std::filesystem;
+    
+    struct stat st;
+    stat(fname.c_str(), &st);
+    auto size = st.st_size;
 
-    auto size = file_size(fname);
 
     //!!
     //don't forget ios::binary

@@ -14,7 +14,9 @@
 
 #include "Vulkan.hxx"
 #include "../GLFW/GLFW.hxx"
+#if BUILD_OPENVR
 #include "../OpenVR/OpenVR.hxx"
+#endif
 
 thread_local int32_t thread_id = -1;
 
@@ -75,6 +77,7 @@ bool Vulkan::create_instance(bool enable_validation_layers, set<string> validati
         std::cout<<"Enabling validation layer: " << string << std::endl;
     }
     
+#if BUILD_OPENVR
     if (use_openvr) {
         std::vector<std::string> additional_instance_extensions;
         auto openvr = Libraries::OpenVR::Get();
@@ -86,6 +89,7 @@ bool Vulkan::create_instance(bool enable_validation_layers, set<string> validati
             }
         }
     }
+#endif
 
     /* Verify those extensions are supported */
     auto extensionProperties = vk::enumerateInstanceExtensionProperties();
@@ -245,6 +249,7 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
     std::string devicename;
 
     /* If we're using OpenVR, we need to select the physical device that OpenVR requires us to use. */
+#if BUILD_OPENVR
     if (use_openvr && false) { // get_output_device is always null?
         auto ovr = OpenVR::Get();
         physicalDevice = ovr->get_output_device(instance);
@@ -308,9 +313,9 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
             return false;
         }
         
-    }
-
-    else {
+    } else
+#endif
+    {
         /* Check and see if any physical devices are suitable, since not all cards are equal */
         physicalDevice = vk::PhysicalDevice();
         for (const auto &device : devices)
@@ -381,6 +386,7 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
     }
 
     /* At this point, we can provide the physical device to OpenVR, and get back any additional device extensions which may be required. */
+#if BUILD_OPENVR
     if (use_openvr) {
         std::vector<std::string> additional_device_extensions;
         auto openvr = Libraries::OpenVR::Get();
@@ -392,6 +398,7 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
             }
         }
     }
+#endif
     
     cout << "\tChoosing device " << std::string(deviceProperties.deviceName) << endl;
 

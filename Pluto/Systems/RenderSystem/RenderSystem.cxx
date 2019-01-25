@@ -1,5 +1,5 @@
 #define NOMINMAX
-#include <zmq.h>
+//#include <zmq.h>
 
 #include <string>
 #include <iostream>
@@ -13,7 +13,9 @@
 #include "Pluto/Tools/Options.hxx"
 #include "Pluto/Material/Material.hxx"
 
+#if BUILD_OPENVR
 #include "Pluto/Libraries/OpenVR/OpenVR.hxx"
+#endif
 
 // #ifndef _WIN32
 // #include <unistd.h>
@@ -88,6 +90,7 @@ void RenderSystem::record_render_commands()
     auto keys = glfw->get_window_keys();
     if (keys.size() == 0) return;
 
+#if BUILD_OPENVR
     if (using_openvr) {
         auto entity_id = Entity::GetEntityForVR();
         
@@ -110,6 +113,7 @@ void RenderSystem::record_render_commands()
             }
         }
     }
+#endif
 
 
     /* Upload SSBO data */
@@ -212,6 +216,7 @@ void RenderSystem::record_render_commands()
         }
 
         /* Record blit to OpenVR eyes. */
+#if BUILD_OPENVR
         if (using_openvr) {
             if (entity_id == Entity::GetEntityForVR()) {
                 auto ovr = OpenVR::Get();
@@ -221,6 +226,7 @@ void RenderSystem::record_render_commands()
                 if (right_eye_texture) texture->record_blit_to(command_buffer, right_eye_texture, 1);
             }
         }
+#endif
 
         /* End this recording. */
         command_buffer.end();
@@ -229,6 +235,8 @@ void RenderSystem::record_render_commands()
 
 void RenderSystem::present_openvr_frames()
 {
+    
+#if BUILD_OPENVR
     /* Ignore if openvr isn't in use. */
     if (!using_openvr) return;
 
@@ -254,6 +262,7 @@ void RenderSystem::present_openvr_frames()
     /* Submit the left and right eye textures to OpenVR */
     auto ovr = OpenVR::Get();
     ovr->submit_textures();
+#endif
 }
 
 void RenderSystem::stream_frames()
@@ -500,8 +509,8 @@ bool RenderSystem::stop()
 
     if (Options::IsServer() || Options::IsClient())
     {
-        zmq_close(socket);
-        zmq_ctx_destroy(zmq_context);
+        //zmq_close(socket);
+        //zmq_ctx_destroy(zmq_context);
     }
 
     running = false;

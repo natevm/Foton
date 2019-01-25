@@ -11,6 +11,9 @@
 #include <sys/stat.h>
 #include <stb_image.h>
 #include <stb_image_write.h>
+
+// Stupid fix for gli typo
+typedef uint8_t uint_t;
 #include <gli/gli.hpp>
 
 Texture Texture::textures[MAX_TEXTURES];
