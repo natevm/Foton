@@ -566,63 +566,151 @@ void Mesh::edit_position(uint32_t index, glm::vec3 new_position)
     void *data = device.mapMemory(pointBufferMemory, (index * sizeof(glm::vec3)), sizeof(glm::vec3), vk::MemoryMapFlags());
     memcpy(data, &new_position, sizeof(glm::vec3));
     device.unmapMemory(pointBufferMemory);
-
 }
 
 void Mesh::edit_positions(uint32_t index, std::vector<glm::vec3> new_positions)
 {
+    auto vulkan = Libraries::Vulkan::Get();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error("Error: Vulkan is not initialized");
+    auto device = vulkan->get_device();
+
     if (!allowEdits)
         throw std::runtime_error("Error: editing this component is not allowed. \
             Edits can be enabled during creation.");
-    throw std::runtime_error("Error: Not yet implemented");
+    
+    if (index >= this->points.size())
+        throw std::runtime_error("Error: index out of bounds. Max index is " + std::to_string(this->points.size() - 1));
+    
+    if ((index + new_positions.size()) > this->points.size())
+        throw std::runtime_error("Error: too many positions for given index, out of bounds. Max index is " + std::to_string(this->points.size() - 1));
+    
+    void *data = device.mapMemory(pointBufferMemory, (index * sizeof(glm::vec3)), sizeof(glm::vec3) * new_positions.size(), vk::MemoryMapFlags());
+    memcpy(data, new_positions.data(), sizeof(glm::vec3) * new_positions.size());
+    device.unmapMemory(pointBufferMemory);
 }
 
 void Mesh::edit_normal(uint32_t index, glm::vec3 new_normal)
 {
+    auto vulkan = Libraries::Vulkan::Get();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error("Error: Vulkan is not initialized");
+    auto device = vulkan->get_device();
+
     if (!allowEdits)
         throw std::runtime_error("Error: editing this component is not allowed. \
             Edits can be enabled during creation.");
-    throw std::runtime_error("Error: Not yet implemented");
+    
+    if (index >= this->normals.size())
+        throw std::runtime_error("Error: index out of bounds. Max index is " + std::to_string(this->normals.size() - 1));
+    
+    void *data = device.mapMemory(normalBufferMemory, (index * sizeof(glm::vec3)), sizeof(glm::vec3), vk::MemoryMapFlags());
+    memcpy(data, &new_normal, sizeof(glm::vec3));
+    device.unmapMemory(normalBufferMemory);
 }
 
 void Mesh::edit_normals(uint32_t index, std::vector<glm::vec3> new_normals)
 {
+    auto vulkan = Libraries::Vulkan::Get();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error("Error: Vulkan is not initialized");
+    auto device = vulkan->get_device();
+
     if (!allowEdits)
         throw std::runtime_error("Error: editing this component is not allowed. \
             Edits can be enabled during creation.");
-    throw std::runtime_error("Error: Not yet implemented");
+    
+    if (index >= this->normals.size())
+        throw std::runtime_error("Error: index out of bounds. Max index is " + std::to_string(this->normals.size() - 1));
+    
+    if ((index + new_normals.size()) > this->normals.size())
+        throw std::runtime_error("Error: too many normals for given index, out of bounds. Max index is " + std::to_string(this->normals.size() - 1));
+    
+    void *data = device.mapMemory(normalBufferMemory, (index * sizeof(glm::vec3)), sizeof(glm::vec3) * new_normals.size(), vk::MemoryMapFlags());
+    memcpy(data, new_normals.data(), sizeof(glm::vec3) * new_normals.size());
+    device.unmapMemory(normalBufferMemory);
 }
 
 void Mesh::edit_vertex_color(uint32_t index, glm::vec4 new_color)
 {
+    auto vulkan = Libraries::Vulkan::Get();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error("Error: Vulkan is not initialized");
+    auto device = vulkan->get_device();
+
     if (!allowEdits)
         throw std::runtime_error("Error: editing this component is not allowed. \
             Edits can be enabled during creation.");
-    throw std::runtime_error("Error: Not yet implemented");
+    
+    if (index >= this->colors.size())
+        throw std::runtime_error("Error: index out of bounds. Max index is " + std::to_string(this->colors.size() - 1));
+    
+    void *data = device.mapMemory(colorBufferMemory, (index * sizeof(glm::vec4)), sizeof(glm::vec4), vk::MemoryMapFlags());
+    memcpy(data, &new_color, sizeof(glm::vec4));
+    device.unmapMemory(colorBufferMemory);
 }
 
 void Mesh::edit_vertex_colors(uint32_t index, std::vector<glm::vec4> new_colors)
 {
+    auto vulkan = Libraries::Vulkan::Get();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error("Error: Vulkan is not initialized");
+    auto device = vulkan->get_device();
+
     if (!allowEdits)
         throw std::runtime_error("Error: editing this component is not allowed. \
             Edits can be enabled during creation.");
-    throw std::runtime_error("Error: Not yet implemented");
+    
+    if (index >= this->colors.size())
+        throw std::runtime_error("Error: index out of bounds. Max index is " + std::to_string(this->colors.size() - 1));
+    
+    if ((index + new_colors.size()) > this->colors.size())
+        throw std::runtime_error("Error: too many colors for given index, out of bounds. Max index is " + std::to_string(this->colors.size() - 1));
+    
+    void *data = device.mapMemory(colorBufferMemory, (index * sizeof(glm::vec4)), sizeof(glm::vec4) * new_colors.size(), vk::MemoryMapFlags());
+    memcpy(data, new_colors.data(), sizeof(glm::vec4) * new_colors.size());
+    device.unmapMemory(colorBufferMemory);
 }
 
 void Mesh::edit_texture_coordinate(uint32_t index, glm::vec2 new_texcoord)
 {
+    auto vulkan = Libraries::Vulkan::Get();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error("Error: Vulkan is not initialized");
+    auto device = vulkan->get_device();
+
     if (!allowEdits)
         throw std::runtime_error("Error: editing this component is not allowed. \
             Edits can be enabled during creation.");
-    throw std::runtime_error("Error: Not yet implemented");
+    
+    if (index >= this->texcoords.size())
+        throw std::runtime_error("Error: index out of bounds. Max index is " + std::to_string(this->texcoords.size() - 1));
+    
+    void *data = device.mapMemory(texCoordBufferMemory, (index * sizeof(glm::vec2)), sizeof(glm::vec2), vk::MemoryMapFlags());
+    memcpy(data, &new_texcoord, sizeof(glm::vec2));
+    device.unmapMemory(texCoordBufferMemory);
 }
 
 void Mesh::edit_texture_coordinates(uint32_t index, std::vector<glm::vec2> new_texcoords)
 {
+    auto vulkan = Libraries::Vulkan::Get();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error("Error: Vulkan is not initialized");
+    auto device = vulkan->get_device();
+
     if (!allowEdits)
         throw std::runtime_error("Error: editing this component is not allowed. \
             Edits can be enabled during creation.");
-    throw std::runtime_error("Error: Not yet implemented");
+    
+    if (index >= this->texcoords.size())
+        throw std::runtime_error("Error: index out of bounds. Max index is " + std::to_string(this->texcoords.size() - 1));
+    
+    if ((index + new_texcoords.size()) > this->texcoords.size())
+        throw std::runtime_error("Error: too many texture coordinates for given index, out of bounds. Max index is " + std::to_string(this->texcoords.size() - 1));
+    
+    void *data = device.mapMemory(texCoordBufferMemory, (index * sizeof(glm::vec2)), sizeof(glm::vec2) * new_texcoords.size(), vk::MemoryMapFlags());
+    memcpy(data, new_texcoords.data(), sizeof(glm::vec2) * new_texcoords.size());
+    device.unmapMemory(texCoordBufferMemory);
 }
 
 void Mesh::build_top_level_bvh(bool submit_immediately)
