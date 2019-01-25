@@ -29,14 +29,24 @@ set (SRC
     ${Transform_SRC}
 )
 
+
+# Global defines
+add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+
+if (BUILD_OPENVR)
+add_definitions(-DBUILD_OPENVR)
+endif(BUILD_OPENVR)
+
+if (BUILD_SPACEMOUSE)
+add_definitions(-DBUILD_SPACEMOUSE)
+endif(BUILD_SPACEMOUSE)
+
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Pluto Library                                                   │
 # └──────────────────────────────────────────────────────────────────┘
 add_library(PlutoLib SHARED ${SRC})
 target_link_libraries(PlutoLib PUBLIC ${LIBRARIES})
 set_target_properties(PlutoLib PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS true)
-target_compile_definitions(PlutoLib PUBLIC BUILD_OPENVR=${BUILD_OPENVR})
-target_compile_definitions(PlutoLib PUBLIC BUILD_SPACEMOUSE=${BUILD_SPACEMOUSE})
 #target_compile_definitions(PlutoLib PRIVATE ZMQ_BUILD_DRAFT_API=1)
 install(TARGETS PlutoLib DESTINATION ${CMAKE_INSTALL_PREFIX})
 
