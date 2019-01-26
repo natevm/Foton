@@ -25,6 +25,4 @@ script:
   - echo "STARTING BUILD..."
   - make
   - echo "DONE BUILDING!"
-
-install:
   - make install
