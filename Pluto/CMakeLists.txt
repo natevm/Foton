@@ -45,7 +45,7 @@ endif(BUILD_SPACEMOUSE)
 # │  Pluto Library                                                   │
 # └──────────────────────────────────────────────────────────────────┘
 add_library(PlutoLib SHARED ${SRC})
-target_link_libraries(PlutoLib PUBLIC ${LIBRARIES})
+target_link_libraries(PlutoLib PUBLIC glfw ${LIBRARIES})
 set_target_properties(PlutoLib PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS true)
 #target_compile_definitions(PlutoLib PRIVATE ZMQ_BUILD_DRAFT_API=1)
 install(TARGETS PlutoLib DESTINATION ${CMAKE_INSTALL_PREFIX})

@@ -53,8 +53,8 @@ endforeach( OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES )
 set(GLFW_BUILD_EXAMPLES OFF CACHE STRING "" FORCE)
 set(GLFW_BUILD_TESTS    OFF CACHE STRING "" FORCE)
 set(GLFW_INSTALL        OFF CACHE STRING "" FORCE)
-find_package(GLFW 3.2 REQUIRED)
-include_directories(SYSTEM ${GLFW_INCLUDE_DIR})
+add_subdirectory(external/glfw)
+include_directories(SYSTEM external/glfw/include)
 
 # use GLI
 find_package(GLI REQUIRED)
