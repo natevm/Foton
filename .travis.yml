@@ -36,7 +36,24 @@ matrix:
     - os: osx
       osx_image: xcode10.1
       script:
-        - echo "RUNNING MACOS BUILD"
+        - brew install cmake
+        - brew install python
+        - brew install wget
+        - mkdir build
+        - mkdir install
+        - cd build
+        - cmake ../
     - os: windows
       script: 
-        - echo "RUNNING WINDOWS BUILD"
+        - choco install cmake
+        - choco upgrade cmake
+        - choco install wget
+        - choco upgrade wget
+        - choco install python3
+        - choco upgrade python3
+        - makedir build
+        - makedir install
+        - cd build
+        - cmake ../
+
+
