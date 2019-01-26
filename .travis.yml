@@ -6,15 +6,17 @@ addons:
   apt:
     sources:
       - sourceline: 'ppa:ubuntu-toolchain-r/test'
+      - sourceline: 'ppa:jonathonf/python-3.6'
     packages:
       - curl
       - xorg-dev
       - libglfw3-dev
       - swig3.0
-      - python3-dev
+      - python3.6-dev
       - gcc-8
 
 script:
+  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 800 --slave /usr/bin/g++ g++ /usr/bin/g++-8
   - mkdir build
   - mkdir install
   - cd build
