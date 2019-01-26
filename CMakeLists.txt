@@ -65,7 +65,7 @@ find_package(GLM 0.9.7 REQUIRED)
 include_directories(SYSTEM ${GLM_INCLUDE_DIR})
 
 # swig
-find_package(SWIG 3.0.12 REQUIRED)
+find_package(SWIG 3.0.8 REQUIRED)
 include(${SWIG_USE_FILE})
 
 # vulkan

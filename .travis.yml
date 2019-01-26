@@ -10,6 +10,7 @@ addons:
       - libglfw3-dev
       - swig3.0
       - python3-dev
+      - gcc-8
 
 script:
   - mkdir build
