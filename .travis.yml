@@ -14,6 +14,7 @@ addons:
       - swig3.0
       - python3.6-dev
       - gcc-8
+      - g++-8
 
 script:
   - mkdir build
@@ -25,7 +26,7 @@ script:
   - echo "GETTING THE VULKANS..."
   - wget https://sdk.lunarg.com/sdk/download/1.1.97.0/linux/vulkansdk-linux-x86_64-1.1.97.0.tar.gz
   - tar -xzf vulkansdk-linux-x86_64-1.1.97.0.tar.gz
-  - ./bin/cmake -DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/gcc-8 -DVulkan_INCLUDE_DIR:PATH=$(pwd)/1.1.97.0/x86_64/include/ -DVulkan_LIBRARY:FILEPATH=$(pwd)/1.1.97.0/x86_64/lib/libvulkan.so ../
+  - ./bin/cmake -DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/g++-8 -DVulkan_INCLUDE_DIR:PATH=$(pwd)/1.1.97.0/x86_64/include/ -DVulkan_LIBRARY:FILEPATH=$(pwd)/1.1.97.0/x86_64/lib/libvulkan.so ../
   - echo "STARTING BUILD..."
   - make
   - echo "DONE BUILDING!"
