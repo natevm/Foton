@@ -126,7 +126,6 @@ class Material : public StaticFactory
         /* A uniform base color can be replaced with per-vertex colors as well. */
         void use_vertex_colors(bool use);
 
-
     private:
     
         /*  A list of the material components, allocated statically */
