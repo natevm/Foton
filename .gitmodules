@@ -4,3 +4,6 @@
 [submodule "external/gli"]
 	path = external/gli
 	url = https://github.com/g-truc/gli
+[submodule "external/glfw"]
+	path = external/glfw
+	url = https://github.com/glfw/glfw
