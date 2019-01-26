@@ -22,8 +22,6 @@ using namespace std;
 
 int main(int argc, char** argv)
 {
-    // std::cout<<"Starting Pluto, thread id: " << std::this_thread::get_id()<<std::endl;
-
     Options::ProcessArgs(argc, argv);
     
     auto glfw = Libraries::GLFW::Get();

@@ -4,6 +4,8 @@
 #include "./Options.hxx"
 #include <iostream>
 
+#include "./whereami.hxx"
+
 namespace Options
 {
 
@@ -23,15 +25,7 @@ bool ProcessArg(int &i, char **argv)
 {
     int orig_i = i;
     
-    if $("-resource_path")
-    {
-        ++i;
-        ResourcePath = std::string(argv[i]);
-        ++i;
-        std::cout<<"Setting resource path to: " << ResourcePath <<std::endl;
-        resourcePathSet = true;
-    }
-    else if $("-ipykernel")
+    if $("-ipykernel")
     {
         ++i;
         ConnectionFile = std::string(argv[i]);
@@ -56,11 +50,18 @@ bool ProcessArg(int &i, char **argv)
 
     return i != orig_i;
 }
-#undef $
+
 int ProcessArgs(int argc, char **argv)
 {
     using namespace Options;
+    
+    int dirname_length;
+    int length = wai_getExecutablePath(NULL, 0, NULL);
+    std::string path(length, '\0');
+    wai_getExecutablePath(path.data(), length, &dirname_length);
 
+    path = path.substr(0, dirname_length);
+    
     int i = 1;
     bool stop = false;
     while (i < argc && !stop)
@@ -72,6 +73,9 @@ int ProcessArgs(int argc, char **argv)
         }
     }
 
+    ResourcePath = path + "/Resources"; 
+
+    
     // /* Process the first filename at the end of the arguments as a model */
     // for (; i < argc; ++i)
     // {

@@ -8,8 +8,6 @@ from IPython.utils.tempdir import TemporaryDirectory
 
 kernel_json = {
     "argv": [os.path.dirname(os.path.realpath(__file__)) + "/PlutoEngine",
-        "-resource_path",
-        os.path.dirname(os.path.realpath(__file__)) + "/Resources",
         "-ipykernel",
         "{connection_file}"
     ],

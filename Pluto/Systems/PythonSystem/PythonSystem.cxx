@@ -15,6 +15,8 @@
 #include <iostream>
 #include <iomanip>
 
+#include "Pluto/Tools/whereami.hxx"
+
 namespace Systems {
     PythonSystem::PythonSystem() {
     }
@@ -54,6 +56,12 @@ namespace Systems {
             Py_InspectFlag = 1;
             Py_InteractiveFlag = 1;
 
+            int dirname_length;
+            int length = wai_getExecutablePath(NULL, 0, NULL);
+            std::string path(length, '\0');
+            wai_getExecutablePath(path.data(), length, &dirname_length);
+            path = path.substr(0, dirname_length);
+    
             /* Construct wchar_t array */
             using namespace std;
 
@@ -68,8 +76,7 @@ namespace Systems {
                     argv[2] = GetWC(connectionFile.c_str());
                     PySys_SetArgv(3, argv.data());
                     PyRun_SimpleString("import sys");
-                    PyRun_SimpleString("if sys.path[0] == '': del sys.path[0]\n\n");
-					//PyRun_SimpleString("sys.path.insert(0, \"/home/will/repos/Pluto/build/install/\")");
+                    PyRun_SimpleString( std::string(std::string("sys.path.insert(0, \"") + path + std::string("\")")).c_str() );
                     PyRun_SimpleString("from ipykernel import kernelapp as app");
                     PyRun_SimpleString("app.launch_new_instance()");
                 #else
@@ -80,7 +87,7 @@ namespace Systems {
             }
             else {
 			  PyRun_SimpleString("import sys");
-			  PyRun_SimpleString("sys.path.insert(0, \"./\")");
+			  PyRun_SimpleString( std::string(std::string("sys.path.insert(0, \"") + path + std::string("\")")).c_str() );
               PyRun_InteractiveLoop(stdin, "<stdin>");
             }
 
