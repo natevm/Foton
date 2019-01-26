@@ -3,6 +3,10 @@ message("Adding subdirectory: PlutoEngine")
 # Weird swig thing...
 cmake_policy(SET CMP0078 NEW)
 
+if(APPLE)
+set(CMAKE_SHARED_LIBRARY_SUFFIX ".so")
+endif(APPLE)
+
 # Add all subdirectories
 add_subdirectory(Camera)
 add_subdirectory(Entity)
@@ -47,6 +51,7 @@ set(RPATHS "${CMAKE_INSTALL_PREFIX};${CMAKE_INSTALL_PREFIX}/Pluto;${CMAKE_INSTAL
 set(CMAKE_INSTALL_RPATH ${INSTALL_RPATH})
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
+
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Pluto Library                                                   │
 # └──────────────────────────────────────────────────────────────────┘
@@ -56,6 +61,9 @@ set_target_properties(PlutoLib PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS true)
 #target_compile_definitions(PlutoLib PRIVATE ZMQ_BUILD_DRAFT_API=1)
 set_target_properties(PlutoLib PROPERTIES INSTALL_RPATH "${RPATHS}")
 set_target_properties(PlutoLib PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
+if(APPLE)
+set_target_properties(PlutoLib PROPERTIES MACOSX_RPATH TRUE)
+endif(APPLE)
 install(TARGETS PlutoLib DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 
@@ -69,6 +77,9 @@ target_include_directories(PlutoEngine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 #target_compile_definitions(PlutoEngine PRIVATE ZMQ_BUILD_DRAFT_API=1)
 set_target_properties(PlutoEngine PROPERTIES INSTALL_RPATH "${RPATHS}")
 set_target_properties(PlutoEngine PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
+if(APPLE)
+set_target_properties(PlutoEngine PROPERTIES MACOSX_RPATH TRUE)
+endif(APPLE)
 install(TARGETS PlutoEngine DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 # ┌──────────────────────────────────────────────────────────────────┐
@@ -81,6 +92,9 @@ set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Pluto.i PROPERTY USE_TARGET_INCL
 swig_add_library(Pluto TYPE SHARED LANGUAGE python OUTFILE_DIR ${CMAKE_CURRENT_SOURCE_DIR} SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Pluto.i)
 set_target_properties(Pluto PROPERTIES INSTALL_RPATH "${RPATHS}")
 set_target_properties(Pluto PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
+if(APPLE)
+set_target_properties(Pluto PROPERTIES MACOSX_RPATH TRUE)
+endif(APPLE)
 target_link_libraries(Pluto PUBLIC ${LIBRARIES} PlutoLib)
 
 # Install
@@ -91,7 +105,7 @@ if (WIN32)
 install(FILES ${CMAKE_BINARY_DIR}/_Pluto.pyd DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 install(FILES ${CMAKE_BINARY_DIR}/_Pluto.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto OPTIONAL)
 elseif(APPLE)
-install(FILES ${CMAKE_BINARY_DIR}/_Pluto.dylib DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
+install(FILES ${CMAKE_BINARY_DIR}/_Pluto.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 else()
 install(FILES ${CMAKE_BINARY_DIR}/_Pluto.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 endif()
@@ -106,6 +120,9 @@ set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/Libraries.i PROPERTY U
 swig_add_library(Libraries TYPE SHARED LANGUAGE python OUTFILE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Libraries SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/Libraries.i)
 set_target_properties(Libraries PROPERTIES INSTALL_RPATH "${RPATHS}")
 set_target_properties(Libraries PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
+if(APPLE)
+set_target_properties(Libraries PROPERTIES MACOSX_RPATH TRUE)
+endif(APPLE)
 target_link_libraries(Libraries PUBLIC ${LIBRARIES} PlutoLib)
 
 # Install
@@ -116,7 +133,7 @@ if (WIN32)
 install(FILES ${CMAKE_BINARY_DIR}/_Libraries.pyd DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
 install(FILES ${CMAKE_BINARY_DIR}/_Libraries.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries OPTIONAL)
 elseif(APPLE)
-install(FILES ${CMAKE_BINARY_DIR}/_Libraries.dylib DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
+install(FILES ${CMAKE_BINARY_DIR}/_Libraries.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
 else()
 install(FILES ${CMAKE_BINARY_DIR}/_Libraries.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
 endif()
@@ -136,7 +153,7 @@ if (WIN32)
 install(FILES ${CMAKE_BINARY_DIR}/_GLM.pyd DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
 install(FILES ${CMAKE_BINARY_DIR}/_GLM.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries OPTIONAL)
 elseif(APPLE)
-install(FILES ${CMAKE_BINARY_DIR}/_GLM.dylib DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
+install(FILES ${CMAKE_BINARY_DIR}/_GLM.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
 else()
 install(FILES ${CMAKE_BINARY_DIR}/_GLM.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
 endif()
@@ -151,6 +168,9 @@ set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Systems/Systems.i PROPERTY USE_T
 swig_add_library(Systems TYPE SHARED LANGUAGE python OUTFILE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Systems SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Systems/Systems.i)
 set_target_properties(Systems PROPERTIES INSTALL_RPATH "${RPATHS}")
 set_target_properties(Systems PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
+if(APPLE)
+set_target_properties(Systems PROPERTIES MACOSX_RPATH TRUE)
+endif(APPLE)
 target_link_libraries(Systems PUBLIC ${LIBRARIES} PlutoLib)
 
 # Install
@@ -161,7 +181,7 @@ if (WIN32)
 install(FILES ${CMAKE_BINARY_DIR}/_Systems.pyd DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems)
 install(FILES ${CMAKE_BINARY_DIR}/_Systems.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems OPTIONAL)
 elseif(APPLE)
-install(FILES ${CMAKE_BINARY_DIR}/_Systems.dylib DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems)
+install(FILES ${CMAKE_BINARY_DIR}/_Systems.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems)
 else()
 install(FILES ${CMAKE_BINARY_DIR}/_Systems.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems)
 endif()
