@@ -35,34 +35,8 @@ matrix:
         - make install
     - os: osx
       osx_image: xcode10.1
-    #   addons:
-    #     apt:
-    #       sources:
-    #         - sourceline: 'ppa:ubuntu-toolchain-r/test'
-    #         - sourceline: 'ppa:jonathonf/python-3.6'
-    #       packages:
-    #         - curl
-    #         - xorg-dev
-    #         - libglfw3-dev
-    #         - swig3.0
-    #         - python3.6-dev
-    #         - gcc-8
-    #         - g++-8
       script:
         - echo "RUNNING MACOS BUILD"
-        # - mkdir build
-        # - mkdir install
-        # - cd build
-    #     - wget https://github.com/Kitware/CMake/releases/download/v3.13.3/cmake-3.13.3-Linux-x86_64.sh
-    #     - bash cmake-3.13.3-Linux-x86_64.sh --skip-license
-    #     - echo "GETTING THE VULKANS..."
-    #     - wget https://sdk.lunarg.com/sdk/download/1.1.97.0/linux/vulkansdk-linux-x86_64-1.1.97.0.tar.gz
-    #     - tar -xzf vulkansdk-linux-x86_64-1.1.97.0.tar.gz
-    #     - ./bin/cmake -DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/g++-8 -DVulkan_INCLUDE_DIR:PATH=$(pwd)/1.1.97.0/x86_64/include/ -DVulkan_LIBRARY:FILEPATH=$(pwd)/1.1.97.0/x86_64/lib/libvulkan.so ../
-    #     - echo "STARTING BUILD..."
-    #     - make
-    #     - echo "DONE BUILDING!"
-    #     - make install
-    -os: windows
+    - os: windows
       script: 
         - echo "RUNNING WINDOWS BUILD"
