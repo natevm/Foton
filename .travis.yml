@@ -39,9 +39,9 @@ matrix:
         - mkdir build
         - mkdir install
         - cd build
-        - wget https://sdk.lunarg.com/sdk/download/1.1.97.0/mac/vulkansdk-macos-1.1.97.0.tar.gz
-        - tar -xzf vulkansdk-macos-1.1.97.0.tar.gz
-        - cmake -DVulkan_INCLUDE_DIR:PATH=$(pwd)/1.1.97.0/macos/include/ -DVulkan_LIBRARY:FILEPATH=$(pwd)/1.1.97.0/macos/lib/libvulkan.dylib ../ ../
+        - curl https://sdk.lunarg.com/sdk/download/1.1.97.0/mac/vulkansdk-macos-1.1.97.0.tar.gz -o vulkan.tar.gz
+        - tar -xzf vulkan.tar.gz
+        - cmake -DVulkan_INCLUDE_DIR:PATH=$(pwd)/vulkansdk-macos-1.1.97.0/macos/include/ -DVulkan_LIBRARY:FILEPATH=$(pwd)/vulkansdk-macos-1.1.97.0/macos/lib/libvulkan.dylib ../ ../
         - cmake --build .
         - cmake --build . --target install
     - os: windows
@@ -52,7 +52,8 @@ matrix:
         - choco upgrade python3
         - choco install swig
         - choco upgrade swig
-        - refreshenv
+        - wget https://sdk.lunarg.com/sdk/download/1.1.97.0/windows/VulkanSDK-1.1.97.0-Installer.exe
+        - ./VulkanSDK-1.1.97.0-Installer.exe /S
         - mkdir build
         - mkdir install
         - cd build
