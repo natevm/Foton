@@ -21,47 +21,38 @@ matrix:
             - g++-8
             - lunarg-vulkan-sdk
       script:
-        - echo "RUNNING XENIAL BUILD"
         - mkdir build
         - mkdir install
         - cd build
-        - echo "GETTING THE BEST CMAKE VERSION..."
         - wget https://github.com/Kitware/CMake/releases/download/v3.13.3/cmake-3.13.3-Linux-x86_64.sh
         - bash cmake-3.13.3-Linux-x86_64.sh --skip-license
-        - ./bin/cmake -DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/g++-8 ../
+        - ./bin/cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/g++-8 ../
         - cmake --build .
         - cmake --build . --target install
     - os: osx
       osx_image: xcode10.1
       script:
-        - brew upgrade cmake
-        - brew install swig
-        - brew install wget
-        - brew upgrade wget
         - mkdir build
         - mkdir install
+        - brew upgrade cmake wget
+        - brew install swig
         - cd build
         - wget https://sourceforge.net/projects/vulkantarball/files/vulkansdk-macos-1.1.97.0.tar.gz/download
         - mv download vulkan.tar.gz
         - tar -xzf vulkan.tar.gz
-        - cmake -DVulkan_INCLUDE_DIR:PATH=$(pwd)/vulkansdk-macos-1.1.97.0/macos/include/ -DVulkan_LIBRARY:FILEPATH=$(pwd)/vulkansdk-macos-1.1.97.0/macos/lib/libvulkan.dylib ../ ../
+        - cmake -DCMAKE_BUILD_TYPE=Release -DVulkan_INCLUDE_DIR:PATH=$(pwd)/vulkansdk-macos-1.1.97.0/macos/include/ -DVulkan_LIBRARY:FILEPATH=$(pwd)/vulkansdk-macos-1.1.97.0/macos/lib/libvulkan.dylib ../ ../
         - cmake --build .
         - cmake --build . --target install
     - os: windows
       script: 
-        - choco install cmake
-        - choco upgrade cmake
-        - choco install python3
-        - choco upgrade python3
-        - choco install swig
-        - choco upgrade swig
-        - wget -q https://sourceforge.net/projects/vulkantarball/files/vulkansdk-windows-1.1.97.0.tar.gz/download
-        - mv download vulkan.tar.gz
-        - tar -xzvf vulkan.tar.gz
         - mkdir build
         - mkdir install
+        - choco install cmake python3 swig
+        - wget -q https://sourceforge.net/projects/vulkantarball/files/vulkansdk-windows-1.1.97.0.tar.gz/download
+        - mv download vulkan.tar.gz
+        - tar -xzf vulkan.tar.gz
         - cd build
-        - cmake -G "Visual Studio 15 2017 Win64" -DVulkan_INCLUDE_DIR:PATH=$(pwd)/../1.1.97.0/Include/ -DVulkan_LIBRARY:FILEPATH=$(pwd)/../1.1.97.0/Lib/vulkan-1.lib ../
+        - cmake -G "Visual Studio 15 2017 Win64" -DCMAKE_BUILD_TYPE=Release -DVulkan_INCLUDE_DIR:PATH=$(pwd)/../1.1.97.0/Include/ -DVulkan_LIBRARY:FILEPATH=$(pwd)/../1.1.97.0/Lib/vulkan-1.lib ../
         - cmake --build .
         - cmake --build . --target install
 
