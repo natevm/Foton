@@ -42,7 +42,7 @@ matrix:
         - mkdir install
         - cd build
         - wget https://sdk.lunarg.com/sdk/download/1.1.97.0/mac/vulkansdk-macos-1.1.97.0.tar.gz
-        - tar -xzf vulkan.tar.gz
+        - tar -xzf vulkansdk-macos-1.1.97.0.tar.gz
         - cmake -DVulkan_INCLUDE_DIR:PATH=$(pwd)/vulkansdk-macos-1.1.97.0/macos/include/ -DVulkan_LIBRARY:FILEPATH=$(pwd)/vulkansdk-macos-1.1.97.0/macos/lib/libvulkan.dylib ../ ../
         - cmake --build .
         - cmake --build . --target install
