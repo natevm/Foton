@@ -1,4 +1,4 @@
-Pluto
+Pluto [![Build Status](https://travis-ci.org/n8vm/Pluto.svg?branch=master)](https://travis-ci.org/n8vm/Pluto)
 ===========
 
 ``Pluto`` is a Vulkan based graphics engine. It uses a Python 3 interpreter to create and edit 3D scenes at runtime, and has support for Jupyter notebook and Jupyter lab environments. Since it uses a python interpreter instead of a scripting language like LUA, users can import their own modules, like PyTorch or Tensorflow, and take advantage of popular python linear algebra libraries like numpy.
