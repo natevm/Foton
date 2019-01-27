@@ -9,6 +9,8 @@ matrix:
           sources:
             - sourceline: 'ppa:ubuntu-toolchain-r/test'
             - sourceline: 'ppa:jonathonf/python-3.6'
+            - sourceline: 'deb https://packages.lunarg.com/vulkan/1.1.97 xenial main'
+              key_url: 'http://packages.lunarg.com/lunarg-signing-key-pub.asc'
           packages:
             - curl
             - xorg-dev
@@ -17,7 +19,7 @@ matrix:
             - python3.6-dev
             - gcc-8
             - g++-8
-            - lunarg-vulkan-sdk=1.1.97
+            - lunarg-vulkan-sdk
       script:
         - echo "RUNNING XENIAL BUILD"
         - mkdir build
@@ -52,7 +54,8 @@ matrix:
         - choco upgrade python3
         - choco install swig
         - choco upgrade swig
-        - wget -q https://sourceforge.net/projects/vulkantarball/files/vulkansdk-windows-1.1.97.0.tar.gz/download -o vulkan.tar.gz
+        - wget -q https://sourceforge.net/projects/vulkantarball/files/vulkansdk-windows-1.1.97.0.tar.gz/download
+        - mv download vulkan.tar.gz
         - tar -xzvf vulkan.tar.gz
         - mkdir build
         - mkdir install
