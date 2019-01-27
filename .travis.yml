@@ -17,6 +17,7 @@ matrix:
             - python3.6-dev
             - gcc-8
             - g++-8
+            - lunarg-vulkan-sdk=1.1.97
       script:
         - echo "RUNNING XENIAL BUILD"
         - mkdir build
@@ -25,10 +26,7 @@ matrix:
         - echo "GETTING THE BEST CMAKE VERSION..."
         - wget https://github.com/Kitware/CMake/releases/download/v3.13.3/cmake-3.13.3-Linux-x86_64.sh
         - bash cmake-3.13.3-Linux-x86_64.sh --skip-license
-        - echo "GETTING THE VULKANS..."
-        - wget https://sdk.lunarg.com/sdk/download/1.1.97.0/linux/vulkansdk-linux-x86_64-1.1.97.0.tar.gz
-        - tar -xzf vulkansdk-linux-x86_64-1.1.97.0.tar.gz
-        - ./bin/cmake -DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/g++-8 -DVulkan_INCLUDE_DIR:PATH=$(pwd)/1.1.97.0/x86_64/include/ -DVulkan_LIBRARY:FILEPATH=$(pwd)/1.1.97.0/x86_64/lib/libvulkan.so ../
+        - ./bin/cmake -DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/g++-8 ../
         - cmake --build .
         - cmake --build . --target install
     - os: osx
@@ -41,7 +39,7 @@ matrix:
         - mkdir build
         - mkdir install
         - cd build
-        - wget https://sdk.lunarg.com/sdk/download/1.1.97.0/mac/vulkansdk-macos-1.1.97.0.tar.gz
+        - wget https://sdk.lunarg.com/sdk/download/1.1.97.0/mac/vulkansdk-macos-1.1.97.0.tar.gz?u=
         - tar -xzf vulkansdk-macos-1.1.97.0.tar.gz
         - cmake -DVulkan_INCLUDE_DIR:PATH=$(pwd)/vulkansdk-macos-1.1.97.0/macos/include/ -DVulkan_LIBRARY:FILEPATH=$(pwd)/vulkansdk-macos-1.1.97.0/macos/lib/libvulkan.dylib ../ ../
         - cmake --build .
@@ -54,7 +52,7 @@ matrix:
         - choco upgrade python3
         - choco install swig
         - choco upgrade swig
-        - wget -q https://sdk.lunarg.com/sdk/download/1.1.97.0/windows/VulkanSDK-1.1.97.0-Installer.exe
+        - wget -q https://sdk.lunarg.com/sdk/download/1.1.97.0/windows/VulkanSDK-1.1.97.0-Installer.exe?u=
         - ./VulkanSDK-1.1.97.0-Installer.exe /S
         - mkdir build
         - mkdir install
