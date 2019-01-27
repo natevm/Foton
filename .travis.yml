@@ -36,10 +36,12 @@ matrix:
       script:
         - brew upgrade cmake
         - brew install swig
+        - brew install wget
+        - brew upgrade wget
         - mkdir build
         - mkdir install
         - cd build
-        - curl -L https://sdk.lunarg.com/sdk/download/1.1.97.0/mac/vulkansdk-macos-1.1.97.0.tar.gz -o vulkan.tar.gz
+        - wget https://sdk.lunarg.com/sdk/download/1.1.97.0/mac/vulkansdk-macos-1.1.97.0.tar.gz
         - tar -xzf vulkan.tar.gz
         - cmake -DVulkan_INCLUDE_DIR:PATH=$(pwd)/vulkansdk-macos-1.1.97.0/macos/include/ -DVulkan_LIBRARY:FILEPATH=$(pwd)/vulkansdk-macos-1.1.97.0/macos/lib/libvulkan.dylib ../ ../
         - cmake --build .
@@ -52,7 +54,7 @@ matrix:
         - choco upgrade python3
         - choco install swig
         - choco upgrade swig
-        - wget –quiet https://sdk.lunarg.com/sdk/download/1.1.97.0/windows/VulkanSDK-1.1.97.0-Installer.exe
+        - wget -q https://sdk.lunarg.com/sdk/download/1.1.97.0/windows/VulkanSDK-1.1.97.0-Installer.exe
         - ./VulkanSDK-1.1.97.0-Installer.exe /S
         - mkdir build
         - mkdir install
