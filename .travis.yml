@@ -29,10 +29,8 @@ matrix:
         - wget https://sdk.lunarg.com/sdk/download/1.1.97.0/linux/vulkansdk-linux-x86_64-1.1.97.0.tar.gz
         - tar -xzf vulkansdk-linux-x86_64-1.1.97.0.tar.gz
         - ./bin/cmake -DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/g++-8 -DVulkan_INCLUDE_DIR:PATH=$(pwd)/1.1.97.0/x86_64/include/ -DVulkan_LIBRARY:FILEPATH=$(pwd)/1.1.97.0/x86_64/lib/libvulkan.so ../
-        - echo "STARTING BUILD..."
-        - make
-        - echo "DONE BUILDING!"
-        - make install
+        - cmake --build .
+        - cmake --build . --target install
     - os: osx
       osx_image: xcode10.1
       script:
@@ -41,7 +39,11 @@ matrix:
         - mkdir build
         - mkdir install
         - cd build
-        - cmake ../
+        - wget https://sdk.lunarg.com/sdk/download/1.1.97.0/mac/vulkansdk-macos-1.1.97.0.tar.gz
+        - tar -xzf vulkansdk-macos-1.1.97.0.tar.gz
+        - cmake -DVulkan_INCLUDE_DIR:PATH=$(pwd)/1.1.97.0/macos/include/ -DVulkan_LIBRARY:FILEPATH=$(pwd)/1.1.97.0/macos/lib/libvulkan.dylib ../ ../
+        - cmake --build .
+        - cmake --build . --target install
     - os: windows
       script: 
         - choco install cmake
@@ -55,5 +57,7 @@ matrix:
         - mkdir install
         - cd build
         - cmake -G "Visual Studio 15 2017 Win64" ../
+        - cmake --build .
+        - cmake --build . --target install
 
 
