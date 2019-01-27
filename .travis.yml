@@ -37,6 +37,7 @@ matrix:
       osx_image: xcode10.1
       script:
         - brew upgrade cmake
+        - brew install swig
         - mkdir build
         - mkdir install
         - cd build
@@ -47,10 +48,12 @@ matrix:
         - choco upgrade cmake
         - choco install python3
         - choco upgrade python3
+        - choco install swig
+        - choco upgrade swig
         - refreshenv
         - mkdir build
         - mkdir install
         - cd build
-        - cmake ../
+        - cmake -G "Visual Studio 15 2017 Win64" ../
 
 
