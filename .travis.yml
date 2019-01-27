@@ -52,12 +52,12 @@ matrix:
         - choco upgrade python3
         - choco install swig
         - choco upgrade swig
-        - wget -q https://sdk.lunarg.com/sdk/download/1.1.97.0/windows/VulkanSDK-1.1.97.0-Installer.exe?u=
-        - ./VulkanSDK-1.1.97.0-Installer.exe /S
+        - wget -q https://sourceforge.net/projects/vulkantarball/files/vulkansdk-windows-1.1.97.0.tar.gz/download -o vulkan.tar.gz
+        - tar -xzvf vulkan.tar.gz
         - mkdir build
         - mkdir install
         - cd build
-        - cmake -G "Visual Studio 15 2017 Win64" ../
+        - cmake -G "Visual Studio 15 2017 Win64" -DVulkan_INCLUDE_DIR:PATH=./../1.1.97.0/Include/ -DVulkan_LIBRARY:FILEPATH=./../1.1.97.0/Lib/vulkan-1.lib ../
         - cmake --build .
         - cmake --build . --target install
 
