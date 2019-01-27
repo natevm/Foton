@@ -28,7 +28,7 @@ matrix:
         - bash cmake-3.13.3-Linux-x86_64.sh --skip-license
         - ./bin/cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/g++-8 ../
         - cmake --build .
-        - cmake --build . --target install
+        - cmake --build . --target install --config Release
     - os: osx
       osx_image: xcode10.1
       script:
@@ -42,7 +42,7 @@ matrix:
         - tar -xzf vulkan.tar.gz
         - cmake -DCMAKE_BUILD_TYPE=Release -DVulkan_INCLUDE_DIR:PATH=$(pwd)/vulkansdk-macos-1.1.97.0/macos/include/ -DVulkan_LIBRARY:FILEPATH=$(pwd)/vulkansdk-macos-1.1.97.0/macos/lib/libvulkan.dylib ../ ../
         - cmake --build .
-        - cmake --build . --target install
+        - cmake --build . --target install --config Release
     - os: windows
       script: 
         - mkdir build
@@ -54,6 +54,6 @@ matrix:
         - cd build
         - cmake -G "Visual Studio 15 2017 Win64" -DCMAKE_BUILD_TYPE=Release -DVulkan_INCLUDE_DIR:PATH=$(pwd)/../1.1.97.0/Include/ -DVulkan_LIBRARY:FILEPATH=$(pwd)/../1.1.97.0/Lib/vulkan-1.lib ../
         - cmake --build .
-        - cmake --build . --target install
+        - cmake --build . --target install --config Release
 
 
