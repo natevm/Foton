@@ -25,7 +25,7 @@ endif()
 
 # Default to release build
 if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the build configuration" FORCE)
+  set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Choose the build configuration" FORCE)
 endif()
 
 # ┌──────────────────────────────────────────────────────────────────┐
@@ -69,7 +69,7 @@ find_package(SWIG 3.0.8 REQUIRED)
 include(${SWIG_USE_FILE})
 
 # vulkan
-find_package(Vulkan 1.1.92 REQUIRED)
+find_package(Vulkan 1.1.97 REQUIRED)
 include_directories(${Vulkan_INCLUDE_DIRS})
 
 # zeromq

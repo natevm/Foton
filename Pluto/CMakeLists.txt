@@ -189,7 +189,12 @@ endif()
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Shaders                                                         │
 # └──────────────────────────────────────────────────────────────────┘
+
+if (WIN32)
 set(GLSLC ${PROJECT_SOURCE_DIR}/external/vulkan/glslc.exe)
+else()
+set(GLSLC glslc)
+endif()
 set(GLSLC_CONFIG ${PROJECT_SOURCE_DIR}/external/vulkan/glsl.config)
 set(GLSLC_OPTIMIZATION -O)
 
@@ -209,8 +214,8 @@ add_custom_target(Shaders
     COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/PBRSurface/shader.vert -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/PBRSurface/vert.spv -flimit-file ${GLSLC_CONFIG}
     COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/PBRSurface/shader.frag -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/PBRSurface/frag.spv -flimit-file ${GLSLC_CONFIG}
 
-    COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/SkyBox/shader.vert -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/SkyBox/vert.spv -flimit-file ${GLSLC_CONFIG}
-    COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/SkyBox/shader.frag -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/SkyBox/frag.spv -flimit-file ${GLSLC_CONFIG}
+    COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Skybox/shader.vert -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Skybox/vert.spv -flimit-file ${GLSLC_CONFIG}
+    COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Skybox/shader.frag -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Skybox/frag.spv -flimit-file ${GLSLC_CONFIG}
 
     COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/shader.vert -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/vert.spv -flimit-file ${GLSLC_CONFIG}
     COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/shader.frag -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/frag.spv -flimit-file ${GLSLC_CONFIG}

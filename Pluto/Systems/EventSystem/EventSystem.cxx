@@ -11,7 +11,7 @@ namespace Systems
 {
     std::condition_variable EventSystem::cv;
     std::mutex EventSystem::qMutex;
-    std::vector<EventSystem::Command> EventSystem::commandQueue = {};
+    std::queue<EventSystem::Command> EventSystem::commandQueue = {};
 
 
     EventSystem* EventSystem::Get() {
@@ -46,14 +46,22 @@ namespace Systems
                 glfw->poll_events();
 
                 // glfw->wait_events(); // THIS CALL IS BLOCKING
-                std::unique_lock<std::mutex> lock(qMutex);
-                if (cv.wait_for(lock, 4ms) == std::cv_status::no_timeout)
                 {
-                    for (int i = 0; i < commandQueue.size(); ++i) {
-                        commandQueue[i].function();
-                        commandQueue[i].promise->set_value();
+                    std::lock_guard<std::mutex> lock(qMutex);
+                    while (!commandQueue.empty()) {
+                        auto item = commandQueue.front();
+                        item.function();
+                        try {
+                            item.promise->set_value();
+                        }
+                        catch (std::future_error& e) {
+                            if (e.code() == std::make_error_condition(std::future_errc::promise_already_satisfied))
+                                std::cout << "EventSystem: [promise already satisfied]\n";
+                            else
+                                std::cout << "EventSystem: [unknown exception]\n";
+                        }
+                        commandQueue.pop();
                     }
-                    commandQueue.clear();
                 }
             }
 #if BUILD_OPENVR
@@ -85,9 +93,10 @@ namespace Systems
         Command c;
         c.function = function;
         c.promise = std::make_shared<std::promise<void>>();
-        commandQueue.push_back(c);
-        cv.notify_one();
-        return c.promise->get_future();
+        auto new_future = c.promise->get_future();
+        commandQueue.push(c);
+        // cv.notify_one();
+        return new_future;
     }
 
     /* These commands can be called from separate threads, but must be run on the event thread. */

@@ -1,13 +1,14 @@
 #pragma once
 #include <vulkan/vulkan.hpp>
 #include <thread>
+#include <mutex>
 #include <future>
 #include <vector>
 #include <set>
 #include <condition_variable>
+#include <queue>
 
 #include "Pluto/Tools/Singleton.hxx"
-#include "threadsafe_queue.hpp"
 
 namespace Libraries {
     using namespace std;

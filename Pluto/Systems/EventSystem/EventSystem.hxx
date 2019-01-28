@@ -4,6 +4,8 @@
 #include "Pluto/Tools/System.hxx"
 #include "Pluto/Libraries/GLFW/GLFW.hxx"
 
+#include <queue>
+
 namespace Systems 
 {
     class EventSystem : public System {
@@ -33,7 +35,7 @@ namespace Systems
 
             static std::condition_variable cv;
             static std::mutex qMutex;
-            static std::vector<Command> commandQueue;
+            static std::queue<Command> commandQueue;
 
             std::future<void> enqueueCommand(std::function<void()> function);
     };   
