@@ -1,35 +1,8 @@
 #version 450
-#extension GL_ARB_separate_shader_objects : enable
-#extension GL_EXT_multiview : enable
-
-#include "Pluto/Resources/Shaders/DescriptorLayout.hxx"
-
-layout(location = 0) in vec3 w_normal;
-layout(location = 1) in vec3 w_position;
-layout(location = 2) in vec2 fragTexCoord;
-layout(location = 3) in vec3 w_cameraPos;
-layout(location = 4) in vec4 vert_color;
-
-layout(location = 0) out vec4 outColor;
+#include "Pluto/Resources/Shaders/ShaderCommon.hxx"
+#include "Pluto/Resources/Shaders/FragmentCommon.hxx"
 
 #define PI 3.1415926535897932384626433832795
-// Todo: allow user to specify exposure and gamma
-vec4 getAlbedo()
-{
-	EntityStruct entity = ebo.entities[push.consts.target_id];
-	MaterialStruct material = mbo.materials[entity.material_id];
-	vec4 albedo = material.base_color; 
-
-	/* If the use vertex colors flag is set, use the vertex color as the base color instead. */
-	if ((material.flags & (1 << 0)) != 0)
-		albedo = vert_color;
-
-	if (material.base_color_texture_id != -1) {
-  		albedo = texture(sampler2D(texture_2Ds[material.base_color_texture_id], samplers[material.base_color_texture_id]), fragTexCoord);
-	}
-
-	return vec4(pow(albedo.rgb, vec3(2.2)), albedo.a);
-}
 
 float getRoughness(MaterialStruct material)
 {

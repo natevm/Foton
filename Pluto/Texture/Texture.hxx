@@ -66,6 +66,15 @@ class Texture : public StaticFactory
 		/* Initializes the Mesh factory. Loads default meshes. */
 		static void Initialize();
 
+		/* Transfers all texture components to an SSBO */
+        static void UploadSSBO();
+
+		/* Returns the SSBO vulkan buffer handle */
+        static vk::Buffer GetSSBO();
+
+        /* Returns the size in bytes of the current texture SSBO */
+        static uint32_t GetSSBOSize();
+
 		/* Returns a list of samplers corresponding to the texture list, or defaults if the texture isn't usable. 
 			Useful for updating descriptor sets. */
 		static std::vector<vk::Sampler> GetSamplers();
@@ -117,6 +126,15 @@ class Texture : public StaticFactory
 		/* Replace the current image resources with external resources. Note, these resources must be freed externally. */
 		void setData(Data data);
 
+		/* Sets the first color to be used on a procedural texture type */
+		void set_procedural_color_1(float r, float g, float b, float a);
+		
+		/* Sets the second color to be used on a procedural texture type */
+		void set_procedural_color_2(float r, float g, float b, float a);
+
+		/* Sets the scale to be used on a procedural texture type */
+		void set_procedural_scale(float scale);
+
 		/* Returns a json string summarizing the texture */
 		std::string to_string();
 
@@ -139,8 +157,20 @@ class Texture : public StaticFactory
 		/* A lookup table of name to texture id */
 		static std::map<std::string, uint32_t> lookupTable;
 
+		/* A pointer to the mapped texture SSBO. This memory is shared between the GPU and CPU. */
+        static TextureStruct* pinnedMemory;
+
+        /* A vulkan buffer handle corresponding to the texture SSBO  */
+        static vk::Buffer ssbo;
+
+        /* The corresponding texture SSBO memory */
+        static vk::DeviceMemory ssboMemory;
+
 		/* The struct of texture data, aggregating vulkan resources */
 		Data data;
+
+		/* The structure containing all shader texture properties. This is what's coppied into the SSBO per instance */
+        TextureStruct texture_struct;
 
 		/* Indicates that the texture was made externally (eg, setData was used), and that the resources should not
 			be freed internally. */

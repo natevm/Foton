@@ -1,9 +1,5 @@
-#pragma optimize ("", off)
-
 #include "./Texture.hxx"
-
 #include "Pluto/Tools/Options.hxx"
-
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -16,10 +12,17 @@
 
 Texture Texture::textures[MAX_TEXTURES];
 std::map<std::string, uint32_t> Texture::lookupTable;
+TextureStruct* Texture::pinnedMemory;
+vk::Buffer Texture::ssbo;
+vk::DeviceMemory Texture::ssboMemory;
 
 Texture::Texture()
 {
     initialized = false;
+    texture_struct.type = 0;
+    texture_struct.scale = .1;
+    texture_struct.color1 = glm::vec4(1.0, 1.0, 1.0, 1.0);
+    texture_struct.color2 = glm::vec4(0.0, 0.0, 0.0, 1.0);
 }
 
 Texture::Texture(std::string name, uint32_t id)
@@ -233,6 +236,27 @@ void Texture::setData(Data data)
 {
     this->madeExternally = true;
     this->data = data;
+}
+
+void Texture::set_procedural_color_1(float r, float g, float b, float a)
+{
+    if (texture_struct.type == 0)
+        throw std::runtime_error("Error: texture must be procedural");
+    texture_struct.color1 = glm::vec4(r, g, b, a);
+}
+
+void Texture::set_procedural_color_2(float r, float g, float b, float a)
+{
+    if (texture_struct.type == 0)
+        throw std::runtime_error("Error: texture must be procedural");
+    texture_struct.color2 = glm::vec4(r, g, b, a);
+}
+
+void Texture::set_procedural_scale(float scale)
+{
+    if (texture_struct.type == 0)
+        throw std::runtime_error("Error: texture must be procedural");
+    texture_struct.scale = scale;
 }
 
 void Texture::upload_color_data(uint32_t width, uint32_t height, uint32_t depth, std::vector<float> color_data, bool submit_immediately)
@@ -454,12 +478,78 @@ void Texture::Initialize()
     CreateFromKTX("DefaultTexCube", resource_path + "/Defaults/missing-texcube.ktx");
     CreateFromKTX("DefaultTex3D", resource_path + "/Defaults/missing-volume.ktx");    
     // fatal error here if result is nullptr...
+
+    auto vulkan = Libraries::Vulkan::Get();
+    auto device = vulkan->get_device();
+    if (device == vk::Device())
+        throw std::runtime_error( std::string("Invalid vulkan device"));
+
+    auto physical_device = vulkan->get_physical_device();
+    if (physical_device == vk::PhysicalDevice())
+        throw std::runtime_error( std::string("Invalid vulkan physical device"));
+
+    vk::BufferCreateInfo bufferInfo = {};
+    bufferInfo.size = MAX_TEXTURES * sizeof(TextureStruct);
+    bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer;
+    bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+    ssbo = device.createBuffer(bufferInfo);
+
+    vk::MemoryRequirements memReqs = device.getBufferMemoryRequirements(ssbo);
+    vk::MemoryAllocateInfo allocInfo = {};
+    allocInfo.allocationSize = memReqs.size;
+
+    vk::PhysicalDeviceMemoryProperties memProperties = physical_device.getMemoryProperties();
+    vk::MemoryPropertyFlags properties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+    allocInfo.memoryTypeIndex = vulkan->find_memory_type(memReqs.memoryTypeBits, properties);
+
+    ssboMemory = device.allocateMemory(allocInfo);
+    device.bindBufferMemory(ssbo, ssboMemory, 0);
+
+    /* Pin the buffer */
+    pinnedMemory = (TextureStruct*) device.mapMemory(ssboMemory, 0, MAX_TEXTURES * sizeof(TextureStruct));
+}
+
+
+void Texture::UploadSSBO()
+{
+    if (pinnedMemory == nullptr) return;
+    TextureStruct texture_structs[MAX_TEXTURES];
+    
+    /* TODO: remove this for loop */
+    for (int i = 0; i < MAX_TEXTURES; ++i) {
+        if (!textures[i].is_initialized()) continue;
+        texture_structs[i] = textures[i].texture_struct;
+    };
+
+    /* Copy to GPU mapped memory */
+    memcpy(pinnedMemory, texture_structs, sizeof(texture_structs));
+}
+
+vk::Buffer Texture::GetSSBO()
+{
+    return ssbo;
+}
+
+uint32_t Texture::GetSSBOSize()
+{
+    return MAX_TEXTURES * sizeof(TextureStruct);
 }
 
 void Texture::CleanUp()
 {
     for (int i = 0; i < MAX_TEXTURES; ++i)
         textures[i].cleanup();
+
+    auto vulkan = Libraries::Vulkan::Get();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error( std::string("Vulkan library is not initialized"));
+    auto device = vulkan->get_device();
+    if (device == vk::Device())
+        throw std::runtime_error( std::string("Invalid vulkan device"));
+
+    device.destroyBuffer(ssbo);
+    device.unmapMemory(ssboMemory);
+    device.freeMemory(ssboMemory);
 }
 
 std::vector<vk::ImageView> Texture::GetImageViews(vk::ImageViewType view_type) 
@@ -1277,7 +1367,7 @@ Texture* Texture::CreateChecker(std::string name, bool submit_immediately)
 
     auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
     if (!tex) return nullptr;
-    tex->loadKTX(checkerTexturePath, submit_immediately);
+    tex->texture_struct.type = 1;
     return tex;
 }
 
@@ -1304,7 +1394,6 @@ Texture* Texture::Create2D(
     if (tex->data.sampleCount != sampleFlag)
         std::cout<<"Warning: provided sample count is larger than max supported sample count on the device. Using " 
             << vk::to_string(tex->data.sampleCount) << " instead."<<std::endl;
-
     if (hasColor) tex->create_color_image_resources(submit_immediately);
     if (hasDepth) tex->create_depth_stencil_resources(submit_immediately);
     return tex;

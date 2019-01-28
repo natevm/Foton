@@ -72,8 +72,8 @@ bool RenderSystem::initialize()
     }
 #endif
 
-    push_constants.gamma = 2.2;
-    push_constants.exposure = 2.0;
+    push_constants.gamma = 2.2f;
+    push_constants.exposure = 2.0f;
     push_constants.environment_id = -1;
     push_constants.diffuse_environment_id = -1;
     push_constants.specular_environment_id = -1;
@@ -122,6 +122,7 @@ void RenderSystem::record_render_commands()
     Light::UploadSSBO();
     Camera::UploadSSBO();
     Entity::UploadSSBO();
+    Texture::UploadSSBO();
     Material::UpdateRasterDescriptorSets();
     Material::UpdateRaytracingDescriptorSets();
 

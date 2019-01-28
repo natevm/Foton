@@ -4,4 +4,21 @@
 #define MAX_TEXTURES 64 // Limit imposed by intel. Can be much larger on descrete GPUs
 #endif
 
-// For now, textures don't have a struct. 
+#ifndef GLSL
+#include <glm/glm.hpp>
+using namespace glm;
+#endif
+
+#ifdef GLSL
+#define int32_t int
+#endif
+
+struct TextureStruct
+{
+    int32_t type;
+    float scale;
+    float ph1;
+    float ph2;
+    vec4 color1;
+    vec4 color2;
+};

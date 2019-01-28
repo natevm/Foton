@@ -1,4 +1,8 @@
 #define GLSL
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_EXT_multiview : enable
+#extension GL_EXT_nonuniform_qualifier : enable
+
 #include "Pluto/Material/PushConstants.hxx"
 #include "Pluto/Entity/EntityStruct.hxx"
 #include "Pluto/Material/MaterialStruct.hxx"
@@ -13,10 +17,11 @@ layout(std430, set = 0, binding = 2) readonly buffer CameraSSBO    { CameraStruc
 layout(std430, set = 0, binding = 3) readonly buffer MaterialSSBO  { MaterialStruct materials[]; } mbo;
 layout(std430, set = 0, binding = 4) readonly buffer LightSSBO     { LightStruct lights[]; } lbo;
 
-layout(set = 1, binding = 0) uniform sampler samplers[MAX_TEXTURES];
-layout(set = 1, binding = 1) uniform texture2D texture_2Ds[MAX_TEXTURES];
-layout(set = 1, binding = 2) uniform textureCube texture_cubes[MAX_TEXTURES];
-layout(set = 1, binding = 3) uniform texture3D texture_3Ds[MAX_TEXTURES];
+layout(set = 1, binding = 0) readonly buffer TextureSSBO           { TextureStruct textures[]; } txbo;
+layout(set = 1, binding = 1) uniform sampler samplers[MAX_TEXTURES];
+layout(set = 1, binding = 2) uniform texture2D texture_2Ds[MAX_TEXTURES];
+layout(set = 1, binding = 3) uniform textureCube texture_cubes[MAX_TEXTURES];
+layout(set = 1, binding = 4) uniform texture3D texture_3Ds[MAX_TEXTURES];
 
 layout(push_constant) uniform PushConstants {
     PushConsts consts;
