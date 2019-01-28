@@ -17,20 +17,20 @@ float checkersTexture( in vec3 p )
 
 // From GPU gems
 
-float filterwidth(vec3 v)
+float filterwidth(in vec3 v)
 {
-  vec3 fw = max(abs(dFdx(v)), abs(dFdy(v)));
-  return max(max(fw.x, fw.y), fw.z); // might not need z...
+    vec3 fw = max(abs(dFdxFine(v)), abs(dFdyFine(v)));
+    return max(max(fw.x, fw.y), fw.z);
 }
 
-float checker(vec3 uvw, float scale)
+float checker(in vec3 uvw, float scale)
 {
-  float width = filterwidth(uvw*scale);
-  vec3 p0 = (uvw * scale) - .5 * width;
-  vec3 p1 = (uvw * scale) + .5 * width;
-  #define BUMPINT(x) (floor((x)/2) + 2.f * max( ((x)/2.0f ) - floor((x)/2.0f ) - .5f, 0.f))
-  vec3 i = (BUMPINT(p1) - BUMPINT(p0)) / width;
-  return i.x * i.y * i.z + (1 - i.x) * (1 - i.y) * (1 - i.z);
+    float width = filterwidth(uvw*scale);
+    vec3 p0 = (uvw * scale) - .5 * width;
+    vec3 p1 = (uvw * scale) + .5 * width;
+    #define BUMPINT(x) (floor((x)/2.0f) + 2.f * max( ((x)/2.0f ) - floor((x)/2.0f ) - .5f, 0.f))
+    vec3 i = (BUMPINT(p1) - BUMPINT(p0)) / width;
+    return i.x * i.y * i.z + (1.0f - i.x) * (1.0f - i.y) * (1.0f - i.z);
 }
 
 vec4 getAlbedo()
@@ -55,9 +55,10 @@ vec4 getAlbedo()
         else if (tex.type == 1)
         {
             float mate = checker(m_position, tex.scale);
-            albedo = mix(tex.color1, tex.color2, mate);
+            // If I do gamma correction here on linux, I get weird nans...
+            return mix(tex.color1, tex.color2, mate);
         }
     }
 
-	return vec4(pow(albedo.rgb, vec3(2.2)), albedo.a);
+	return vec4(pow(albedo.rgb, vec3(push.consts.gamma)), albedo.a);
 }

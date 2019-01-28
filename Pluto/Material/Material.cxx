@@ -622,7 +622,7 @@ void Material::CreateRasterDescriptorSetLayouts()
     
     // Texture struct
     vk::DescriptorSetLayoutBinding txboLayoutBinding;
-    txboLayoutBinding.descriptorCount = MAX_TEXTURES;
+    txboLayoutBinding.descriptorCount = 1;
     txboLayoutBinding.binding = 0;
     txboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
     txboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;

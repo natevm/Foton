@@ -114,7 +114,7 @@ vec3 prefilteredReflection(vec3 R, float roughness)
 	return reflection;
 }
 
-vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 F0, float metallic, float roughness)
+vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 F0, vec3 albedo, float metallic, float roughness)
 {
 	// Precalculate vectors and dot products	
 	vec3 H = normalize (V + L);
@@ -133,7 +133,7 @@ vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 F0, float metallic, float
 		vec3 F = F_Schlick(dotNV, F0);		
 		vec3 spec = D * F * G / (4.0 * dotNL * dotNV + 0.001);		
 		vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);			
-		color += (kD * getAlbedo().rgb / PI + spec) * dotNL;
+		color += (kD * albedo / PI + spec) * dotNL;
 	}
 
 	return color;
@@ -230,7 +230,7 @@ void main() {
 
 			vec3 w_light = vec3(light_transform.localToWorld[3]);
 			vec3 L = normalize(w_light - w_position);
-			vec3 Lo = light.diffuse.rgb * specularContribution(L, V, N, albedo_mix, metallic, roughness);
+			vec3 Lo = light.diffuse.rgb * specularContribution(L, V, N, albedo_mix, albedo.rgb, metallic, roughness);
 			finalColor += Lo;
 		}
 	}

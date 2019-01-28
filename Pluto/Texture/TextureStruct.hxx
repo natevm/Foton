@@ -15,10 +15,10 @@ using namespace glm;
 
 struct TextureStruct
 {
-    int32_t type;
+    vec4 color1;
+    vec4 color2;
     float scale;
     float ph1;
     float ph2;
-    vec4 color1;
-    vec4 color2;
+    int32_t type;
 };
