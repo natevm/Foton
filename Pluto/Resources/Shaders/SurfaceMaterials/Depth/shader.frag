@@ -1,7 +1,5 @@
 #version 450
-#extension GL_ARB_separate_shader_objects : enable
-
-#include "Pluto/Resources/Shaders/DescriptorLayout.hxx"
+#include "Pluto/Resources/Shaders/ShaderCommon.hxx"
 
 layout(location = 0) in vec2 fragTexCoord;
 layout(location = 1) in float depth;

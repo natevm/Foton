@@ -106,8 +106,7 @@ bool Vulkan::create_instance(bool enable_validation_layers, set<string> validati
             }
         if (!extensionFound)
         {
-            cout << "Missing extension " + string(requestedExtension) << endl;
-            return false;
+            throw std::runtime_error("Error: missing extension " + string(requestedExtension));
         }
     }
 

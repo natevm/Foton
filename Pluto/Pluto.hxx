@@ -11,7 +11,13 @@ void Initialize(
     std::set<std::string> validation_layers = {}, 
     std::set<std::string> instance_extensions = {}, 
     std::set<std::string> device_extensions = {}, 
-    std::set<std::string> device_features = {"vertexPipelineStoresAndAtomics", "fragmentStoresAndAtomics"}
+    std::set<std::string> device_features = {
+        "shaderUniformBufferArrayDynamicIndexing",
+        "shaderSampledImageArrayDynamicIndexing",
+        "shaderStorageBufferArrayDynamicIndexing",
+        "shaderStorageImageArrayDynamicIndexing",
+        "vertexPipelineStoresAndAtomics", 
+        "fragmentStoresAndAtomics"}
 );
 
 void CleanUp();

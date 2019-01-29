@@ -1,24 +1,6 @@
 #version 450
-#extension GL_ARB_separate_shader_objects : enable
-#extension GL_EXT_multiview : enable
-
-#include "Pluto/Resources/Shaders/DescriptorLayout.hxx"
-
-layout(location = 0) in vec3 point;
-layout(location = 1) in vec4 color;
-layout(location = 2) in vec3 normal;
-layout(location = 3) in vec2 texcoord;
-
-layout(location = 0) out vec3 w_normal;
-layout(location = 1) out vec3 w_position;
-layout(location = 2) out vec2 fragTexCoord;
-layout(location = 3) out vec3 w_cameraPos;
-layout(location = 4) out vec4 vert_color;
-
-
-out gl_PerVertex {
-    vec4 gl_Position;
-};
+#include "Pluto/Resources/Shaders/ShaderCommon.hxx"
+#include "Pluto/Resources/Shaders/VertexCommon.hxx"
 
 void main() {
     EntityStruct target_entity = ebo.entities[push.consts.target_id];
@@ -37,5 +19,7 @@ void main() {
     fragTexCoord = texcoord;
     gl_Position = camera.multiviews[gl_ViewIndex].proj * camera.multiviews[gl_ViewIndex].view * camera_transform.worldToLocal * vec4(w_position, 1.0);
 
+    m_position = point;
+    s_position = gl_Position.xyz / gl_Position.w;
     vert_color = color;
 }

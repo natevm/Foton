@@ -37,7 +37,7 @@
 %shared_ptr(Light)
 
 %ignore Initialized;
-
+%ignore Texture::Data;
 # %ignore threadFunction;
 # %include "Pluto.hxx"
 

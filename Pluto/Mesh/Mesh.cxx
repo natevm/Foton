@@ -29,12 +29,28 @@ vk::DeviceMemory Mesh::topASMemory;
 vk::Buffer Mesh::instanceBuffer;
 vk::DeviceMemory Mesh::instanceBufferMemory;
 
+class Vertex
+{
+    public:
+    glm::vec3 point = glm::vec3(0.0);
+    glm::vec4 color = glm::vec4(1, 0, 1, 1);
+    glm::vec3 normal = glm::vec3(0.0);
+    glm::vec2 texcoord = glm::vec2(0.0);
+
+    bool operator==(const Vertex &other) const
+    {
+        bool result =
+            (point == other.point && color == other.color && normal == other.normal && texcoord == other.texcoord);
+        return result;
+    }
+};
+
 namespace std
 {
 template <>
-struct hash<Mesh::Vertex>
+struct hash<Vertex>
 {
-    size_t operator()(const Mesh::Vertex &k) const
+    size_t operator()(const Vertex &k) const
     {
         std::size_t h = 0;
         hash_combine(h, k.point.x, k.point.y, k.point.z,
@@ -195,7 +211,7 @@ void Mesh::load_obj(std::string objPath, bool allow_edits, bool submit_immediate
     if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, objPath.c_str()))
         throw std::runtime_error( std::string("Error: Unable to load " + objPath));
 
-    std::vector<Mesh::Vertex> vertices;
+    std::vector<Vertex> vertices;
 
     /* If the mesh has a set of shapes, merge them all into one */
     if (shapes.size() > 0)
@@ -204,7 +220,7 @@ void Mesh::load_obj(std::string objPath, bool allow_edits, bool submit_immediate
         {
             for (const auto &index : shape.mesh.indices)
             {
-                Mesh::Vertex vertex = Mesh::Vertex();
+                Vertex vertex = Vertex();
                 vertex.point = {
                     attrib.vertices[3 * index.vertex_index + 0],
                     attrib.vertices[3 * index.vertex_index + 1],
@@ -240,7 +256,7 @@ void Mesh::load_obj(std::string objPath, bool allow_edits, bool submit_immediate
     {
         for (int idx = 0; idx < attrib.vertices.size() / 3; ++idx)
         {
-            Mesh::Vertex v = Mesh::Vertex();
+            Vertex v = Vertex();
             v.point = glm::vec3(attrib.vertices[(idx * 3)], attrib.vertices[(idx * 3) + 1], attrib.vertices[(idx * 3) + 2]);
             if (attrib.normals.size() != 0)
             {
@@ -259,11 +275,11 @@ void Mesh::load_obj(std::string objPath, bool allow_edits, bool submit_immediate
     }
 
     /* Eliminate duplicate points */
-    std::unordered_map<Mesh::Vertex, uint32_t> uniqueVertexMap = {};
-    std::vector<Mesh::Vertex> uniqueVertices;
+    std::unordered_map<Vertex, uint32_t> uniqueVertexMap = {};
+    std::vector<Vertex> uniqueVertices;
     for (int i = 0; i < vertices.size(); ++i)
     {
-        Mesh::Vertex vertex = vertices[i];
+        Vertex vertex = vertices[i];
         if (uniqueVertexMap.count(vertex) == 0)
         {
             uniqueVertexMap[vertex] = static_cast<uint32_t>(uniqueVertices.size());
@@ -305,11 +321,11 @@ void Mesh::load_stl(std::string stlPath, bool allow_edits, bool submit_immediate
     if (!read_stl(stlPath, p, n) )
         throw std::runtime_error( std::string("Error: Unable to load " + stlPath));
 
-    std::vector<Mesh::Vertex> vertices;
+    std::vector<Vertex> vertices;
 
     /* STLs only have points and face normals, so generate colors and UVs */
     for (uint32_t i = 0; i < p.size() / 3; ++i) {
-        Mesh::Vertex vertex = Mesh::Vertex();
+        Vertex vertex = Vertex();
         vertex.point = {
             p[i * 3 + 0],
             p[i * 3 + 1],
@@ -324,11 +340,11 @@ void Mesh::load_stl(std::string stlPath, bool allow_edits, bool submit_immediate
     }
 
     /* Eliminate duplicate points */
-    std::unordered_map<Mesh::Vertex, uint32_t> uniqueVertexMap = {};
-    std::vector<Mesh::Vertex> uniqueVertices;
+    std::unordered_map<Vertex, uint32_t> uniqueVertexMap = {};
+    std::vector<Vertex> uniqueVertices;
     for (int i = 0; i < vertices.size(); ++i)
     {
-        Mesh::Vertex vertex = vertices[i];
+        Vertex vertex = vertices[i];
         if (uniqueVertexMap.count(vertex) == 0)
         {
             uniqueVertexMap[vertex] = static_cast<uint32_t>(uniqueVertices.size());
@@ -390,7 +406,7 @@ void Mesh::load_glb(std::string glbPath, bool allow_edits, bool submit_immediate
     if (!loader.LoadBinaryFromMemory(&model, &err, &warn, file_buffer, file_size, "", tinygltf::REQUIRE_ALL))
         throw std::runtime_error( std::string("Error: Unable to load " + glbPath + " " + err));
 
-    std::vector<Mesh::Vertex> vertices;
+    std::vector<Vertex> vertices;
 
     for (const auto &mesh : model.meshes) {
         for (const auto &primitive : mesh.primitives)
@@ -423,7 +439,7 @@ void Mesh::load_glb(std::string glbPath, bool allow_edits, bool submit_immediate
                 else 
                     index = (unsigned int) ((unsigned short*)idx)[i];
                 
-                Mesh::Vertex vertex = Mesh::Vertex();
+                Vertex vertex = Vertex();
                 vertex.point = {
                     pos[3 * index + 0],
                     pos[3 * index + 1],
@@ -444,11 +460,11 @@ void Mesh::load_glb(std::string glbPath, bool allow_edits, bool submit_immediate
     }
 
     /* Eliminate duplicate points */
-    std::unordered_map<Mesh::Vertex, uint32_t> uniqueVertexMap = {};
-    std::vector<Mesh::Vertex> uniqueVertices;
+    std::unordered_map<Vertex, uint32_t> uniqueVertexMap = {};
+    std::vector<Vertex> uniqueVertices;
     for (int i = 0; i < vertices.size(); ++i)
     {
-        Mesh::Vertex vertex = vertices[i];
+        Vertex vertex = vertices[i];
         if (uniqueVertexMap.count(vertex) == 0)
         {
             uniqueVertexMap[vertex] = static_cast<uint32_t>(uniqueVertices.size());
@@ -504,11 +520,11 @@ void Mesh::load_raw(
     if (reading_texcoords && (texcoords_.size() != points_.size()))
         throw std::runtime_error( std::string("Error, length mismatch. Total texcoords: " + std::to_string(texcoords_.size()) + " does not equal total points: " + std::to_string(points_.size())));
         
-    std::vector<Mesh::Vertex> vertices;
+    std::vector<Vertex> vertices;
 
     /* For each vertex */
     for (int i = 0; i < points_.size(); ++ i) {
-        Mesh::Vertex vertex = Mesh::Vertex();
+        Vertex vertex = Vertex();
         vertex.point = points_[i];
         if (reading_normals) vertex.normal = normals_[i];
         if (reading_colors) vertex.color = colors_[i];
@@ -517,11 +533,11 @@ void Mesh::load_raw(
     }
 
     /* Eliminate duplicate points */
-    std::unordered_map<Mesh::Vertex, uint32_t> uniqueVertexMap = {};
-    std::vector<Mesh::Vertex> uniqueVertices;
+    std::unordered_map<Vertex, uint32_t> uniqueVertexMap = {};
+    std::vector<Vertex> uniqueVertices;
     for (int i = 0; i < vertices.size(); ++i)
     {
-        Mesh::Vertex vertex = vertices[i];
+        Vertex vertex = vertices[i];
         if (uniqueVertexMap.count(vertex) == 0)
         {
             uniqueVertexMap[vertex] = static_cast<uint32_t>(uniqueVertices.size());
