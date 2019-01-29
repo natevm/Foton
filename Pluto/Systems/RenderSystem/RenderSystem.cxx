@@ -192,6 +192,18 @@ void RenderSystem::record_render_commands()
                     Material::DrawEntity(command_buffer, rp, entities[i], push_constants);
                 }
             }
+
+            /* Draw volumes last */
+            for (uint32_t i = 0; i < Entity::GetCount(); ++i)
+            {
+                if (entities[i].is_initialized())
+                {
+                    // Push constants
+                    push_constants.target_id = i;
+                    push_constants.camera_id = entity_id;
+                    Material::DrawVolume(command_buffer, rp, entities[i], push_constants);
+                }
+            }
             cameras[cam_id].end_renderpass(command_buffer);
         }
 
