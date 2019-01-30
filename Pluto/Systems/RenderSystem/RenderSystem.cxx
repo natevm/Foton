@@ -126,7 +126,12 @@ void RenderSystem::record_render_commands()
     Material::UpdateRasterDescriptorSets();
     Material::UpdateRaytracingDescriptorSets();
 
-    auto brdf_id = Texture::Get("BRDF")->get_id();
+    Texture* brdf = nullptr;
+    try {
+        brdf = Texture::Get("BRDF");
+    } catch (std::runtime_error &e) {}
+    if (!brdf) return;
+    auto brdf_id = brdf->get_id();
     push_constants.brdf_lut_id = brdf_id;
     push_constants.time = (float) glfwGetTime();
 

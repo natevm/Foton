@@ -3,21 +3,24 @@
 #include <fstream>
 #include "./Options.hxx"
 #include <iostream>
+#include <sys/stat.h>
+#include <exception>
 
 #include "./whereami.hxx"
 
 namespace Options
 {
 
-std::string ResourcePath = "./Resources";
+std::string ResourcePath = "";
+std::string MainModule = "";
 std::string ConnectionFile = "";
 std::string PythonArgs = "";
 
 bool ipykernelEnabled = false;
 bool isClient = false;
 bool isServer = false;
-bool resourcePathSet = false;
 bool isIPyKernel = false;
+bool isMainModuleSet = false;
 std::string ip = "";
 
 #define $(flag) (strcmp(argv[i], flag) == 0)
@@ -57,36 +60,42 @@ int ProcessArgs(int argc, char **argv)
     
     int dirname_length;
     int length = wai_getExecutablePath(NULL, 0, NULL);
-    std::string path(length, '\0');
-    wai_getExecutablePath(path.data(), length, &dirname_length);
+    std::string executable_path(length, '\0');
+    wai_getExecutablePath(executable_path.data(), length, &dirname_length);
 
-    path = path.substr(0, dirname_length);
+    executable_path = executable_path.substr(0, dirname_length);
+    ResourcePath = executable_path + "/Resources"; 
     
     int i = 1;
     bool stop = false;
-    while (i < argc && !stop)
-    {
+    while (i < argc && !stop) {
         stop = true;
-        if (ProcessArg(i, argv))
-        {
+        if (ProcessArg(i, argv)) {
             stop = false;
         }
     }
 
-    ResourcePath = path + "/Resources"; 
+    /* Process the first filename at the end of the arguments as a module to run */
+    for (; i < argc; ++i) {
+        std::string filename(argv[i]);
+        
+        /* Make sure that file exists */
+        struct stat st;
+        if (stat(filename.c_str(), &st) != 0)
+            throw std::runtime_error( std::string(filename + " does not exist!"));
 
-    
-    // /* Process the first filename at the end of the arguments as a model */
-    // for (; i < argc; ++i)
-    // {
-    //     std::string filename(argv[i]);
-    //     objLocation = filename;
-    // }
+        MainModule = filename;
+        isMainModuleSet = true;
+    }
     return 0;
 }
 
 std::string GetResourcePath() {
     return ResourcePath;
+}
+
+std::string GetMainModule() {
+    return MainModule;
 }
 
 bool IsServer()
@@ -99,10 +108,11 @@ bool IsClient()
     return isClient;
 }
 
-bool IsResourcePathSet() 
+bool IsMainModuleSet() 
 {
-    return resourcePathSet;
+    return isMainModuleSet;
 }
+
 
 bool IsIPyKernel() 
 {

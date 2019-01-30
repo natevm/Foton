@@ -80,8 +80,7 @@ namespace Systems
                 sm->poll_event();
             }
 #endif
-            //close |= (glfw->should_close());
-            /* TODO: REGULATE FREQUENCY */
+            std::this_thread::sleep_for (std::chrono::milliseconds(10));
         }
         
         return true;

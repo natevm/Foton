@@ -83,8 +83,6 @@ void Initialize(
 
 void CleanUp()
 {
-    if (!Initialized) 
-        throw std::runtime_error("Error: Pluto is not currently initialized");
     Initialized = false;
 
     auto glfw = Libraries::GLFW::Get();

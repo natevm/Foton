@@ -12,11 +12,12 @@ namespace Options
 
     std::string GetResourcePath();
     std::string GetConnectionFile();
+    std::string GetMainModule();
     bool IsServer();
     bool IsClient();
     std::string GetIP();
-    bool IsResourcePathSet();
     bool IsIPyKernel();
+    bool IsMainModuleSet();
 
 
 }; // namespace Options
