@@ -55,6 +55,11 @@ set(GLFW_BUILD_TESTS    OFF CACHE STRING "" FORCE)
 set(GLFW_INSTALL        OFF CACHE STRING "" FORCE)
 add_subdirectory(external/glfw)
 include_directories(SYSTEM external/glfw/include)
+set_property(TARGET
+    glfw
+    PROPERTY FOLDER "external/GLFW3"
+)
+
 
 # use GLI
 find_package(GLI REQUIRED)
@@ -120,3 +125,4 @@ set (
 # └──────────────────────────────────────────────────────────────────┘
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory(Pluto)
+

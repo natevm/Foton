@@ -33,6 +33,20 @@ set (SRC
     ${Transform_SRC}
 )
 
+set (HDR 
+    ${CMAKE_CURRENT_SOURCE_DIR}/Pluto.cxx
+    ${Camera_HDR}
+    ${Entity_HDR}
+    ${Libraries_HDR}
+    ${Light_HDR}
+    ${Material_HDR}
+    ${Mesh_HDR}
+    ${Systems_HDR}
+    ${Texture_HDR}
+    ${Tools_HDR}
+    ${Transform_HDR}
+)
+
 
 # Global defines
 add_definitions(-D_CRT_SECURE_NO_WARNINGS)
@@ -55,7 +69,7 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Pluto Library                                                   │
 # └──────────────────────────────────────────────────────────────────┘
-add_library(PlutoLib SHARED ${SRC})
+add_library(PlutoLib SHARED ${SRC} ${HDR})
 target_link_libraries(PlutoLib PUBLIC glfw ${LIBRARIES})
 set_target_properties(PlutoLib PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS true)
 #target_compile_definitions(PlutoLib PRIVATE ZMQ_BUILD_DRAFT_API=1)
@@ -65,6 +79,8 @@ if(APPLE)
 set_target_properties(PlutoLib PROPERTIES MACOSX_RPATH TRUE)
 endif(APPLE)
 install(TARGETS PlutoLib DESTINATION ${CMAKE_INSTALL_PREFIX})
+
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRC} ${HDR})
 
 
 # ┌──────────────────────────────────────────────────────────────────┐
@@ -97,6 +113,11 @@ set_target_properties(Pluto PROPERTIES MACOSX_RPATH TRUE)
 endif(APPLE)
 target_link_libraries(Pluto PUBLIC ${LIBRARIES} PlutoLib)
 
+set_property(TARGET
+    Pluto
+    PROPERTY FOLDER "swig_libraries/Pluto"
+)
+
 # Install
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 install(FILES ${CMAKE_BINARY_DIR}/Pluto/Pluto.py DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
@@ -125,6 +146,12 @@ set_target_properties(Libraries PROPERTIES MACOSX_RPATH TRUE)
 endif(APPLE)
 target_link_libraries(Libraries PUBLIC ${LIBRARIES} PlutoLib)
 
+set_property(TARGET
+    Libraries
+    PROPERTY FOLDER "swig_libraries/Libraries"
+)
+
+
 # Install
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/__init__.py DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
 install(FILES ${CMAKE_BINARY_DIR}/Pluto/Libraries.py DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
@@ -145,6 +172,11 @@ swig_add_library(GLM TYPE SHARED LANGUAGE python OUTFILE_DIR ${CMAKE_CURRENT_SOU
 set_target_properties(GLM PROPERTIES INSTALL_RPATH "${RPATHS}")
 set_target_properties(GLM PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
 target_link_libraries(GLM PUBLIC ${LIBRARIES} PlutoLib)
+
+set_property(TARGET
+    GLM
+    PROPERTY FOLDER "swig_libraries/GLM"
+)
 
 # Install
 install(FILES ${CMAKE_BINARY_DIR}/Pluto/GLM.py DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
@@ -172,6 +204,11 @@ if(APPLE)
 set_target_properties(Systems PROPERTIES MACOSX_RPATH TRUE)
 endif(APPLE)
 target_link_libraries(Systems PUBLIC ${LIBRARIES} PlutoLib)
+
+set_property(TARGET
+    Systems
+    PROPERTY FOLDER "swig_libraries/Systems"
+)
 
 # Install
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/Systems/__init__.py DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems)
@@ -221,7 +258,64 @@ add_custom_target(Shaders
     COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/shader.frag -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/frag.spv -flimit-file ${GLSLC_CONFIG}
 
     COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/RaytracedMaterials/TutorialShaders/shader.rgen -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/RaytracedMaterials/TutorialShaders/rgen.spv -flimit-file ${GLSLC_CONFIG}
+
+
+    SOURCES
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/UniformColor/shader.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/UniformColor/shader.frag
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Blinn/shader.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Blinn/shader.frag
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/NormalSurface/shader.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/NormalSurface/shader.frag
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/TexCoordSurface/shader.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/TexCoordSurface/shader.frag
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/PBRSurface/shader.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/PBRSurface/shader.frag
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Skybox/shader.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Skybox/shader.frag
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/shader.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/shader.frag
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/RaytracedMaterials/TutorialShaders/shader.rgen
 )
+
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/
+
+    FILES
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/UniformColor/shader.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/UniformColor/shader.frag
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Blinn/shader.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Blinn/shader.frag
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/NormalSurface/shader.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/NormalSurface/shader.frag
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/TexCoordSurface/shader.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/TexCoordSurface/shader.frag
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/PBRSurface/shader.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/PBRSurface/shader.frag
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Skybox/shader.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Skybox/shader.frag
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/shader.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/shader.frag
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/RaytracedMaterials/TutorialShaders/shader.rgen
+)
+
+
+
 
 install(FILES ${PROJECT_SOURCE_DIR}/setup.py DESTINATION ${CMAKE_INSTALL_PREFIX})
 install(FILES ${PROJECT_SOURCE_DIR}/install.py DESTINATION ${CMAKE_INSTALL_PREFIX})
