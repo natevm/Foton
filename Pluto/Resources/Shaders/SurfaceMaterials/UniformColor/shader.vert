@@ -20,7 +20,12 @@ void main() {
     MaterialStruct material = mbo.materials[entity.material_id];
     TransformStruct transform = tbo.transforms[entity.transform_id];
     
-    gl_Position =  camera.multiviews[gl_ViewIndex].proj * camera.multiviews[gl_ViewIndex].view * transform.localToWorld * vec4(point, 1.0);
+    #if DISABLE_MULTIVIEW
+    int viewIndex = 0;
+    #else
+    int viewIndex = gl_ViewIndex;
+    #endif
+    gl_Position =  camera.multiviews[viewIndex].proj * camera.multiviews[viewIndex].view * transform.localToWorld * vec4(point, 1.0);
     gl_PointSize = 1.0;
     fragColor = material.base_color;
     fragTexCoord = texcoord;

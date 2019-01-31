@@ -25,7 +25,12 @@ void main()
     TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
 
     w_position = (target_transform.localToWorld * vec4(point.xyz, 1.0)).xyz;
-    w_cameraPos = vec3(camera.multiviews[gl_ViewIndex].viewinv[3]) + vec3(camera_transform.localToWorld[3]);
+    #if DISABLE_MULTIVIEW
+    int viewIndex = 0;
+    #else
+    int viewIndex = gl_ViewIndex;
+    #endif
+    w_cameraPos = vec3(camera.multiviews[viewIndex].viewinv[3]) + vec3(camera_transform.localToWorld[3]);
 
-    gl_Position = camera.multiviews[gl_ViewIndex].viewproj * camera_transform.worldToLocal * vec4(w_position,1.0);
+    gl_Position = camera.multiviews[viewIndex].viewproj * camera_transform.worldToLocal * vec4(w_position,1.0);
 }

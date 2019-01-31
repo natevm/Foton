@@ -26,7 +26,12 @@ void main() {
     TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
 
     w_position = vec3(target_transform.localToWorld * vec4(point.xyz, 1.0));
-    vec3 w_cameraPos = vec3(camera.multiviews[gl_ViewIndex].viewinv[3]) + vec3(camera_transform.localToWorld[3]); // could be wrong.
+    #if DISABLE_MULTIVIEW
+    int viewIndex = 0;
+    #else
+    int viewIndex = gl_ViewIndex;
+    #endif
+    vec3 w_cameraPos = vec3(camera.multiviews[viewIndex].viewinv[3]) + vec3(camera_transform.localToWorld[3]); // could be wrong.
     vec3 w_viewDir = w_position - w_cameraPos;
     
     w_normal = normalize(vec3(target_transform.localToWorld * vec4(normal, 0)));
@@ -37,6 +42,6 @@ void main() {
     w_reflection.y = reflection.z;
     w_reflection.z = reflection.y;
 
-    gl_Position = camera.multiviews[gl_ViewIndex].proj * camera.multiviews[gl_ViewIndex].view * camera_transform.worldToLocal * vec4(w_position, 1.0);
+    gl_Position = camera.multiviews[viewIndex].proj * camera.multiviews[viewIndex].view * camera_transform.worldToLocal * vec4(w_position, 1.0);
     fragTexCoord = texcoord;
 }

@@ -24,7 +24,12 @@ void main() {
     TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
 
     vec3 w_position = vec3(target_transform.localToWorld * vec4(point.xyz, 1.0));
-    gl_Position = camera.multiviews[gl_ViewIndex].proj * camera.multiviews[gl_ViewIndex].view * camera_transform.worldToLocal * vec4(w_position, 1.0);
+    #if DISABLE_MULTIVIEW
+    int viewIndex = 0;
+    #else
+    int viewIndex = gl_ViewIndex;
+    #endif
+    gl_Position = camera.multiviews[viewIndex].proj * camera.multiviews[viewIndex].view * camera_transform.worldToLocal * vec4(w_position, 1.0);
     gl_PointSize = 1.0;
     fragColor = vec4(texcoord.x, 0.0, texcoord.y, 1.0);
 }
