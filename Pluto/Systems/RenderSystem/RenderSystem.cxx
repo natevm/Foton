@@ -179,27 +179,27 @@ void RenderSystem::record_render_commands()
         /* If we're the client, we recieve color data from "stream_frames". Only render a scene if not the client. */
         if (!Options::IsClient())
         {
-            for(int i = 0; i < cameras[cam_id].get_num_renderpasses(); i++) {
+            for(int rp_idx = 0; rp_idx < cameras[cam_id].get_num_renderpasses(); rp_idx++) {
                 /* Get the renderpass for the current camera */
-                vk::RenderPass rp = cameras[cam_id].get_renderpass(i);
+                vk::RenderPass rp = cameras[cam_id].get_renderpass(rp_idx);
 
                 /* Bind all descriptor sets to that renderpass.
                     Note that we're using a single bind. The same descriptors are shared across pipelines. */
                 Material::BindDescriptorSets(command_buffer, rp);
 
-                cameras[cam_id].begin_renderpass(command_buffer, i);
+                cameras[cam_id].begin_renderpass(command_buffer, rp_idx);
                 for (uint32_t i = 0; i < Entity::GetCount(); ++i)
                 {
-                    if (entities[i].is_initialized())
+                    if (entities[rp_idx].is_initialized())
                     {
                         // Push constants
                         push_constants.target_id = i;
                         push_constants.camera_id = entity_id;
-                        push_constants.viewIndex = i;
+                        push_constants.viewIndex = rp_idx;
                         Material::DrawEntity(command_buffer, rp, entities[i], push_constants);
                     }
                 }
-                cameras[cam_id].end_renderpass(command_buffer, i);
+                cameras[cam_id].end_renderpass(command_buffer, rp_idx);
             }
         }
 
