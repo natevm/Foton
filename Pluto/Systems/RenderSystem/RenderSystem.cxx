@@ -483,7 +483,7 @@ bool RenderSystem::start()
             // If i don't fence here, triangles seem to spread apart. 
             // I think this is an issue with using the SSBO from frame to frame...
             auto device = vulkan->get_device();
-            device.waitForFences(maincmd_fences[currentFrame], true, 100000000000);
+            //device.waitForFences(maincmd_fences[currentFrame], true, 100000000000);
             device.resetFences(maincmd_fences[currentFrame]);
 
             /* 4. Optional: Wait on render complete. Present a frame. */

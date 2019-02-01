@@ -783,7 +783,8 @@ void Texture::loadKTX(std::string imagePath, bool submit_immediately)
         data.depth = (uint32_t)(tex3D.extent().z);
 
         data.colorMipLevels = (uint32_t)(tex3D.levels());
-        data.colorFormat = (vk::Format)tex3D.format();
+        //data.colorFormat = (vk::Format)tex3D.format();
+        data.colorFormat = vk::Format::eR8G8B8A8Uint;
         data.viewType = vk::ImageViewType::e3D;
         textureSize = (uint32_t)tex3D.size();
         textureData = tex3D.data();
