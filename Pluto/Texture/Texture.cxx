@@ -584,6 +584,8 @@ std::vector<vk::ImageView> Texture::GetImageViews(vk::ImageViewType view_type)
 
 vk::ImageView Texture::get_depth_image_view() { return data.depthImageView; };
 vk::ImageView Texture::get_color_image_view() { return data.colorImageView; };
+std::vector<vk::ImageView> Texture::get_depth_image_view_layers() { return data.depthImageViewLayers; };
+std::vector<vk::ImageView> Texture::get_color_image_view_layers() { return data.colorImageViewLayers; };
 vk::Sampler Texture::get_color_sampler() { return data.colorSampler; };
 vk::Sampler Texture::get_depth_sampler() { return data.depthSampler; };
 vk::ImageLayout Texture::get_color_image_layout() { return data.colorImageLayout; };
@@ -1080,6 +1082,21 @@ void Texture::create_color_image_resources(bool submit_immediately)
     vInfo.subresourceRange = subresourceRange;
     vInfo.image = data.colorImage;
     data.colorImageView = device.createImageView(vInfo);
+    
+    /* Create more image views */
+    data.colorImageViewLayers.clear();
+    for(int i = 0; i < data.layers; i++) {
+        subresourceRange.baseMipLevel = 0;
+        subresourceRange.baseArrayLayer = i;
+        subresourceRange.levelCount = data.colorMipLevels;
+        subresourceRange.layerCount = 1;
+        
+        vInfo.viewType = data.viewType;
+        vInfo.format = data.colorFormat;
+        vInfo.subresourceRange = subresourceRange;
+        vInfo.image = data.colorImage;
+        data.colorImageViewLayers.push_back(device.createImageView(vInfo));
+    }
 
     /* Create a sampler to sample from the attachment in the fragment shader */
     vk::SamplerCreateInfo sInfo;
@@ -1161,8 +1178,9 @@ void Texture::create_depth_stencil_resources(bool submit_immediately)
     vk::ImageSubresourceRange subresourceRange;
     subresourceRange.aspectMask = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
     subresourceRange.baseMipLevel = 0;
+    subresourceRange.baseArrayLayer = 0;
     subresourceRange.levelCount = 1;
-    subresourceRange.layerCount = 1;
+    subresourceRange.layerCount = data.layers;
 
     vk::CommandBuffer cmdBuffer = vulkan->begin_one_time_graphics_command();
     setImageLayout(cmdBuffer, data.depthImage, vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthStencilAttachmentOptimal, subresourceRange);
@@ -1176,6 +1194,21 @@ void Texture::create_depth_stencil_resources(bool submit_immediately)
     vInfo.subresourceRange = subresourceRange;
     vInfo.image = data.depthImage;
     data.depthImageView = device.createImageView(vInfo);
+    
+    /* Create more image views */
+    data.depthImageViewLayers.clear();
+    for(int i = 0; i < data.layers; i++) {
+        subresourceRange.baseMipLevel = 0;
+        subresourceRange.baseArrayLayer = i;
+        subresourceRange.levelCount = 1;
+        subresourceRange.layerCount = 1;
+        
+        vInfo.viewType = data.viewType;
+        vInfo.format = data.depthFormat;
+        vInfo.subresourceRange = subresourceRange;
+        vInfo.image = data.depthImage;
+        data.depthImageViewLayers.push_back(device.createImageView(vInfo));
+    }
 
     /* Create a sampler to sample from the attachment in the fragment shader */
     vk::SamplerCreateInfo sInfo;

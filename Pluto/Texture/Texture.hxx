@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <map>
+#include <vector>
 
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
 #include "Pluto/Tools/StaticFactory.hxx"
@@ -17,7 +18,8 @@ class Texture : public StaticFactory
 			vk::Image colorImage, depthImage;
 			vk::Format colorFormat, depthFormat;
 			vk::DeviceMemory colorImageMemory, depthImageMemory;
-			vk::ImageView colorImageView, depthImageView;
+            vk::ImageView colorImageView, depthImageView;
+            std::vector<vk::ImageView> colorImageViewLayers, depthImageViewLayers;
 			vk::ImageLayout colorImageLayout, depthImageLayout;
 			vk::Sampler colorSampler, depthSampler;
 			uint32_t width = 1, height = 1, depth = 1, colorMipLevels = 1, layers = 1;
@@ -100,12 +102,14 @@ class Texture : public StaticFactory
 		vk::Format get_color_format();
 		vk::ImageLayout get_color_image_layout();
 		vk::ImageView get_color_image_view();
+        std::vector<vk::ImageView> get_color_image_view_layers();
 		vk::Image get_color_image();
 		uint32_t get_color_mip_levels();
 		vk::Sampler get_color_sampler();
 		vk::Format get_depth_format();
 		vk::ImageLayout get_depth_image_layout();
 		vk::ImageView get_depth_image_view();
+        std::vector<vk::ImageView> get_depth_image_view_layers();
 		vk::Image get_depth_image();
 		vk::Sampler get_depth_sampler();
 		uint32_t get_depth();

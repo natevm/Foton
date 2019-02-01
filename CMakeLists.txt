@@ -129,7 +129,7 @@ if(APPLE)
     set(platformSupportsMultiview ON)
 endif(APPLE)
 
-option(DISABLE_MUlTIVIEW "Force multiview support off (not currently supported on macOS)" ${platformSupportsMultiview})
+option(DISABLE_MULTIVIEW "Force multiview support off (not currently supported on macOS)" ${platformSupportsMultiview})
 
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Add source files                                                │

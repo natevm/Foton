@@ -59,6 +59,10 @@ if (BUILD_SPACEMOUSE)
 add_definitions(-DBUILD_SPACEMOUSE)
 endif(BUILD_SPACEMOUSE)
 
+if (DISABLE_MULTIVIEW)
+add_definitions(-DDISABLE_MULTIVIEW)
+endif(DISABLE_MULTIVIEW)
+
 # RPATH for *NIX distros
 
 set(RPATHS "${CMAKE_INSTALL_PREFIX};${CMAKE_INSTALL_PREFIX}/Pluto;${CMAKE_INSTALL_PREFIX}/Pluto/Systems;${CMAKE_INSTALL_PREFIX}/Pluto/Libraries;")
@@ -266,9 +270,9 @@ foreach(shader_file ${SHADERS_SRC})
     string(REPLACE "shader.vert" "vert.spv" spv_file ${spv_file})
     string(REPLACE "shader.frag" "frag.spv" spv_file ${spv_file})
     set(extra_flags "")
-    if(${DISABLE_MUlTIVIEW})
-        set(extra_flags ${extra_flags} -DDISABLE_MUlTIVIEW)
-    endif(${DISABLE_MUlTIVIEW})
+    if(${DISABLE_MULTIVIEW})
+        set(extra_flags ${extra_flags} -DDISABLE_MULTIVIEW)
+    endif(${DISABLE_MULTIVIEW})
     message("Extra flags: " ${extra_flags})
     add_custom_command(
         OUTPUT ${spv_file}
