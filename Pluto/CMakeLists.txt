@@ -275,11 +275,11 @@ foreach(shader_file ${SHADERS_SRC})
     endif(${DISABLE_MULTIVIEW})
     message("Extra flags: " ${extra_flags})
     add_custom_command(
-        OUTPUT ${spv_file}
+        OUTPUT ${spv_file}_updated # force file to regen every time
         COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} ${extra_flags} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${shader_file} -o ${spv_file} -flimit-file ${GLSLC_CONFIG}
         DEPENDS ${shader_file}
     )
-    list(APPEND spvfiles ${spv_file})
+    list(APPEND spvfiles ${spv_file}_updated)
 endforeach(shader_file)
 
 add_custom_target(Shaders ALL
