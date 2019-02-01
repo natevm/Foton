@@ -1,7 +1,8 @@
 /* File shared by both GLSL and C++ */
 
 #ifndef MAX_TEXTURES
-#define MAX_TEXTURES 64 // Limit imposed by intel. Can be much larger on descrete GPUs
+//#define MAX_TEXTURES 64 // Limit imposed by intel. Can be much larger on descrete GPUs
+#define MAX_TEXTURES 16 // Limit imposed by stupid macOS. Can be much larger on computers with real GPUs and drivers
 #endif
 
 #ifndef GLSL
