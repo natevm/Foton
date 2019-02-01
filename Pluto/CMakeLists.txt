@@ -278,7 +278,7 @@ foreach(shader_file ${SHADERS_SRC})
     list(APPEND spvfiles ${spv_file})
 endforeach(shader_file)
 
-add_custom_target(Shaders 
+add_custom_target(Shaders ALL
     DEPENDS ${spvfiles}
     SOURCES ${SHADERS_SRC}
 )
