@@ -24,7 +24,7 @@ struct PushConsts {
     float exposure;
     float time;
     int light_entity_ids [MAX_LIGHTS];
-    int ph2;
+    int viewIndex;
     int ph3;
     int ph4;
     int ph5;

@@ -121,6 +121,17 @@ set (
 )
 
 # ┌──────────────────────────────────────────────────────────────────┐
+# │  This is a box that says "other options"                         │
+# └──────────────────────────────────────────────────────────────────┘
+
+set(platformSupportsMultiview OFF)
+if(APPLE)
+    set(platformSupportsMultiview ON)
+endif(APPLE)
+
+option(DISABLE_MUlTIVIEW "Force multiview support off (not currently supported on macOS)" ${platformSupportsMultiview})
+
+# ┌──────────────────────────────────────────────────────────────────┐
 # │  Add source files                                                │
 # └──────────────────────────────────────────────────────────────────┘
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR})

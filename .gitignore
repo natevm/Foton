@@ -6,3 +6,4 @@ PlutoEngine.code-workspace
 __pycache__
 *.swp
 .DS_Store
+*.spv

@@ -24,8 +24,8 @@ void main() {
     TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
 
     vec3 w_position = vec3(target_transform.localToWorld * vec4(point.xyz, 1.0));
-    #if DISABLE_MULTIVIEW
-    int viewIndex = 0;
+    #ifdef DISABLE_MULTIVIEW
+    int viewIndex = push.consts.viewIndex;
     #else
     int viewIndex = gl_ViewIndex;
     #endif

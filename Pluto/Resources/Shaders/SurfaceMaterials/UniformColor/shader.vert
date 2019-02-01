@@ -20,8 +20,8 @@ void main() {
     MaterialStruct material = mbo.materials[entity.material_id];
     TransformStruct transform = tbo.transforms[entity.transform_id];
     
-    #if DISABLE_MULTIVIEW
-    int viewIndex = 0;
+    #ifdef DISABLE_MULTIVIEW
+    int viewIndex = push.consts.viewIndex;
     #else
     int viewIndex = gl_ViewIndex;
     #endif
