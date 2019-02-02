@@ -1107,6 +1107,7 @@ void Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &ren
 
     /* Dont render volumes yet. */
     if (material->renderMode == VOLUME) return;
+    if (material->renderMode == HIDDEN) return;
 
     if (material->renderMode == NORMAL) {
         command_buffer.pushConstants(normalsurface[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
@@ -1352,6 +1353,10 @@ void Material::show_volume() {
 
 void Material::show_environment() {
     renderMode = SKYBOX;
+}
+
+void Material::hide() {
+    renderMode = HIDDEN;
 }
 
 void Material::set_base_color(glm::vec4 color) {

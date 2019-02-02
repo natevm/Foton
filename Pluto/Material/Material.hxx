@@ -109,6 +109,9 @@ class Material : public StaticFactory
         void show_environment();
         void show_volume();
 
+        /* This method prevents an entity from rendering. */
+        void hide();
+
         /* Accessors / Mutators */
         void set_base_color(glm::vec4 color);
         void set_base_color(float r, float g, float b, float a);
@@ -247,6 +250,6 @@ class Material : public StaticFactory
         MaterialStruct material_struct;
 
         /* An enumeration used to select a pipeline type for use when drawing a given entity. */
-        enum RenderMode { BLINN, PBR, NORMAL, TEXCOORD, SKYBOX, BASECOLOR, DEPTH, VOLUME };
+        enum RenderMode { BLINN, PBR, NORMAL, TEXCOORD, SKYBOX, BASECOLOR, DEPTH, VOLUME, HIDDEN };
         RenderMode renderMode = PBR;
 };
