@@ -16,7 +16,14 @@
 %include "stdint.i"
 
 namespace std {
-   %template(IntVector) vector<int>;
+   %template(UInt32Vector) vector<uint32_t>;
+   %template(UInt16Vector) vector<uint16_t>;
+   %template(UInt8Vector) vector<uint8_t>;
+
+   %template(Int32Vector) vector<int32_t>;
+   %template(Int16Vector) vector<int16_t>;
+   %template(Int8Vector) vector<int8_t>;
+
    %template(DoubleVector) vector<double>;
    %template(FloatVector) vector<float>;
    %template(StringVector) vector<string>;

@@ -80,6 +80,7 @@ class Mesh : public StaticFactory
         std::vector<glm::vec3> normals = {}, 
         std::vector<glm::vec4> colors = {}, 
         std::vector<glm::vec2> texcoords = {}, 
+        std::vector<uint32_t> indices = {},
         bool allow_edits = false, bool submit_immediately = false);
     //static Mesh* Create(std::string name);
 	static Mesh* GetFront();
@@ -164,6 +165,7 @@ class Mesh : public StaticFactory
         std::vector<glm::vec3> &normals, 
         std::vector<glm::vec4> &colors, 
         std::vector<glm::vec2> &texcoords,
+        std::vector<uint32_t> indices,
         bool allow_edits,
         bool submit_immediately
     );
