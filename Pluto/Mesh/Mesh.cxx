@@ -497,6 +497,7 @@ void Mesh::load_raw(
     std::vector<glm::vec3> &normals_, 
     std::vector<glm::vec4> &colors_, 
     std::vector<glm::vec2> &texcoords_, 
+    std::vector<uint32_t> indices_,
     bool allow_edits, bool submit_immediately
 )
 {
@@ -504,12 +505,16 @@ void Mesh::load_raw(
     bool reading_normals = normals_.size() > 0;
     bool reading_colors = colors_.size() > 0;
     bool reading_texcoords = texcoords_.size() > 0;
+    bool reading_indices = indices_.size() > 0;
 
     if (points_.size() == 0)
         throw std::runtime_error( std::string("Error, no points supplied. "));
 
-    if ((points_.size() % 3) != 0)
-        throw std::runtime_error( std::string("Error: length of points is not a multiple of 3."));
+    if ((!reading_indices) && ((points_.size() % 3) != 0))
+        throw std::runtime_error( std::string("Error: No indices provided, and length of points is not a multiple of 3."));
+
+    if ((reading_indices) && ((indices_.size() % 3) != 0))
+        throw std::runtime_error( std::string("Error: Length of indices is not a multiple of 3."));
     
     if (reading_normals && (normals_.size() != points_.size()))
         throw std::runtime_error( std::string("Error, length mismatch. Total normals: " + std::to_string(normals_.size()) + " does not equal total points: " + std::to_string(points_.size())));
@@ -519,6 +524,13 @@ void Mesh::load_raw(
         
     if (reading_texcoords && (texcoords_.size() != points_.size()))
         throw std::runtime_error( std::string("Error, length mismatch. Total texcoords: " + std::to_string(texcoords_.size()) + " does not equal total points: " + std::to_string(points_.size())));
+    
+    if (reading_indices) {
+        for (uint32_t i = 0; i < indices_.size(); ++i) {
+            if (indices_[i] >= points_.size())
+                throw std::runtime_error( std::string("Error, index out of bounds. Index " + std::to_string(i) + " is greater than total points: " + std::to_string(points_.size())));
+        }
+    }
         
     std::vector<Vertex> vertices;
 
@@ -535,15 +547,30 @@ void Mesh::load_raw(
     /* Eliminate duplicate points */
     std::unordered_map<Vertex, uint32_t> uniqueVertexMap = {};
     std::vector<Vertex> uniqueVertices;
-    for (int i = 0; i < vertices.size(); ++i)
-    {
-        Vertex vertex = vertices[i];
-        if (uniqueVertexMap.count(vertex) == 0)
-        {
-            uniqueVertexMap[vertex] = static_cast<uint32_t>(uniqueVertices.size());
-            uniqueVertices.push_back(vertex);
+
+    /* Don't bin points as unique when editing, since it's unexpected for a user to lose points */
+    if (allow_edits && !reading_indices) {
+        uniqueVertices = vertices;
+        for (int i = 0; i < vertices.size(); ++i) {
+            indices.push_back(i);
         }
-        indices.push_back(uniqueVertexMap[vertex]);
+    }
+    else if (reading_indices) {
+        indices = indices_;
+        uniqueVertices = vertices;
+    }
+    /* If indices werent supplied and editing isn't allowed, optimize by binning unique verts */
+    else {    
+        for (int i = 0; i < vertices.size(); ++i)
+        {
+            Vertex vertex = vertices[i];
+            if (uniqueVertexMap.count(vertex) == 0)
+            {
+                uniqueVertexMap[vertex] = static_cast<uint32_t>(uniqueVertices.size());
+                uniqueVertices.push_back(vertex);
+            }
+            indices.push_back(uniqueVertexMap[vertex]);
+        }
     }
 
     /* Map vertices to buffers */
@@ -1102,17 +1129,18 @@ Mesh* Mesh::CreateFromGLB(std::string name, std::string glbPath, bool allow_edit
     return mesh;
 }
 
-Mesh* Mesh::CreateFromRaw(
+Mesh* Mesh::CreateFromRaw (
     std::string name,
     std::vector<glm::vec3> points, 
     std::vector<glm::vec3> normals, 
     std::vector<glm::vec4> colors, 
     std::vector<glm::vec2> texcoords, 
+    std::vector<uint32_t> indices, 
     bool allow_edits, 
     bool submit_immediately)
 {
     auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
-    mesh->load_raw(points, normals, colors, texcoords, allow_edits, submit_immediately);
+    mesh->load_raw(points, normals, colors, texcoords, indices, allow_edits, submit_immediately);
     return mesh;
 }
 
