@@ -374,7 +374,7 @@ void RenderSystem::enqueue_render_commands() {
         waitDstStageMask.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
     }
 
-    vulkan->enqueue_graphics_commands(commands, waitSemaphores, waitDstStageMask, signalSemaphores, vk::Fence()/*maincmd_fences[currentFrame]*/, "drawcalls");
+    vulkan->enqueue_graphics_commands(commands, waitSemaphores, waitDstStageMask, signalSemaphores, maincmd_fences[currentFrame], "drawcalls");
 }
 
 void RenderSystem::release_vulkan_resources() 
@@ -487,8 +487,8 @@ bool RenderSystem::start()
                 // If i don't fence here, triangles seem to spread apart. 
                 // I think this is an issue with using the SSBO from frame to frame...
                 auto device = vulkan->get_device();
-                //device.waitForFences(maincmd_fences[currentFrame], true, 100000000000);
-                //device.resetFences(maincmd_fences[currentFrame]);
+                device.waitForFences(maincmd_fences[currentFrame], true, 100);
+                device.resetFences(maincmd_fences[currentFrame]);
 
                 /* 4. Optional: Wait on render complete. Present a frame. */
                 stream_frames();
