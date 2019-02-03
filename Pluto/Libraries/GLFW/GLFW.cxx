@@ -106,7 +106,7 @@ namespace Libraries {
         glfwSetKeyCallback(ptr, &key_callback);
 
         window.ptr = ptr;
-        window.swapchain_ready = false;
+        window.swapchain_out_of_date = true;
         Windows()[key] = window;
         return true;
     }
@@ -299,9 +299,13 @@ namespace Libraries {
         return window_mutex;
     }
 
-    bool GLFW::create_vulkan_swapchain(std::string key, bool submit_immediately)
+    bool GLFW::create_vulkan_swapchain(std::string key)
     {
+        auto mutex = window_mutex.get();
+        std::lock_guard<std::mutex> lock(*mutex);
+        
         auto vulkan = Libraries::Vulkan::Get();
+        vulkan->flush_queues();
 
         /*
             VkSurfaceKHR + imageCount + surface format and color space + present mode => vkSwapChainKHR
@@ -484,11 +488,10 @@ namespace Libraries {
 
             vk::CommandBuffer cmdBuffer = vulkan->begin_one_time_graphics_command();
             window.textures[i]->setImageLayout( cmdBuffer, data.colorImage, vk::ImageLayout::eUndefined, vk::ImageLayout::ePresentSrcKHR, subresourceRange);
-            auto fut = vulkan->end_one_time_graphics_command(cmdBuffer, "Transition swapchain image", true, submit_immediately);
+            auto fut = vulkan->end_one_time_graphics_command(cmdBuffer, "Transition swapchain image", true, true);
         }
         
         window.swapchain_out_of_date = false;
-        window.swapchain_ready = true;
         return true;
     }
 
@@ -497,7 +500,7 @@ namespace Libraries {
         if (it == Windows().end())
             throw std::runtime_error( std::string("Error: Window " + key + " does not exist, cannot mark swapchain as out of date"));
 
-        auto window = Windows()[key].swapchain_out_of_date = true;
+        Windows()[key].swapchain_out_of_date = true;
     }
 
     bool GLFW::is_swapchain_out_of_date(std::string key) {
@@ -515,7 +518,7 @@ namespace Libraries {
             return vk::SwapchainKHR();
 
         auto window = Windows()[key];
-        if (window.swapchain_ready == false) 
+        if (window.swapchain_out_of_date) 
             return vk::SwapchainKHR();
         return window.swapchain;
     }
@@ -809,17 +812,26 @@ namespace Libraries {
         for (auto &window : Windows()) {
             /* The current window must have a valid swapchain which we can acquire from. */
             if (!window.second.swapchain) continue;
-            if (!window.second.swapchain_ready) continue;
+            if (window.second.swapchain_out_of_date) continue;
 
-            /* Acquire a swapchain image, waiting on the acquire fence. 
-            I believe this fence is used for handling vsync, but I could be wrong... */
-            
-            auto acquireFence = device.createFence(vk::FenceCreateInfo());
-            auto result = device.acquireNextImageKHR(window.second.swapchain, std::numeric_limits<uint32_t>::max(), window.second.imageAvailableSemaphores[current_frame], acquireFence);
-            window.second.current_image_index = result.value;
-            //auto swapchain_texture = glfw->get_texture(keys[i], swapchain_index);
-            device.waitForFences(acquireFence, true, 100000000000);
-            device.destroyFence(acquireFence);
+            vk::Fence acquireFence;
+            try {
+                /* Acquire a swapchain image, waiting on the acquire fence. 
+                I believe this fence is used for handling vsync, but I could be wrong... */
+                
+                acquireFence = device.createFence(vk::FenceCreateInfo());
+                auto result = device.acquireNextImageKHR(window.second.swapchain, std::numeric_limits<uint32_t>::max(), window.second.imageAvailableSemaphores[current_frame], acquireFence);
+                window.second.current_image_index = result.value;
+                //auto swapchain_texture = glfw->get_texture(keys[i], swapchain_index);
+                device.waitForFences(acquireFence, true, 100);
+                device.destroyFence(acquireFence);
+            } catch(...)
+            {
+                if (acquireFence)
+                    device.destroyFence(acquireFence);
+
+                set_swapchain_out_of_date(window.first);
+            }
         }
     }
 
@@ -832,7 +844,7 @@ namespace Libraries {
         for (auto &window : Windows()) {
             /* The current window must have a valid swapchain which we can acquire from. */
             if (!window.second.swapchain) continue;
-            if (!window.second.swapchain_ready) continue;
+            if (window.second.swapchain_out_of_date) continue;
             semaphores.push_back(window.second.imageAvailableSemaphores[current_frame]);
         }
 
@@ -848,36 +860,27 @@ namespace Libraries {
 
         for (auto &window : Windows()) {
             /* The current window must have a valid swapchain which we can acquire from. */
-            if (!window.second.swapchain) continue;
-            if (!window.second.swapchain_ready) continue;
+            if ((!window.second.swapchain) || (window.second.swapchain_out_of_date) ) continue;
 
             swapchains.push_back(window.second.swapchain);
             swapchain_indices.push_back(window.second.current_image_index);
         }
 
-        if (swapchains.size() == 0) return;
-        
-
-        /* Wait for the semaphore to complete, then present the swapchains. */
-        vulkan->enqueue_present_commands(swapchains, swapchain_indices, semaphores);
-
-        /* If we can't present, we need to recreate all swapchains. */
-        if (!vulkan->submit_present_commands())
+        if (swapchains.size() != 0)
         {
-            for (auto &window : Windows()) {
-                if (does_window_exist(window.first)) {
-                    /* Conditionally recreate the swapchain resources if out of date. */
-                    create_vulkan_swapchain(window.first, true);
-                }
-            }
-        }
+            /* Wait for the semaphore to complete, then present the swapchains. */
+            vulkan->enqueue_present_commands(swapchains, swapchain_indices, semaphores);
+        }    
+    }
 
+    void GLFW::update_swapchains()
+    {
         /* If a particular window thinks it's swapchain is out of date, update it. */
         for (auto &window : Windows()) {
             if (is_swapchain_out_of_date(window.first)) {
                 if (does_window_exist(window.first)) {
                     /* Conditionally recreate the swapchain resources if out of date. */
-                    create_vulkan_swapchain(window.first, true);
+                    create_vulkan_swapchain(window.first);
                 }
             }
         }

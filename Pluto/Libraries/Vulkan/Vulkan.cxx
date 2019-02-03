@@ -960,6 +960,13 @@ bool Vulkan::submit_present_commands() {
     return result;
 }
 
+bool Vulkan::flush_queues()
+{
+    presentQueues[0].waitIdle();
+    graphicsQueues[0].waitIdle();
+    return true;
+}
+
 uint32_t Vulkan::get_thread_id() {
     /* Todo: make this thread safe */
     if (thread_id == -1){

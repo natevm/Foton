@@ -212,7 +212,10 @@ void RenderSystem::record_render_commands()
                 
                 /* Window needs a swapchain */
                 auto swapchain = glfw->get_swapchain(connected_window_key);
-                if (!swapchain) continue;
+                if (!swapchain) {
+                    command_buffer.end();
+                    continue;
+                }
 
                 /* Need to be able to get swapchain/texture by key...*/
                 auto swapchain_texture = glfw->get_texture(connected_window_key);
@@ -371,7 +374,7 @@ void RenderSystem::enqueue_render_commands() {
         waitDstStageMask.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
     }
 
-    vulkan->enqueue_graphics_commands(commands, waitSemaphores, waitDstStageMask, signalSemaphores, maincmd_fences[currentFrame], "drawcalls");
+    vulkan->enqueue_graphics_commands(commands, waitSemaphores, waitDstStageMask, signalSemaphores, vk::Fence()/*maincmd_fences[currentFrame]*/, "drawcalls");
 }
 
 void RenderSystem::release_vulkan_resources() 
@@ -449,12 +452,6 @@ bool RenderSystem::start()
         {
             if (futureObj.wait_for(.1ms) == future_status::ready) break;
 
-            /* Lock the window mutex to get access to swapchains and window textures. */
-            std::shared_ptr<std::lock_guard<std::mutex>> window_lock;
-            auto window_mutex = glfw->get_mutex();
-            auto mutex = window_mutex.get();
-            window_lock = std::make_shared<std::lock_guard<std::mutex>>(*mutex);
-
             /* Regulate the framerate. */
             currentTime = glfwGetTime();
             if ((!using_openvr) && ((currentTime - lastTime) < .008)) continue;
@@ -466,30 +463,41 @@ bool RenderSystem::start()
 
             /* 0. Allocate the resources we'll need to render this scene. */
             allocate_vulkan_resources();
-            
-            /* 1. Optionally aquire swapchain images. Signal image available semaphores. */
-            glfw->acquire_swapchain_images(currentFrame);
 
-            /* 2. Record render commands. */
-            record_render_commands();
+            {
+                /* Lock the window mutex to get access to swapchains and window textures. */
+                std::shared_ptr<std::lock_guard<std::mutex>> window_lock;
+                auto window_mutex = glfw->get_mutex();
+                auto mutex = window_mutex.get();
+                window_lock = std::make_shared<std::lock_guard<std::mutex>>(*mutex);
 
-            /* 3. Wait on image available. Enqueue graphics commands. Optionally signal render complete semaphore. */
-            enqueue_render_commands();
+                /* 1. Optionally aquire swapchain images. Signal image available semaphores. */
+                glfw->acquire_swapchain_images(currentFrame);
 
-            /* Submit enqueued graphics commands */
-            vulkan->submit_graphics_commands();
-            
-            /* Wait for GPU to finish execution */
-            // If i don't fence here, triangles seem to spread apart. 
-            // I think this is an issue with using the SSBO from frame to frame...
-            auto device = vulkan->get_device();
-            //device.waitForFences(maincmd_fences[currentFrame], true, 100000000000);
-            device.resetFences(maincmd_fences[currentFrame]);
+                /* 2. Record render commands. */
+                record_render_commands();
 
-            /* 4. Optional: Wait on render complete. Present a frame. */
-            stream_frames();
-            present_openvr_frames();
-            glfw->present_glfw_frames({renderCompleteSemaphores[currentFrame]});
+                /* 3. Wait on image available. Enqueue graphics commands. Optionally signal render complete semaphore. */
+                enqueue_render_commands();
+
+                /* Submit enqueued graphics commands */
+                vulkan->submit_graphics_commands();
+                
+                /* Wait for GPU to finish execution */
+                // If i don't fence here, triangles seem to spread apart. 
+                // I think this is an issue with using the SSBO from frame to frame...
+                auto device = vulkan->get_device();
+                //device.waitForFences(maincmd_fences[currentFrame], true, 100000000000);
+                //device.resetFences(maincmd_fences[currentFrame]);
+
+                /* 4. Optional: Wait on render complete. Present a frame. */
+                stream_frames();
+                present_openvr_frames();
+                glfw->present_glfw_frames({renderCompleteSemaphores[currentFrame]});
+                vulkan->submit_present_commands();
+            }
+
+            glfw->update_swapchains();
 
             currentFrame = (currentFrame + 1) % max_frames_in_flight;
         }

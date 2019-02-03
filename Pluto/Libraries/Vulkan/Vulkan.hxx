@@ -62,6 +62,7 @@ namespace Libraries {
         );
         bool submit_graphics_commands();
         bool submit_present_commands();
+        bool flush_queues();
         bool is_ray_tracing_enabled();
         bool is_ASTC_supported();
         bool is_ETC2_supported();

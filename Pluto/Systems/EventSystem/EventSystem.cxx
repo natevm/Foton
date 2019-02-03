@@ -111,11 +111,11 @@ namespace Systems
             auto glfw = GLFW::Get();
             glfw->create_window(key, width, height, floating, resizable, decorated);
 
-            if (create_vulkan_resources) {
-                auto vulkan = Vulkan::Get();
-                glfw->create_vulkan_surface(vulkan, key);
-                glfw->create_vulkan_swapchain(key, false);
-            }
+            // if (create_vulkan_resources) {
+                // auto vulkan = Vulkan::Get();
+                // glfw->create_vulkan_surface(vulkan, key);
+                // glfw->create_vulkan_swapchain(key, false);
+            // }
         };
 
         auto future = enqueueCommand(createWindow);
