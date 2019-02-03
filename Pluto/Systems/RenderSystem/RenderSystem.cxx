@@ -129,7 +129,7 @@ void RenderSystem::record_render_commands()
     Texture* brdf = nullptr;
     try {
         brdf = Texture::Get("BRDF");
-    } catch (std::runtime_error &e) {}
+    } catch (...) {}
     if (!brdf) return;
     auto brdf_id = brdf->get_id();
     push_constants.brdf_lut_id = brdf_id;
@@ -179,7 +179,7 @@ void RenderSystem::record_render_commands()
         /* If we're the client, we recieve color data from "stream_frames". Only render a scene if not the client. */
         if (!Options::IsClient())
         {
-            for(int rp_idx = 0; rp_idx < cameras[cam_id].get_num_renderpasses(); rp_idx++) {
+            for(uint32_t rp_idx = 0; rp_idx < cameras[cam_id].get_num_renderpasses(); rp_idx++) {
                 /* Get the renderpass for the current camera */
                 vk::RenderPass rp = cameras[cam_id].get_renderpass(rp_idx);
 
@@ -199,6 +199,20 @@ void RenderSystem::record_render_commands()
                         Material::DrawEntity(command_buffer, rp, entities[i], push_constants);
                     }
                 }
+                
+                /* Draw volumes last */
+                for (uint32_t i = 0; i < Entity::GetCount(); ++i)
+                {
+                    if (entities[i].is_initialized())
+                    {
+                        // Push constants
+                        push_constants.target_id = i;
+                        push_constants.camera_id = entity_id;
+                        push_constants.viewIndex = rp_idx;
+                        Material::DrawVolume(command_buffer, rp, entities[i], push_constants);
+                    }
+                }
+
                 cameras[cam_id].end_renderpass(command_buffer, rp_idx);
             }
         }

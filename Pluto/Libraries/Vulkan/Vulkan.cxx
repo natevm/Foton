@@ -54,11 +54,11 @@ bool Vulkan::create_instance(bool enable_validation_layers, set<string> validati
     cout << "Creating vulkan instance" << endl;
 
     auto appInfo = vk::ApplicationInfo();
-    appInfo.pApplicationName = "TEMPORARY APPLICATION NAME";
-    appInfo.applicationVersion = VK_MAKE_VERSION(1, 1, 0);
+    appInfo.pApplicationName = "Pluto";
+    appInfo.applicationVersion = VK_MAKE_VERSION(1, 1, 97);
     appInfo.pEngineName = "Pluto";
-    appInfo.engineVersion = VK_MAKE_VERSION(1, 1, 0);
-    appInfo.apiVersion = VK_MAKE_VERSION(1, 1, 0);
+    appInfo.engineVersion = VK_MAKE_VERSION(1, 1, 97);
+    appInfo.apiVersion = VK_MAKE_VERSION(1, 1, 97);
 
     /* Determine the required instance extensions */
     uint32_t glfwExtensionCount = 0;

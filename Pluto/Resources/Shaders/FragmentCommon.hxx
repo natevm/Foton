@@ -62,3 +62,25 @@ vec4 getAlbedo()
 
 	return vec4(pow(albedo.rgb, vec3(push.consts.gamma)), albedo.a);
 }
+
+vec4 sampleVolume(vec3 position, float lod)
+{
+    EntityStruct entity = ebo.entities[push.consts.target_id];
+	MaterialStruct material = mbo.materials[entity.material_id];
+    TextureStruct tex = txbo.textures[material.volume_texture_id];
+
+    vec4 color = vec4(1.0, 0.0, 0.0, 0.00);
+
+    if (tex.type == 0)
+    {
+        color = texture(sampler3D(texture_3Ds[material.volume_texture_id], samplers[material.volume_texture_id]), position);
+    }
+    else if (tex.type == 1)
+    {
+        float mate = checker(position, tex.scale);//texture(sampler3D(texture_3Ds[material.volume_texture_id], samplers[material.volume_texture_id]), normalize(position) );
+        color = mix(tex.color1, tex.color2, mate);
+    }
+
+    //textureLod(volumeTexture, pos, mbo.lod);
+    return color;//vec4(color.rgb, 0.0);
+}

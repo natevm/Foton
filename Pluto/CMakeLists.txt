@@ -145,6 +145,13 @@ set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/Libraries.i PROPERTY U
 swig_add_library(Libraries TYPE SHARED LANGUAGE python OUTFILE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Libraries SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/Libraries.i)
 set_target_properties(Libraries PROPERTIES INSTALL_RPATH "${RPATHS}")
 set_target_properties(Libraries PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
+if (BUILD_OPENVR)
+set_property(TARGET Libraries PROPERTY SWIG_COMPILE_DEFINITIONS BUILD_OPENVR)
+endif(BUILD_OPENVR)
+if (BUILD_SPACEMOUSE)
+set_property(TARGET Libraries PROPERTY SWIG_COMPILE_DEFINITIONS BUILD_SPACEMOUSE)
+endif(BUILD_SPACEMOUSE)
+
 if(APPLE)
 set_target_properties(Libraries PROPERTIES MACOSX_RPATH TRUE)
 endif(APPLE)
@@ -260,6 +267,9 @@ set(SHADERS_SRC
 
     ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/shader.vert
     ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/shader.frag
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/VolumeMaterials/Volume/shader.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/VolumeMaterials/Volume/shader.frag
 
     ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/RaytracedMaterials/TutorialShaders/shader.rgen
 )

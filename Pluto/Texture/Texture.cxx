@@ -1,3 +1,5 @@
+#pragma optimize("", off)
+
 #include "./Texture.hxx"
 #include "Pluto/Tools/Options.hxx"
 
@@ -19,10 +21,6 @@ vk::DeviceMemory Texture::ssboMemory;
 Texture::Texture()
 {
     initialized = false;
-    texture_struct.type = 0;
-    texture_struct.scale = .1;
-    texture_struct.color1 = glm::vec4(1.0, 1.0, 1.0, 1.0);
-    texture_struct.color2 = glm::vec4(0.0, 0.0, 0.0, 1.0);
 }
 
 Texture::Texture(std::string name, uint32_t id)
@@ -30,6 +28,10 @@ Texture::Texture(std::string name, uint32_t id)
     initialized = true;
     this->name = name;
     this->id = id;
+    texture_struct.type = 0;
+    texture_struct.scale = .1f;
+    texture_struct.color1 = glm::vec4(1.0, 1.0, 1.0, 1.0);
+    texture_struct.color2 = glm::vec4(0.0, 0.0, 0.0, 1.0);
 }
 
 std::string Texture::to_string()
@@ -784,7 +786,7 @@ void Texture::loadKTX(std::string imagePath, bool submit_immediately)
 
         data.colorMipLevels = (uint32_t)(tex3D.levels());
         //data.colorFormat = (vk::Format)tex3D.format();
-        data.colorFormat = vk::Format::eR8G8B8A8Uint;
+        data.colorFormat = vk::Format::eR8G8B8A8Srgb;
         data.viewType = vk::ImageViewType::e3D;
         textureSize = (uint32_t)tex3D.size();
         textureData = tex3D.data();
@@ -1001,7 +1003,7 @@ void Texture::loadKTX(std::string imagePath, bool submit_immediately)
     sInfo.anisotropyEnable = VK_TRUE;
     sInfo.minLod = 0.0;
     sInfo.maxLod = (float) data.colorMipLevels;
-    sInfo.borderColor = vk::BorderColor::eFloatOpaqueBlack;
+    sInfo.borderColor = vk::BorderColor::eFloatTransparentBlack;
     data.colorSampler = device.createSampler(sInfo);
 }
 
