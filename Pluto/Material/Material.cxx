@@ -671,7 +671,7 @@ void Material::CreateRasterDescriptorSetLayouts()
 
     // Texture samplers
     vk::DescriptorSetLayoutBinding samplerBinding;
-    samplerBinding.descriptorCount = MAX_TEXTURES;
+    samplerBinding.descriptorCount = MAX_SAMPLERS;
     samplerBinding.binding = 1;
     samplerBinding.descriptorType = vk::DescriptorType::eSampler;
     samplerBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
@@ -953,8 +953,8 @@ void Material::UpdateRasterDescriptorSets()
     textureDescriptorWrites[0].pBufferInfo = &textureBufferInfo;
 
     // Samplers
-    vk::DescriptorImageInfo samplerDescriptorInfos[MAX_TEXTURES];
-    for (int i = 0; i < MAX_TEXTURES; ++i) 
+    vk::DescriptorImageInfo samplerDescriptorInfos[MAX_SAMPLERS];
+    for (int i = 0; i < MAX_SAMPLERS; ++i) 
     {
         samplerDescriptorInfos[i].sampler = samplers[i];
     }
@@ -963,7 +963,7 @@ void Material::UpdateRasterDescriptorSets()
     textureDescriptorWrites[1].dstBinding = 1;
     textureDescriptorWrites[1].dstArrayElement = 0;
     textureDescriptorWrites[1].descriptorType = vk::DescriptorType::eSampler;
-    textureDescriptorWrites[1].descriptorCount = MAX_TEXTURES;
+    textureDescriptorWrites[1].descriptorCount = MAX_SAMPLERS;
     textureDescriptorWrites[1].pImageInfo = samplerDescriptorInfos;
 
     // 2D Textures

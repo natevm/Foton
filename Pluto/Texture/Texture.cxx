@@ -13,6 +13,7 @@
 #include <gli/gli.hpp>
 
 Texture Texture::textures[MAX_TEXTURES];
+vk::Sampler Texture::samplers[MAX_SAMPLERS];
 std::map<std::string, uint32_t> Texture::lookupTable;
 TextureStruct* Texture::pinnedMemory;
 vk::Buffer Texture::ssbo;
@@ -30,6 +31,7 @@ Texture::Texture(std::string name, uint32_t id)
     this->id = id;
     texture_struct.type = 0;
     texture_struct.scale = .1f;
+    texture_struct.mip_levels = 0;
     texture_struct.color1 = glm::vec4(1.0, 1.0, 1.0, 1.0);
     texture_struct.color2 = glm::vec4(0.0, 0.0, 0.0, 1.0);
 }
@@ -49,16 +51,12 @@ std::string Texture::to_string()
     output += "\thas_color: ";
     output += ((data.colorImage == vk::Image()) ? "false" : "true");
     output += "\n";
-    output += "\thas_color_sampler: ";
-    output += ((data.colorSampler == vk::Sampler()) ? "false" : "true");
-    output += "\n";
+    output += "\tcolor_sampler_id: " + std::to_string(data.colorSamplerId) + "\n";
     output += "\tcolor_format: " + vk::to_string(data.colorFormat) + "\n";
     output += "\thas_depth: ";
     output += ((data.depthImage == vk::Image()) ? "false" : "true");
     output += "\n";
-    output += "\thas_depth_sampler: ";
-    output += ((data.depthSampler == vk::Sampler()) ? "false" : "true");
-    output += "\n";
+    output += "\tdepth_sampler_id: " + std::to_string(data.depthSamplerId) + "\n";
     output += "\tdepth_format: " + vk::to_string(data.depthFormat) + "\n";
     output += "}";
     return output;
@@ -509,6 +507,22 @@ void Texture::Initialize()
 
     /* Pin the buffer */
     pinnedMemory = (TextureStruct*) device.mapMemory(ssboMemory, 0, MAX_TEXTURES * sizeof(TextureStruct));
+
+    /* Create a sampler to sample from the attachment in the fragment shader */
+    vk::SamplerCreateInfo sInfo;
+    sInfo.magFilter = vk::Filter::eLinear;
+    sInfo.minFilter = vk::Filter::eLinear;
+    sInfo.mipmapMode = vk::SamplerMipmapMode::eLinear;
+    sInfo.addressModeU = vk::SamplerAddressMode::eClampToEdge;
+    sInfo.addressModeV = vk::SamplerAddressMode::eClampToEdge;
+    sInfo.addressModeW = vk::SamplerAddressMode::eClampToEdge;
+    sInfo.mipLodBias = 0.0;
+    sInfo.maxAnisotropy = 16.0; // todo, get limit here.
+    sInfo.anisotropyEnable = VK_TRUE;
+    sInfo.minLod = 0.0;
+    sInfo.maxLod = 12.0;
+    sInfo.borderColor = vk::BorderColor::eFloatTransparentBlack;
+    samplers[0] = device.createSampler(sInfo);
 }
 
 
@@ -549,6 +563,12 @@ void Texture::CleanUp()
     if (device == vk::Device())
         throw std::runtime_error( std::string("Invalid vulkan device"));
 
+    for (int i = 0; i < MAX_SAMPLERS; ++i) {
+        if (samplers[i] != vk::Sampler()) {
+            device.destroySampler(samplers[i]);
+        }
+    }
+
     device.destroyBuffer(ssbo);
     device.unmapMemory(ssboMemory);
     device.freeMemory(ssboMemory);
@@ -588,8 +608,8 @@ vk::ImageView Texture::get_depth_image_view() { return data.depthImageView; };
 vk::ImageView Texture::get_color_image_view() { return data.colorImageView; };
 std::vector<vk::ImageView> Texture::get_depth_image_view_layers() { return data.depthImageViewLayers; };
 std::vector<vk::ImageView> Texture::get_color_image_view_layers() { return data.colorImageViewLayers; };
-vk::Sampler Texture::get_color_sampler() { return data.colorSampler; };
-vk::Sampler Texture::get_depth_sampler() { return data.depthSampler; };
+vk::Sampler Texture::get_color_sampler() { return samplers[data.colorSamplerId]; };
+vk::Sampler Texture::get_depth_sampler() { return samplers[data.depthSamplerId]; };
 vk::ImageLayout Texture::get_color_image_layout() { return data.colorImageLayout; };
 vk::ImageLayout Texture::get_depth_image_layout() { return data.depthImageLayout; };
 vk::Image Texture::get_color_image() { return data.colorImage; };
@@ -837,6 +857,8 @@ void Texture::loadKTX(std::string imagePath, bool submit_immediately)
     /* Clean up any existing vulkan stuff */
     cleanup();
 
+    texture_struct.mip_levels = data.colorMipLevels;
+
     auto vulkan = Libraries::Vulkan::Get();
     if (!vulkan->is_initialized())
         throw std::runtime_error( std::string("Vulkan library is not initialized"));
@@ -989,22 +1011,6 @@ void Texture::loadKTX(std::string imagePath, bool submit_immediately)
     vInfo.subresourceRange = subresourceRange;
     vInfo.image = data.colorImage;
     data.colorImageView = device.createImageView(vInfo);
-
-    /* Create a sampler to sample from the attachment in the fragment shader */
-    vk::SamplerCreateInfo sInfo;
-    sInfo.magFilter = vk::Filter::eLinear;
-    sInfo.minFilter = vk::Filter::eLinear;
-    sInfo.mipmapMode = vk::SamplerMipmapMode::eLinear;
-    sInfo.addressModeU = vk::SamplerAddressMode::eClampToEdge;
-    sInfo.addressModeV = vk::SamplerAddressMode::eClampToEdge;
-    sInfo.addressModeW = vk::SamplerAddressMode::eClampToEdge;
-    sInfo.mipLodBias = 0.0;
-    sInfo.maxAnisotropy = 16.0; // todo, get limit here.
-    sInfo.anisotropyEnable = VK_TRUE;
-    sInfo.minLod = 0.0;
-    sInfo.maxLod = (float) data.colorMipLevels;
-    sInfo.borderColor = vk::BorderColor::eFloatTransparentBlack;
-    data.colorSampler = device.createSampler(sInfo);
 }
 
 void Texture::create_color_image_resources(bool submit_immediately)
@@ -1019,9 +1025,10 @@ void Texture::create_color_image_resources(bool submit_immediately)
     if (physicalDevice == vk::PhysicalDevice())
         throw std::runtime_error( std::string("Invalid vulkan physical device"));
 
-    /* Destroy samplers */
-    if (data.colorSampler)
-        device.destroySampler(data.colorSampler);
+    
+    // /* Destroy samplers */
+    // if (data.colorSampler)
+    //     device.destroySampler(data.colorSampler);
 
     /* Destroy Image Views */
     if (data.colorImageView)
@@ -1036,7 +1043,7 @@ void Texture::create_color_image_resources(bool submit_immediately)
         device.freeMemory(data.colorImageMemory);
 
     /* For now, assume the following format: */
-    data.colorFormat = vk::Format::eR8G8B8A8Srgb;
+    data.colorFormat = vk::Format::eR16G16B16A16Sfloat;
 
     data.colorImageLayout = vk::ImageLayout::eUndefined;
 
@@ -1088,7 +1095,7 @@ void Texture::create_color_image_resources(bool submit_immediately)
     
     /* Create more image views */
     data.colorImageViewLayers.clear();
-    for(int i = 0; i < data.layers; i++) {
+    for(uint32_t i = 0; i < data.layers; i++) {
         subresourceRange.baseMipLevel = 0;
         subresourceRange.baseArrayLayer = i;
         subresourceRange.levelCount = data.colorMipLevels;
@@ -1100,22 +1107,6 @@ void Texture::create_color_image_resources(bool submit_immediately)
         vInfo.image = data.colorImage;
         data.colorImageViewLayers.push_back(device.createImageView(vInfo));
     }
-
-    /* Create a sampler to sample from the attachment in the fragment shader */
-    vk::SamplerCreateInfo sInfo;
-    sInfo.magFilter = vk::Filter::eLinear;
-    sInfo.minFilter = vk::Filter::eLinear;
-    sInfo.mipmapMode = vk::SamplerMipmapMode::eLinear;
-    sInfo.addressModeU = vk::SamplerAddressMode::eClampToEdge;
-    sInfo.addressModeV = vk::SamplerAddressMode::eClampToEdge;
-    sInfo.addressModeW = vk::SamplerAddressMode::eClampToEdge;
-    sInfo.mipLodBias = 0.0;
-    sInfo.maxAnisotropy = 16.0; // todo, get limit here.
-    sInfo.anisotropyEnable = VK_TRUE;
-    sInfo.minLod = 0.0;
-    sInfo.maxLod = (float) data.colorMipLevels;
-    sInfo.borderColor = vk::BorderColor::eFloatOpaqueBlack;
-    data.colorSampler = device.createSampler(sInfo);
 }
 
 void Texture::create_depth_stencil_resources(bool submit_immediately)
@@ -1130,9 +1121,9 @@ void Texture::create_depth_stencil_resources(bool submit_immediately)
     if (physicalDevice == vk::PhysicalDevice())
         throw std::runtime_error( std::string("Invalid vulkan physical device"));
 
-    /* Destroy samplers */
-    if (data.depthSampler)
-        device.destroySampler(data.depthSampler);
+    // /* Destroy samplers */
+    // if (data.depthSampler)
+    //     device.destroySampler(data.depthSampler);
 
     /* Destroy Image Views */
     if (data.depthImageView)
@@ -1200,7 +1191,7 @@ void Texture::create_depth_stencil_resources(bool submit_immediately)
     
     /* Create more image views */
     data.depthImageViewLayers.clear();
-    for(int i = 0; i < data.layers; i++) {
+    for(uint32_t i = 0; i < data.layers; i++) {
         subresourceRange.baseMipLevel = 0;
         subresourceRange.baseArrayLayer = i;
         subresourceRange.levelCount = 1;
@@ -1212,21 +1203,6 @@ void Texture::create_depth_stencil_resources(bool submit_immediately)
         vInfo.image = data.depthImage;
         data.depthImageViewLayers.push_back(device.createImageView(vInfo));
     }
-
-    /* Create a sampler to sample from the attachment in the fragment shader */
-    vk::SamplerCreateInfo sInfo;
-    sInfo.magFilter = vk::Filter::eNearest;
-    sInfo.minFilter = vk::Filter::eNearest;
-    sInfo.mipmapMode = vk::SamplerMipmapMode::eNearest;
-    sInfo.addressModeU = vk::SamplerAddressMode::eClampToEdge;
-    sInfo.addressModeV = vk::SamplerAddressMode::eClampToEdge;
-    sInfo.addressModeW = vk::SamplerAddressMode::eClampToEdge;
-    sInfo.mipLodBias = 0.0;
-    sInfo.maxAnisotropy = 1.0;
-    sInfo.minLod = 0.0;
-    sInfo.maxLod = 1.0;
-    sInfo.borderColor = vk::BorderColor::eFloatOpaqueBlack;
-    data.depthSampler = device.createSampler(sInfo);
 }
 
 void Texture::createColorImageView()
@@ -1291,10 +1267,10 @@ void Texture::cleanup()
         throw std::runtime_error( std::string("Invalid vulkan device"));
 
     /* Destroy samplers */
-    if (data.colorSampler)
-        device.destroySampler(data.colorSampler);
-    if (data.depthSampler)
-        device.destroySampler(data.depthSampler);
+    // if (data.colorSampler)
+    //     device.destroySampler(data.colorSampler);
+    // if (data.depthSampler)
+    //     device.destroySampler(data.depthSampler);
 
     /* Destroy Image Views */
     if (data.colorImageView)
@@ -1320,24 +1296,18 @@ std::vector<vk::Sampler> Texture::GetSamplers()
     // Get the default texture (for now, just use the default 2D texture)
     auto DefaultTex = Get("DefaultTex2D");
     
-    std::vector<vk::Sampler> samplers(MAX_TEXTURES);
+    std::vector<vk::Sampler> samplers_(MAX_SAMPLERS);
 
     // For each texture
-    for (int i = 0; i < MAX_TEXTURES; ++i) {
-        if (textures[i].initialized 
-            && (textures[i].data.colorImageView != vk::ImageView())
-            && (textures[i].data.colorImageLayout == vk::ImageLayout::eShaderReadOnlyOptimal)) {
-            // then add it's sampler to the vector
-            samplers[i] = textures[i].data.colorSampler;
-        }
-        // otherwise, add the default texture sampler
-        else {
-            samplers[i] = DefaultTex->data.colorSampler;
-        }
+    for (int i = 0; i < MAX_SAMPLERS; ++i) {
+        if (samplers[i] == vk::Sampler())
+            samplers_[i] = samplers[0]; //  Sampler 0 is always defined. (this might change)
+        else
+            samplers_[i] = samplers[i];
     }
     
     // finally, return the sampler vector
-    return samplers;
+    return samplers_;
 }
 
 std::vector<vk::ImageLayout> Texture::GetLayouts(vk::ImageViewType view_type) 
@@ -1404,6 +1374,7 @@ Texture* Texture::CreateChecker(std::string name, bool submit_immediately)
     auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
     if (!tex) return nullptr;
     tex->texture_struct.type = 1;
+    tex->texture_struct.mip_levels = 0;
     return tex;
 }
 

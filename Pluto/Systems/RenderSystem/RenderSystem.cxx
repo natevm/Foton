@@ -77,6 +77,7 @@ bool RenderSystem::initialize()
     push_constants.environment_id = -1;
     push_constants.diffuse_environment_id = -1;
     push_constants.specular_environment_id = -1;
+    push_constants.environment_roughness = 0.0;
 
     initialized = true;
     return true;
@@ -570,6 +571,11 @@ void RenderSystem::set_environment_map(int32_t id)
 void RenderSystem::set_environment_map(Texture *texture) 
 {
     this->push_constants.environment_id = texture->get_id();
+}
+
+void RenderSystem::set_environment_roughness(float roughness)
+{
+    this->push_constants.environment_roughness = roughness;
 }
 
 void RenderSystem::clear_environment_map()
