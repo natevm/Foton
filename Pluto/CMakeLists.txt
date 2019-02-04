@@ -145,6 +145,13 @@ set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/Libraries.i PROPERTY U
 swig_add_library(Libraries TYPE SHARED LANGUAGE python OUTFILE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Libraries SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/Libraries.i)
 set_target_properties(Libraries PROPERTIES INSTALL_RPATH "${RPATHS}")
 set_target_properties(Libraries PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
+if (BUILD_OPENVR)
+set_property(TARGET Libraries PROPERTY SWIG_COMPILE_DEFINITIONS BUILD_OPENVR)
+endif(BUILD_OPENVR)
+if (BUILD_SPACEMOUSE)
+set_property(TARGET Libraries PROPERTY SWIG_COMPILE_DEFINITIONS BUILD_SPACEMOUSE)
+endif(BUILD_SPACEMOUSE)
+
 if(APPLE)
 set_target_properties(Libraries PROPERTIES MACOSX_RPATH TRUE)
 endif(APPLE)
@@ -261,6 +268,9 @@ set(SHADERS_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/shader.vert
     ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/shader.frag
 
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/VolumeMaterials/Volume/shader.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/VolumeMaterials/Volume/shader.frag
+
     ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/RaytracedMaterials/TutorialShaders/shader.rgen
 )
 
@@ -274,13 +284,12 @@ foreach(shader_file ${SHADERS_SRC})
     if(${DISABLE_MULTIVIEW})
         set(extra_flags ${extra_flags} -DDISABLE_MULTIVIEW)
     endif(${DISABLE_MULTIVIEW})
-    message("Extra flags: " ${extra_flags})
     add_custom_command(
-        OUTPUT ${spv_file}_updated # force file to regen every time
+        OUTPUT ${spv_file}_ # force file to regen every time
         COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} ${extra_flags} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${shader_file} -o ${spv_file} -flimit-file ${GLSLC_CONFIG}
         DEPENDS ${shader_file}
     )
-    list(APPEND spvfiles ${spv_file}_updated)
+    list(APPEND spvfiles ${spv_file}_)
 endforeach(shader_file)
 
 add_custom_target(Shaders ALL

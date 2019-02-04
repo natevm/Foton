@@ -119,6 +119,9 @@ namespace Libraries {
         if ( ittr == Windows().end() )
             throw std::runtime_error( std::string("Error: window does not exist, cannot resize window."));
 
+        auto mutex = window_mutex.get();
+        std::lock_guard<std::mutex> lock(*mutex);
+        
         auto window = Windows()[key];
         glfwSetWindowSize(window.ptr, width, height);
         return true;

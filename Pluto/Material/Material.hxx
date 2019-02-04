@@ -87,6 +87,9 @@ class Material : public StaticFactory
         /* Records a draw of the supplied entity to the current command buffer. Call this during a renderpass. */
         static void DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants); // int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time
 
+        /* Records a draw of the supplied entity to the current command buffer. Call this during a renderpass. */
+        static void DrawVolume(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants); // int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time
+
         /* Creates an uninitialized material. Useful for preallocation. */
         Material();
 
@@ -104,6 +107,10 @@ class Material : public StaticFactory
         void show_blinn();
         void show_depth();
         void show_environment();
+        void show_volume();
+
+        /* This method prevents an entity from rendering. */
+        void hide();
 
         /* Accessors / Mutators */
         void set_base_color(glm::vec4 color);
@@ -126,6 +133,9 @@ class Material : public StaticFactory
         /* A uniform base color can be replaced with per-vertex colors as well. */
         void use_vertex_colors(bool use);
 
+        /* The volume texture to be used by volume type materials */
+        void use_volume_texture(uint32_t texture_id);
+        void use_volume_texture(Texture *texture);
     private:
     
         /*  A list of the material components, allocated statically */
@@ -197,6 +207,7 @@ class Material : public StaticFactory
         static std::map<vk::RenderPass, RasterPipelineResources> normalsurface;
         static std::map<vk::RenderPass, RasterPipelineResources> skybox;
         static std::map<vk::RenderPass, RasterPipelineResources> depth;
+        static std::map<vk::RenderPass, RasterPipelineResources> volume;
 
         static std::map<vk::RenderPass, RaytracingPipelineResources> rttest;
 
@@ -239,6 +250,6 @@ class Material : public StaticFactory
         MaterialStruct material_struct;
 
         /* An enumeration used to select a pipeline type for use when drawing a given entity. */
-        enum RenderMode { BLINN, PBR, NORMAL, TEXCOORD, SKYBOX, BASECOLOR, DEPTH };
+        enum RenderMode { BLINN, PBR, NORMAL, TEXCOORD, SKYBOX, BASECOLOR, DEPTH, VOLUME, HIDDEN };
         RenderMode renderMode = PBR;
 };
