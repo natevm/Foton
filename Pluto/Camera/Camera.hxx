@@ -97,15 +97,18 @@ class Camera : public StaticFactory
 	/* If recording is allowed, records vulkan commands to the given command buffer required to 
 		start a renderpass for the current camera setup. This should only be called by the render 
 		system, and only after the command buffer has begun recording commands. */
-	void begin_renderpass(vk::CommandBuffer command_buffer);
+	void begin_renderpass(vk::CommandBuffer command_buffer, uint32_t index = 0);
 
 	/* If recording is allowed, returns the vulkan renderpass handle. 
 		Note: This handle might change throughout the lifetime of this camera component. */
-	vk::RenderPass get_renderpass();
+	vk::RenderPass get_renderpass(uint32_t);
+    
+    /* Get the number of renderpasses for this camera */
+    uint32_t get_num_renderpasses();
 
 	/* If recording is allowed, records vulkan commands to the given command buffer required to 
 		end a renderpass for the current camera setup. */
-	void end_renderpass(vk::CommandBuffer command_buffer);
+	void end_renderpass(vk::CommandBuffer command_buffer, uint32_t index = 0);
 
 	/* Returns the vulkan command buffer handle. */
 	vk::CommandBuffer get_command_buffer();
@@ -145,11 +148,11 @@ class Camera : public StaticFactory
 
 	/* The vulkan renderpass handle, used to begin and end renderpasses for the given camera. 
 		Handles all multiviews at once. */
-	vk::RenderPass renderpass;
+    std::vector<vk::RenderPass> renderpasses;
 	
 	/* The vulkan framebuffer handle, which associates attachments with image views. 
 		Handles all multiviews at once. */
-	vk::Framebuffer framebuffer;
+	std::vector<vk::Framebuffer> framebuffers;
 
 	/* The vulkan command buffer handle, used to record the renderpass. */
 	vk::CommandBuffer command_buffer;
@@ -195,10 +198,10 @@ class Camera : public StaticFactory
 	void setup(bool allow_recording = false, bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1, uint32_t layers = 1);
 
 	/* Creates a vulkan renderpass handle which will be used when recording from the current camera component. */
-	void create_render_pass(uint32_t framebufferWidth, uint32_t framebufferHeight, uint32_t layers = 1, uint32_t sample_count = 1);
+	void create_render_passes(uint32_t framebufferWidth, uint32_t framebufferHeight, uint32_t layers = 1, uint32_t sample_count = 1);
 
 	/* Creates a vulkan framebuffer handle used by the renderpass, which binds image views to the framebuffer attachments. */
-	void create_frame_buffer();
+	void create_frame_buffers(uint32_t layers);
 
 	/* Creates a vulkan commandbuffer handle used to record the renderpass. */
 	void create_command_buffer();

@@ -1,7 +1,11 @@
 /* File shared by both GLSL and C++ */
 
 #ifndef MAX_TEXTURES
-#define MAX_TEXTURES 64 // Limit imposed by intel. Can be much larger on descrete GPUs
+#define MAX_TEXTURES 64
+#endif
+
+#ifndef MAX_SAMPLERS
+#define MAX_SAMPLERS 16
 #endif
 
 #ifndef GLSL
@@ -18,7 +22,7 @@ struct TextureStruct
     vec4 color1;
     vec4 color2;
     float scale;
-    float ph1;
-    float ph2;
+    int32_t mip_levels;
+    int32_t sampler_id;
     int32_t type;
 };

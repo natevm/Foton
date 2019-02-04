@@ -3,10 +3,10 @@
 %{
 #include "Pluto/Libraries/GLFW/GLFW.hxx"
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
-#if BUILD_OPENVR
+#ifdef BUILD_OPENVR
 #include "Pluto/Libraries/OpenVR/OpenVR.hxx"
 #endif
-#if BUILD_SPACEMOUSE
+#ifdef BUILD_SPACEMOUSE
 #include "Pluto/Libraries/SpaceMouse/SpaceMouse.hxx"
 #endif
 using namespace Libraries;
@@ -47,5 +47,11 @@ using namespace Libraries;
 %include "./../Tools/Singleton.hxx";
 %include "./GLFW/GLFW.hxx";
 %include "./Vulkan/Vulkan.hxx";
-//%include "./OpenVR/OpenVR.hxx";
-//%include "./SpaceMouse/SpaceMouse.hxx";
+
+#ifdef BUILD_OPENVR
+%include "./OpenVR/OpenVR.hxx";
+#endif
+
+#ifdef BUILD_SPACEMOUSE
+%include "./SpaceMouse/SpaceMouse.hxx";
+#endif

@@ -77,6 +77,7 @@ bool RenderSystem::initialize()
     push_constants.environment_id = -1;
     push_constants.diffuse_environment_id = -1;
     push_constants.specular_environment_id = -1;
+    push_constants.environment_roughness = 0.0;
 
     initialized = true;
     return true;
@@ -129,7 +130,7 @@ void RenderSystem::record_render_commands()
     Texture* brdf = nullptr;
     try {
         brdf = Texture::Get("BRDF");
-    } catch (std::runtime_error &e) {}
+    } catch (...) {}
     if (!brdf) return;
     auto brdf_id = brdf->get_id();
     push_constants.brdf_lut_id = brdf_id;
@@ -179,25 +180,42 @@ void RenderSystem::record_render_commands()
         /* If we're the client, we recieve color data from "stream_frames". Only render a scene if not the client. */
         if (!Options::IsClient())
         {
-            /* Get the renderpass for the current camera */
-            vk::RenderPass rp = cameras[cam_id].get_renderpass();
+            for(uint32_t rp_idx = 0; rp_idx < cameras[cam_id].get_num_renderpasses(); rp_idx++) {
+                /* Get the renderpass for the current camera */
+                vk::RenderPass rp = cameras[cam_id].get_renderpass(rp_idx);
 
-            /* Bind all descriptor sets to that renderpass. 
-                Note that we're using a single bind. The same descriptors are shared across pipelines. */
-            Material::BindDescriptorSets(command_buffer, rp);
+                /* Bind all descriptor sets to that renderpass.
+                    Note that we're using a single bind. The same descriptors are shared across pipelines. */
+                Material::BindDescriptorSets(command_buffer, rp);
 
-            cameras[cam_id].begin_renderpass(command_buffer);
-            for (uint32_t i = 0; i < Entity::GetCount(); ++i)
-            {
-                if (entities[i].is_initialized())
+                cameras[cam_id].begin_renderpass(command_buffer, rp_idx);
+                for (uint32_t i = 0; i < Entity::GetCount(); ++i)
                 {
-                    // Push constants
-                    push_constants.target_id = i;
-                    push_constants.camera_id = entity_id;
-                    Material::DrawEntity(command_buffer, rp, entities[i], push_constants);
+                    if (entities[rp_idx].is_initialized())
+                    {
+                        // Push constants
+                        push_constants.target_id = i;
+                        push_constants.camera_id = entity_id;
+                        push_constants.viewIndex = rp_idx;
+                        Material::DrawEntity(command_buffer, rp, entities[i], push_constants);
+                    }
                 }
+                
+                /* Draw volumes last */
+                for (uint32_t i = 0; i < Entity::GetCount(); ++i)
+                {
+                    if (entities[i].is_initialized())
+                    {
+                        // Push constants
+                        push_constants.target_id = i;
+                        push_constants.camera_id = entity_id;
+                        push_constants.viewIndex = rp_idx;
+                        Material::DrawVolume(command_buffer, rp, entities[i], push_constants);
+                    }
+                }
+
+                cameras[cam_id].end_renderpass(command_buffer, rp_idx);
             }
-            cameras[cam_id].end_renderpass(command_buffer);
         }
 
         /* See if we should blit to a GLFW window. */
@@ -209,7 +227,10 @@ void RenderSystem::record_render_commands()
                 
                 /* Window needs a swapchain */
                 auto swapchain = glfw->get_swapchain(connected_window_key);
-                if (!swapchain) continue;
+                if (!swapchain) {
+                    command_buffer.end();
+                    continue;
+                }
 
                 /* Need to be able to get swapchain/texture by key...*/
                 auto swapchain_texture = glfw->get_texture(connected_window_key);
@@ -446,12 +467,6 @@ bool RenderSystem::start()
         {
             if (futureObj.wait_for(.1ms) == future_status::ready) break;
 
-            /* Lock the window mutex to get access to swapchains and window textures. */
-            std::shared_ptr<std::lock_guard<std::mutex>> window_lock;
-            auto window_mutex = glfw->get_mutex();
-            auto mutex = window_mutex.get();
-            window_lock = std::make_shared<std::lock_guard<std::mutex>>(*mutex);
-
             /* Regulate the framerate. */
             currentTime = glfwGetTime();
             if ((!using_openvr) && ((currentTime - lastTime) < .008)) continue;
@@ -463,30 +478,41 @@ bool RenderSystem::start()
 
             /* 0. Allocate the resources we'll need to render this scene. */
             allocate_vulkan_resources();
-            
-            /* 1. Optionally aquire swapchain images. Signal image available semaphores. */
-            glfw->acquire_swapchain_images(currentFrame);
 
-            /* 2. Record render commands. */
-            record_render_commands();
+            {
+                /* Lock the window mutex to get access to swapchains and window textures. */
+                std::shared_ptr<std::lock_guard<std::mutex>> window_lock;
+                auto window_mutex = glfw->get_mutex();
+                auto mutex = window_mutex.get();
+                window_lock = std::make_shared<std::lock_guard<std::mutex>>(*mutex);
 
-            /* 3. Wait on image available. Enqueue graphics commands. Optionally signal render complete semaphore. */
-            enqueue_render_commands();
+                /* 1. Optionally aquire swapchain images. Signal image available semaphores. */
+                glfw->acquire_swapchain_images(currentFrame);
 
-            /* Submit enqueued graphics commands */
-            vulkan->submit_graphics_commands();
-            
-            /* Wait for GPU to finish execution */
-            // If i don't fence here, triangles seem to spread apart. 
-            // I think this is an issue with using the SSBO from frame to frame...
-            auto device = vulkan->get_device();
-            device.waitForFences(maincmd_fences[currentFrame], true, 100000000000);
-            device.resetFences(maincmd_fences[currentFrame]);
+                /* 2. Record render commands. */
+                record_render_commands();
 
-            /* 4. Optional: Wait on render complete. Present a frame. */
-            stream_frames();
-            present_openvr_frames();
-            glfw->present_glfw_frames({renderCompleteSemaphores[currentFrame]});
+                /* 3. Wait on image available. Enqueue graphics commands. Optionally signal render complete semaphore. */
+                enqueue_render_commands();
+
+                /* Submit enqueued graphics commands */
+                vulkan->submit_graphics_commands();
+                
+                /* Wait for GPU to finish execution */
+                // If i don't fence here, triangles seem to spread apart. 
+                // I think this is an issue with using the SSBO from frame to frame...
+                auto device = vulkan->get_device();
+                device.waitForFences(maincmd_fences[currentFrame], true, 100);
+                device.resetFences(maincmd_fences[currentFrame]);
+
+                /* 4. Optional: Wait on render complete. Present a frame. */
+                stream_frames();
+                present_openvr_frames();
+                glfw->present_glfw_frames({renderCompleteSemaphores[currentFrame]});
+                vulkan->submit_present_commands();
+            }
+
+            glfw->update_swapchains();
 
             currentFrame = (currentFrame + 1) % max_frames_in_flight;
         }
@@ -545,6 +571,11 @@ void RenderSystem::set_environment_map(int32_t id)
 void RenderSystem::set_environment_map(Texture *texture) 
 {
     this->push_constants.environment_id = texture->get_id();
+}
+
+void RenderSystem::set_environment_roughness(float roughness)
+{
+    this->push_constants.environment_roughness = roughness;
 }
 
 void RenderSystem::clear_environment_map()

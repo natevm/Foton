@@ -46,11 +46,12 @@ namespace Libraries {
         bool should_close();
         vk::SwapchainKHR get_swapchain(std::string key);
         vk::SurfaceKHR create_vulkan_surface(const Libraries::Vulkan *vulkan, std::string key);
-        bool create_vulkan_swapchain(std::string key, bool submit_immediately);
+        bool create_vulkan_swapchain(std::string key);
         Texture* get_texture(std::string key);
         std::string get_key_from_ptr(GLFWwindow* ptr);
         void set_swapchain_out_of_date(std::string key);
         bool is_swapchain_out_of_date(std::string key);
+        void update_swapchains();
         bool set_cursor_pos(std::string key, double xpos, double ypos);
         std::vector<double> get_cursor_pos(std::string key);
         bool set_button_data(std::string key, int button, int action, int mods);
@@ -101,7 +102,6 @@ namespace Libraries {
             std::vector<vk::Image> swapchainColorImages;
             std::vector<Texture*> textures; 
             bool swapchain_out_of_date;
-            bool swapchain_ready;
             double xpos;
             double ypos;
             Button buttons[8];

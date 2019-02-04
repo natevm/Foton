@@ -10,26 +10,31 @@
 using namespace glm;
 #endif
 
-struct PushConsts {
-	int target_id;
-    int camera_id;
-    int brdf_lut_id;
-    int environment_id;
+#ifdef GLSL
+#define int32_t int
+#endif
+
+struct PushConsts
+{
+    int32_t target_id;
+    int32_t camera_id;
+    int32_t brdf_lut_id;
+    int32_t environment_id;
     vec4 top_sky_color;
     vec4 bottom_sky_color;
     float sky_transition;
-    int diffuse_environment_id;
-    int specular_environment_id;
+    int32_t diffuse_environment_id;
+    int32_t specular_environment_id;
     float gamma;
     float exposure;
     float time;
-    int light_entity_ids [MAX_LIGHTS];
-    int ph2;
-    int ph3;
-    int ph4;
-    int ph5;
-    int ph6;
-    int ph7;
+    float environment_roughness;
+    int32_t light_entity_ids[MAX_LIGHTS];
+    int32_t viewIndex;
+    int32_t ph4;
+    int32_t ph5;
+    int32_t ph6;
+    int32_t ph7;
 };
 
 #endif

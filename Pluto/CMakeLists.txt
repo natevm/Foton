@@ -59,6 +59,10 @@ if (BUILD_SPACEMOUSE)
 add_definitions(-DBUILD_SPACEMOUSE)
 endif(BUILD_SPACEMOUSE)
 
+if (DISABLE_MULTIVIEW)
+add_definitions(-DDISABLE_MULTIVIEW)
+endif(DISABLE_MULTIVIEW)
+
 # RPATH for *NIX distros
 
 set(RPATHS "${CMAKE_INSTALL_PREFIX};${CMAKE_INSTALL_PREFIX}/Pluto;${CMAKE_INSTALL_PREFIX}/Pluto/Systems;${CMAKE_INSTALL_PREFIX}/Pluto/Libraries;")
@@ -141,6 +145,13 @@ set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/Libraries.i PROPERTY U
 swig_add_library(Libraries TYPE SHARED LANGUAGE python OUTFILE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Libraries SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/Libraries.i)
 set_target_properties(Libraries PROPERTIES INSTALL_RPATH "${RPATHS}")
 set_target_properties(Libraries PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
+if (BUILD_OPENVR)
+set_property(TARGET Libraries PROPERTY SWIG_COMPILE_DEFINITIONS BUILD_OPENVR)
+endif(BUILD_OPENVR)
+if (BUILD_SPACEMOUSE)
+set_property(TARGET Libraries PROPERTY SWIG_COMPILE_DEFINITIONS BUILD_SPACEMOUSE)
+endif(BUILD_SPACEMOUSE)
+
 if(APPLE)
 set_target_properties(Libraries PROPERTIES MACOSX_RPATH TRUE)
 endif(APPLE)
@@ -230,38 +241,12 @@ endif()
 if (WIN32)
 set(GLSLC ${PROJECT_SOURCE_DIR}/external/vulkan/glslc.exe)
 else()
-set(GLSLC glslc)
+find_program(GLSLC glslc)
 endif()
 set(GLSLC_CONFIG ${PROJECT_SOURCE_DIR}/external/vulkan/glsl.config)
 set(GLSLC_OPTIMIZATION -O)
 
-add_custom_target(Shaders 
-    COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/UniformColor/shader.vert -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/UniformColor/vert.spv -flimit-file ${GLSLC_CONFIG} 
-    COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/UniformColor/shader.frag -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/UniformColor/frag.spv -flimit-file ${GLSLC_CONFIG}
-    
-    COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Blinn/shader.vert -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Blinn/vert.spv -flimit-file ${GLSLC_CONFIG}
-    COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Blinn/shader.frag -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Blinn/frag.spv -flimit-file ${GLSLC_CONFIG}
-
-    COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/NormalSurface/shader.vert -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/NormalSurface/vert.spv -flimit-file ${GLSLC_CONFIG}
-    COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/NormalSurface/shader.frag -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/NormalSurface/frag.spv -flimit-file ${GLSLC_CONFIG}
-
-    COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/TexCoordSurface/shader.vert -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/TexCoordSurface/vert.spv -flimit-file ${GLSLC_CONFIG}
-    COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/TexCoordSurface/shader.frag -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/TexCoordSurface/frag.spv -flimit-file ${GLSLC_CONFIG}
-
-    COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/PBRSurface/shader.vert -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/PBRSurface/vert.spv -flimit-file ${GLSLC_CONFIG}
-    COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/PBRSurface/shader.frag -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/PBRSurface/frag.spv -flimit-file ${GLSLC_CONFIG}
-
-    COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Skybox/shader.vert -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Skybox/vert.spv -flimit-file ${GLSLC_CONFIG}
-    COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Skybox/shader.frag -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Skybox/frag.spv -flimit-file ${GLSLC_CONFIG}
-
-    COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/shader.vert -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/vert.spv -flimit-file ${GLSLC_CONFIG}
-    COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/shader.frag -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/frag.spv -flimit-file ${GLSLC_CONFIG}
-
-    COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/RaytracedMaterials/TutorialShaders/shader.rgen -o ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/RaytracedMaterials/TutorialShaders/rgen.spv -flimit-file ${GLSLC_CONFIG}
-
-
-    SOURCES
-
+set(SHADERS_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/UniformColor/shader.vert
     ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/UniformColor/shader.frag
 
@@ -282,36 +267,39 @@ add_custom_target(Shaders
 
     ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/shader.vert
     ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/shader.frag
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/VolumeMaterials/Volume/shader.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/VolumeMaterials/Volume/shader.frag
 
     ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/RaytracedMaterials/TutorialShaders/shader.rgen
 )
 
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/
+set(spvfiles "")
+foreach(shader_file ${SHADERS_SRC})
+    set(spv_file ${shader_file})
+    string(REPLACE "shader.vert" "vert.spv" spv_file ${spv_file})
+    string(REPLACE "shader.frag" "frag.spv" spv_file ${spv_file})
+    string(REPLACE "shader.rgen" "rgen.spv" spv_file ${spv_file})
+    set(extra_flags "")
+    if(${DISABLE_MULTIVIEW})
+        set(extra_flags ${extra_flags} -DDISABLE_MULTIVIEW)
+    endif(${DISABLE_MULTIVIEW})
+    add_custom_command(
+        OUTPUT ${spv_file}_ # force file to regen every time
+        COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} ${extra_flags} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${shader_file} -o ${spv_file} -flimit-file ${GLSLC_CONFIG}
+        DEPENDS ${shader_file}
+    )
+    list(APPEND spvfiles ${spv_file}_)
+endforeach(shader_file)
 
-    FILES
+add_custom_target(Shaders ALL
+    DEPENDS ${spvfiles}
+    SOURCES ${SHADERS_SRC}
+)
 
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/UniformColor/shader.vert
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/UniformColor/shader.frag
-
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Blinn/shader.vert
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Blinn/shader.frag
-
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/NormalSurface/shader.vert
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/NormalSurface/shader.frag
-
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/TexCoordSurface/shader.vert
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/TexCoordSurface/shader.frag
-
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/PBRSurface/shader.vert
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/PBRSurface/shader.frag
-
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Skybox/shader.vert
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Skybox/shader.frag
-
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/shader.vert
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Depth/shader.frag
-
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/RaytracedMaterials/TutorialShaders/shader.rgen
+source_group(
+    TREE ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/
+    FILES ${SHADERS_SRC}
 )
 
 

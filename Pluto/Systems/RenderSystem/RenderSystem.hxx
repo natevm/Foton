@@ -23,6 +23,7 @@ namespace Systems
 
             void set_environment_map(int32_t id);
             void set_environment_map(Texture *texture);
+            void set_environment_roughness(float roughness);
             void clear_environment_map();
             
             void set_irradiance_map(int32_t id);

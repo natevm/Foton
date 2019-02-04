@@ -120,6 +120,19 @@ set (
     ${SPACEMOUSE_LIBRARIES}
 )
 
+message(WARN ${Vulkan_LIBRARY})
+
+# ┌──────────────────────────────────────────────────────────────────┐
+# │  This is a box that says "other options"                         │
+# └──────────────────────────────────────────────────────────────────┘
+
+set(platformSupportsMultiview OFF)
+if(APPLE)
+    set(platformSupportsMultiview ON)
+endif(APPLE)
+
+option(DISABLE_MULTIVIEW "Force multiview support off (not currently supported on macOS)" ${platformSupportsMultiview})
+
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Add source files                                                │
 # └──────────────────────────────────────────────────────────────────┘

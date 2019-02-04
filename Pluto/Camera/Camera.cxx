@@ -37,9 +37,11 @@ void Camera::setup(bool allow_recording, bool cubemap, uint32_t tex_width, uint3
 				resolveTexture = Texture::Create2D(name + "_resolve", tex_width, tex_height, true, true, 1, layers);
 		}
 		create_command_buffer();
-		create_render_pass(tex_width, tex_height, (cubemap) ? 6 : layers, msaa_samples);
-		create_frame_buffer();
-		Material::SetupGraphicsPipelines(renderpass, msaa_samples);
+		create_render_passes(tex_width, tex_height, (cubemap) ? 6 : layers, msaa_samples);
+		create_frame_buffers(layers);
+        for(auto renderpass : renderpasses) {
+            Material::SetupGraphicsPipelines(renderpass, msaa_samples);
+        }
 	}
 }
 
@@ -54,163 +56,200 @@ void Camera::create_command_buffer()
     command_buffer = device.allocateCommandBuffers(cmdAllocInfo)[0];
 }
 
-void Camera::create_render_pass(uint32_t framebufferWidth, uint32_t framebufferHeight, uint32_t layers, uint32_t sample_count)
+void Camera::create_render_passes(uint32_t framebufferWidth, uint32_t framebufferHeight, uint32_t layers, uint32_t sample_count)
 {
+    renderpasses.clear();
+    
+#ifdef DISABLE_MULTIVIEW
+    int iterations = layers;
+#else
+    int iterations = 1;
+#endif
+    
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
 
 	auto sampleFlag = vulkan->highest(vulkan->min(vulkan->get_closest_sample_count_flag(sample_count), vulkan->get_msaa_sample_flags()));
 
-	#pragma region ColorAttachment
-	// Color attachment
-	vk::AttachmentDescription colorAttachment;
-	colorAttachment.format = renderTexture->get_color_format(); // TODO
-	colorAttachment.samples = sampleFlag;
-	colorAttachment.loadOp = vk::AttachmentLoadOp::eClear; // clears image to black
-	colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;
-	colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-	colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-	colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
-	colorAttachment.finalLayout = renderTexture->get_color_image_layout();
+    for(int i = 0; i < iterations; i++) {
+        #pragma region ColorAttachment
+        // Color attachment
+        vk::AttachmentDescription colorAttachment;
+        colorAttachment.format = renderTexture->get_color_format(); // TODO
+        colorAttachment.samples = sampleFlag;
+        colorAttachment.loadOp = vk::AttachmentLoadOp::eClear; // clears image to black
+        colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;
+        colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+        colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+        colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
+        colorAttachment.finalLayout = renderTexture->get_color_image_layout();
 
-	vk::AttachmentReference colorAttachmentRef;
-	colorAttachmentRef.attachment = 0;
-	colorAttachmentRef.layout = renderTexture->get_color_image_layout();
-	#pragma endregion
+        vk::AttachmentReference colorAttachmentRef;
+        colorAttachmentRef.attachment = 0;
+        colorAttachmentRef.layout = renderTexture->get_color_image_layout();
+        #pragma endregion
 
-	#pragma region CreateDepthAttachment
-	vk::AttachmentDescription depthAttachment;
-	depthAttachment.format = renderTexture->get_depth_format();
-	depthAttachment.samples = sampleFlag;
-	depthAttachment.loadOp = vk::AttachmentLoadOp::eClear;
-	depthAttachment.storeOp = vk::AttachmentStoreOp::eStore;
-	depthAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-	depthAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-	depthAttachment.initialLayout = vk::ImageLayout::eUndefined;
-	depthAttachment.finalLayout = renderTexture->get_depth_image_layout();
+        #pragma region CreateDepthAttachment
+        vk::AttachmentDescription depthAttachment;
+        depthAttachment.format = renderTexture->get_depth_format();
+        depthAttachment.samples = sampleFlag;
+        depthAttachment.loadOp = vk::AttachmentLoadOp::eClear;
+        depthAttachment.storeOp = vk::AttachmentStoreOp::eStore;
+        depthAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+        depthAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+        depthAttachment.initialLayout = vk::ImageLayout::eUndefined;
+        depthAttachment.finalLayout = renderTexture->get_depth_image_layout();
 
-	vk::AttachmentReference depthAttachmentRef;
-	depthAttachmentRef.attachment = 1;
-	depthAttachmentRef.layout = renderTexture->get_depth_image_layout();
-	#pragma endregion
+        vk::AttachmentReference depthAttachmentRef;
+        depthAttachmentRef.attachment = 1;
+        depthAttachmentRef.layout = renderTexture->get_depth_image_layout();
+        #pragma endregion
 
-	#pragma region ColorAttachmentResolve
-	// Color attachment
-	vk::AttachmentDescription colorAttachmentResolve;
-	colorAttachmentResolve.format = renderTexture->get_color_format(); // TODO
-	colorAttachmentResolve.samples = vk::SampleCountFlagBits::e1;
-	colorAttachmentResolve.loadOp = vk::AttachmentLoadOp::eDontCare; // dont clear
-	colorAttachmentResolve.storeOp = vk::AttachmentStoreOp::eStore;
-	colorAttachmentResolve.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-	colorAttachmentResolve.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-	colorAttachmentResolve.initialLayout = vk::ImageLayout::eUndefined;
-	colorAttachmentResolve.finalLayout = renderTexture->get_color_image_layout();
+        #pragma region ColorAttachmentResolve
+        // Color attachment
+        vk::AttachmentDescription colorAttachmentResolve;
+        colorAttachmentResolve.format = renderTexture->get_color_format(); // TODO
+        colorAttachmentResolve.samples = vk::SampleCountFlagBits::e1;
+        colorAttachmentResolve.loadOp = vk::AttachmentLoadOp::eDontCare; // dont clear
+        colorAttachmentResolve.storeOp = vk::AttachmentStoreOp::eStore;
+        colorAttachmentResolve.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+        colorAttachmentResolve.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+        colorAttachmentResolve.initialLayout = vk::ImageLayout::eUndefined;
+        colorAttachmentResolve.finalLayout = renderTexture->get_color_image_layout();
 
-	vk::AttachmentReference colorAttachmentResolveRef;
-	colorAttachmentResolveRef.attachment = 2;
-	colorAttachmentResolveRef.layout = renderTexture->get_color_image_layout();
-	#pragma endregion
+        vk::AttachmentReference colorAttachmentResolveRef;
+        colorAttachmentResolveRef.attachment = 2;
+        colorAttachmentResolveRef.layout = renderTexture->get_color_image_layout();
+        #pragma endregion
 
-	// #pragma region CreateDepthAttachmentResolve
-	// vk::AttachmentDescription depthAttachmentResolve;
-	// depthAttachmentResolve.format = renderTexture->get_depth_format();
-	// depthAttachmentResolve.samples = vk::SampleCountFlagBits::e1;
-	// depthAttachmentResolve.loadOp = vk::AttachmentLoadOp::eDontCare;
-	// depthAttachmentResolve.storeOp = vk::AttachmentStoreOp::eStore;
-	// depthAttachmentResolve.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-	// depthAttachmentResolve.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-	// depthAttachmentResolve.initialLayout = vk::ImageLayout::eUndefined;
-	// depthAttachmentResolve.finalLayout = renderTexture->get_depth_image_layout();
+        // #pragma region CreateDepthAttachmentResolve
+        // vk::AttachmentDescription depthAttachmentResolve;
+        // depthAttachmentResolve.format = renderTexture->get_depth_format();
+        // depthAttachmentResolve.samples = vk::SampleCountFlagBits::e1;
+        // depthAttachmentResolve.loadOp = vk::AttachmentLoadOp::eDontCare;
+        // depthAttachmentResolve.storeOp = vk::AttachmentStoreOp::eStore;
+        // depthAttachmentResolve.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+        // depthAttachmentResolve.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+        // depthAttachmentResolve.initialLayout = vk::ImageLayout::eUndefined;
+        // depthAttachmentResolve.finalLayout = renderTexture->get_depth_image_layout();
 
-	// vk::AttachmentReference depthAttachmentResolveRef;
-	// depthAttachmentResolveRef.attachment = 3;
-	// depthAttachmentResolveRef.layout = renderTexture->get_depth_image_layout();
-	// #pragma endregion
+        // vk::AttachmentReference depthAttachmentResolveRef;
+        // depthAttachmentResolveRef.attachment = 3;
+        // depthAttachmentResolveRef.layout = renderTexture->get_depth_image_layout();
+        // #pragma endregion
 
 
 
-	#pragma region CreateSubpass
-	vk::SubpassDescription subpass;
-	subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
-	subpass.colorAttachmentCount = 1;
-	subpass.pColorAttachments = &colorAttachmentRef;
-	subpass.pDepthStencilAttachment = &depthAttachmentRef;
-	if (msaa_samples != 1)
-		subpass.pResolveAttachments = &colorAttachmentResolveRef;
+        #pragma region CreateSubpass
+        vk::SubpassDescription subpass;
+        subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+        subpass.colorAttachmentCount = 1;
+        subpass.pColorAttachments = &colorAttachmentRef;
+        subpass.pDepthStencilAttachment = &depthAttachmentRef;
+        if (msaa_samples != 1)
+            subpass.pResolveAttachments = &colorAttachmentResolveRef;
 
-	// Use subpass dependencies for layout transitions
-	std::array<vk::SubpassDependency, 2> dependencies;
-	dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-	dependencies[0].dstSubpass = 0;
-	dependencies[0].srcStageMask = vk::PipelineStageFlagBits::eBottomOfPipe;
-	dependencies[0].srcAccessMask = vk::AccessFlagBits::eMemoryRead;
-	dependencies[0].dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-	dependencies[0].dstAccessMask = vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
-	dependencies[0].dependencyFlags = vk::DependencyFlagBits::eByRegion;
+        // Use subpass dependencies for layout transitions
+        std::array<vk::SubpassDependency, 2> dependencies;
+        dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+        dependencies[0].dstSubpass = 0;
+        dependencies[0].srcStageMask = vk::PipelineStageFlagBits::eBottomOfPipe;
+        dependencies[0].srcAccessMask = vk::AccessFlagBits::eMemoryRead;
+        dependencies[0].dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+        dependencies[0].dstAccessMask = vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
+        dependencies[0].dependencyFlags = vk::DependencyFlagBits::eByRegion;
 
-	dependencies[1].srcSubpass = 0;
-	dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
-	dependencies[1].srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-	dependencies[1].srcAccessMask = vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
-	dependencies[1].dstStageMask = vk::PipelineStageFlagBits::eBottomOfPipe;
-	dependencies[1].dstAccessMask = vk::AccessFlagBits::eMemoryRead;
-	dependencies[1].dependencyFlags = vk::DependencyFlagBits::eByRegion;
-	#pragma endregion
+        dependencies[1].srcSubpass = 0;
+        dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+        dependencies[1].srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+        dependencies[1].srcAccessMask = vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
+        dependencies[1].dstStageMask = vk::PipelineStageFlagBits::eBottomOfPipe;
+        dependencies[1].dstAccessMask = vk::AccessFlagBits::eMemoryRead;
+        dependencies[1].dependencyFlags = vk::DependencyFlagBits::eByRegion;
+        #pragma endregion
 
-	#pragma region CreateRenderPass
+        #pragma region CreateRenderPass
 
-	uint32_t mask = 0;
-	for (uint32_t i = 0; i < layers; ++i)
-		mask |= 1 << i;
+        uint32_t mask = 0;
+        for (uint32_t i = 0; i < layers; ++i)
+            mask |= 1 << i;
 
-	// Support for multiview
-	const uint32_t viewMasks[] = {mask};
-	const uint32_t correlationMasks[] = {mask};
+        // Support for multiview
+        const uint32_t viewMasks[] = {mask};
+        const uint32_t correlationMasks[] = {mask};
 
-	vk::RenderPassMultiviewCreateInfo renderPassMultiviewInfo;
-	renderPassMultiviewInfo.subpassCount = 1;
-	renderPassMultiviewInfo.pViewMasks = viewMasks;
-	renderPassMultiviewInfo.dependencyCount = 0;
-	renderPassMultiviewInfo.pViewOffsets = NULL;
-	renderPassMultiviewInfo.correlationMaskCount = 1;
-	renderPassMultiviewInfo.pCorrelationMasks = correlationMasks;
+        vk::RenderPassMultiviewCreateInfo renderPassMultiviewInfo;
+        renderPassMultiviewInfo.subpassCount = 1;
+        renderPassMultiviewInfo.pViewMasks = viewMasks;
+        renderPassMultiviewInfo.dependencyCount = 0;
+        renderPassMultiviewInfo.pViewOffsets = NULL;
+        renderPassMultiviewInfo.correlationMaskCount = 1;
+        renderPassMultiviewInfo.pCorrelationMasks = correlationMasks;
 
-	/* Create the render pass */
-	std::vector<vk::AttachmentDescription> attachments = {colorAttachment, depthAttachment};
-	if (msaa_samples != 1) attachments.push_back(colorAttachmentResolve);
-	vk::RenderPassCreateInfo renderPassInfo;
-	renderPassInfo.attachmentCount = (uint32_t) attachments.size();
-	renderPassInfo.pAttachments = attachments.data();
-	renderPassInfo.subpassCount = 1;
-	renderPassInfo.pSubpasses = &subpass;
-	renderPassInfo.dependencyCount = (uint32_t) dependencies.size();
-	renderPassInfo.pDependencies = dependencies.data();
-	renderPassInfo.pNext = &renderPassMultiviewInfo;
+        /* Create the render pass */
+        std::vector<vk::AttachmentDescription> attachments = {colorAttachment, depthAttachment};
+        if (msaa_samples != 1) attachments.push_back(colorAttachmentResolve);
+        vk::RenderPassCreateInfo renderPassInfo;
+        renderPassInfo.attachmentCount = (uint32_t) attachments.size();
+        renderPassInfo.pAttachments = attachments.data();
+        renderPassInfo.subpassCount = 1;
+        renderPassInfo.pSubpasses = &subpass;
+        renderPassInfo.dependencyCount = (uint32_t) dependencies.size();
+        renderPassInfo.pDependencies = dependencies.data();
+#ifdef DISABLE_MULTIVIEW
+        renderPassInfo.pNext = nullptr;
+#else
+        renderPassInfo.pNext = &renderPassMultiviewInfo;
+#endif
 
-	renderpass = device.createRenderPass(renderPassInfo);
-
+        renderpasses.push_back(device.createRenderPass(renderPassInfo));
+    }
 	#pragma endregion
 }
 
-void Camera::create_frame_buffer() {
+void Camera::create_frame_buffers(uint32_t layers) {
+    framebuffers.clear();
+    
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
 
-	vk::ImageView attachments[3];
-	attachments[0] = renderTexture->get_color_image_view();
-	attachments[1] = renderTexture->get_depth_image_view();
-	if (msaa_samples != 1)
-		attachments[2] = resolveTexture->get_color_image_view();
-
-	vk::FramebufferCreateInfo fbufCreateInfo;
-	fbufCreateInfo.renderPass = renderpass;
-	fbufCreateInfo.attachmentCount = (msaa_samples == 1) ? 2 : 3;
-	fbufCreateInfo.pAttachments = attachments;
-	fbufCreateInfo.width = renderTexture->get_width();
-	fbufCreateInfo.height = renderTexture->get_height();
-	fbufCreateInfo.layers = renderTexture->get_total_layers();
-
-	framebuffer = device.createFramebuffer(fbufCreateInfo);
+    
+#ifdef DISABLE_MULTIVIEW
+    for(uint32_t i = 0; i < layers; i++) {
+        vk::ImageView attachments[3];
+        attachments[0] = renderTexture->get_color_image_view_layers()[i];
+        attachments[1] = renderTexture->get_depth_image_view_layers()[i];
+        if (msaa_samples != 1)
+            attachments[2] = resolveTexture->get_color_image_view_layers()[i];
+        
+        vk::FramebufferCreateInfo fbufCreateInfo;
+        fbufCreateInfo.renderPass = renderpasses[i];
+        fbufCreateInfo.attachmentCount = (msaa_samples == 1) ? 2 : 3;
+        fbufCreateInfo.pAttachments = attachments;
+        fbufCreateInfo.width = renderTexture->get_width();
+        fbufCreateInfo.height = renderTexture->get_height();
+        fbufCreateInfo.layers = 1;
+        
+        framebuffers.push_back(device.createFramebuffer(fbufCreateInfo));
+    }
+#else
+    vk::ImageView attachments[3];
+    attachments[0] = renderTexture->get_color_image_view();
+    attachments[1] = renderTexture->get_depth_image_view();
+    if (msaa_samples != 1)
+        attachments[2] = resolveTexture->get_color_image_view();
+    
+    vk::FramebufferCreateInfo fbufCreateInfo;
+    fbufCreateInfo.renderPass = renderpasses[0];
+    fbufCreateInfo.attachmentCount = (msaa_samples == 1) ? 2 : 3;
+    fbufCreateInfo.pAttachments = attachments;
+    fbufCreateInfo.width = renderTexture->get_width();
+    fbufCreateInfo.height = renderTexture->get_height();
+    fbufCreateInfo.layers = renderTexture->get_total_layers();
+    
+    framebuffers.push_back(device.createFramebuffer(fbufCreateInfo));
+#endif
+    
 }
 
 void Camera::update_used_views(uint32_t multiview) {
@@ -349,15 +388,17 @@ bool Camera::allows_recording()
 }
 
 // this should be in the render system...
-void Camera::begin_renderpass(vk::CommandBuffer command_buffer)
+void Camera::begin_renderpass(vk::CommandBuffer command_buffer, uint32_t index)
 {
+    if(index >= renderpasses.size())
+        throw std::runtime_error( std::string("Error: renderpass index out of bounds"));
 	/* Not all cameras allow recording. */
 	if (!allow_recording)
 		throw std::runtime_error( std::string("Error: this camera does not allow recording"));
 
 	vk::RenderPassBeginInfo rpInfo;
-	rpInfo.renderPass = renderpass;
-	rpInfo.framebuffer = framebuffer;
+	rpInfo.renderPass = renderpasses[index];
+	rpInfo.framebuffer = framebuffers[index];
     rpInfo.renderArea.offset = vk::Offset2D{0, 0};
 	rpInfo.renderArea.extent = vk::Extent2D{renderTexture->get_width(), renderTexture->get_height()};
 
@@ -392,12 +433,20 @@ void Camera::begin_renderpass(vk::CommandBuffer command_buffer)
 	command_buffer.setScissor(0, {rect2D});
 }
 
-vk::RenderPass Camera::get_renderpass()
+vk::RenderPass Camera::get_renderpass(uint32_t index)
 {
-	return renderpass;
+    if(index >= renderpasses.size())
+        throw std::runtime_error( std::string("Error: renderpass index out of bounds"));
+	return renderpasses[index];
 }
 
-void Camera::end_renderpass(vk::CommandBuffer command_buffer) {
+uint32_t Camera::get_num_renderpasses() {
+    return (uint32_t) renderpasses.size();
+}
+
+void Camera::end_renderpass(vk::CommandBuffer command_buffer, uint32_t index) {
+    if(index >= renderpasses.size())
+        throw std::runtime_error( std::string("Error: renderpass index out of bounds"));
 	if (!allow_recording) 
 		throw std::runtime_error( std::string("Error: this camera does not allow recording"));
 		
@@ -542,6 +591,9 @@ void Camera::cleanup()
 
 	if (command_buffer)
 		device.freeCommandBuffers(vulkan->get_command_pool(1), {command_buffer});
-	if (renderpass)
-		device.destroyRenderPass(renderpass);
+    if (renderpasses.size() > 0) {
+        for(auto renderpass : renderpasses) {
+            device.destroyRenderPass(renderpass);
+        }
+    }
 }

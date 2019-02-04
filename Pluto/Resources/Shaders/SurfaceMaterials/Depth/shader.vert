@@ -25,8 +25,13 @@ void main() {
     TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
 
     vec4 w_position = target_transform.localToWorld * vec4(point.xyz, 1.0);
-    gl_Position = camera.multiviews[gl_ViewIndex].proj * camera.multiviews[gl_ViewIndex].view * camera_transform.worldToLocal * w_position;
+    #ifdef DISABLE_MULTIVIEW
+    int viewIndex = push.consts.viewIndex;
+    #else
+    int viewIndex = gl_ViewIndex;
+    #endif
+    gl_Position = camera.multiviews[viewIndex].proj * camera.multiviews[viewIndex].view * camera_transform.worldToLocal * w_position;
     fragTexCoord = texcoord;
-    near = camera.multiviews[gl_ViewIndex].near_pos;
+    near = camera.multiviews[viewIndex].near_pos;
     depth = (gl_Position.z - near);
 }
