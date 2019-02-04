@@ -21,10 +21,10 @@ class Texture : public StaticFactory
             vk::ImageView colorImageView, depthImageView;
             std::vector<vk::ImageView> colorImageViewLayers, depthImageViewLayers;
 			vk::ImageLayout colorImageLayout, depthImageLayout;
-			vk::Sampler colorSampler, depthSampler;
 			uint32_t width = 1, height = 1, depth = 1, colorMipLevels = 1, layers = 1;
 			vk::ImageViewType viewType;
 			vk::ImageType imageType;
+			uint32_t colorSamplerId = 0; uint32_t depthSamplerId = 0;
 			vk::SampleCountFlagBits sampleCount;
 			std::vector<vk::Image> additionalColorImages;
 		};
@@ -157,6 +157,9 @@ class Texture : public StaticFactory
 
 		/* The list of texture components, allocated statically */
 		static Texture textures[MAX_TEXTURES];
+		
+		/* The list of texture samplers, which a texture refers to in a shader for sampling. */
+		static vk::Sampler samplers[MAX_SAMPLERS];
 	
 		/* A lookup table of name to texture id */
 		static std::map<std::string, uint32_t> lookupTable;

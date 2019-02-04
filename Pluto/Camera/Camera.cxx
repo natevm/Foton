@@ -215,7 +215,7 @@ void Camera::create_frame_buffers(uint32_t layers) {
 
     
 #ifdef DISABLE_MULTIVIEW
-    for(int i = 0; i < layers; i++) {
+    for(uint32_t i = 0; i < layers; i++) {
         vk::ImageView attachments[3];
         attachments[0] = renderTexture->get_color_image_view_layers()[i];
         attachments[1] = renderTexture->get_depth_image_view_layers()[i];
@@ -441,7 +441,7 @@ vk::RenderPass Camera::get_renderpass(uint32_t index)
 }
 
 uint32_t Camera::get_num_renderpasses() {
-    return renderpasses.size();
+    return (uint32_t) renderpasses.size();
 }
 
 void Camera::end_renderpass(vk::CommandBuffer command_buffer, uint32_t index) {

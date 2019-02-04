@@ -119,6 +119,9 @@ namespace Libraries {
         if ( ittr == Windows().end() )
             throw std::runtime_error( std::string("Error: window does not exist, cannot resize window."));
 
+        auto mutex = window_mutex.get();
+        std::lock_guard<std::mutex> lock(*mutex);
+        
         auto window = Windows()[key];
         glfwSetWindowSize(window.ptr, width, height);
         return true;
@@ -823,7 +826,7 @@ namespace Libraries {
                 auto result = device.acquireNextImageKHR(window.second.swapchain, std::numeric_limits<uint32_t>::max(), window.second.imageAvailableSemaphores[current_frame], acquireFence);
                 window.second.current_image_index = result.value;
                 //auto swapchain_texture = glfw->get_texture(keys[i], swapchain_index);
-                device.waitForFences(acquireFence, true, 100);
+                device.waitForFences(acquireFence, true, 10000000000);
                 device.destroyFence(acquireFence);
             } catch(...)
             {

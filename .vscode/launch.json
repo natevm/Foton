@@ -61,9 +61,9 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceFolder}/install/PlutoEngine.exe",
-            "args": ["-resource_path", "${workspaceFolder}/install/Resources"],
+            "args": ["./Example.py"],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/install",
             "environment": [],
             "externalConsole": true
         },

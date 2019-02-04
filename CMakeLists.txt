@@ -120,6 +120,8 @@ set (
     ${SPACEMOUSE_LIBRARIES}
 )
 
+message(WARN ${Vulkan_LIBRARY})
+
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  This is a box that says "other options"                         │
 # └──────────────────────────────────────────────────────────────────┘
