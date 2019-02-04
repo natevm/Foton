@@ -55,11 +55,7 @@ set(GLFW_BUILD_TESTS    OFF CACHE STRING "" FORCE)
 set(GLFW_INSTALL        OFF CACHE STRING "" FORCE)
 add_subdirectory(external/glfw)
 include_directories(SYSTEM external/glfw/include)
-set_property(TARGET
-    glfw
-    PROPERTY FOLDER "external/GLFW3"
-)
-
+set_property(TARGET glfw PROPERTY FOLDER "external/GLFW3" )
 
 # use GLI
 find_package(GLI REQUIRED)
@@ -68,6 +64,11 @@ include_directories(SYSTEM ${GLI_INCLUDE_DIR})
 # use GLM
 find_package(GLM 0.9.7 REQUIRED)
 include_directories(SYSTEM ${GLM_INCLUDE_DIR})
+
+# geometry generator
+add_subdirectory(external/generator)
+include_directories(SYSTEM external/generator/include)
+set_property(TARGET generator PROPERTY FOLDER "external/generator")
 
 # swig
 find_package(SWIG 3.0.8 REQUIRED)
@@ -118,6 +119,7 @@ set (
     ${ZMQ_LIBRARIES}
     ${OPENVR_SDK_LIBRARY}
     ${SPACEMOUSE_LIBRARIES}
+    generator
 )
 
 message(WARN ${Vulkan_LIBRARY})
