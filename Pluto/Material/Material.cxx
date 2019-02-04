@@ -47,9 +47,9 @@ Material::Material(std::string name, uint32_t id)
 
     /* Working off blender's principled BSDF */
     material_struct.base_color = vec4(.8, .8, .8, 1.0);
-    material_struct.subsurface = 0.0;
     material_struct.subsurface_radius = vec4(1.0, .2, .1, 1.0);
     material_struct.subsurface_color = vec4(.8, .8, .8, 1.0);
+    material_struct.subsurface = 0.0;
     material_struct.metallic = 0.0;
     material_struct.specular = .5;
     material_struct.specular_tint = 0.0;
@@ -63,8 +63,12 @@ Material::Material(std::string name, uint32_t id)
     material_struct.ior = 1.45f;
     material_struct.transmission = 0.0;
     material_struct.transmission_roughness = 0.0;
+    material_struct.ph4 = 0.0;
+    material_struct.ph5 = 0.0;
+    material_struct.flags = 0;
     material_struct.base_color_texture_id = -1;
     material_struct.roughness_texture_id = -1;
+    material_struct.occlusion_texture_id = -1;
 }
 
 std::string Material::to_string() {
