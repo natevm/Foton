@@ -1346,6 +1346,7 @@ Texture *Texture::CreateFromKTX(std::string name, std::string filepath, bool sub
     auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
     if (!tex) return nullptr;
     tex->loadKTX(filepath, submit_immediately);
+    tex->texture_struct.sampler_id = 0;
     return tex;
 }
 
@@ -1362,6 +1363,7 @@ Texture* Texture::CreateCubemap(
     tex->data.viewType  = vk::ImageViewType::eCube;
     if (hasColor) tex->create_color_image_resources(submit_immediately);
     if (hasDepth) tex->create_depth_stencil_resources(submit_immediately);
+    tex->texture_struct.sampler_id = 0;
     return tex;
 }
 
@@ -1375,6 +1377,7 @@ Texture* Texture::CreateChecker(std::string name, bool submit_immediately)
     if (!tex) return nullptr;
     tex->texture_struct.type = 1;
     tex->texture_struct.mip_levels = 0;
+    tex->texture_struct.sampler_id = 0;
     return tex;
 }
 
@@ -1403,6 +1406,9 @@ Texture* Texture::Create2D(
             << vk::to_string(tex->data.sampleCount) << " instead."<<std::endl;
     if (hasColor) tex->create_color_image_resources(submit_immediately);
     if (hasDepth) tex->create_depth_stencil_resources(submit_immediately);
+
+    tex->texture_struct.sampler_id = 0;
+
     return tex;
 }
 
@@ -1418,6 +1424,8 @@ Texture* Texture::Create2DFromColorData (
     tex->data.imageType = vk::ImageType::e2D;
     tex->create_color_image_resources(submit_immediately);
     tex->upload_color_data(width, height, 1, data);
+
+    tex->texture_struct.sampler_id = 0;
     return tex;
 }
 
@@ -1426,6 +1434,7 @@ Texture* Texture::CreateFromExternalData(std::string name, Data data)
     auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
     if (!tex) return nullptr;
     tex->setData(data);
+    tex->texture_struct.sampler_id = 0;
     return tex;
 }
 
