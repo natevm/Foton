@@ -849,7 +849,7 @@ bool Vulkan::end_one_time_graphics_command(vk::CommandBuffer command_buffer, std
 
     fut.wait();
 
-    device.waitForFences(fence, true, 100000000000);
+    device.waitForFences(fence, true, 10000000000);
 
     if (free_after_use)
         device.freeCommandBuffers(get_command_pool(pool_id), {command_buffer});
