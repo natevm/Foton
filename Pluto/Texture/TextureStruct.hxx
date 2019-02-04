@@ -1,7 +1,13 @@
 /* File shared by both GLSL and C++ */
 
+#if __APPLE__
+#ifndef MAX_TEXTURES
+#define MAX_TEXTURES 16
+#endif
+#else
 #ifndef MAX_TEXTURES
 #define MAX_TEXTURES 64
+#endif
 #endif
 
 #ifndef MAX_SAMPLERS
