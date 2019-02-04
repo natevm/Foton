@@ -4,6 +4,19 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [        
+        {
+            "name": "macOS Example Launch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/install/PlutoEngine",
+            "args": ["./Example.py"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/install",
+            "environment": [{"name":"VK_ICD_FILENAMES", "value":"/Users/markus/vulkansdk-macos-1.1.97.0/macOS/etc/vulkan/icd.d/MoltenVK_icd.json"},
+                {"name":"VK_LAYER_PATH","value":"/Users/markus/vulkansdk-macos-1.1.97.0/macOS/etc/vulkan/explicit_layer.d/"}],
+            "externalConsole": true,
+            "MIMode": "lldb"
+        },
         { 
             "name": "(gdb) Attach",
             "type": "cppdbg",
