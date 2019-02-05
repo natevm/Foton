@@ -69,6 +69,8 @@ set(RPATHS "${CMAKE_INSTALL_PREFIX};${CMAKE_INSTALL_PREFIX}/Pluto;${CMAKE_INSTAL
 set(CMAKE_INSTALL_RPATH ${INSTALL_RPATH})
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
+# Use position independent code 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Pluto Library                                                   │
