@@ -12,6 +12,8 @@
 #define MAX_MESHES 1024
 
 /* A mesh contains vertex information that has been loaded to the GPU. */
+class Vertex;
+
 class Mesh : public StaticFactory
 {
   private:
