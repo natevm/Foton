@@ -68,9 +68,30 @@ class Mesh : public StaticFactory
   public:
     static Mesh* Get(std::string name);
 	static Mesh* Get(uint32_t id);
-    static Mesh* CreateCube(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateBox(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateCappedCone(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateCappedCylinder(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateCappedTube(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateCapsule(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateCone(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateConvexPolygon(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateCylinder(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateDisk(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateDodecahedron(std::string name, bool allow_edits = false, bool submit_immediately = false);
     static Mesh* CreatePlane(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateIcosahedron(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateIcosphere(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    // static Mesh* CreateParametricMesh(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateRoundedBox(std::string name, bool allow_edits = false, bool submit_immediately = false);
     static Mesh* CreateSphere(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateSphericalCone(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateSphericalTriangle(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateSpring(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateTeapot(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateTorus(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateTorusKnot(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateTriangle(std::string name, bool allow_edits = false, bool submit_immediately = false);
+    static Mesh* CreateTube(std::string name, bool allow_edits = false, bool submit_immediately = false);
     static Mesh* CreateFromOBJ(std::string name, std::string objPath, bool allow_edits = false, bool submit_immediately = false);
     static Mesh* CreateFromSTL(std::string name, std::string stlPath, bool allow_edits = false, bool submit_immediately = false);
     static Mesh* CreateFromGLB(std::string name, std::string glbPath, bool allow_edits = false, bool submit_immediately = false);
@@ -148,12 +169,6 @@ class Mesh : public StaticFactory
 
     void cleanup();
 
-    void make_cube(bool allow_edits, bool submit_immediately);
-   
-    void make_plane(bool allow_edits, bool submit_immediately);
-    
-    void make_sphere(bool allow_edits, bool submit_immediately);
-    
     void load_obj(std::string objPath, bool allow_edits, bool submit_immediately);
 
     void load_stl(std::string stlPath, bool allow_edits, bool submit_immediately);
@@ -181,4 +196,39 @@ class Mesh : public StaticFactory
     void createNormalBuffer(bool allow_edits, bool submit_immediately);
 
     void createTexCoordBuffer(bool allow_edits, bool submit_immediately);
+
+    template <class Generator>
+    void make_primitive(Generator &mesh, bool allow_edits, bool submit_immediately)
+    {
+        std::vector<Vertex> vertices;
+
+        auto genVerts = mesh.vertices();
+        while (!genVerts.done()) {
+            auto vertex = genVerts.generate();
+            points.push_back(vertex.position);
+            normals.push_back(vertex.normal);
+            texcoords.push_back(vertex.texCoord);
+            colors.push_back(glm::vec4(0.0, 0.0, 0.0, 0.0));
+            genVerts.next();
+        }
+
+        auto genTriangles = mesh.triangles();
+        while (!genTriangles.done()) {
+            auto triangle = genTriangles.generate();
+            indices.push_back(triangle.vertices[0]);
+            indices.push_back(triangle.vertices[1]);
+            indices.push_back(triangle.vertices[2]);
+            genTriangles.next();
+        }
+
+        allowEdits = allow_edits;
+
+        cleanup();
+        compute_centroid();
+        createPointBuffer(allow_edits, submit_immediately);
+        createColorBuffer(allow_edits, submit_immediately);
+        createNormalBuffer(allow_edits, submit_immediately);
+        createTexCoordBuffer(allow_edits, submit_immediately);
+        createIndexBuffer(allow_edits, submit_immediately);
+    }
 };

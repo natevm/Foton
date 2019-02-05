@@ -64,12 +64,12 @@ void Initialize(
     Material::Initialize();
 
     auto skybox = Entity::Create("Skybox");
-    auto plane = Mesh::Get("DefaultSphere");
+    auto sphere = Mesh::CreateSphere("SkyboxSphere");
     auto transform = Transform::Create("SkyboxTransform");
     auto material = Material::Create("SkyboxMaterial");
     material->show_environment();
     transform->set_scale(1000, 1000, 1000);
-    skybox->set_mesh(plane);
+    skybox->set_mesh(sphere);
     skybox->set_material(material);
     skybox->set_transform(transform);
 
