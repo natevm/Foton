@@ -87,10 +87,6 @@ void RenderSystem::record_render_commands()
 {
     auto glfw = GLFW::Get();
 
-    /* We need some windows in order to render. */
-    auto keys = glfw->get_window_keys();
-    if (keys.size() == 0) return;
-
 #if BUILD_OPENVR
     if (using_openvr) {
         auto entity_id = Entity::GetEntityForVR();
@@ -501,8 +497,14 @@ bool RenderSystem::start()
                 /* Wait for GPU to finish execution */
                 // If i don't fence here, triangles seem to spread apart. 
                 // I think this is an issue with using the SSBO from frame to frame...
+                // If the delay on this fence is too short and we receive too many timeouts,
+                // the intel graphics driver on windows crashes...
                 auto device = vulkan->get_device();
-                device.waitForFences(maincmd_fences[currentFrame], true, 100);
+                auto result = device.waitForFences(maincmd_fences[currentFrame], true, 10000000000);
+                if (result != vk::Result::eSuccess) {
+                    std::cout<<"Fence timeout in render loop!"<<std::endl;
+                }
+
                 device.resetFences(maincmd_fences[currentFrame]);
 
                 /* 4. Optional: Wait on render complete. Present a frame. */

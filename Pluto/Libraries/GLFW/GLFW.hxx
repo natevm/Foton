@@ -36,6 +36,7 @@ namespace Libraries {
         bool create_window(string key, uint32_t width = 512, uint32_t height = 512, bool floating = true, bool resizable = true, bool decorated = true);
         bool resize_window(std::string key, uint32_t width, uint32_t height);
         bool set_window_visibility(std::string key, bool visible);
+        bool toggle_fullscreen(std::string key);
         bool set_window_pos(std::string key, uint32_t x, uint32_t y);
         bool destroy_window(string key);
         std::vector<std::string> get_window_keys();

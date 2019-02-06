@@ -517,8 +517,8 @@ void Texture::Initialize()
     sInfo.addressModeV = vk::SamplerAddressMode::eClampToEdge;
     sInfo.addressModeW = vk::SamplerAddressMode::eClampToEdge;
     sInfo.mipLodBias = 0.0;
-    sInfo.maxAnisotropy = 16.0; // todo, get limit here.
-    sInfo.anisotropyEnable = VK_TRUE;
+    sInfo.maxAnisotropy = vulkan->get_max_anisotropy();
+    sInfo.anisotropyEnable = (sInfo.maxAnisotropy > 0.0) ? VK_TRUE : VK_FALSE;
     sInfo.minLod = 0.0;
     sInfo.maxLod = 12.0;
     sInfo.borderColor = vk::BorderColor::eFloatTransparentBlack;
@@ -806,7 +806,7 @@ void Texture::loadKTX(std::string imagePath, bool submit_immediately)
 
         data.colorMipLevels = (uint32_t)(tex3D.levels());
         //data.colorFormat = (vk::Format)tex3D.format();
-        data.colorFormat = vk::Format::eR8G8B8A8Srgb;
+        data.colorFormat = vk::Format::eR8G8B8A8Unorm;
         data.viewType = vk::ImageViewType::e3D;
         textureSize = (uint32_t)tex3D.size();
         textureData = tex3D.data();

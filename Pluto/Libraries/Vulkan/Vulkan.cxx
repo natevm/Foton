@@ -47,6 +47,21 @@ Vulkan::Vulkan() {}
 
 Vulkan::~Vulkan() {}
 
+std::vector<std::string> Vulkan::get_validation_layers()
+{
+    std::vector<std::string> validation_layers;
+
+    /* Check to see if we support the requested validation layers */
+    auto layerProperties = vk::enumerateInstanceLayerProperties();
+
+    /* Check to see if the validation layers we have selected are available */
+    for (auto layerProp : layerProperties) {
+        validation_layers.push_back(layerProp.layerName);
+    }
+    
+    return validation_layers;
+}
+
 /* Vulkan Instance */
 bool Vulkan::create_instance(bool enable_validation_layers, set<string> validation_layers, set<string> instance_extensions, bool use_openvr)
 {
@@ -849,7 +864,10 @@ bool Vulkan::end_one_time_graphics_command(vk::CommandBuffer command_buffer, std
 
     fut.wait();
 
-    device.waitForFences(fence, true, 10000000000);
+    auto result = device.waitForFences(fence, true, 10000000000);
+    if (result != vk::Result::eSuccess) {
+        std::cout<<"Fence timeout: " << hint << std::endl; 
+    }
 
     if (free_after_use)
         device.freeCommandBuffers(get_command_pool(pool_id), {command_buffer});
@@ -1026,6 +1044,10 @@ vk::SampleCountFlagBits Vulkan::get_closest_sample_count_flag(uint32_t samples) 
 
 vk::SampleCountFlags Vulkan::get_msaa_sample_flags() {
     return supportedMSAASamples;
+}
+
+float Vulkan::get_max_anisotropy() {
+    return deviceProperties.limits.maxSamplerAnisotropy;
 }
 
 bool Vulkan::is_ASTC_supported()

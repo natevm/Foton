@@ -20,6 +20,7 @@ namespace Systems
             bool resize_window(string key, uint32_t width, uint32_t height);
             bool set_window_pos(string key, uint32_t x, uint32_t y);
             bool set_window_visibility(string key, bool visible);
+            bool toggle_window_fullscreen(string key);
             void use_openvr(bool useOpenVR);
 
         private:

@@ -11,6 +11,14 @@ void resize_window_callback(GLFWwindow * window, int width, int height) {
     }
 }
 
+void close_window_callback(GLFWwindow *window)
+{
+    auto window_key = Libraries::GLFW::Get()->get_key_from_ptr(window);
+    if (window_key.size() > 0) {
+        Libraries::GLFW::Get()->destroy_window(window_key);
+    }
+}
+
 void cursor_position_callback(GLFWwindow * window, double xpos, double ypos) {
     auto window_key = Libraries::GLFW::Get()->get_key_from_ptr(window);
     if (window_key.size() > 0) {
@@ -36,22 +44,9 @@ void key_callback( GLFWwindow* window, int key, int scancode, int action, int mo
     if (action == GLFW_PRESS && ((key == GLFW_KEY_ENTER && mods == GLFW_MOD_ALT) ||
         (key == GLFW_KEY_F11 && mods == GLFW_MOD_ALT)))
     {
-        if (glfwGetWindowMonitor(window))
+        if (!Libraries::GLFW::Get()->is_swapchain_out_of_date(window_key))
         {
-            glfwSetWindowMonitor(window, NULL,
-                                 windowed_xpos, windowed_ypos,
-                                 windowed_width, windowed_height, 0);
-        }
-        else
-        {
-            GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-            if (monitor)
-            {
-                const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-                glfwGetWindowPos(window, &windowed_xpos, &windowed_ypos);
-                glfwGetWindowSize(window, &windowed_width, &windowed_height);
-                glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
-            }
+            Libraries::GLFW::Get()->toggle_fullscreen(window_key);
         }
     }
 }
@@ -103,6 +98,7 @@ namespace Libraries {
         glfwSetWindowSizeCallback(ptr, &resize_window_callback);
         glfwSetCursorPosCallback(ptr, &cursor_position_callback);
         glfwSetMouseButtonCallback(ptr, &mouse_button_callback);
+        glfwSetWindowCloseCallback(ptr, &close_window_callback);
         glfwSetKeyCallback(ptr, &key_callback);
 
         window.ptr = ptr;
@@ -124,6 +120,43 @@ namespace Libraries {
         
         auto window = Windows()[key];
         glfwSetWindowSize(window.ptr, width, height);
+        Libraries::GLFW::Get()->set_swapchain_out_of_date(key);
+        return true;
+    }
+
+    bool GLFW::toggle_fullscreen(std::string key) {
+        /* If uninitialized, or if window already exists, return false */
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot resize window."));
+        auto ittr = Windows().find(key);
+        if ( ittr == Windows().end() )
+            throw std::runtime_error( std::string("Error: window does not exist, cannot resize window."));
+
+        auto mutex = window_mutex.get();
+        std::lock_guard<std::mutex> lock(*mutex);
+
+        auto window = Windows()[key];
+
+        if (glfwGetWindowMonitor(window.ptr))
+        {
+            glfwSetWindowMonitor(window.ptr, NULL,
+                                windowed_xpos, windowed_ypos,
+                                windowed_width, windowed_height, 0);
+        }
+        else
+        {
+            GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+            if (monitor)
+            {
+                const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+                glfwGetWindowPos(window.ptr, &windowed_xpos, &windowed_ypos);
+                glfwGetWindowSize(window.ptr, &windowed_width, &windowed_height);
+                glfwSetWindowMonitor(window.ptr, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+            }
+        }
+        
+        Libraries::GLFW::Get()->set_swapchain_out_of_date(key);
+        
         return true;
     }
 
@@ -134,11 +167,16 @@ namespace Libraries {
         if ( ittr == Windows().end() )
             throw std::runtime_error( std::string("Error: window does not exist, cannot set window visibility."));
 
+        auto mutex = window_mutex.get();
+        std::lock_guard<std::mutex> lock(*mutex);
+
         auto window = Windows()[key];
         if (visible)
             glfwShowWindow(window.ptr);
         else 
             glfwHideWindow(window.ptr);
+            
+        Libraries::GLFW::Get()->set_swapchain_out_of_date(key);
         return true;
     }
 
@@ -379,11 +417,11 @@ namespace Libraries {
         window.presentMode = vk::PresentModeKHR::eImmediate;
 
         /* Switch to prefered present mode if we can. */
-        for (const auto& presentMode : presentModes) {
-            if (presentMode == vk::PresentModeKHR::eMailbox) {
-                window.presentMode = presentMode;
-            }
-        }
+        // for (const auto& presentMode : presentModes) {
+        //     if (presentMode == vk::PresentModeKHR::eMailbox) {
+        //         window.presentMode = presentMode;
+        //     }
+        // }
         #pragma endregion
         #pragma region QuerySurfaceExtent
         /* Determine the extent of our swapchain (almost always the same as our windows size.) */
@@ -493,7 +531,6 @@ namespace Libraries {
             window.textures[i]->setImageLayout( cmdBuffer, data.colorImage, vk::ImageLayout::eUndefined, vk::ImageLayout::ePresentSrcKHR, subresourceRange);
             auto fut = vulkan->end_one_time_graphics_command(cmdBuffer, "Transition swapchain image", true, true);
         }
-        
         window.swapchain_out_of_date = false;
         return true;
     }
@@ -826,7 +863,10 @@ namespace Libraries {
                 auto result = device.acquireNextImageKHR(window.second.swapchain, std::numeric_limits<uint32_t>::max(), window.second.imageAvailableSemaphores[current_frame], acquireFence);
                 window.second.current_image_index = result.value;
                 //auto swapchain_texture = glfw->get_texture(keys[i], swapchain_index);
-                device.waitForFences(acquireFence, true, 10000000000);
+                auto result2 = device.waitForFences(acquireFence, true, 10000000000);
+                if (result2 != vk::Result::eSuccess) {
+                    std::cout<<"Fence timeout while acquiring swapchain image!"<<std::endl;
+                }
                 device.destroyFence(acquireFence);
             } catch(...)
             {

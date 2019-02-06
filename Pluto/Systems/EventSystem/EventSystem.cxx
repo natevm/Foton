@@ -176,6 +176,18 @@ namespace Systems
         return true;
     }
 
+    bool EventSystem::toggle_window_fullscreen(string key)
+    {
+        auto setWindowFullscreen = [key] () {
+            using namespace Libraries;
+            auto glfw = GLFW::Get();
+            glfw->toggle_fullscreen(key);
+        };
+
+        auto future = enqueueCommand(setWindowFullscreen);
+        future.wait();
+        return true;
+    }
 
     bool EventSystem::stop() {
         using namespace Libraries;

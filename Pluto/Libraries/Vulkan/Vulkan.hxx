@@ -17,6 +17,8 @@ namespace Libraries {
     public:
         static Vulkan* Get();
 
+        std::vector<std::string> get_validation_layers();
+
         bool create_instance(bool enable_validation_layers = true, 
             set<string> validation_layers = set<string>(),
             set<string> instance_extensions = set<string>(),
@@ -72,6 +74,8 @@ namespace Libraries {
         vk::SampleCountFlagBits highest(vk::SampleCountFlags flags);
         vk::SampleCountFlagBits get_closest_sample_count_flag(uint32_t samples);
         vk::SampleCountFlags get_msaa_sample_flags();
+        
+        float get_max_anisotropy();
 
         vk::CommandBuffer begin_one_time_graphics_command();
         bool end_one_time_graphics_command(vk::CommandBuffer command_buffer, std::string hint, bool free_after_use = true, bool submit_immediately = false);
