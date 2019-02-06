@@ -143,7 +143,7 @@ uint32_t Mesh::get_index_bytes()
     return sizeof(uint32_t);
 }
 
-void Mesh::compute_centroid()
+glm::vec3 Mesh::compute_centroid()
 {
     glm::vec3 s(0.0);
     for (int i = 0; i < points.size(); i += 1)
@@ -152,6 +152,8 @@ void Mesh::compute_centroid()
     }
     s /= points.size();
     centroid = s;
+
+    return centroid;
 }
 
 glm::vec3 Mesh::get_centroid()
@@ -1135,7 +1137,7 @@ Mesh* Mesh::CreateCone(std::string name, bool allow_edits, bool submit_immediate
     return mesh;
 }
 
-Mesh* Mesh::CreateConvexPolygon(std::string name, bool allow_edits, bool submit_immediately)
+Mesh* Mesh::CreatePentagon(std::string name, bool allow_edits, bool submit_immediately)
 {
     auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
     if (!mesh) return nullptr;

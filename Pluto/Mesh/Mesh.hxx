@@ -16,221 +16,358 @@ class Vertex;
 
 class Mesh : public StaticFactory
 {
-  private:
-    static Mesh meshes[MAX_MESHES];
-    static std::map<std::string, uint32_t> lookupTable;
-    static vk::AccelerationStructureNV topAS;
-    static vk::DeviceMemory topASMemory;
-    static vk::Buffer instanceBuffer;
-    static vk::DeviceMemory instanceBufferMemory;
+	public:
+		/* Creates a mesh component from a procedural box */
+		static Mesh* CreateBox(std::string name, bool allow_edits = false, bool submit_immediately = false);
+		
+		/* Creates a mesh component from a procedural cone capped on the bottom */
+		static Mesh* CreateCappedCone(std::string name, bool allow_edits = false, bool submit_immediately = false);
+		
+		/* Creates a mesh component from a procedural cylinder capped on the bottom */
+		static Mesh* CreateCappedCylinder(std::string name, bool allow_edits = false, bool submit_immediately = false);
+		
+		/* Creates a mesh component from a procedural tube capped on both ends */
+		static Mesh* CreateCappedTube(std::string name, bool allow_edits = false, bool submit_immediately = false);
+		
+		/* Creates a mesh component from a procedural capsule */
+		static Mesh* CreateCapsule(std::string name, bool allow_edits = false, bool submit_immediately = false);
+		
+		/* Creates a mesh component from a procedural cone */
+		static Mesh* CreateCone(std::string name, bool allow_edits = false, bool submit_immediately = false);
+		
+		/* Creates a mesh component from a procedural pentagon */
+		static Mesh* CreatePentagon(std::string name, bool allow_edits = false, bool submit_immediately = false);
+		
+		/* Creates a mesh component from a procedural cylinder (uncapped) */
+		static Mesh* CreateCylinder(std::string name, bool allow_edits = false, bool submit_immediately = false);
 
-    glm::vec3 centroid;
+		/* Creates a mesh component from a procedural disk */
+		static Mesh* CreateDisk(std::string name, bool allow_edits = false, bool submit_immediately = false);
 
-    std::vector<glm::vec3> points;
-    std::vector<glm::vec3> normals;
-    std::vector<glm::vec4> colors;
-    std::vector<glm::vec2> texcoords;
-    std::vector<uint32_t> indices;
+		/* Creates a mesh component from a procedural dodecahedron */
+		static Mesh* CreateDodecahedron(std::string name, bool allow_edits = false, bool submit_immediately = false);
 
-    tinyobj::attrib_t attrib;
+		/* Creates a mesh component from a procedural plane */
+		static Mesh* CreatePlane(std::string name, bool allow_edits = false, bool submit_immediately = false);
 
-    vk::Buffer pointBuffer;
-    vk::DeviceMemory pointBufferMemory;
+		/* Creates a mesh component from a procedural icosahedron */
+		static Mesh* CreateIcosahedron(std::string name, bool allow_edits = false, bool submit_immediately = false);
 
-    vk::Buffer colorBuffer;
-    vk::DeviceMemory colorBufferMemory;
+		/* Creates a mesh component from a procedural icosphere */
+		static Mesh* CreateIcosphere(std::string name, bool allow_edits = false, bool submit_immediately = false);
 
-    vk::Buffer indexBuffer;
-    vk::DeviceMemory indexBufferMemory;
+		/* Creates a mesh component from a procedural parametric mesh. (TODO: accept a callback which given an x and y position 
+			returns a Z hightfield) */
+		// static Mesh* CreateParametricMesh(std::string name, bool allow_edits = false, bool submit_immediately = false);
 
-    vk::Buffer normalBuffer;
-    vk::DeviceMemory normalBufferMemory;
+		/* Creates a mesh component from a procedural box with rounded edges */
+		static Mesh* CreateRoundedBox(std::string name, bool allow_edits = false, bool submit_immediately = false);
 
-    vk::Buffer texCoordBuffer;
-    vk::DeviceMemory texCoordBufferMemory;
+		/* Creates a mesh component from a procedural sphere */
+		static Mesh* CreateSphere(std::string name, bool allow_edits = false, bool submit_immediately = false);
 
-    /* RTX raytracing stuff */
-    struct VkGeometryInstance
-    {
-        float transform[12];
-        uint32_t instanceId : 24;
-        uint32_t mask : 8;
-        uint32_t instanceOffset : 24;
-        uint32_t flags : 8;
-        uint64_t accelerationStructureHandle;
-    };
+		/* Creates a mesh component from a procedural cone with a rounded cap */
+		static Mesh* CreateSphericalCone(std::string name, bool allow_edits = false, bool submit_immediately = false);
 
-    vk::GeometryNV geometry;
-    VkGeometryInstance instance;
-    vk::AccelerationStructureNV lowAS;
-    vk::DeviceMemory lowASMemory;
-    bool lowBVHBuilt = false;
-    bool allowEdits = false;
+		/* Creates a mesh component from a procedural quarter-hemisphere */
+		static Mesh* CreateSphericalTriangle(std::string name, bool allow_edits = false, bool submit_immediately = false);
 
-  public:
-    static Mesh* Get(std::string name);
-	static Mesh* Get(uint32_t id);
-    static Mesh* CreateBox(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateCappedCone(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateCappedCylinder(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateCappedTube(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateCapsule(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateCone(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateConvexPolygon(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateCylinder(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateDisk(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateDodecahedron(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreatePlane(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateIcosahedron(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateIcosphere(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    // static Mesh* CreateParametricMesh(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateRoundedBox(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateSphere(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateSphericalCone(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateSphericalTriangle(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateSpring(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateTeapot(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateTorus(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateTorusKnot(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateTriangle(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateTube(std::string name, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateFromOBJ(std::string name, std::string objPath, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateFromSTL(std::string name, std::string stlPath, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateFromGLB(std::string name, std::string glbPath, bool allow_edits = false, bool submit_immediately = false);
-    static Mesh* CreateFromRaw(
-        std::string name,
-        std::vector<glm::vec3> points, 
-        std::vector<glm::vec3> normals = {}, 
-        std::vector<glm::vec4> colors = {}, 
-        std::vector<glm::vec2> texcoords = {}, 
-        std::vector<uint32_t> indices = {},
-        bool allow_edits = false, bool submit_immediately = false);
-    //static Mesh* Create(std::string name);
-	static Mesh* GetFront();
-	static uint32_t GetCount();
-	static void Delete(std::string name);
-	static void Delete(uint32_t id);
+		/* Creates a mesh component from a procedural spring */
+		static Mesh* CreateSpring(std::string name, bool allow_edits = false, bool submit_immediately = false);
 
-    Mesh();
+		/* Creates a mesh component from a procedural utah teapot */
+		static Mesh* CreateTeapot(std::string name, bool allow_edits = false, bool submit_immediately = false);
 
-    Mesh(std::string name, uint32_t id);
+		/* Creates a mesh component from a procedural torus */
+		static Mesh* CreateTorus(std::string name, bool allow_edits = false, bool submit_immediately = false);
 
-    std::string to_string();
-	
-    static void Initialize();
+		/* Creates a mesh component from a procedural torus knot */
+		static Mesh* CreateTorusKnot(std::string name, bool allow_edits = false, bool submit_immediately = false);
 
-    std::vector<glm::vec3> get_points();;
+		/* Creates a mesh component from a procedural triangle */
+		static Mesh* CreateTriangle(std::string name, bool allow_edits = false, bool submit_immediately = false);
 
-    std::vector<glm::vec4> get_colors();
+		/* Creates a mesh component from a procedural tube (uncapped) */
+		static Mesh* CreateTube(std::string name, bool allow_edits = false, bool submit_immediately = false);
 
-    std::vector<glm::vec3> get_normals();
+		/* Creates a mesh component from an OBJ file (ignores .mtl files) */
+		static Mesh* CreateFromOBJ(std::string name, std::string objPath, bool allow_edits = false, bool submit_immediately = false);
 
-    std::vector<glm::vec2> get_texcoords();
+		/* Creates a mesh component from an ASCII STL file */
+		static Mesh* CreateFromSTL(std::string name, std::string stlPath, bool allow_edits = false, bool submit_immediately = false);
 
-    std::vector<uint32_t> get_indices();
+		/* Creates a mesh component from a GLB file (material properties are ignored) */
+		static Mesh* CreateFromGLB(std::string name, std::string glbPath, bool allow_edits = false, bool submit_immediately = false);
 
-    vk::Buffer get_point_buffer();
+		/* Creates a mesh component from a set of points, optional normals, optional colors, optional texture coordinates, 
+			and optional indices. If anything other than points is supplied (eg normals), that list must be the same length
+			as the point list. If indicies are supplied, indices must be a multiple of 3 (triangles). Otherwise, all other
+			supplied per vertex data must be a multiple of 3 in length. */
+		static Mesh* CreateFromRaw(
+			std::string name,
+			std::vector<glm::vec3> points, 
+			std::vector<glm::vec3> normals = {}, 
+			std::vector<glm::vec4> colors = {}, 
+			std::vector<glm::vec2> texcoords = {}, 
+			std::vector<uint32_t> indices = {},
+			bool allow_edits = false, bool submit_immediately = false);
 
-    vk::Buffer get_color_buffer();
+		/* Retrieves a mesh component by name */
+		static Mesh* Get(std::string name);
 
-    vk::Buffer get_index_buffer();
+		/* Retrieves a mesh component by id */
+		static Mesh* Get(uint32_t id);
 
-    vk::Buffer get_normal_buffer();
+		/* Returns a pointer to the list of mesh components */
+		static Mesh* GetFront();
 
-    vk::Buffer get_texcoord_buffer();
+		/* Returns the total number of reserved mesh components */
+		static uint32_t GetCount();
 
-    uint32_t get_total_indices();
+		/* Deallocates a mesh with the given name */
+		static void Delete(std::string name);
 
-    uint32_t get_index_bytes();
+		/* Deallocates a mesh with the given id */
+		static void Delete(uint32_t id);
 
-    void compute_centroid();
+		/* Initializes static resources */
+		static void Initialize();
 
-    glm::vec3 get_centroid();
+		/* Creates an uninitialized mesh. Useful for preallocation. */
+		Mesh();
 
-    void edit_position(uint32_t index, glm::vec3 new_position);
-    
-    void edit_positions(uint32_t index, std::vector<glm::vec3> new_positions);
-    
-    void edit_normal(uint32_t index, glm::vec3 new_normal);
-    
-    void edit_normals(uint32_t index, std::vector<glm::vec3> new_normals);
-    
-    void edit_vertex_color(uint32_t index, glm::vec4 new_color);
-    
-    void edit_vertex_colors(uint32_t index, std::vector<glm::vec4> new_colors);
-    
-    void edit_texture_coordinate(uint32_t index, glm::vec2 new_texcoord);
-    
-    void edit_texture_coordinates(uint32_t index, std::vector<glm::vec2> new_texcoords);
-    
-    void build_low_level_bvh(bool submit_immediately = false);
+		/* Creates a mesh with the given name and id. */
+		Mesh(std::string name, uint32_t id);
 
-    static void build_top_level_bvh(bool submit_immediately = false);
+		/* Returns a json string summarizing the mesh */
+		std::string to_string();
+		
+		/* If editing is enabled, returns a list of per vertex positions */
+		std::vector<glm::vec3> get_points();;
 
-  private:
+		/* If editing is enabled, returns a list of per vertex colors */
+		std::vector<glm::vec4> get_colors();
 
-    void cleanup();
+		/* If editing is enabled, returns a list of per vertex normals */
+		std::vector<glm::vec3> get_normals();
 
-    void load_obj(std::string objPath, bool allow_edits, bool submit_immediately);
+		/* If editing is enabled, returns a list of per vertex texture coordinates */
+		std::vector<glm::vec2> get_texcoords();
 
-    void load_stl(std::string stlPath, bool allow_edits, bool submit_immediately);
+		/* If editing is enabled, returns a list of triangle indices */
+		std::vector<uint32_t> get_indices();
 
-    void load_glb(std::string glbPath, bool allow_edits, bool submit_immediately);
+		/* Returns the handle to the position buffer */
+		vk::Buffer get_point_buffer();
 
-    void load_raw (
-        std::vector<glm::vec3> &points, 
-        std::vector<glm::vec3> &normals, 
-        std::vector<glm::vec4> &colors, 
-        std::vector<glm::vec2> &texcoords,
-        std::vector<uint32_t> indices,
-        bool allow_edits,
-        bool submit_immediately
-    );
+		/* Returns the handle to the per vertex colors buffer */
+		vk::Buffer get_color_buffer();
 
-    void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer &buffer, vk::DeviceMemory &bufferMemory);
+		/* Returns the handle to the triangle indices buffer */
+		vk::Buffer get_index_buffer();
 
-    void createPointBuffer(bool allow_edits, bool submit_immediately);
+		/* Returns the handle to the per vertex normals buffer */
+		vk::Buffer get_normal_buffer();
 
-    void createColorBuffer(bool allow_edits, bool submit_immediately);
+		/* Returns the handle to the per vertex texcoords buffer */
+		vk::Buffer get_texcoord_buffer();
 
-    void createIndexBuffer(bool allow_edits, bool submit_immediately);
+		/* Returns the total number of indices used by this mesh. 
+			Divide by 3 to get the number of triangles.  */
+		uint32_t get_total_indices();
 
-    void createNormalBuffer(bool allow_edits, bool submit_immediately);
+		/* Returns the total number of bytes per index */
+		uint32_t get_index_bytes();
 
-    void createTexCoordBuffer(bool allow_edits, bool submit_immediately);
+		/* Computes the average of all vertex positions. 
+			This is called during mesh creation, but might need to be 
+			called again if mesh edits were made. */
+		glm::vec3 compute_centroid();
 
-    template <class Generator>
-    void make_primitive(Generator &mesh, bool allow_edits, bool submit_immediately)
-    {
-        std::vector<Vertex> vertices;
+		/* Returns the last computed centroid. */
+		glm::vec3 get_centroid();
 
-        auto genVerts = mesh.vertices();
-        while (!genVerts.done()) {
-            auto vertex = genVerts.generate();
-            points.push_back(vertex.position);
-            normals.push_back(vertex.normal);
-            texcoords.push_back(vertex.texCoord);
-            colors.push_back(glm::vec4(0.0, 0.0, 0.0, 0.0));
-            genVerts.next();
-        }
+		/* If mesh editing is enabled, replaces the position at the given index with a new position */
+		void edit_position(uint32_t index, glm::vec3 new_position);
 
-        auto genTriangles = mesh.triangles();
-        while (!genTriangles.done()) {
-            auto triangle = genTriangles.generate();
-            indices.push_back(triangle.vertices[0]);
-            indices.push_back(triangle.vertices[1]);
-            indices.push_back(triangle.vertices[2]);
-            genTriangles.next();
-        }
+		/* If mesh editing is enabled, replaces the set of positions starting at the given index with a new set of positions */
+		void edit_positions(uint32_t index, std::vector<glm::vec3> new_positions);
 
-        allowEdits = allow_edits;
+		/* If mesh editing is enabled, replaces the normal at the given index with a new normal */
+		void edit_normal(uint32_t index, glm::vec3 new_normal);
 
-        cleanup();
-        compute_centroid();
-        createPointBuffer(allow_edits, submit_immediately);
-        createColorBuffer(allow_edits, submit_immediately);
-        createNormalBuffer(allow_edits, submit_immediately);
-        createTexCoordBuffer(allow_edits, submit_immediately);
-        createIndexBuffer(allow_edits, submit_immediately);
-    }
+		/* If mesh editing is enabled, replaces the set of normals starting at the given index with a new set of normals */
+		void edit_normals(uint32_t index, std::vector<glm::vec3> new_normals);
+
+		/* If mesh editing is enabled, replaces the vertex color at the given index with a new vertex color */
+		void edit_vertex_color(uint32_t index, glm::vec4 new_color);
+
+		/* If mesh editing is enabled, replaces the set of vertex colors starting at the given index with a new set of vertex colors */
+		void edit_vertex_colors(uint32_t index, std::vector<glm::vec4> new_colors);
+
+		/* If mesh editing is enabled, replaces the texture coordinate at the given index with a new texture coordinate */
+		void edit_texture_coordinate(uint32_t index, glm::vec2 new_texcoord);
+
+		/* If mesh editing is enabled, replaces the set of texture coordinates starting at the given index with a new set of texture coordinates */
+		void edit_texture_coordinates(uint32_t index, std::vector<glm::vec2> new_texcoords);
+		
+		/* If RTX Raytracing is enabled, builds a low level BVH for this mesh. */
+		void build_low_level_bvh(bool submit_immediately = false);
+
+		/* If RTX Raytracing is enabled, builds a top level BVH for all created meshes. (TODO, account for mesh transformations) */
+		static void build_top_level_bvh(bool submit_immediately = false);
+
+	private:
+		
+		/* A list of the mesh components, allocated statically */
+		static Mesh meshes[MAX_MESHES];
+
+		/* A lookup table of name to mesh id */
+		static std::map<std::string, uint32_t> lookupTable;
+
+		/* A handle to an RTX top level BVH */
+		static vk::AccelerationStructureNV topAS;
+		static vk::DeviceMemory topASMemory;
+
+		/* A handle to an RTX buffer of geometry instances used to build the top level BVH */
+		static vk::Buffer instanceBuffer;
+		static vk::DeviceMemory instanceBufferMemory;
+
+		/* The last computed average of all mesh positions */
+		glm::vec3 centroid;
+
+		/* Lists of per vertex data. These might not match GPU memory if editing is disabled. */
+		std::vector<glm::vec3> points;
+		std::vector<glm::vec3> normals;
+		std::vector<glm::vec4> colors;
+		std::vector<glm::vec2> texcoords;
+		std::vector<uint32_t> indices;
+
+		/* A handle to the attributes loaded from tiny obj */
+		tinyobj::attrib_t attrib;
+
+		/* A handle to the buffer containing per vertex positions */
+		vk::Buffer pointBuffer;
+		vk::DeviceMemory pointBufferMemory;
+
+		/* A handle to the buffer containing per vertex colors */
+		vk::Buffer colorBuffer;
+		vk::DeviceMemory colorBufferMemory;
+
+		/* A handle to the buffer containing per vertex normals */
+		vk::Buffer normalBuffer;
+		vk::DeviceMemory normalBufferMemory;
+
+		/* A handle to the buffer containing per vertex texture coordinates */
+		vk::Buffer texCoordBuffer;
+		vk::DeviceMemory texCoordBufferMemory;
+
+		/* A handle to the buffer containing triangle indices */		
+		vk::Buffer indexBuffer;
+		vk::DeviceMemory indexBufferMemory;
+
+		/* Declaration of an RTX geometry instance. This struct is described in the Khronos 
+			specification to be exactly this, so don't modify! */
+		struct VkGeometryInstance
+		{
+			float transform[12];
+			uint32_t instanceId : 24;
+			uint32_t mask : 8;
+			uint32_t instanceOffset : 24;
+			uint32_t flags : 8;
+			uint64_t accelerationStructureHandle;
+		};
+
+		/* An RTX geometry handle */
+		vk::GeometryNV geometry;
+
+		/* An RTX instance handle */
+		VkGeometryInstance instance;
+
+		/* An RTX handle to the low level acceleration structure */
+		vk::AccelerationStructureNV lowAS;
+		vk::DeviceMemory lowASMemory;
+
+		/* True if the low level BVH was built. (TODO: make false if mesh edits were submitted) */
+		bool lowBVHBuilt = false;
+		
+		/* True if this mesh component supports editing. If false, indices are automatically generated. */
+		bool allowEdits = false;
+
+		/* Frees any vulkan resources this mesh component may have allocated */
+		void cleanup();
+
+		/* Creates a generic vertex buffer object */
+		void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer &buffer, vk::DeviceMemory &bufferMemory);
+
+		/* Creates a position buffer, and uploads position data stored in the positions list */
+		void createPointBuffer(bool allow_edits, bool submit_immediately);
+
+		/* Creates a per vertex color buffer, and uploads per vertex color data stored in the colors list */
+		void createColorBuffer(bool allow_edits, bool submit_immediately);
+
+		/* Creates a normal buffer, and uploads normal data stored in the normals list */
+		void createNormalBuffer(bool allow_edits, bool submit_immediately);
+
+		/* Creates a texture coordinate buffer, and uploads texture coordinate data stored in the texture coordinates list */
+		void createTexCoordBuffer(bool allow_edits, bool submit_immediately);
+
+		/* Creates an index buffer, and uploads index data stored in the indices list */
+		void createIndexBuffer(bool allow_edits, bool submit_immediately);
+
+		/* Loads in an OBJ mesh and copies per vertex data to the GPU */
+		void load_obj(std::string objPath, bool allow_edits, bool submit_immediately);
+
+		/* Loads in an STL mesh and copies per vertex data to the GPU */
+		void load_stl(std::string stlPath, bool allow_edits, bool submit_immediately);
+
+		/* Loads in a GLB mesh and copies per vertex data to the GPU */
+		void load_glb(std::string glbPath, bool allow_edits, bool submit_immediately);
+
+		/* Copies per vertex data to the GPU */
+		void load_raw (
+			std::vector<glm::vec3> &points, 
+			std::vector<glm::vec3> &normals, 
+			std::vector<glm::vec4> &colors, 
+			std::vector<glm::vec2> &texcoords,
+			std::vector<uint32_t> indices,
+			bool allow_edits,
+			bool submit_immediately
+		);
+		
+		/* Creates a procedural mesh from the given mesh generator, and copies per vertex to the GPU */
+		template <class Generator>
+		void make_primitive(Generator &mesh, bool allow_edits, bool submit_immediately)
+		{
+			std::vector<Vertex> vertices;
+
+			auto genVerts = mesh.vertices();
+			while (!genVerts.done()) {
+				auto vertex = genVerts.generate();
+				points.push_back(vertex.position);
+				normals.push_back(vertex.normal);
+				texcoords.push_back(vertex.texCoord);
+				colors.push_back(glm::vec4(0.0, 0.0, 0.0, 0.0));
+				genVerts.next();
+			}
+
+			auto genTriangles = mesh.triangles();
+			while (!genTriangles.done()) {
+				auto triangle = genTriangles.generate();
+				indices.push_back(triangle.vertices[0]);
+				indices.push_back(triangle.vertices[1]);
+				indices.push_back(triangle.vertices[2]);
+				genTriangles.next();
+			}
+
+			allowEdits = allow_edits;
+
+			cleanup();
+			compute_centroid();
+			createPointBuffer(allow_edits, submit_immediately);
+			createColorBuffer(allow_edits, submit_immediately);
+			createNormalBuffer(allow_edits, submit_immediately);
+			createTexCoordBuffer(allow_edits, submit_immediately);
+			createIndexBuffer(allow_edits, submit_immediately);
+		}
 };
