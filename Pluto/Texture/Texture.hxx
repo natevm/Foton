@@ -44,6 +44,9 @@ class Texture : public StaticFactory
 		/* Creates a 2d texture of a given width and height, consisting of possibly several layers, and with color and/or depth resources. */
 		static Texture *Create2D(std::string name, uint32_t width, uint32_t height, bool hasColor, bool hasDepth, uint32_t sampleCount, uint32_t layers, bool submit_immediately = false);
 
+		/* Creates a 3d texture of a given width, height, and depth consisting of possibly several layers. */
+		static Texture *Create3D(std::string name, uint32_t width, uint32_t height, uint32_t depth, uint32_t layers, bool submit_immediately = false);
+
 		/* Creates a procedural checker texture. */
 		static Texture* CreateChecker(std::string name, bool submit_immediately = false);
 
@@ -187,7 +190,7 @@ class Texture : public StaticFactory
 		void cleanup();
 
 		/* Allocates vulkan resources required for a colored image */
-		void create_color_image_resources(bool submit_immediately = false);
+		void create_color_image_resources(bool submit_immediately = false, bool attachment_optimal = true);
 
 		/* Allocates vulkan resources required for a depth/stencil image */
 		void create_depth_stencil_resources(bool submit_immediately = false);

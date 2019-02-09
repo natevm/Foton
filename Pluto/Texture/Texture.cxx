@@ -1013,7 +1013,7 @@ void Texture::loadKTX(std::string imagePath, bool submit_immediately)
     data.colorImageView = device.createImageView(vInfo);
 }
 
-void Texture::create_color_image_resources(bool submit_immediately)
+void Texture::create_color_image_resources(bool submit_immediately, bool attachment_optimal)
 {
     auto vulkan = Libraries::Vulkan::Get();
     if (!vulkan->is_initialized())
@@ -1048,7 +1048,7 @@ void Texture::create_color_image_resources(bool submit_immediately)
     data.colorImageLayout = vk::ImageLayout::eUndefined;
 
     vk::ImageCreateInfo imageInfo;
-    imageInfo.imageType = vk::ImageType::e2D;
+    imageInfo.imageType = data.imageType;
     imageInfo.format = data.colorFormat;
     imageInfo.extent.width = data.width;
     imageInfo.extent.height = data.height;
@@ -1081,8 +1081,14 @@ void Texture::create_color_image_resources(bool submit_immediately)
     subresourceRange.layerCount = data.layers;
 
     vk::CommandBuffer cmdBuffer = vulkan->begin_one_time_graphics_command();
-    setImageLayout(cmdBuffer, data.colorImage, vk::ImageLayout::eUndefined, vk::ImageLayout::eColorAttachmentOptimal, subresourceRange);
-    data.colorImageLayout = vk::ImageLayout::eColorAttachmentOptimal;
+
+    if (attachment_optimal) {
+        setImageLayout(cmdBuffer, data.colorImage, vk::ImageLayout::eUndefined, vk::ImageLayout::eColorAttachmentOptimal, subresourceRange);
+        data.colorImageLayout = vk::ImageLayout::eColorAttachmentOptimal;
+    } else {
+        setImageLayout(cmdBuffer, data.colorImage, vk::ImageLayout::eUndefined, vk::ImageLayout::eShaderReadOnlyOptimal, subresourceRange);
+        data.colorImageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+    }
     vulkan->end_one_time_graphics_command(cmdBuffer, "transition new color image", true, submit_immediately);
 
     /* Create the image view */
@@ -1406,6 +1412,32 @@ Texture* Texture::Create2D(
             << vk::to_string(tex->data.sampleCount) << " instead."<<std::endl;
     if (hasColor) tex->create_color_image_resources(submit_immediately);
     if (hasDepth) tex->create_depth_stencil_resources(submit_immediately);
+
+    tex->texture_struct.sampler_id = 0;
+
+    return tex;
+}
+
+Texture* Texture::Create3D(
+    std::string name, uint32_t width, uint32_t height, uint32_t depth, 
+    uint32_t layers, bool submit_immediately)
+{
+    auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+    if (!tex) return nullptr;
+
+    auto vulkan = Libraries::Vulkan::Get();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error( std::string("Vulkan library is not initialized"));
+    
+    tex->data.width = width;
+    tex->data.height = height;
+    tex->data.depth = depth;
+    tex->data.layers = layers;
+    tex->data.viewType  = vk::ImageViewType::e3D;
+    tex->data.imageType = vk::ImageType::e3D;
+    tex->data.sampleCount = vk::SampleCountFlagBits::e1;
+
+    tex->create_color_image_resources(submit_immediately, false);
 
     tex->texture_struct.sampler_id = 0;
 
