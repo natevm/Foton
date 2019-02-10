@@ -1,6 +1,4 @@
-include README
+include README.md
 graft Pluto
 include install.py
-include Pluto.dll
-include PlutoEngine.exe
-recursive-exclude Pluto __pycache__
+global-exclude __pycache__ *.pdb

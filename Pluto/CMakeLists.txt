@@ -64,7 +64,6 @@ add_definitions(-DDISABLE_MULTIVIEW)
 endif(DISABLE_MULTIVIEW)
 
 # RPATH for *NIX distros
-
 set(RPATHS "${CMAKE_INSTALL_PREFIX};${CMAKE_INSTALL_PREFIX}/Pluto;${CMAKE_INSTALL_PREFIX}/Pluto/Systems;${CMAKE_INSTALL_PREFIX}/Pluto/Libraries;")
 set(CMAKE_INSTALL_RPATH ${INSTALL_RPATH})
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
@@ -81,7 +80,7 @@ set_target_properties(PlutoLib PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
 if(APPLE)
 set_target_properties(PlutoLib PROPERTIES MACOSX_RPATH TRUE)
 endif(APPLE)
-install(TARGETS PlutoLib DESTINATION ${CMAKE_INSTALL_PREFIX})
+install(TARGETS PlutoLib DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRC} ${HDR})
 
@@ -91,6 +90,7 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRC} ${HDR})
 # └──────────────────────────────────────────────────────────────────┘
 
 add_executable(PlutoEngine ${CMAKE_CURRENT_SOURCE_DIR}/main.cxx)
+set_target_properties(PlutoEngine PROPERTIES OUTPUT_NAME "pluto")
 target_link_libraries(PlutoEngine PUBLIC PlutoLib ${LIBRARIES} )
 target_include_directories(PlutoEngine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 #target_compile_definitions(PlutoEngine PRIVATE ZMQ_BUILD_DRAFT_API=1)
@@ -99,7 +99,7 @@ set_target_properties(PlutoEngine PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
 if(APPLE)
 set_target_properties(PlutoEngine PROPERTIES MACOSX_RPATH TRUE)
 endif(APPLE)
-install(TARGETS PlutoEngine DESTINATION ${CMAKE_INSTALL_PREFIX})
+install(TARGETS PlutoEngine DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Pluto Module                                                    │
@@ -304,12 +304,9 @@ source_group(
     FILES ${SHADERS_SRC}
 )
 
-
-
-
 install(FILES ${PROJECT_SOURCE_DIR}/setup.py DESTINATION ${CMAKE_INSTALL_PREFIX})
-install(FILES ${PROJECT_SOURCE_DIR}/install.py DESTINATION ${CMAKE_INSTALL_PREFIX})
+install(FILES ${PROJECT_SOURCE_DIR}/install.py DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 install(FILES ${PROJECT_SOURCE_DIR}/MANIFEST.in DESTINATION ${CMAKE_INSTALL_PREFIX})
 install(FILES ${PROJECT_SOURCE_DIR}/README.md DESTINATION ${CMAKE_INSTALL_PREFIX})
 
-install(DIRECTORY ${PROJECT_SOURCE_DIR}/Pluto/Resources DESTINATION ${CMAKE_INSTALL_PREFIX})
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/Pluto/Resources DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)

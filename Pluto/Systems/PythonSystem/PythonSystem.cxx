@@ -66,9 +66,9 @@ bool PythonSystem::start()
 
         int dirname_length;
         int length = wai_getExecutablePath(NULL, 0, NULL);
-        std::string path(length, '\0');
-        wai_getExecutablePath(path.data(), length, &dirname_length);
-        path = path.substr(0, dirname_length);
+        std::string executable_path(length, '\0');
+        wai_getExecutablePath(executable_path.data(), length, &dirname_length);
+        executable_path = executable_path.substr(0, dirname_length);
 
         /* Construct wchar_t array */
         using namespace std;
@@ -84,7 +84,16 @@ bool PythonSystem::start()
             argv[2] = GetWC(connectionFile.c_str());
             PySys_SetArgv(3, argv.data());
             PyRun_SimpleString("import sys");
-            PyRun_SimpleString(std::string(std::string("sys.path.insert(0, \"") + path + std::string("\")")).c_str());
+            PyRun_SimpleString("import os");
+            PyRun_SimpleString("import importlib");
+
+            PyRun_SimpleString(std::string(std::string("sys.path.insert(0, r\"") + executable_path + std::string("\")")).c_str());
+            PyRun_SimpleString(std::string(std::string("sys.path.insert(0, os.path.join(r\"") + executable_path + std::string("\", \"..\" ))")).c_str());
+            
+            PyRun_SimpleString(std::string(std::string("if importlib.util.find_spec('Pluto') == None:\n\tprint('Sorry, the Pluto package isnt on the python path. ") +
+                std::string("In order to use the python bindings to Pluto, please make sure to either run pluto.exe in the same directory as the Pluto package, ") +
+                std::string("or add the directory containing the Pluto package to your system path.') ")).c_str());
+
             PyRun_SimpleString("from ipykernel import kernelapp as app");
             PyRun_SimpleString("app.launch_new_instance()");
 #else
@@ -95,8 +104,16 @@ bool PythonSystem::start()
         else
         {
             PyRun_SimpleString("import sys");
-            PyRun_SimpleString(std::string(std::string("sys.path.insert(0, \"") + path + std::string("\")")).c_str());
-
+            PyRun_SimpleString("import os");
+            PyRun_SimpleString("import importlib");
+            
+            PyRun_SimpleString(std::string(std::string("sys.path.insert(0, r\"") + executable_path + std::string("\")")).c_str());
+            PyRun_SimpleString(std::string(std::string("sys.path.insert(0, os.path.join(r\"") + executable_path + std::string("\", \"..\" ))")).c_str());
+            
+            PyRun_SimpleString(std::string(std::string("if importlib.util.find_spec('Pluto') == None:\n\tprint('Sorry, the Pluto package isnt on the python path. ") +
+                std::string("In order to use the python bindings to Pluto, please make sure to either run pluto.exe in the same directory as the Pluto package, ") +
+                std::string("or add the directory containing the Pluto package to your system path.') ")).c_str());
+            
             if (Options::IsMainModuleSet())
             {
                 auto fp = fopen(Options::GetMainModule().c_str(), "r");
