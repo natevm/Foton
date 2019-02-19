@@ -37,7 +37,7 @@ void main() {
 
     /* Objects which are lights glow */
     if (light_entity_id == push.consts.target_id) {
-      diffuseColor += light.diffuse.rgb;
+      diffuseColor += light.color.rgb * light.intensity;
     }
     else 
     {
@@ -50,7 +50,7 @@ void main() {
 
       //   //ambientColor += vec3(ubo.ka) * vec3(lbo.lights[i].ambient);
 
-        diffuseColor += base_color.rgb * vec3(light.diffuse) * diffterm;
+        diffuseColor += base_color.rgb * vec3(light.color * light.intensity) * diffterm;
         
       //   specularColor += vec3(lbo.lights[i].specular) * vec3(ubo.ks) * pow(specterm, 80.);
     }

@@ -40,6 +40,18 @@ class Light : public StaticFactory
         Light(std::string name, uint32_t id);
 
         void set_color(float r, float g, float b);
+        void set_temperature(float kelvin);        
+        void set_intensity(float intensity);
+        void set_double_sided(bool double_sided);
+        void show_end_caps(bool show_end_caps);
+        void set_cone_angle(float angle);
+        void set_cone_softness(float softness);
+
+        void use_point();
+        void use_plane();
+        void use_disk();
+        void use_rod();
+        void use_sphere();
 
         std::string to_string();
 };

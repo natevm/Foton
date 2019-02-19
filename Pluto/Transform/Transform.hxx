@@ -183,7 +183,7 @@ class Transform : public StaticFactory
         Rotates the transform about the provided axis, passing through the provided point in parent coordinates by the provided angle in degrees.
         This modifies both the position and rotation of the transform.
     */
-    void rotate_around(vec3 point, vec3 axis, float angle)
+    void rotate_around(vec3 point, float angle, vec3 axis)
     {
         glm::vec3 direction = point - get_position();
         glm::vec3 newPosition = get_position() + direction;

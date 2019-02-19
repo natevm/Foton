@@ -474,6 +474,8 @@ void Texture::Initialize()
     // Create the default texture here
     std::string resource_path = Options::GetResourcePath();
     CreateFromKTX("BRDF", resource_path + "/Defaults/brdf-lut.ktx");
+    CreateFromKTX("LTCMAT", resource_path + "/Defaults/ltc1-lut.ktx");
+    CreateFromKTX("LTCAMP", resource_path + "/Defaults/ltc2-lut.ktx");
     CreateFromKTX("DefaultTex2D", resource_path + "/Defaults/missing-texture.ktx");
     CreateFromKTX("DefaultTexCube", resource_path + "/Defaults/missing-texcube.ktx");
     CreateFromKTX("DefaultTex3D", resource_path + "/Defaults/missing-volume.ktx");    

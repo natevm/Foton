@@ -10,14 +10,22 @@
 using namespace glm;
 #endif
 
-struct LightStruct {
-	vec4 position;
-	vec4 ambient;
-	vec4 diffuse;
-	vec4 specular;
+// Should support different light types including
+//  Directional Lights, which mimic the sun
+//  Point Lights, which illuminate in all directions
+//  Spot Lights, which have a cone of influence
+//  LTC Line lights
+//  LTC Rectangle lights 
+//  LTC Disk lights 
 
-	float ambientContribution, constantAttenuation, linearAttenuation, quadraticAttenuation;
-	float spotCutoff, spotExponent, pad1, pad2;
+struct LightStruct {
+	vec4 ambient;
+	vec4 color;
+	float intensity;
+	float coneAngle, coneSoftness;
+	float constantAttenuation, linearAttenuation, quadraticAttenuation;
+	int type; 
+	int flags;
 };
 
 #endif

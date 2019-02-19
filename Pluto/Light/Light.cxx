@@ -1,4 +1,5 @@
 #include "./Light.hxx"
+#include <math.h>
 
 Light Light::lights[MAX_LIGHTS];
 LightStruct* Light::pinnedMemory;
@@ -16,13 +17,110 @@ Light::Light(std::string name, uint32_t id)
     this->initialized = true;
     this->name = name;
     this->id = id;
+    this->light_struct.coneAngle = 0.0;
+    this->light_struct.coneSoftness = 0.5;
+    this->light_struct.type = 0;
+    this->light_struct.ambient = glm::vec4(1.0, 1.0, 1.0, 1.0);
+    this->light_struct.color = glm::vec4(1.0, 1.0, 1.0, 1.0);
+    this->light_struct.intensity = 1.0;
+    this->light_struct.flags = 0;
 }
 
 void Light::set_color(float r, float g, float b)
 {
-    light_struct.ambient = glm::vec4(r, g, b, 1.0);
-    light_struct.diffuse = glm::vec4(r, g, b, 1.0);
-    light_struct.specular = glm::vec4(r, g, b, 1.0);
+    light_struct.color = glm::vec4(r, g, b, 1.0);
+}
+
+void Light::set_temperature(float kelvin)
+{
+    float temp = kelvin / 100.0f;
+
+    float red, green, blue;
+
+    if ( temp <= 66 ){ 
+        red = 255;         
+        green = temp;
+        green = 99.4708025861f * logf(green) - 161.1195681661f;
+
+        if( temp <= 19){
+            blue = 0;
+        } else {
+            blue = temp-10.f;
+            blue = 138.5177312231f * logf(blue) - 305.0447927307f;
+        }
+    } else {
+        red = temp - 60.f;
+        red = 329.698727446f * powf(red, -0.1332047592f);
+        
+        green = temp - 60;
+        green = 288.1221695283f * powf(green, -0.0755148492f );
+
+        blue = 255;
+    }
+
+    light_struct.color = glm::vec4(red / 255.f, green / 255.f, blue / 255.f, 1.0);
+}
+
+void Light::set_intensity(float intensity)
+{
+    light_struct.intensity = intensity;
+}
+
+void Light::set_double_sided(bool double_sided)
+{
+    if (double_sided) {
+        light_struct.flags |= (1 << 0);
+    }
+    else
+    {
+        light_struct.flags &= (~(1 << 0));
+    }
+}
+
+void Light::show_end_caps(bool show_end_caps)
+{
+    if (show_end_caps) {
+        light_struct.flags |= (1 << 1);
+    }
+    else
+    {
+        light_struct.flags &= (~(1 << 1));
+    }
+}
+
+void Light::set_cone_angle(float angle)
+{
+    light_struct.coneAngle = angle;
+}
+
+void Light::set_cone_softness(float softness)
+{
+    light_struct.coneSoftness = softness;
+}
+
+void Light::use_point()
+{
+    light_struct.type = 0;
+}
+
+void Light::use_plane()
+{
+    light_struct.type = 1;
+}
+
+void Light::use_disk()
+{
+    light_struct.type = 2;
+}
+
+void Light::use_rod()
+{
+    light_struct.type = 3;
+}
+
+void Light::use_sphere()
+{
+    light_struct.type = 4;
 }
 
 std::string Light::to_string() {

@@ -79,6 +79,10 @@ bool RenderSystem::initialize()
     push_constants.specular_environment_id = -1;
     push_constants.environment_roughness = 0.0;
 
+    push_constants.brdf_lut_id = -1;
+    push_constants.ltc_mat_lut_id = -1;
+    push_constants.ltc_amp_lut_id = -1;
+
     initialized = true;
     return true;
 }
@@ -95,19 +99,25 @@ void RenderSystem::record_render_commands()
         if (entity_id != -1) {
             auto entity = Entity::Get(entity_id);
             auto cam_id = entity->get_camera();
+            auto left = Transform::Get("VRLeftHand");
+            auto right = Transform::Get("VRRightHand");
+            auto ovr = OpenVR::Get();
 
             /* If that entity has a camera */
             if (cam_id != -1) {
                 Camera* current_camera = Camera::Get(cam_id);
 
                 /* Wait get poses. Move the camera to where the headset is. */
-                auto ovr = OpenVR::Get();
                 ovr->wait_get_poses();
                 current_camera->set_view(ovr->get_left_view_matrix(), 0);
                 current_camera->set_custom_projection(ovr->get_left_projection_matrix(.1f), .1f, 0);
                 current_camera->set_view(ovr->get_right_view_matrix(), 1);
                 current_camera->set_custom_projection(ovr->get_right_projection_matrix(.1f), .1f, 1);
             }
+
+            if (left) left->set_transform(ovr->get_left_controller_transform());
+            if (right) right->set_transform(ovr->get_right_controller_transform());
+
         }
     }
 #endif
@@ -123,13 +133,23 @@ void RenderSystem::record_render_commands()
     Material::UpdateRasterDescriptorSets();
     Material::UpdateRaytracingDescriptorSets();
 
+    /* Find lookup tables */
     Texture* brdf = nullptr;
+    Texture* ltc_mat = nullptr;
+    Texture* ltc_amp = nullptr;
     try {
         brdf = Texture::Get("BRDF");
+        ltc_mat = Texture::Get("LTCMAT");
+        ltc_amp = Texture::Get("LTCAMP");
     } catch (...) {}
-    if (!brdf) return;
+    if ((!brdf) || (!ltc_mat) || (!ltc_amp)) return;
+    
     auto brdf_id = brdf->get_id();
+    auto ltc_mat_id = ltc_mat->get_id();
+    auto ltc_amp_id = ltc_amp->get_id();
     push_constants.brdf_lut_id = brdf_id;
+    push_constants.ltc_mat_lut_id = ltc_mat_id;
+    push_constants.ltc_amp_lut_id = ltc_amp_id;
     push_constants.time = (float) glfwGetTime();
 
     auto entities = Entity::GetFront();

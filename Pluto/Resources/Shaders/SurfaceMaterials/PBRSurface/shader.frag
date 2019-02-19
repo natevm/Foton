@@ -54,29 +54,7 @@ void main() {
 	vec3 ambient = (kD * diffuse + specular_reflection + specular_refraction + specular_refraction) * ao;
 
 	// Iterate over point lights
-	vec3 finalColor = ambient;
-	for (int i = 0; i < MAX_LIGHTS; ++i) {
-		int light_entity_id = push.consts.light_entity_ids[i];
-		if (light_entity_id == -1) continue;
-
-		EntityStruct light_entity = ebo.entities[light_entity_id];
-		if ( (light_entity.initialized != 1) || (light_entity.transform_id == -1)) continue;
-
-		LightStruct light = lbo.lights[light_entity.light_id];
-
-		/* If the object has a light component (fake emission) */
-		if (light_entity_id == push.consts.target_id) {
-			finalColor += light.diffuse.rgb;
-		}
-		else {
-			TransformStruct light_transform = tbo.transforms[light_entity.transform_id];
-
-			vec3 w_light = vec3(light_transform.localToWorld[3]);
-			vec3 L = normalize(w_light - w_position);
-			vec3 Lo = light.diffuse.rgb * specularContribution(L, V, N, albedo_mix, albedo.rgb, metallic, roughness);
-			finalColor += Lo;
-		}
-	}
+	vec3 finalColor = ambient + get_light_contribution(w_position, V, N, albedo_mix, albedo.rgb, metallic, roughness);;
 	
 	// Tone mapping
 	finalColor = Uncharted2Tonemap(finalColor * push.consts.exposure);
@@ -85,9 +63,6 @@ void main() {
 	// Gamma correction
 	finalColor = pow(finalColor, vec3(1.0f / push.consts.gamma));
 	
-
 	// Handle emission here...
-
-//	outColor = vec4(max(dot(N, V), 0.0), max(dot(N, V), 0.0), max(dot(N, V), 0.0), 1.0);//vec4(finalColor, 1.0);
 	outColor = vec4(finalColor, albedo.a);
 }

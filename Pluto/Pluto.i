@@ -12,7 +12,7 @@
 #include "Pluto/Entity/Entity.hxx"
 %}
 
-%feature("autodoc","2");
+%feature("autodoc","4");
 
 %include "exception.i"
 

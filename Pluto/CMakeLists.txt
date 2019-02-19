@@ -242,8 +242,9 @@ set(GLSLC ${PROJECT_SOURCE_DIR}/external/vulkan/glslc.exe)
 else()
 find_program(GLSLC glslc)
 endif()
-set(GLSLC_CONFIG ${PROJECT_SOURCE_DIR}/external/vulkan/glsl.config)
+# set(GLSLC_CONFIG ${PROJECT_SOURCE_DIR}/external/vulkan/glsl.config)
 set(GLSLC_OPTIMIZATION -O)
+# set(GLSLC_OPTIMIZATION -g -o0)
 
 set(SHADERS_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/UniformColor/shader.vert
@@ -288,7 +289,7 @@ foreach(shader_file ${SHADERS_SRC})
     endif(${DISABLE_MULTIVIEW})
     add_custom_command(
         OUTPUT ${spv_file}_ # force file to regen every time
-        COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} ${extra_flags} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${shader_file} -o ${spv_file} -flimit-file ${GLSLC_CONFIG}
+        COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} ${extra_flags} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${shader_file} -o ${spv_file}
         DEPENDS ${shader_file}
     )
     list(APPEND spvfiles ${spv_file}_)

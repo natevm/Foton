@@ -257,15 +257,15 @@
 
 
 
-struct Ray {
-	vec3 origin;
-	vec3 dir;
-};
+// struct Ray {
+// 	vec3 origin;
+// 	vec3 dir;
+// };
 
-struct AABB {
-	vec3 minimum;
-	vec3 maximum;
-};
+// struct AABB {
+// 	vec3 minimum;
+// 	vec3 maximum;
+// };
 
 bool IntersectBox(Ray r, AABB aabb, out float t0, out float t1) 
 {

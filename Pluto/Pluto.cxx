@@ -77,6 +77,9 @@ void Initialize(
 	if (useOpenVR) {
 		auto ovr = Libraries::OpenVR::Get();
         ovr->create_eye_textures();
+
+        Transform::Create("VRLeftHand");
+        Transform::Create("VRRightHand");
 	}
 #endif
 }
