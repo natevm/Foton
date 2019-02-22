@@ -21,13 +21,13 @@ layout(std430, set = 0, binding = 2) readonly buffer CameraSSBO    { CameraStruc
 layout(std430, set = 0, binding = 3) readonly buffer MaterialSSBO  { MaterialStruct materials[]; } mbo;
 layout(std430, set = 0, binding = 4) readonly buffer LightSSBO     { LightStruct lights[]; } lbo;
 
-layout(set = 1, binding = 0) readonly buffer TextureSSBO           { TextureStruct textures[]; } txbo;
+layout(std430, set = 1, binding = 0) readonly buffer TextureSSBO           { TextureStruct textures[]; } txbo;
 layout(set = 1, binding = 1) uniform sampler samplers[MAX_SAMPLERS];
 layout(set = 1, binding = 2) uniform texture2D texture_2Ds[MAX_TEXTURES];
 layout(set = 1, binding = 3) uniform textureCube texture_cubes[MAX_TEXTURES];
 layout(set = 1, binding = 4) uniform texture3D texture_3Ds[MAX_TEXTURES];
 
 /* Push Constants */
-layout(push_constant) uniform PushConstants {
+layout(std430, push_constant) uniform PushConstants {
     PushConsts consts;
 } push;
