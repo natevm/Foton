@@ -515,9 +515,9 @@ void Texture::Initialize()
     sInfo.magFilter = vk::Filter::eLinear;
     sInfo.minFilter = vk::Filter::eLinear;
     sInfo.mipmapMode = vk::SamplerMipmapMode::eLinear;
-    sInfo.addressModeU = vk::SamplerAddressMode::eClampToEdge;
-    sInfo.addressModeV = vk::SamplerAddressMode::eClampToEdge;
-    sInfo.addressModeW = vk::SamplerAddressMode::eClampToEdge;
+    sInfo.addressModeU = vk::SamplerAddressMode::eRepeat;
+    sInfo.addressModeV = vk::SamplerAddressMode::eRepeat;
+    sInfo.addressModeW = vk::SamplerAddressMode::eRepeat;
     sInfo.mipLodBias = 0.0;
     sInfo.maxAnisotropy = vulkan->get_max_anisotropy();
     sInfo.anisotropyEnable = (sInfo.maxAnisotropy > 0.0) ? VK_TRUE : VK_FALSE;
@@ -1015,6 +1015,181 @@ void Texture::loadKTX(std::string imagePath, bool submit_immediately)
     data.colorImageView = device.createImageView(vInfo);
 }
 
+void Texture::loadPNG(std::string imagePath, bool submit_immediately)
+{
+    /* First, check if file exists. */
+    struct stat st;
+    if (stat(imagePath.c_str(), &st) != 0)
+        throw std::runtime_error( std::string("Error: image " + imagePath + " does not exist!"));
+
+    /* Verify Vulkan is ready */
+    auto vulkan = Libraries::Vulkan::Get();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error( std::string("Vulkan library is not initialized"));
+    auto device = vulkan->get_device();
+    if (device == vk::Device())
+        throw std::runtime_error( std::string("Invalid vulkan device"));
+    auto physicalDevice = vulkan->get_physical_device();
+    if (physicalDevice == vk::PhysicalDevice())
+        throw std::runtime_error( std::string("Invalid vulkan physical device"));
+
+    /* Load the texture */
+    uint32_t textureSize = 0;
+    void *textureData = nullptr;
+    int texWidth, texHeight, texChannels;
+    stbi_set_flip_vertically_on_load(true);
+    stbi_uc* pixels = stbi_load(imagePath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    if (!pixels) { throw std::runtime_error("failed to load texture image!"); }
+
+    textureData = (void*) pixels;
+    
+    textureSize = texWidth * texHeight * 4;
+    data.width = texWidth;
+    data.height = texHeight;
+    data.depth = 1;
+    data.colorMipLevels = 1;
+    data.layers = 1;
+    data.viewType = vk::ImageViewType::e2D;
+    data.imageType = vk::ImageType::e2D;
+    /* For PNG, we assume the following format */
+    data.colorFormat = vk::Format::eR8G8B8A8Unorm;
+
+    std::vector<uint32_t> textureMipSizes;
+    std::vector<uint32_t> textureMipWidths;
+    std::vector<uint32_t> textureMipHeights;
+    std::vector<uint32_t> textureMipDepths;
+
+    /* TODO: Generate mipmaps */
+    textureMipSizes.push_back(textureSize);
+    textureMipWidths.push_back(texWidth);
+    textureMipHeights.push_back(texHeight);
+    textureMipDepths.push_back(1);
+
+    /* Get device properties for the requested texture format. */
+    vk::FormatProperties formatProperties = physicalDevice.getFormatProperties(data.colorFormat);
+
+    if (formatProperties.bufferFeatures == vk::FormatFeatureFlags() 
+        && formatProperties.linearTilingFeatures == vk::FormatFeatureFlags() 
+        && formatProperties.optimalTilingFeatures == vk::FormatFeatureFlags())
+        throw std::runtime_error( std::string("Error: Unsupported image format used in " + imagePath));
+
+    /* Create staging buffer */
+    vk::BufferCreateInfo bufferInfo;
+    bufferInfo.size = textureSize;
+    bufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+    bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+    vk::Buffer stagingBuffer = device.createBuffer(bufferInfo);
+
+    vk::MemoryRequirements stagingMemRequirements = device.getBufferMemoryRequirements(stagingBuffer);
+    vk::MemoryAllocateInfo stagingAllocInfo;
+    stagingAllocInfo.allocationSize = (uint32_t)stagingMemRequirements.size;
+    stagingAllocInfo.memoryTypeIndex = vulkan->find_memory_type(stagingMemRequirements.memoryTypeBits,
+        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+    vk::DeviceMemory stagingBufferMemory = device.allocateMemory(stagingAllocInfo);
+
+    device.bindBufferMemory(stagingBuffer, stagingBufferMemory, 0);
+
+    /* Copy texture data into staging buffer */
+    void *dataptr = device.mapMemory(stagingBufferMemory, 0, textureSize, vk::MemoryMapFlags());
+    memcpy(dataptr, textureData, textureSize);
+    device.unmapMemory(stagingBufferMemory);
+
+    /* Setup buffer copy regions for each mip level */
+    std::vector<vk::BufferImageCopy> bufferCopyRegions;
+    uint32_t offset = 0;
+
+    for (uint32_t i = 0; i < data.colorMipLevels; i++)
+    {
+        vk::BufferImageCopy bufferCopyRegion;
+        bufferCopyRegion.imageSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+        bufferCopyRegion.imageSubresource.mipLevel = i;
+        bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
+        bufferCopyRegion.imageSubresource.layerCount = 1;
+        bufferCopyRegion.imageExtent.width = textureMipWidths[i];
+        bufferCopyRegion.imageExtent.height = textureMipHeights[i];
+        bufferCopyRegion.imageExtent.depth = textureMipDepths[i];
+        bufferCopyRegion.bufferOffset = offset;
+        bufferCopyRegions.push_back(bufferCopyRegion);
+        offset += textureMipSizes[i];
+    }
+
+    /* Create optimal tiled target image */
+    vk::ImageCreateInfo imageCreateInfo;
+    imageCreateInfo.imageType = data.imageType;
+    imageCreateInfo.format = data.colorFormat;
+    imageCreateInfo.mipLevels = data.colorMipLevels;
+    imageCreateInfo.arrayLayers = data.layers;
+    imageCreateInfo.samples = vk::SampleCountFlagBits::e1;
+    imageCreateInfo.tiling = vk::ImageTiling::eOptimal;
+    imageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
+    imageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
+    imageCreateInfo.extent = vk::Extent3D{data.width, data.height, data.depth};
+    imageCreateInfo.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eSampled;
+    data.colorImage = device.createImage(imageCreateInfo);
+
+
+    /* Allocate and bind memory for the texture */
+    vk::MemoryRequirements imageMemReqs = device.getImageMemoryRequirements(data.colorImage);
+    vk::MemoryAllocateInfo imageAllocInfo;
+    imageAllocInfo.allocationSize = imageMemReqs.size;
+    imageAllocInfo.memoryTypeIndex = vulkan->find_memory_type(
+        imageMemReqs.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
+    data.colorImageMemory = device.allocateMemory(imageAllocInfo);
+    device.bindImageMemory(data.colorImage, data.colorImageMemory, 0);
+
+    /* Create a command buffer for changing layouts and copying */
+    vk::CommandBuffer copyCmd = vulkan->begin_one_time_graphics_command();
+
+    /* Transition between formats */
+    vk::ImageSubresourceRange subresourceRange;
+    subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+    subresourceRange.baseMipLevel = 0;
+    subresourceRange.levelCount = data.colorMipLevels;
+    subresourceRange.layerCount = data.layers;
+
+    /* Transition to transfer destination optimal */
+    setImageLayout(
+        copyCmd,
+        data.colorImage,
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eTransferDstOptimal,
+        subresourceRange);
+
+    /* Copy mip levels from staging buffer */
+    copyCmd.copyBufferToImage(
+        stagingBuffer,
+        data.colorImage,
+        vk::ImageLayout::eTransferDstOptimal,
+        (uint32_t)bufferCopyRegions.size(),
+        bufferCopyRegions.data());
+
+    /* Transition to shader read optimal */
+    data.colorImageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+    setImageLayout(
+        copyCmd,
+        data.colorImage,
+        vk::ImageLayout::eTransferDstOptimal,
+        vk::ImageLayout::eShaderReadOnlyOptimal,
+        subresourceRange);
+
+    vulkan->end_one_time_graphics_command(copyCmd, "transition new png image", true, submit_immediately);
+
+    /* Clean up staging resources */
+    device.destroyBuffer(stagingBuffer);
+    device.freeMemory(stagingBufferMemory);
+    
+    /* Create the image view */
+    vk::ImageViewCreateInfo vInfo;
+    vInfo.viewType = data.viewType;
+    vInfo.format = data.colorFormat;
+    vInfo.subresourceRange = subresourceRange;
+    vInfo.image = data.colorImage;
+    data.colorImageView = device.createImageView(vInfo);
+
+    /* Clean up original image array */
+    stbi_image_free(pixels);
+}
+
 void Texture::create_color_image_resources(bool submit_immediately, bool attachment_optimal)
 {
     auto vulkan = Libraries::Vulkan::Get();
@@ -1354,6 +1529,15 @@ Texture *Texture::CreateFromKTX(std::string name, std::string filepath, bool sub
     auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
     if (!tex) return nullptr;
     tex->loadKTX(filepath, submit_immediately);
+    tex->texture_struct.sampler_id = 0;
+    return tex;
+}
+
+Texture *Texture::CreateFromPNG(std::string name, std::string filepath, bool submit_immediately)
+{
+    auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+    if (!tex) return nullptr;
+    tex->loadPNG(filepath, submit_immediately);
     tex->texture_struct.sampler_id = 0;
     return tex;
 }

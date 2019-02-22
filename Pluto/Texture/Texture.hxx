@@ -32,6 +32,9 @@ class Texture : public StaticFactory
 		/* Creates a texture from a khronos texture file (.ktx) */
 		static Texture *CreateFromKTX(std::string name, std::string filepath, bool submit_immediately = false);
 
+		/* Creates a 2D texture from a PNG image file */
+		static Texture *CreateFromPNG(std::string name, std::string filepath, bool submit_immediately = false);
+
 		/* Creates a texture from data allocated outside this class. Helpful for swapchains, external libraries, etc */
 		static Texture *CreateFromExternalData(std::string name, Data data);
 
@@ -203,4 +206,7 @@ class Texture : public StaticFactory
 
 		/* Creates a texture from a khronos texture file, replacing any vulkan resources with new ones containing the ktx data. */
 		void loadKTX(std::string imagePath, bool submit_immediately = false);
+
+		/* Creates a texture from a png texture file, replacing any vulkan resources with new ones containing the png data. */
+		void loadPNG(std::string imagePath, bool submit_immediately = false);
 };

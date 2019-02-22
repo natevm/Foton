@@ -90,3 +90,11 @@
     std::string __repr__() { return $self->to_string(); }
 }
 
+%template(EntityVector) vector<Entity*>;
+%template(TransformVector) vector<Transform*>;
+%template(MeshVector) vector<Mesh*>;
+%template(CameraVector) vector<Camera*>;
+%template(TextureVector) vector<Texture*>;
+%template(LightVector) vector<Light*>;
+%template(MaterialVector) vector<Material*>;
+

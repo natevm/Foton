@@ -2,8 +2,11 @@
 
 #include <set>
 #include <string>
+#include <vector>
 
 extern bool Initialized;
+
+class Entity;
 
 void Initialize(
     bool useGLFW = true, 
@@ -21,3 +24,5 @@ void Initialize(
 );
 
 void CleanUp();
+
+std::vector<Entity*> ImportOBJ(std::string filepath, std::string mtl_base_dir);
