@@ -71,17 +71,25 @@ bool RenderSystem::initialize()
         zmq_setsockopt(socket, ZMQ_RATE, &rate, sizeof(int64_t));
     }
 #endif
-
+    
+    push_constants.top_sky_color = vec4(0.0f);
+    push_constants.bottom_sky_color = vec4(0.0f);
+    push_constants.sky_transition = 0.0f;
     push_constants.gamma = 2.2f;
     push_constants.exposure = 2.0f;
-    push_constants.environment_id = -1;
-    push_constants.diffuse_environment_id = -1;
-    push_constants.specular_environment_id = -1;
-    push_constants.environment_roughness = 0.0;
-
+    push_constants.time = 0.0f;
+    push_constants.environment_roughness = 0.0f;
+    push_constants.target_id = -1;
+    push_constants.camera_id = -1;
     push_constants.brdf_lut_id = -1;
     push_constants.ltc_mat_lut_id = -1;
     push_constants.ltc_amp_lut_id = -1;
+    push_constants.environment_id = -1;
+    push_constants.diffuse_environment_id = -1;
+    push_constants.specular_environment_id = -1;
+    for(int i = 0; i < MAX_LIGHTS; i++) push_constants.light_entity_ids[i] = -1;
+    push_constants.viewIndex = -1;
+
 
     initialized = true;
     return true;

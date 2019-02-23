@@ -25,6 +25,7 @@ set (SRC
     ${Entity_SRC}
     ${Libraries_SRC}
     ${Light_SRC}
+    ${Resources_SRC}
     ${Material_SRC}
     ${Mesh_SRC}
     ${Systems_SRC}
@@ -39,6 +40,7 @@ set (HDR
     ${Entity_HDR}
     ${Libraries_HDR}
     ${Light_HDR}
+    ${Resources_HDR}
     ${Material_HDR}
     ${Mesh_HDR}
     ${Systems_HDR}
@@ -90,7 +92,7 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRC} ${HDR})
 # └──────────────────────────────────────────────────────────────────┘
 
 add_executable(PlutoEngine ${CMAKE_CURRENT_SOURCE_DIR}/main.cxx)
-set_target_properties(PlutoEngine PROPERTIES OUTPUT_NAME "pluto")
+set_target_properties(PlutoEngine PROPERTIES OUTPUT_NAME "pluto1234")
 target_link_libraries(PlutoEngine PUBLIC PlutoLib ${LIBRARIES} )
 target_include_directories(PlutoEngine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 #target_compile_definitions(PlutoEngine PRIVATE ZMQ_BUILD_DRAFT_API=1)
