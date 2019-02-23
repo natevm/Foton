@@ -6,9 +6,8 @@ layout(location = 1) in vec4 color;
 layout(location = 2) in vec3 normal;
 layout(location = 3) in vec2 texcoord;
 
-layout(location = 0) out vec2 fragTexCoord;
-layout(location = 1) out float depth;
-layout(location = 2) out float near;
+layout(location = 0) out vec3 w_position;
+layout(location = 1) out vec3 c_position;
 
 out gl_PerVertex {
     vec4 gl_Position;
@@ -24,14 +23,13 @@ void main() {
 
     TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
 
-    vec4 w_position = target_transform.localToWorld * vec4(point.xyz, 1.0);
+    w_position = (target_transform.localToWorld * vec4(point.xyz, 1.0)).xyz;
+    c_position = (camera_transform.localToWorld[3]).xyz;
+
     #ifdef DISABLE_MULTIVIEW
     int viewIndex = push.consts.viewIndex;
     #else
     int viewIndex = gl_ViewIndex;
     #endif
-    gl_Position = camera.multiviews[viewIndex].proj * camera.multiviews[viewIndex].view * camera_transform.worldToLocal * w_position;
-    fragTexCoord = texcoord;
-    near = camera.multiviews[viewIndex].near_pos;
-    depth = (gl_Position.z - near);
+    gl_Position = camera.multiviews[viewIndex].proj * camera.multiviews[viewIndex].view * camera_transform.worldToLocal * vec4(w_position, 1.0);
 }

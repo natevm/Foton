@@ -1,8 +1,27 @@
 %module Pluto
 
 %{
+/* Common */
 #include "Pluto/Pluto.hxx"
 #include "Pluto/Tools/StaticFactory.hxx"
+
+/* Libraries */
+#include "Pluto/Libraries/GLFW/GLFW.hxx"
+#include "Pluto/Libraries/Vulkan/Vulkan.hxx"
+#ifdef BUILD_OPENVR
+#include "Pluto/Libraries/OpenVR/OpenVR.hxx"
+#endif
+#ifdef BUILD_SPACEMOUSE
+#include "Pluto/Libraries/SpaceMouse/SpaceMouse.hxx"
+#endif
+using namespace Libraries;
+
+/* Systems */
+#include "Pluto/Systems/RenderSystem/RenderSystem.hxx"
+#include "Pluto/Systems/EventSystem/EventSystem.hxx"
+using namespace Systems;
+
+/* Components */
 #include "Pluto/Transform/Transform.hxx"
 #include "Pluto/Texture/Texture.hxx"
 #include "Pluto/Camera/Camera.hxx"
@@ -13,6 +32,9 @@
 %}
 
 %feature("autodoc","4");
+
+/* Required on windows... */
+%include <windows.i>
 
 %include "exception.i"
 
@@ -36,15 +58,53 @@
 %shared_ptr(Material)
 %shared_ptr(Light)
 
+// Ignores
+%nodefaultctor GLFW;
+%nodefaultdtor GLFW;
+%nodefaultctor Vulkan;
+%nodefaultdtor Vulkan;
+%nodefaultctor OpenVR;
+%nodefaultdtor OpenVR;
+%nodefaultctor SpaceMouse;
+%nodefaultdtor SpaceMouse;
+
+%nodefaultctor System;
+%nodefaultdtor System;
+%nodefaultctor RenderSystem;
+%nodefaultdtor RenderSystem;
+%nodefaultctor EventSystem;
+%nodefaultdtor EventSystem;
+
+// Issue where swig tries to construct a std future from non-existant copy constructor...
+%ignore Libraries::Vulkan::enqueue_graphics_commands(std::vector<vk::CommandBuffer> commandBuffers, std::vector<vk::Semaphore> waitSemaphores, std::vector<vk::PipelineStageFlags> waitDstStageMasks, std::vector<vk::Semaphore> signalSemaphores, vk::Fence fence, std::string hint);
+%ignore Libraries::Vulkan::enqueue_present_commands(std::vector<vk::SwapchainKHR> swapchains, std::vector<uint32_t> swapchain_indices, std::vector<vk::Semaphore> waitSemaphores);
+
+%ignore CommandQueueItem;
+
 %ignore Initialized;
 %ignore Texture::Data;
-# %ignore threadFunction;
-# %include "Pluto.hxx"
 
-%import "Pluto/Libraries/GLM/GLM.i"
 %include "Pluto/Pluto.hxx"
 %include "Pluto/Tools/Singleton.hxx"
 %include "Pluto/Tools/StaticFactory.hxx"
+
+// Libraries
+%import "Pluto/Libraries/GLM/GLM.i"
+%include "Pluto/Libraries/GLFW/GLFW.hxx";
+%include "Pluto/Libraries/Vulkan/Vulkan.hxx";
+
+#ifdef BUILD_OPENVR
+%include "./OpenVR/OpenVR.hxx";
+#endif
+
+#ifdef BUILD_SPACEMOUSE
+%include "./SpaceMouse/SpaceMouse.hxx";
+#endif
+
+%include "Pluto/Tools/System.hxx"
+%include "Pluto/Systems/RenderSystem/RenderSystem.hxx"
+%include "Pluto/Systems/EventSystem/EventSystem.hxx"
+
 %include "Pluto/Transform/Transform.hxx"
 %include "Pluto/Texture/Texture.hxx"
 %include "Pluto/Mesh/Mesh.hxx"

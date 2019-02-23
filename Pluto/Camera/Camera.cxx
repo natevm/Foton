@@ -13,6 +13,7 @@ using namespace Libraries;
 
 void Camera::setup(bool allow_recording, bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers)
 {
+	layers = (cubemap) ? 6 : layers;
 	if (layers > MAX_MULTIVIEW)
     {
 		throw std::runtime_error( std::string("Error: Camera component cannot render to more than " + std::to_string(MAX_MULTIVIEW) + " layers simultaneously."));
@@ -37,7 +38,7 @@ void Camera::setup(bool allow_recording, bool cubemap, uint32_t tex_width, uint3
 				resolveTexture = Texture::Create2D(name + "_resolve", tex_width, tex_height, true, true, 1, layers);
 		}
 		create_command_buffer();
-		create_render_passes(tex_width, tex_height, (cubemap) ? 6 : layers, msaa_samples);
+		create_render_passes(tex_width, tex_height, layers, msaa_samples);
 		create_frame_buffers(layers);
         for(auto renderpass : renderpasses) {
             Material::SetupGraphicsPipelines(renderpass, msaa_samples);

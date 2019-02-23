@@ -152,6 +152,15 @@ namespace Systems
         return true;
     }
 
+    // bool EventSystem::connect_camera_to_window(string key, uint32_t cam_idCamera* camera)
+    // {
+    //     /* This function can be called directly. */
+    //     using namespace Libraries;
+    //     auto glfw = GLFW::Get();
+    //     glfw->connect_camera_to_window(key, camera);
+    //     return true;
+    // }
+
     bool EventSystem::set_window_pos(string key, uint32_t x, uint32_t y) {
         auto setWindowPos = [key, x, y] () {
             using namespace Libraries;

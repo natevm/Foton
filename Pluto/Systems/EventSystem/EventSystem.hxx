@@ -6,6 +6,8 @@
 
 #include <queue>
 
+class Camera;
+
 namespace Systems 
 {
     class EventSystem : public System {
@@ -18,6 +20,7 @@ namespace Systems
             bool create_window(string key, uint32_t width = 512, uint32_t height = 512, bool floating = true, bool resizable = true, bool decorated = true, bool create_vulkan_resources = true);
             bool destroy_window(string key);
             bool resize_window(string key, uint32_t width, uint32_t height);
+            // bool connect_camera_to_window(string key, Camera* camera);
             bool set_window_pos(string key, uint32_t x, uint32_t y);
             bool set_window_visibility(string key, bool visible);
             bool toggle_window_fullscreen(string key);

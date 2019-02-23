@@ -16,7 +16,9 @@
 
 #include "Pluto/Tools/Singleton.hxx"
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
-#include "Pluto/Texture/Texture.hxx"
+
+class Texture;
+class Camera;
 
 // /* For access to HWND handle on windows. */
 // #ifdef WIN32
@@ -72,6 +74,8 @@ namespace Libraries {
         std::vector<vk::Semaphore> get_image_available_semaphores(uint32_t current_frame);
         void present_glfw_frames(std::vector<vk::Semaphore> semaphores);
 
+        void connect_camera_to_window(std::string key, Camera* camera);
+
         private:
         GLFW();
         ~GLFW();    
@@ -107,6 +111,9 @@ namespace Libraries {
             double ypos;
             Button buttons[8];
             Key keys[349]; // This is a bit inefficient, but allows lookup by GLFW key
+
+            Camera* connectedCamera = nullptr;
+            Texture* connectedTexture = nullptr;
         };
 
         static unordered_map<string, Window> &Windows();

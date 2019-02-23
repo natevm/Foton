@@ -25,7 +25,7 @@ class Texture : public StaticFactory
 			vk::ImageViewType viewType;
 			vk::ImageType imageType;
 			uint32_t colorSamplerId = 0; uint32_t depthSamplerId = 0;
-			vk::SampleCountFlagBits sampleCount;
+			vk::SampleCountFlagBits sampleCount = vk::SampleCountFlagBits::e1;
 			std::vector<vk::Image> additionalColorImages;
 		};
 

@@ -1,4 +1,5 @@
 #include "./Light.hxx"
+#include "Pluto/Camera/Camera.hxx"
 #include <math.h>
 
 Light Light::lights[MAX_LIGHTS];
@@ -6,6 +7,7 @@ LightStruct* Light::pinnedMemory;
 std::map<std::string, uint32_t> Light::lookupTable;
 vk::Buffer Light::ssbo;
 vk::DeviceMemory Light::ssboMemory;
+std::vector<Camera*> Light::shadowCameras;
 
 Light::Light()
 {
@@ -166,6 +168,14 @@ void Light::Initialize()
 
     /* Pin the buffer */
     pinnedMemory = (LightStruct*) device.mapMemory(ssboMemory, 0, MAX_LIGHTS * sizeof(LightStruct));
+}
+
+void Light::CreateShadowCameras()
+{
+    /* Create shadow map textures */
+    for (uint32_t i = 0; i < MAX_LIGHTS; ++i) {
+        shadowCameras.push_back(Camera::Create("ShadowCam_" + std::to_string(i), true, true, 512, 512));
+    }
 }
 
 void Light::UploadSSBO()

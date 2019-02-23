@@ -2,6 +2,9 @@
 #include <algorithm>
 #include <cctype>
 
+#include "Pluto/Texture/Texture.hxx"
+#include "Pluto/Camera/Camera.hxx"
+
 int windowed_xpos, windowed_ypos, windowed_width, windowed_height;
 
 void resize_window_callback(GLFWwindow * window, int width, int height) {
@@ -417,11 +420,11 @@ namespace Libraries {
         window.presentMode = vk::PresentModeKHR::eImmediate;
 
         /* Switch to prefered present mode if we can. */
-        // for (const auto& presentMode : presentModes) {
-        //     if (presentMode == vk::PresentModeKHR::eMailbox) {
-        //         window.presentMode = presentMode;
-        //     }
-        // }
+        for (const auto& presentMode : presentModes) {
+            if (presentMode == vk::PresentModeKHR::eMailbox) {
+                window.presentMode = presentMode;
+            }
+        }
         #pragma endregion
         #pragma region QuerySurfaceExtent
         /* Determine the extent of our swapchain (almost always the same as our windows size.) */
@@ -927,5 +930,24 @@ namespace Libraries {
                 }
             }
         }
+    }
+
+    void GLFW::connect_camera_to_window(std::string key, Camera* camera)
+    {
+        /* If uninitialized, or if window does not exist, return false */
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot connect camera to window."));
+        auto ittr = Windows().find(key);
+        if ( ittr == Windows().end() )
+            throw std::runtime_error( std::string("Error: window does not exist, cannot connect camera to window."));
+
+        if (!camera)
+            throw std::runtime_error( std::string("Error: Camera was nullptr"));
+
+        auto mutex = window_mutex.get();
+        std::lock_guard<std::mutex> lock(*mutex);
+        
+        auto window = Windows()[key];
+        window.connectedCamera = camera;
     }
 }

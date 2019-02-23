@@ -47,7 +47,6 @@ set (HDR
     ${Transform_HDR}
 )
 
-
 # Global defines
 add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 
@@ -109,6 +108,9 @@ install(TARGETS PlutoEngine DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Pluto.i PROPERTY CPLUSPLUS ON)
 set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Pluto.i PROPERTY USE_TARGET_INCLUDE_DIRECTORIES TRUE)
 swig_add_library(Pluto TYPE SHARED LANGUAGE python OUTPUT_DIR ${CMAKE_BINARY_DIR}/SWIG/Pluto SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Pluto.i)
+if (WIN32) 
+set_property(TARGET Pluto PROPERTY SWIG_GENERATED_COMPILE_OPTIONS -bigobj)
+endif()
 set_target_properties(Pluto PROPERTIES INSTALL_RPATH "${RPATHS}")
 set_target_properties(Pluto PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
 if(APPLE)
@@ -134,48 +136,10 @@ else()
 install(FILES ${CMAKE_BINARY_DIR}/_Pluto.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 endif()
 
+
 # ┌──────────────────────────────────────────────────────────────────┐
-# │  Libraries Module                                                │
+# │  GLM Module                                                      │
 # └──────────────────────────────────────────────────────────────────┘
-
-# Build SWIG module 
-set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/Libraries.i PROPERTY CPLUSPLUS ON)
-set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/Libraries.i PROPERTY USE_TARGET_INCLUDE_DIRECTORIES TRUE)
-swig_add_library(Libraries TYPE SHARED LANGUAGE python OUTPUT_DIR ${CMAKE_BINARY_DIR}/SWIG/Libraries SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/Libraries.i)
-set_target_properties(Libraries PROPERTIES INSTALL_RPATH "${RPATHS}")
-set_target_properties(Libraries PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
-if (BUILD_OPENVR)
-set_property(TARGET Libraries PROPERTY SWIG_COMPILE_DEFINITIONS BUILD_OPENVR)
-endif(BUILD_OPENVR)
-if (BUILD_SPACEMOUSE)
-set_property(TARGET Libraries PROPERTY SWIG_COMPILE_DEFINITIONS BUILD_SPACEMOUSE)
-endif(BUILD_SPACEMOUSE)
-
-if(APPLE)
-set_target_properties(Libraries PROPERTIES MACOSX_RPATH TRUE)
-endif(APPLE)
-target_link_libraries(Libraries PUBLIC ${LIBRARIES} PlutoLib)
-
-set_property(TARGET
-    Libraries
-    PROPERTY FOLDER "swig_libraries/Libraries"
-)
-
-
-# Install
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/__init__.py DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
-install(FILES ${CMAKE_BINARY_DIR}/SWIG/Libraries/Libraries.py DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
-
-if (WIN32) 
-install(FILES ${CMAKE_BINARY_DIR}/_Libraries.pyd DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
-install(FILES ${CMAKE_BINARY_DIR}/_Libraries.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries OPTIONAL)
-elseif(APPLE)
-install(FILES ${CMAKE_BINARY_DIR}/_Libraries.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
-else()
-install(FILES ${CMAKE_BINARY_DIR}/_Libraries.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
-endif()
-
-# Build GLM SWIG module 
 set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/GLM/GLM.i PROPERTY CPLUSPLUS ON)
 set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/GLM/GLM.i PROPERTY USE_TARGET_INCLUDE_DIRECTORIES TRUE)
 swig_add_library(GLM TYPE SHARED LANGUAGE python OUTPUT_DIR ${CMAKE_BINARY_DIR}/SWIG/GLM SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/GLM/GLM.i)
@@ -189,48 +153,15 @@ set_property(TARGET
 )
 
 # Install
-install(FILES ${CMAKE_BINARY_DIR}/SWIG/GLM/GLM.py DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
+install(FILES ${CMAKE_BINARY_DIR}/SWIG/GLM/GLM.py DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 
 if (WIN32) 
-install(FILES ${CMAKE_BINARY_DIR}/_GLM.pyd DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
-install(FILES ${CMAKE_BINARY_DIR}/_GLM.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries OPTIONAL)
+install(FILES ${CMAKE_BINARY_DIR}/_GLM.pyd DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
+install(FILES ${CMAKE_BINARY_DIR}/_GLM.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto OPTIONAL)
 elseif(APPLE)
-install(FILES ${CMAKE_BINARY_DIR}/_GLM.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
+install(FILES ${CMAKE_BINARY_DIR}/_GLM.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 else()
-install(FILES ${CMAKE_BINARY_DIR}/_GLM.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
-endif()
-
-# ┌──────────────────────────────────────────────────────────────────┐
-# │  Systems module                                                  │
-# └──────────────────────────────────────────────────────────────────┘
-
-# Build SWIG module 
-set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Systems/Systems.i PROPERTY CPLUSPLUS ON)
-set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Systems/Systems.i PROPERTY USE_TARGET_INCLUDE_DIRECTORIES TRUE)
-swig_add_library(Systems TYPE SHARED LANGUAGE python OUTPUT_DIR ${CMAKE_BINARY_DIR}/SWIG/Systems SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Systems/Systems.i)
-set_target_properties(Systems PROPERTIES INSTALL_RPATH "${RPATHS}")
-set_target_properties(Systems PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
-if(APPLE)
-set_target_properties(Systems PROPERTIES MACOSX_RPATH TRUE)
-endif(APPLE)
-target_link_libraries(Systems PUBLIC ${LIBRARIES} PlutoLib)
-
-set_property(TARGET
-    Systems
-    PROPERTY FOLDER "swig_libraries/Systems"
-)
-
-# Install
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/Systems/__init__.py DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems)
-install(FILES ${CMAKE_BINARY_DIR}/SWIG/Systems/Systems.py DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems)
-
-if (WIN32) 
-install(FILES ${CMAKE_BINARY_DIR}/_Systems.pyd DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems)
-install(FILES ${CMAKE_BINARY_DIR}/_Systems.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems OPTIONAL)
-elseif(APPLE)
-install(FILES ${CMAKE_BINARY_DIR}/_Systems.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems)
-else()
-install(FILES ${CMAKE_BINARY_DIR}/_Systems.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems)
+install(FILES ${CMAKE_BINARY_DIR}/_GLM.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 endif()
 
 # ┌──────────────────────────────────────────────────────────────────┐

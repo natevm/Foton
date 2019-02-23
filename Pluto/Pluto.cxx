@@ -67,6 +67,8 @@ void Initialize(
     Mesh::Initialize();
     Material::Initialize();
 
+    Light::CreateShadowCameras();
+
     auto skybox = Entity::Create("Skybox");
     auto sphere = Mesh::CreateSphere("SkyboxSphere");
     auto transform = Transform::Create("SkyboxTransform");
