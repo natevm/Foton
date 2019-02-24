@@ -89,9 +89,8 @@ bool RenderSystem::initialize()
 
 void RenderSystem::record_render_commands()
 {
-    auto glfw = GLFW::Get();
-
 #if BUILD_OPENVR
+    /* Set OpenVR transform data right before rendering */
     if (using_openvr) {
         auto entity_id = Entity::GetEntityForVR();
         
@@ -114,14 +113,11 @@ void RenderSystem::record_render_commands()
                 current_camera->set_view(ovr->get_right_view_matrix(), 1);
                 current_camera->set_custom_projection(ovr->get_right_projection_matrix(.1f), .1f, 1);
             }
-
             if (left) left->set_transform(ovr->get_left_controller_transform());
             if (right) right->set_transform(ovr->get_right_controller_transform());
-
         }
     }
 #endif
-
 
     /* Upload SSBO data */
     Material::UploadSSBO();
@@ -144,6 +140,7 @@ void RenderSystem::record_render_commands()
     } catch (...) {}
     if ((!brdf) || (!ltc_mat) || (!ltc_amp)) return;
     
+    /* Update some push constants */
     auto brdf_id = brdf->get_id();
     auto ltc_mat_id = ltc_mat->get_id();
     auto ltc_amp_id = ltc_amp->get_id();
@@ -153,6 +150,10 @@ void RenderSystem::record_render_commands()
     push_constants.time = (float) glfwGetTime();
 
     auto entities = Entity::GetFront();
+
+    /* Get window to camera mapping */
+    auto glfw = GLFW::Get();
+    auto window_to_cam = glfw->get_window_to_camera_map();
 
     /* Get light list */
     std::vector<int32_t> light_entity_ids(MAX_LIGHTS, -1);
@@ -167,8 +168,7 @@ void RenderSystem::record_render_commands()
         if (light_count == MAX_LIGHTS)
             break;
     }
-    memcpy(push_constants.light_entity_ids, light_entity_ids.data(), sizeof(push_constants.light_entity_ids)/*sizeof(int32_t) * light_entity_ids.size()*/);
-
+    memcpy(push_constants.light_entity_ids, light_entity_ids.data(), sizeof(push_constants.light_entity_ids));
 
     /* Render all cameras */
     auto cameras = Camera::GetFront();
@@ -187,16 +187,16 @@ void RenderSystem::record_render_commands()
         Texture * texture = cameras[cam_id].get_texture();
         if (!texture) continue;
 
-        auto command_buffer = cameras[cam_id].get_command_buffer();
         vk::CommandBufferBeginInfo beginInfo;
-        // beginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
+        vk::CommandBuffer command_buffer = cameras[cam_id].get_command_buffer();
         beginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
         command_buffer.begin(beginInfo);
 
         /* If we're the client, we recieve color data from "stream_frames". Only render a scene if not the client. */
-        if (!Options::IsClient())
-        {
-            for(uint32_t rp_idx = 0; rp_idx < cameras[cam_id].get_num_renderpasses(); rp_idx++) {
+        for(uint32_t rp_idx = 0; rp_idx < cameras[cam_id].get_num_renderpasses(); rp_idx++) {
+            
+            if (!Options::IsClient())
+            {
                 /* Get the renderpass for the current camera */
                 vk::RenderPass rp = cameras[cam_id].get_renderpass(rp_idx);
 
@@ -233,31 +233,26 @@ void RenderSystem::record_render_commands()
                 cameras[cam_id].end_renderpass(command_buffer, rp_idx);
             }
         }
-
+        
         /* See if we should blit to a GLFW window. */
-        auto connected_window_key = entities[entity_id].get_connected_window();
-        if (connected_window_key.size() > 0)
-        {
-            /* It's possible the connected window was destroyed. Make sure it still exists... */
-            if (glfw->does_window_exist(connected_window_key)) {
-                
+        for (auto w2c : window_to_cam) {
+            if ((w2c.second.first->get_id() == cam_id)) {
                 /* Window needs a swapchain */
-                auto swapchain = glfw->get_swapchain(connected_window_key);
+                auto swapchain = glfw->get_swapchain(w2c.first);
                 if (!swapchain) {
-                    command_buffer.end();
                     continue;
                 }
 
                 /* Need to be able to get swapchain/texture by key...*/
-                auto swapchain_texture = glfw->get_texture(connected_window_key);
+                auto swapchain_texture = glfw->get_texture(w2c.first);
 
                 /* Record blit to swapchain */
                 if (swapchain_texture && swapchain_texture->is_initialized()) {
-                    texture->record_blit_to(command_buffer, swapchain_texture, 0);
+                    texture->record_blit_to(command_buffer, swapchain_texture, w2c.second.second);
                 }
             }
         }
-
+    
         /* Record blit to OpenVR eyes. */
 #if BUILD_OPENVR
         if (using_openvr) {
@@ -274,6 +269,31 @@ void RenderSystem::record_render_commands()
         /* End this recording. */
         command_buffer.end();
     }
+
+    /* Finally, blit any textures to windows which request them. */
+    auto window_to_tex = glfw->get_window_to_texture_map();
+    vk::CommandBufferBeginInfo beginInfo;
+    beginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
+    main_command_buffer.begin(beginInfo);
+    main_command_buffer_recorded = true;
+    if (window_to_tex.size() > 0) {
+        for (auto &w2t : window_to_tex) {
+            /* Window needs a swapchain */
+            auto swapchain = glfw->get_swapchain(w2t.first);
+            if (!swapchain) {
+                continue;
+            }
+
+            /* Need to be able to get swapchain/texture by key...*/
+            auto swapchain_texture = glfw->get_texture(w2t.first);
+
+            /* Record blit to swapchain */
+            if (swapchain_texture && swapchain_texture->is_initialized()) {
+                w2t.second.first->record_blit_to(main_command_buffer, swapchain_texture, w2t.second.second);
+            }
+        }
+    }
+    main_command_buffer.end();
 }
 
 void RenderSystem::present_openvr_frames()
@@ -387,9 +407,12 @@ void RenderSystem::enqueue_render_commands() {
         Texture * texture = cameras[cam_id].get_texture();
         if (!texture) continue;
 
-        auto command_buffer = cameras[cam_id].get_command_buffer();
-        commands.push_back(command_buffer);
+        commands.push_back(cameras[cam_id].get_command_buffer());
     }
+
+    /* For other misc commands not specific to any camera */
+    if (main_command_buffer_recorded) commands.push_back(main_command_buffer);
+    main_command_buffer_recorded = false;
 
     auto submitPipelineStages = vk::PipelineStageFlags();
     submitPipelineStages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -423,7 +446,7 @@ void RenderSystem::release_vulkan_resources()
     if (!vulkan_resources_created) return;
 
     /* Release vulkan resources */
-    device.freeCommandBuffers(vulkan->get_command_pool(2), maincmds);
+    device.freeCommandBuffers(vulkan->get_command_pool(2), {main_command_buffer});
     
     for (int idx = 0; idx < maincmd_fences.size(); ++idx) {
         device.destroyFence(maincmd_fences[idx]);
@@ -449,7 +472,7 @@ void RenderSystem::allocate_vulkan_resources()
     mainCmdAllocInfo.level = vk::CommandBufferLevel::ePrimary;
     mainCmdAllocInfo.commandPool = vulkan->get_command_pool(2);
     mainCmdAllocInfo.commandBufferCount = max_frames_in_flight;
-    maincmds = device.allocateCommandBuffers(mainCmdAllocInfo);
+    main_command_buffer = device.allocateCommandBuffers(mainCmdAllocInfo)[0];
     
     maincmd_fences.resize(max_frames_in_flight);
     for (uint32_t idx = 0; idx < max_frames_in_flight; ++idx) {

@@ -7,6 +7,7 @@
 #include <queue>
 
 class Camera;
+class Texture;
 
 namespace Systems 
 {
@@ -17,13 +18,14 @@ namespace Systems
             bool start();
             bool stop();
             bool should_close();
-            bool create_window(string key, uint32_t width = 512, uint32_t height = 512, bool floating = true, bool resizable = true, bool decorated = true, bool create_vulkan_resources = true);
-            bool destroy_window(string key);
-            bool resize_window(string key, uint32_t width, uint32_t height);
-            // bool connect_camera_to_window(string key, Camera* camera);
-            bool set_window_pos(string key, uint32_t x, uint32_t y);
-            bool set_window_visibility(string key, bool visible);
-            bool toggle_window_fullscreen(string key);
+            void create_window(string key, uint32_t width = 512, uint32_t height = 512, bool floating = true, bool resizable = true, bool decorated = true, bool create_vulkan_resources = true);
+            void destroy_window(string key);
+            void resize_window(string key, uint32_t width, uint32_t height);
+            void connect_camera_to_window(string key, Camera* camera, uint32_t layer_idx = 0);
+            void connect_texture_to_window(string key, Texture* texture, uint32_t layer_idx = 0);
+            void set_window_pos(string key, uint32_t x, uint32_t y);
+            void set_window_visibility(string key, bool visible);
+            void toggle_window_fullscreen(string key);
             void use_openvr(bool useOpenVR);
 
         private:

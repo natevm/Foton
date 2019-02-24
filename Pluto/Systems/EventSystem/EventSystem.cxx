@@ -100,7 +100,7 @@ namespace Systems
 
     /* These commands can be called from separate threads, but must be run on the event thread. */
 
-    bool EventSystem::create_window(string key, uint32_t width, uint32_t height, bool floating, bool resizable, bool decorated, bool create_vulkan_resources) {
+    void EventSystem::create_window(string key, uint32_t width, uint32_t height, bool floating, bool resizable, bool decorated, bool create_vulkan_resources) {
         using namespace Libraries;
         auto glfw = GLFW::Get();
         if (glfw->does_window_exist(key))
@@ -120,10 +120,9 @@ namespace Systems
 
         auto future = enqueueCommand(createWindow);
         future.wait();
-        return true;
     }
 
-    bool EventSystem::destroy_window(string key) {
+    void EventSystem::destroy_window(string key) {
         using namespace Libraries;
         auto glfw = GLFW::Get();
         if (!glfw->does_window_exist(key))
@@ -137,10 +136,15 @@ namespace Systems
 
         auto future = enqueueCommand(closeWindow);
         future.wait();
-        return true;
     }
 
-    bool EventSystem::resize_window(string key, uint32_t width, uint32_t height) {
+    void EventSystem::resize_window(string key, uint32_t width, uint32_t height) {
+        using namespace Libraries;
+        auto glfw = GLFW::Get();
+        if (!glfw->does_window_exist(key)){
+            throw std::runtime_error("Error: Window does not exist");
+        }
+
         auto resizeWindow = [key, width, height] () {
             using namespace Libraries;
             auto glfw = GLFW::Get();
@@ -149,19 +153,31 @@ namespace Systems
 
         auto future = enqueueCommand(resizeWindow);
         future.wait();
-        return true;
     }
 
-    // bool EventSystem::connect_camera_to_window(string key, uint32_t cam_idCamera* camera)
-    // {
-    //     /* This function can be called directly. */
-    //     using namespace Libraries;
-    //     auto glfw = GLFW::Get();
-    //     glfw->connect_camera_to_window(key, camera);
-    //     return true;
-    // }
+    void EventSystem::connect_camera_to_window(string key, Camera* camera, uint32_t layer_idx)
+    {
+        /* This function can be called directly. */
+        using namespace Libraries;
+        auto glfw = GLFW::Get();
+        glfw->connect_camera_to_window(key, camera, layer_idx);
+    }
 
-    bool EventSystem::set_window_pos(string key, uint32_t x, uint32_t y) {
+    void EventSystem::connect_texture_to_window(string key, Texture* texture, uint32_t layer_idx)
+    {
+        /* This function can be called directly. */
+        using namespace Libraries;
+        auto glfw = GLFW::Get();
+        glfw->connect_texture_to_window(key, texture, layer_idx);
+    }
+
+    void EventSystem::set_window_pos(string key, uint32_t x, uint32_t y) {
+        using namespace Libraries;
+        auto glfw = GLFW::Get();
+        if (!glfw->does_window_exist(key)){
+            throw std::runtime_error("Error: Window does not exist");
+        }
+
         auto setWindowPos = [key, x, y] () {
             using namespace Libraries;
             auto glfw = GLFW::Get();
@@ -170,10 +186,15 @@ namespace Systems
 
         auto future = enqueueCommand(setWindowPos);
         future.wait();
-        return true;
     }
 
-    bool EventSystem::set_window_visibility(string key, bool visible) {
+    void EventSystem::set_window_visibility(string key, bool visible) {
+        using namespace Libraries;
+        auto glfw = GLFW::Get();
+        if (!glfw->does_window_exist(key)){
+            throw std::runtime_error("Error: Window does not exist");
+        }
+
         auto setWindowVisibility = [key, visible] () {
             using namespace Libraries;
             auto glfw = GLFW::Get();
@@ -182,11 +203,16 @@ namespace Systems
 
         auto future = enqueueCommand(setWindowVisibility);
         future.wait();
-        return true;
     }
 
-    bool EventSystem::toggle_window_fullscreen(string key)
+    void EventSystem::toggle_window_fullscreen(string key)
     {
+        using namespace Libraries;
+        auto glfw = GLFW::Get();
+        if (!glfw->does_window_exist(key)){
+            throw std::runtime_error("Error: Window does not exist");
+        }
+        
         auto setWindowFullscreen = [key] () {
             using namespace Libraries;
             auto glfw = GLFW::Get();
@@ -195,7 +221,6 @@ namespace Systems
 
         auto future = enqueueCommand(setWindowFullscreen);
         future.wait();
-        return true;
     }
 
     bool EventSystem::stop() {

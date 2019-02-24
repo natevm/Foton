@@ -174,7 +174,20 @@ void Light::CreateShadowCameras()
 {
     /* Create shadow map textures */
     for (uint32_t i = 0; i < MAX_LIGHTS; ++i) {
-        shadowCameras.push_back(Camera::Create("ShadowCam_" + std::to_string(i), true, true, 512, 512));
+        auto cam = Camera::Create("ShadowCam_" + std::to_string(i), true, true, 512, 512);
+        cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .001f, 0);
+        cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .001f, 1);
+        cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .001f, 2);
+        cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .001f, 3);
+        cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .001f, 4);
+        cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .001f, 5);
+        cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3(-1,  0,  0), glm::vec3(0.0, 0.0, 1.0)), 0);
+        cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0,  0,  -1), glm::vec3(0.0, 1.0, 0.0)), 1);
+        cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0,  1,  0), glm::vec3(0.0, 0.0, 1.0)), 2);
+        cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0,  0,  1), glm::vec3(0.0, -1.0, 0.0)), 3);
+        cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 1,  0,  0), glm::vec3(0.0, 0.0, 1.0)), 4);
+        cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0, -1,  0), glm::vec3(0.0, 0.0, 1.0)), 5);
+        shadowCameras.push_back(cam);
     }
 }
 

@@ -40,9 +40,7 @@ namespace Systems
 
             void use_openvr(bool useOpenVR);
         private:
-            PushConsts push_constants;
-
-            
+            PushConsts push_constants;            
 
             bool using_openvr = false;
             void *zmq_context;
@@ -64,7 +62,8 @@ namespace Systems
 
             uint32_t currentFrame = 0;
             
-            std::vector<vk::CommandBuffer> maincmds;
+            vk::CommandBuffer main_command_buffer;
+            bool main_command_buffer_recorded = false;
             std::vector<vk::Fence> maincmd_fences;
 
             std::vector<vk::Semaphore> renderCompleteSemaphores;

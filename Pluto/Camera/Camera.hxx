@@ -205,7 +205,7 @@ class Camera : public StaticFactory
 	void create_frame_buffers(uint32_t layers);
 
 	/* Creates a vulkan commandbuffer handle used to record the renderpass. */
-	void create_command_buffer();
+	void create_command_buffers(uint32_t count);
 
 	/* Updates the usedViews field to account for a new multiview. This is fixed to the allocated texture layers 
 		when recording is enabled. */

@@ -37,7 +37,7 @@ void Camera::setup(bool allow_recording, bool cubemap, uint32_t tex_width, uint3
 			if (msaa_samples != 1)
 				resolveTexture = Texture::Create2D(name + "_resolve", tex_width, tex_height, true, true, 1, layers);
 		}
-		create_command_buffer();
+		create_command_buffers(layers);
 		create_render_passes(tex_width, tex_height, layers, msaa_samples);
 		create_frame_buffers(layers);
         for(auto renderpass : renderpasses) {
@@ -46,7 +46,7 @@ void Camera::setup(bool allow_recording, bool cubemap, uint32_t tex_width, uint3
 	}
 }
 
-void Camera::create_command_buffer()
+void Camera::create_command_buffers(uint32_t count)
 {
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
@@ -591,7 +591,9 @@ void Camera::cleanup()
 	auto device = vulkan->get_device();
 
 	if (command_buffer)
+	{
 		device.freeCommandBuffers(vulkan->get_command_pool(1), {command_buffer});
+	}
     if (renderpasses.size() > 0) {
         for(auto renderpass : renderpasses) {
             device.destroyRenderPass(renderpass);

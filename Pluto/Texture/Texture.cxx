@@ -443,12 +443,14 @@ void Texture::record_blit_to(vk::CommandBuffer command_buffer, Texture * other, 
     vk::ImageSubresourceRange srcSubresourceRange;
     srcSubresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
     srcSubresourceRange.baseMipLevel = 0;
+    srcSubresourceRange.baseArrayLayer = 0;
     srcSubresourceRange.levelCount = data.colorMipLevels;
-    srcSubresourceRange.layerCount = 1;
+    srcSubresourceRange.layerCount = data.layers;
 
     vk::ImageSubresourceRange dstSubresourceRange;
     dstSubresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
     dstSubresourceRange.baseMipLevel = 0;
+    srcSubresourceRange.baseArrayLayer = 0;
     dstSubresourceRange.levelCount = 1;
     dstSubresourceRange.layerCount = 1;
 
@@ -1284,7 +1286,7 @@ void Texture::create_color_image_resources(bool submit_immediately, bool attachm
         subresourceRange.levelCount = data.colorMipLevels;
         subresourceRange.layerCount = 1;
         
-        vInfo.viewType = data.viewType;
+        vInfo.viewType = vk::ImageViewType::e2D;
         vInfo.format = data.colorFormat;
         vInfo.subresourceRange = subresourceRange;
         vInfo.image = data.colorImage;
@@ -1380,7 +1382,7 @@ void Texture::create_depth_stencil_resources(bool submit_immediately)
         subresourceRange.levelCount = 1;
         subresourceRange.layerCount = 1;
         
-        vInfo.viewType = data.viewType;
+        vInfo.viewType = vk::ImageViewType::e2D;
         vInfo.format = data.depthFormat;
         vInfo.subresourceRange = subresourceRange;
         vInfo.image = data.depthImage;

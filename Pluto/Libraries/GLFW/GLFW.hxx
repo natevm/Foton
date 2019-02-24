@@ -13,6 +13,8 @@
 #include <vector>
 #include <unordered_map>
 #include <mutex>
+#include <map>
+#include <utility>
 
 #include "Pluto/Tools/Singleton.hxx"
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
@@ -74,7 +76,10 @@ namespace Libraries {
         std::vector<vk::Semaphore> get_image_available_semaphores(uint32_t current_frame);
         void present_glfw_frames(std::vector<vk::Semaphore> semaphores);
 
-        void connect_camera_to_window(std::string key, Camera* camera);
+        void connect_camera_to_window(std::string key, Camera* camera, uint32_t layer_idx = 0);
+        void connect_texture_to_window(std::string key, Texture* texture, uint32_t layer_idx = 0);
+        std::map<std::string, std::pair<Camera*, uint32_t>> get_window_to_camera_map();
+        std::map<std::string, std::pair<Texture*, uint32_t>> get_window_to_texture_map();
 
         private:
         GLFW();
@@ -114,6 +119,7 @@ namespace Libraries {
 
             Camera* connectedCamera = nullptr;
             Texture* connectedTexture = nullptr;
+            uint32_t selected_layer = 0;
         };
 
         static unordered_map<string, Window> &Windows();

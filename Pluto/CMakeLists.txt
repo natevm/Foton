@@ -136,7 +136,6 @@ else()
 install(FILES ${CMAKE_BINARY_DIR}/_Pluto.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 endif()
 
-
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  GLM Module                                                      │
 # └──────────────────────────────────────────────────────────────────┘

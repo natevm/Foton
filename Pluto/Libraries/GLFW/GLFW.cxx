@@ -1,6 +1,7 @@
 #include "GLFW.hxx"
 #include <algorithm>
 #include <cctype>
+#include <string>
 
 #include "Pluto/Texture/Texture.hxx"
 #include "Pluto/Camera/Camera.hxx"
@@ -932,7 +933,7 @@ namespace Libraries {
         }
     }
 
-    void GLFW::connect_camera_to_window(std::string key, Camera* camera)
+    void GLFW::connect_camera_to_window(std::string key, Camera* camera, uint32_t layer_idx)
     {
         /* If uninitialized, or if window does not exist, return false */
         if (initialized == false)
@@ -947,7 +948,62 @@ namespace Libraries {
         auto mutex = window_mutex.get();
         std::lock_guard<std::mutex> lock(*mutex);
         
-        auto window = Windows()[key];
+        auto &window = Windows()[key];
+        window.connectedTexture = nullptr;
         window.connectedCamera = camera;
+        window.selected_layer = layer_idx;
+    }
+
+    void GLFW::connect_texture_to_window(std::string key, Texture* texture, uint32_t layer_idx)
+    {
+        /* If uninitialized, or if window does not exist, return false */
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot connect texture to window."));
+        auto ittr = Windows().find(key);
+        if ( ittr == Windows().end() )
+            throw std::runtime_error( std::string("Error: window does not exist, cannot connect texture to window."));
+
+        if (!texture)
+            throw std::runtime_error( std::string("Error: Texture was nullptr"));
+
+        auto mutex = window_mutex.get();
+        std::lock_guard<std::mutex> lock(*mutex);
+        
+        auto &window = Windows()[key];
+        window.connectedCamera = nullptr;
+        window.connectedTexture = texture;
+        window.selected_layer = layer_idx;
+    }
+
+    std::map<std::string, std::pair<Camera*, uint32_t>> GLFW::get_window_to_camera_map()
+    {
+        /* If uninitialized, or if window does not exist, return false */
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot return window to camera map."));
+
+        std::map<std::string, std::pair<Camera*, uint32_t>> win2cam;
+        for (auto &window : Windows()) {
+            if (window.second.connectedCamera != nullptr){
+                win2cam[window.first] = std::pair(window.second.connectedCamera, window.second.selected_layer);
+            }
+        }
+
+        return win2cam;
+    }
+
+    std::map<std::string, std::pair<Texture*, uint32_t>> GLFW::get_window_to_texture_map()
+    {
+        /* If uninitialized, or if window does not exist, return false */
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot return window to texture map."));
+
+        std::map<std::string, std::pair<Texture*, uint32_t>> win2tex;
+        for (auto &window : Windows()) {
+            if (window.second.connectedTexture != nullptr){
+                win2tex[window.first] = std::pair(window.second.connectedTexture, window.second.selected_layer);
+            }
+        }
+
+        return win2tex;
     }
 }
