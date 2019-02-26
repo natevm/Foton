@@ -24,8 +24,8 @@ struct CameraObject
     float near_pos;
     // float far_pos;
     float fov;
-    float pad1;
     float pad2;
+    int tex_id;
 };
 
 struct CameraStruct

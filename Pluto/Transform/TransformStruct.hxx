@@ -1,7 +1,7 @@
 /* File shared by both GLSL and C++ */
 
 #ifndef MAX_TRANSFORMS
-#define MAX_TRANSFORMS 256
+#define MAX_TRANSFORMS 1024
 #endif
 
 #ifndef GLSL
@@ -13,4 +13,10 @@ struct TransformStruct
 {
     mat4 worldToLocal;
     mat4 localToWorld;
+    mat4 worldToLocalRotation;
+    mat4 localToWorldRotation;
+    mat4 worldToLocalTranslation;
+    mat4 localToWorldTranslation;
+    mat4 worldToLocalScale;
+    mat4 localToWorldScale;
 };

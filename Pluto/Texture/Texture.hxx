@@ -25,12 +25,15 @@ class Texture : public StaticFactory
 			vk::ImageViewType viewType;
 			vk::ImageType imageType;
 			uint32_t colorSamplerId = 0; uint32_t depthSamplerId = 0;
-			vk::SampleCountFlagBits sampleCount;
+			vk::SampleCountFlagBits sampleCount = vk::SampleCountFlagBits::e1;
 			std::vector<vk::Image> additionalColorImages;
 		};
 
 		/* Creates a texture from a khronos texture file (.ktx) */
 		static Texture *CreateFromKTX(std::string name, std::string filepath, bool submit_immediately = false);
+
+		/* Creates a 2D texture from a PNG image file */
+		static Texture *CreateFromPNG(std::string name, std::string filepath, bool submit_immediately = false);
 
 		/* Creates a texture from data allocated outside this class. Helpful for swapchains, external libraries, etc */
 		static Texture *CreateFromExternalData(std::string name, Data data);
@@ -156,6 +159,10 @@ class Texture : public StaticFactory
 			vk::PipelineStageFlags srcStageMask = vk::PipelineStageFlagBits::eAllCommands,
 			vk::PipelineStageFlags dstStageMask = vk::PipelineStageFlagBits::eAllCommands);
 
+		// Kinda kludgy. Need to go back and forth between renderpasses
+		void make_renderable(vk::CommandBuffer commandBuffer);
+		void make_samplable(vk::CommandBuffer commandBuffer);
+
 	private:
 
 		/* The list of texture components, allocated statically */
@@ -203,4 +210,7 @@ class Texture : public StaticFactory
 
 		/* Creates a texture from a khronos texture file, replacing any vulkan resources with new ones containing the ktx data. */
 		void loadKTX(std::string imagePath, bool submit_immediately = false);
+
+		/* Creates a texture from a png texture file, replacing any vulkan resources with new ones containing the png data. */
+		void loadPNG(std::string imagePath, bool submit_immediately = false);
 };

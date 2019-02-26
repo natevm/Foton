@@ -28,6 +28,10 @@
 class Entity;
 
 class Texture;
+class Camera;
+
+/* An enumeration used to select a pipeline type for use when drawing a given entity. */
+enum RenderMode : uint32_t { BLINN, PBR, NORMAL, TEXCOORD, SKYBOX, BASECOLOR, DEPTH, VOLUME, HIDDEN, NONE };
 
 class Material : public StaticFactory
 {
@@ -85,10 +89,10 @@ class Material : public StaticFactory
         static void BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
 
         /* Records a draw of the supplied entity to the current command buffer. Call this during a renderpass. */
-        static void DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants); // int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time
+        static void DrawEntity(vk::CommandBuffer &command_buffer, Camera* camera, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants); // int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time
 
         /* Records a draw of the supplied entity to the current command buffer. Call this during a renderpass. */
-        static void DrawVolume(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants); // int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time
+        static void DrawVolume(vk::CommandBuffer &command_buffer, Camera* camera, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants); // int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time
 
         /* Creates an uninitialized material. Useful for preallocation. */
         Material();
@@ -249,7 +253,6 @@ class Material : public StaticFactory
         /* The structure containing all shader material properties. This is what's coppied into the SSBO per instance */
         MaterialStruct material_struct;
 
-        /* An enumeration used to select a pipeline type for use when drawing a given entity. */
-        enum RenderMode { BLINN, PBR, NORMAL, TEXCOORD, SKYBOX, BASECOLOR, DEPTH, VOLUME, HIDDEN };
+        
         RenderMode renderMode = PBR;
 };

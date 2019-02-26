@@ -5,7 +5,7 @@
 #endif
 
 #ifndef MAX_ENTITIES
-#define MAX_ENTITIES 256
+#define MAX_ENTITIES 1024
 #endif
 
 struct EntityStruct {

@@ -11,10 +11,13 @@
 
 class Texture;
 
+enum RenderMode : uint32_t;
+
 class Camera : public StaticFactory
 {
   public:
-	/* Creates a camera, which can be used to record the scene. Can be used to render to several texture layers for use in cubemap rendering/VR renderpasses. */
+	/* Creates a camera, which can be used to record the scene. Can be used to render to several texture layers for use in cubemap rendering/VR renderpasses. 
+		Note, "layers" parameter is ignored if cubemap is enabled. */
 	static Camera *Create(std::string name, bool allow_recording = false, bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1, uint32_t layers = 1);
 
 	/* Retrieves a camera component by name. */
@@ -126,12 +129,28 @@ class Camera : public StaticFactory
 		this should always be 1.0 */
 	void set_clear_depth(float depth);
 
-	/* Sets the renderpass order of the current camera. This is used to render this camera first, so that
-		other cameras later on can use the results. Eg, rendering shadow maps or reflections. */
-	void set_render_order(uint32_t order);
+	/* Sets the renderpass order of the current camera. This is used to handle dependencies between 
+		renderpasses. Eg, rendering shadow maps or reflections. */
+	void set_render_order(int32_t order);
+	
+	/* Gets the renderpass order of the current camera. This is used to handle dependencies between 
+		renderpasses. Eg, rendering shadow maps or reflections. */
+	int32_t get_render_order();
+
+	/* Returns the minimum render order set in the camera list */
+	static int32_t GetMinRenderOrder();
+	
+	/* Returns the maximum render order set in the camera list */
+	static int32_t GetMaxRenderOrder();
 
 	/* Returns whether or not a camera is allowed to record draw calls. */
 	bool allows_recording();
+
+	/* TODO: Explain this */
+	void force_render_depth();
+
+	/* TODO: Explain this */
+	RenderMode get_rendermode_override();
 
   private:
 	/* Marks the total number of multiviews being used by the current camera. */
@@ -141,7 +160,11 @@ class Camera : public StaticFactory
 	uint32_t maxMultiview = MAX_MULTIVIEW;
 
 	/* Marks when this camera should render during a frame. */
-	uint32_t renderOrder = 0;
+	int32_t renderOrder = 0;
+
+	/* Marks the range of render orders, so that the render system can create the right number of semaphores. */
+	static int32_t minRenderOrder;
+	static int32_t maxRenderOrder;
 
 	/* A struct containing all data to be uploaded to the GPU via an SSBO. */
 	CameraStruct camera_struct;
@@ -163,7 +186,7 @@ class Camera : public StaticFactory
 	/* If msaa_samples is more than one, this texture component is used to resolve MSAA samples. */
 	Texture *resolveTexture = nullptr;
 	
-	/* The flag which indicates whether this camera can be used for rendering to textures. */
+	/* This flag indicates whether this camera can be used for rendering to textures. */
 	bool allow_recording = false;
 
 	/* The RGBA color used when clearing the color attachment at the beginning of a renderpass. */
@@ -194,6 +217,8 @@ class Camera : public StaticFactory
 	/* The corresponding material SSBO memory. */
 	static vk::DeviceMemory ssboMemory;
 
+	RenderMode renderModeOverride;
+
 	/* Allocates (and possibly frees existing) textures, renderpass, and framebuffer required for rendering. */
 	void setup(bool allow_recording = false, bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1, uint32_t layers = 1);
 
@@ -204,7 +229,7 @@ class Camera : public StaticFactory
 	void create_frame_buffers(uint32_t layers);
 
 	/* Creates a vulkan commandbuffer handle used to record the renderpass. */
-	void create_command_buffer();
+	void create_command_buffers(uint32_t count);
 
 	/* Updates the usedViews field to account for a new multiview. This is fixed to the allocated texture layers 
 		when recording is enabled. */

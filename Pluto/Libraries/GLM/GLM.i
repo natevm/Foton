@@ -1,5 +1,5 @@
 
-%module(package="Pluto.Libraries") GLM
+%module(package="Pluto") GLM
 
 %feature("autodoc","2");
 

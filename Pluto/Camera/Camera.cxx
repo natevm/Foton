@@ -3,16 +3,21 @@
 #include "Pluto/Texture/Texture.hxx"
 #include "Pluto/Material/Material.hxx"
 
+#include <algorithm>
+
 Camera Camera::cameras[MAX_CAMERAS];
 CameraStruct* Camera::pinnedMemory;
 std::map<std::string, uint32_t> Camera::lookupTable;
 vk::Buffer Camera::ssbo;
 vk::DeviceMemory Camera::ssboMemory;
+int32_t Camera::minRenderOrder = 0;
+int32_t Camera::maxRenderOrder = 0;
 
 using namespace Libraries;
 
 void Camera::setup(bool allow_recording, bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers)
 {
+	layers = (cubemap) ? 6 : layers;
 	if (layers > MAX_MULTIVIEW)
     {
 		throw std::runtime_error( std::string("Error: Camera component cannot render to more than " + std::to_string(MAX_MULTIVIEW) + " layers simultaneously."));
@@ -36,8 +41,13 @@ void Camera::setup(bool allow_recording, bool cubemap, uint32_t tex_width, uint3
 			if (msaa_samples != 1)
 				resolveTexture = Texture::Create2D(name + "_resolve", tex_width, tex_height, true, true, 1, layers);
 		}
-		create_command_buffer();
-		create_render_passes(tex_width, tex_height, (cubemap) ? 6 : layers, msaa_samples);
+
+		for (uint32_t i = 0; i < layers; ++i) {
+			camera_struct.multiviews[i].tex_id = (msaa_samples != 1) ? resolveTexture->get_id() : renderTexture->get_id();
+		}
+
+		create_command_buffers(layers);
+		create_render_passes(tex_width, tex_height, layers, msaa_samples);
 		create_frame_buffers(layers);
         for(auto renderpass : renderpasses) {
             Material::SetupGraphicsPipelines(renderpass, msaa_samples);
@@ -45,7 +55,7 @@ void Camera::setup(bool allow_recording, bool cubemap, uint32_t tex_width, uint3
 	}
 }
 
-void Camera::create_command_buffer()
+void Camera::create_command_buffers(uint32_t count)
 {
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
@@ -271,6 +281,7 @@ Camera::Camera(std::string name, uint32_t id) {
 	this->initialized = true;
 	this->name = name;
 	this->id = id;
+	this->renderModeOverride = RenderMode::NONE;
 }
 
 // glm::mat4 MakeInfReversedZOrthoRH(float left, float right, float bottom, float top, float zNear)
@@ -337,8 +348,28 @@ void Camera::set_view(glm::mat4 view, uint32_t multiview)
 	camera_struct.multiviews[multiview].viewinv = glm::inverse(view);
 };
 
-void Camera::set_render_order(uint32_t order) {
+void Camera::set_render_order(int32_t order) {
 	renderOrder = order;
+	
+	/* Update min/max render orders */
+	for (auto &camera : cameras) {
+		if (!camera.is_initialized()) continue;
+		minRenderOrder = std::min(minRenderOrder, camera.get_render_order());
+		maxRenderOrder = std::max(maxRenderOrder, camera.get_render_order());
+	}
+}
+
+int32_t Camera::get_render_order()
+{
+	return renderOrder;
+}
+
+int32_t Camera::GetMinRenderOrder() {
+	return minRenderOrder;
+}
+
+int32_t Camera::GetMaxRenderOrder() {
+	return maxRenderOrder;
 }
 
 glm::mat4 Camera::get_projection(uint32_t multiview) { 
@@ -396,6 +427,10 @@ void Camera::begin_renderpass(vk::CommandBuffer command_buffer, uint32_t index)
 	if (!allow_recording)
 		throw std::runtime_error( std::string("Error: this camera does not allow recording"));
 
+	if (renderOrder < 0) {
+		renderTexture->make_renderable(command_buffer);
+	}
+
 	vk::RenderPassBeginInfo rpInfo;
 	rpInfo.renderPass = renderpasses[index];
 	rpInfo.framebuffer = framebuffers[index];
@@ -451,6 +486,11 @@ void Camera::end_renderpass(vk::CommandBuffer command_buffer, uint32_t index) {
 		throw std::runtime_error( std::string("Error: this camera does not allow recording"));
 		
 	command_buffer.endRenderPass();
+
+	/* hack for now*/ 
+	if (renderOrder < 0) {
+		renderTexture->make_samplable(command_buffer);
+	}
 }
 
 vk::CommandBuffer Camera::get_command_buffer() {
@@ -590,10 +630,21 @@ void Camera::cleanup()
 	auto device = vulkan->get_device();
 
 	if (command_buffer)
+	{
 		device.freeCommandBuffers(vulkan->get_command_pool(1), {command_buffer});
+	}
     if (renderpasses.size() > 0) {
         for(auto renderpass : renderpasses) {
             device.destroyRenderPass(renderpass);
         }
     }
+}
+
+void Camera::force_render_depth()
+{
+	renderModeOverride = RenderMode::DEPTH;
+}
+
+RenderMode Camera::get_rendermode_override() {
+	return renderModeOverride;
 }

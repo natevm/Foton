@@ -4,6 +4,8 @@
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
 #include "Pluto/Light/LightStruct.hxx"
 
+class Camera;
+
 class Light : public StaticFactory
 {
     private:
@@ -13,6 +15,7 @@ class Light : public StaticFactory
         static std::map<std::string, uint32_t> lookupTable;
         static vk::Buffer ssbo;
         static vk::DeviceMemory ssboMemory;
+        static std::vector<Camera*> shadowCameras;
         
         /* Instance fields*/
         LightStruct light_struct;
@@ -28,6 +31,7 @@ class Light : public StaticFactory
         static void Delete(uint32_t id);
     
         static void Initialize();
+        static void CreateShadowCameras();
         static void UploadSSBO();
         static vk::Buffer GetSSBO();
         static uint32_t GetSSBOSize();

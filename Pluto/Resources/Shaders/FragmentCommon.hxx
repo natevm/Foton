@@ -1044,6 +1044,30 @@ const float gamma = 2.2;
 vec3 ToLinear(vec3 v) { return PowV3(v,     gamma); }
 vec3 ToSRGB(vec3 v)   { return PowV3(v, 1.0/gamma); }
 
+float get_shadow_contribution(EntityStruct light_entity, vec3 w_light_position, vec3 w_position) 
+{
+    float bias = .1;
+    CameraStruct light_camera = cbo.cameras[light_entity.camera_id];
+    int tex_id = light_camera.multiviews[0].tex_id;
+
+    TransformStruct light_transform = tbo.transforms[light_entity.transform_id];
+    vec3 l_position = (light_transform.worldToLocalRotation*light_transform.worldToLocalTranslation * vec4(w_position, 1.0)).xyz;
+    vec3 pos_dir = -normalize(l_position);
+    vec3 adjusted = vec3(pos_dir.x, -pos_dir.z, pos_dir.y);
+
+    TextureStruct tex = txbo.textures[tex_id];
+    float val = 1.0;
+    if (tex.sampler_id != -1) {
+        val = texture(
+            samplerCube(texture_cubes[tex_id], samplers[tex.sampler_id]), adjusted
+        ).r;
+
+        val = (val + bias < length(l_position)) ? 0.0 : 1.0;
+    }
+
+    return val;
+}
+
 vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 albedo_mix, vec3 albedo, float metallic, float roughness)
 {    
     /* Need a linear cosine transform lookup table for LTC... */
@@ -1093,7 +1117,7 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
         TransformStruct light_transform = tbo.transforms[light_entity.transform_id];
         vec3 w_light_position = vec3(light_transform.localToWorld[3]);
         vec3 w_light_dir = normalize(w_light_position - w_position);
-        
+
         // Precalculate vectors and dot products	
         vec3 w_half = normalize(w_view + w_light_dir);
         float dotNH = clamp(dot(w_normal, w_half), 0.0, 1.0);
@@ -1130,7 +1154,9 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
             if (dotNL < 0.0) continue;
             vec3 spec = (D * F * G / (4.0 * dotNL * dotNV + 0.001));
             float dist_squared = max(sqr(length(w_light_position - w_position)), 1.0);
-            finalColor += cone_term * (1.0 / dist_squared) * lcol * dotNL * (kD * albedo / PI + spec) / (2.0 * PI);
+
+            float shadow_term = get_shadow_contribution(light_entity, w_light_position, w_position);
+            finalColor += shadow_term * cone_term * (1.0 / dist_squared) * lcol * dotNL * (kD * albedo / PI + spec) / (2.0 * PI);
         }
         
         /* Rectangle light */
@@ -1163,7 +1189,8 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
             // Get diffuse
             vec3 diff = LTC_Evaluate_Rect_Clipped(w_normal, w_view, w_position, mat3(1), points, double_sided); 
 
-            finalColor += cone_term * geometric_term * lcol * (spec + dcol*diff);
+            float shadow_term = get_shadow_contribution(light_entity, w_light_position, w_position);
+            finalColor += shadow_term * cone_term * geometric_term * lcol * (spec + dcol*diff);
         }
 
         /* Disk Light */
@@ -1195,7 +1222,8 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
             // Get diffuse
             vec3 diff = LTC_Evaluate_Disk(w_normal, w_view, w_position, mat3(1), points, double_sided); 
 
-            finalColor += cone_term * geometric_term * lcol * (spec + dcol*diff);
+            float shadow_term = get_shadow_contribution(light_entity, w_light_position, w_position);
+            finalColor += shadow_term * cone_term * geometric_term * lcol * (spec + dcol*diff);
         }
         
         /* Rod light */
@@ -1226,7 +1254,8 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
             vec3 diff = LTC_Evaluate_Rod(w_normal, w_view, w_position, mat3(1), points, radius, show_end_caps); 
             // diff /= (PI);
 
-            finalColor += cone_term * geometric_term * lcol * (spec + dcol*diff);
+            float shadow_term = get_shadow_contribution(light_entity, w_light_position, w_position);
+            finalColor += shadow_term * cone_term * geometric_term * lcol * (spec + dcol*diff);
         }
         
         /* Sphere light */
@@ -1275,7 +1304,8 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
             // Get diffuse
             vec3 diff = LTC_Evaluate_Disk(w_normal, w_view, w_position, mat3(1), points, true); 
 
-            finalColor += cone_term * geometric_term * lcol * (spec + dcol*diff);
+            float shadow_term = get_shadow_contribution(light_entity, w_light_position, w_position);
+            finalColor += shadow_term * cone_term * geometric_term * lcol * (spec + dcol*diff);
         }
     }
 

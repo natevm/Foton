@@ -1,6 +1,11 @@
 #include "GLFW.hxx"
 #include <algorithm>
 #include <cctype>
+#include <string>
+
+#include "Pluto/Systems/EventSystem/EventSystem.hxx"
+#include "Pluto/Texture/Texture.hxx"
+#include "Pluto/Camera/Camera.hxx"
 
 int windowed_xpos, windowed_ypos, windowed_width, windowed_height;
 
@@ -417,11 +422,11 @@ namespace Libraries {
         window.presentMode = vk::PresentModeKHR::eImmediate;
 
         /* Switch to prefered present mode if we can. */
-        // for (const auto& presentMode : presentModes) {
-        //     if (presentMode == vk::PresentModeKHR::eMailbox) {
-        //         window.presentMode = presentMode;
-        //     }
-        // }
+        for (const auto& presentMode : presentModes) {
+            if (presentMode == vk::PresentModeKHR::eMailbox) {
+                window.presentMode = presentMode;
+            }
+        }
         #pragma endregion
         #pragma region QuerySurfaceExtent
         /* Determine the extent of our swapchain (almost always the same as our windows size.) */
@@ -486,7 +491,6 @@ namespace Libraries {
         info.clipped = VK_TRUE;
        
         /* Create the swap chain */
-        std::cout<<"Creating vulkan swapchain for window: " << key <<std::endl;
         window.swapchain = device.createSwapchainKHR(info);
 
         if (!window.swapchain)
@@ -845,22 +849,28 @@ namespace Libraries {
         return -1;
     }
 
+    #pragma GCC push_options
+    #pragma GCC optimize("O0")
     void GLFW::acquire_swapchain_images(uint32_t current_frame) {
         auto vulkan = Vulkan::Get();
         auto device = vulkan->get_device();
 
         for (auto &window : Windows()) {
-            /* The current window must have a valid swapchain which we can acquire from. */
-            if (!window.second.swapchain) continue;
-            if (window.second.swapchain_out_of_date) continue;
+            /* The current window must have a valid swapchain which we can acquire from. 
+            If it does not, indicate that the image avilable semaphore will not be triggered. */
+            if ((!window.second.swapchain) || (window.second.swapchain_out_of_date)) {
+                window.second.image_acquired = false;
+                continue;
+            }
 
             vk::Fence acquireFence;
             try {
                 /* Acquire a swapchain image, waiting on the acquire fence. 
                 I believe this fence is used for handling vsync, but I could be wrong... */
+                vk::Semaphore imageAvailableSemaphore = window.second.imageAvailableSemaphores[current_frame];
                 
                 acquireFence = device.createFence(vk::FenceCreateInfo());
-                auto result = device.acquireNextImageKHR(window.second.swapchain, std::numeric_limits<uint32_t>::max(), window.second.imageAvailableSemaphores[current_frame], acquireFence);
+                auto result = device.acquireNextImageKHR(window.second.swapchain, std::numeric_limits<uint32_t>::max(), imageAvailableSemaphore, acquireFence);
                 window.second.current_image_index = result.value;
                 //auto swapchain_texture = glfw->get_texture(keys[i], swapchain_index);
                 auto result2 = device.waitForFences(acquireFence, true, 10000000000);
@@ -868,15 +878,21 @@ namespace Libraries {
                     std::cout<<"Fence timeout while acquiring swapchain image!"<<std::endl;
                 }
                 device.destroyFence(acquireFence);
+
+                window.second.image_acquired = true;
             } catch(...)
             {
                 if (acquireFence)
                     device.destroyFence(acquireFence);
 
+                std::cout<<"Swapchain out of date"<<std::endl;
+
                 set_swapchain_out_of_date(window.first);
+                window.second.image_acquired = false;
             }
         }
     }
+    #pragma GCC pop_options
 
     std::vector<vk::Semaphore> GLFW::get_image_available_semaphores(uint32_t current_frame)
     {
@@ -885,9 +901,10 @@ namespace Libraries {
         std::vector<vk::Semaphore> semaphores;
 
         for (auto &window : Windows()) {
-            /* The current window must have a valid swapchain which we can acquire from. */
-            if (!window.second.swapchain) continue;
-            if (window.second.swapchain_out_of_date) continue;
+            /* The current window must have a valid swapchain which was acquired from. 
+            If it does not, the image available semaphore wont be signalled */
+            if (!window.second.image_acquired) continue;
+
             semaphores.push_back(window.second.imageAvailableSemaphores[current_frame]);
         }
 
@@ -902,18 +919,15 @@ namespace Libraries {
         std::vector<uint32_t> swapchain_indices;
 
         for (auto &window : Windows()) {
-            /* The current window must have a valid swapchain which we can acquire from. */
+            /* The current window must have a valid swapchain which we can present to. */
             if ((!window.second.swapchain) || (window.second.swapchain_out_of_date) ) continue;
 
             swapchains.push_back(window.second.swapchain);
             swapchain_indices.push_back(window.second.current_image_index);
         }
 
-        if (swapchains.size() != 0)
-        {
-            /* Wait for the semaphore to complete, then present the swapchains. */
-            vulkan->enqueue_present_commands(swapchains, swapchain_indices, semaphores);
-        }    
+        /* Wait for the semaphore to complete, then present the swapchains. */
+        vulkan->enqueue_present_commands(swapchains, swapchain_indices, semaphores);
     }
 
     void GLFW::update_swapchains()
@@ -927,5 +941,79 @@ namespace Libraries {
                 }
             }
         }
+    }
+
+    void GLFW::connect_camera_to_window(std::string key, Camera* camera, uint32_t layer_idx)
+    {
+        /* If uninitialized, or if window does not exist, return false */
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot connect camera to window."));
+        auto ittr = Windows().find(key);
+        if ( ittr == Windows().end() )
+            throw std::runtime_error( std::string("Error: window does not exist, cannot connect camera to window."));
+
+        if (!camera)
+            throw std::runtime_error( std::string("Error: Camera was nullptr"));
+
+        auto mutex = window_mutex.get();
+        std::lock_guard<std::mutex> lock(*mutex);
+        
+        auto &window = Windows()[key];
+        window.connectedTexture = nullptr;
+        window.connectedCamera = camera;
+        window.selected_layer = layer_idx;
+    }
+
+    void GLFW::connect_texture_to_window(std::string key, Texture* texture, uint32_t layer_idx)
+    {
+        /* If uninitialized, or if window does not exist, return false */
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot connect texture to window."));
+        auto ittr = Windows().find(key);
+        if ( ittr == Windows().end() )
+            throw std::runtime_error( std::string("Error: window does not exist, cannot connect texture to window."));
+
+        if (!texture)
+            throw std::runtime_error( std::string("Error: Texture was nullptr"));
+
+        auto mutex = window_mutex.get();
+        std::lock_guard<std::mutex> lock(*mutex);
+        
+        auto &window = Windows()[key];
+        window.connectedCamera = nullptr;
+        window.connectedTexture = texture;
+        window.selected_layer = layer_idx;
+    }
+
+    std::map<std::string, std::pair<Camera*, uint32_t>> GLFW::get_window_to_camera_map()
+    {
+        /* If uninitialized, or if window does not exist, return false */
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot return window to camera map."));
+
+        std::map<std::string, std::pair<Camera*, uint32_t>> win2cam;
+        for (auto &window : Windows()) {
+            if (window.second.connectedCamera != nullptr){
+                win2cam[window.first] = std::pair(window.second.connectedCamera, window.second.selected_layer);
+            }
+        }
+
+        return win2cam;
+    }
+
+    std::map<std::string, std::pair<Texture*, uint32_t>> GLFW::get_window_to_texture_map()
+    {
+        /* If uninitialized, or if window does not exist, return false */
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot return window to texture map."));
+
+        std::map<std::string, std::pair<Texture*, uint32_t>> win2tex;
+        for (auto &window : Windows()) {
+            if (window.second.connectedTexture != nullptr){
+                win2tex[window.first] = std::pair(window.second.connectedTexture, window.second.selected_layer);
+            }
+        }
+
+        return win2tex;
     }
 }

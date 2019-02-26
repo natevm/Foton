@@ -197,6 +197,19 @@ void Entity::connect_to_window(std::string key) {
     entityToWindow[this->id] = key;
 }
 
+void Entity::disconnect_window()
+{
+    if (!initialized) 
+        throw std::runtime_error( std::string("Entity not initialized"));
+
+    auto it = entityToWindow.find(this->id);
+    if (it != entityToWindow.end()) {
+        std::string key = entityToWindow[this->id];
+        windowToEntity.erase(key);
+        entityToWindow.erase(this->id);
+    }
+}
+
 std::string Entity::get_connected_window() {
     auto glfw = Libraries::GLFW::Get();
 
