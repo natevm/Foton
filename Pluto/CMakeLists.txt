@@ -92,7 +92,8 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRC} ${HDR})
 # └──────────────────────────────────────────────────────────────────┘
 
 add_executable(PlutoEngine ${CMAKE_CURRENT_SOURCE_DIR}/main.cxx)
-set_target_properties(PlutoEngine PROPERTIES OUTPUT_NAME "pluto1234")
+set_target_properties(PlutoEngine PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Pluto")
+set_target_properties(PlutoEngine PROPERTIES OUTPUT_NAME "pluto")
 target_link_libraries(PlutoEngine PUBLIC PlutoLib ${LIBRARIES} )
 target_include_directories(PlutoEngine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 #target_compile_definitions(PlutoEngine PRIVATE ZMQ_BUILD_DRAFT_API=1)
@@ -101,7 +102,9 @@ set_target_properties(PlutoEngine PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
 if(APPLE)
 set_target_properties(PlutoEngine PROPERTIES MACOSX_RPATH TRUE)
 endif(APPLE)
-install(TARGETS PlutoEngine DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
+install(TARGETS PlutoEngine
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto
+)
 
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Pluto Module                                                    │
@@ -128,12 +131,12 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py DESTINATION ${CMAKE_INSTAL
 install(FILES ${CMAKE_BINARY_DIR}/SWIG/Pluto/Pluto.py DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 
 if (WIN32) 
-install(FILES ${CMAKE_BINARY_DIR}/_Pluto.pyd DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
-install(FILES ${CMAKE_BINARY_DIR}/_Pluto.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto OPTIONAL)
+install(FILES ${CMAKE_BINARY_DIR}/lib/_Pluto.pyd DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
+install(FILES ${CMAKE_BINARY_DIR}/lib/_Pluto.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto OPTIONAL)
 elseif(APPLE)
-install(FILES ${CMAKE_BINARY_DIR}/_Pluto.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
+install(FILES ${CMAKE_BINARY_DIR}/lib/_Pluto.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 else()
-install(FILES ${CMAKE_BINARY_DIR}/_Pluto.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
+install(FILES ${CMAKE_BINARY_DIR}/lib/_Pluto.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 endif()
 
 # ┌──────────────────────────────────────────────────────────────────┐
@@ -169,12 +172,12 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/__init__.py DESTINATION ${CM
 install(FILES ${CMAKE_BINARY_DIR}/SWIG/Libraries/Libraries.py DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
 
 if (WIN32) 
-install(FILES ${CMAKE_BINARY_DIR}/_Libraries.pyd DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
-install(FILES ${CMAKE_BINARY_DIR}/_Libraries.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries OPTIONAL)
+install(FILES ${CMAKE_BINARY_DIR}/lib/_Libraries.pyd DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
+install(FILES ${CMAKE_BINARY_DIR}/lib/_Libraries.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries OPTIONAL)
 elseif(APPLE)
-install(FILES ${CMAKE_BINARY_DIR}/_Libraries.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
+install(FILES ${CMAKE_BINARY_DIR}/lib/_Libraries.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
 else()
-install(FILES ${CMAKE_BINARY_DIR}/_Libraries.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
+install(FILES ${CMAKE_BINARY_DIR}/lib/_Libraries.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
 endif()
 
 # Build GLM SWIG module 
@@ -194,12 +197,12 @@ set_property(TARGET
 install(FILES ${CMAKE_BINARY_DIR}/SWIG/GLM/GLM.py DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
 
 if (WIN32) 
-install(FILES ${CMAKE_BINARY_DIR}/_GLM.pyd DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
-install(FILES ${CMAKE_BINARY_DIR}/_GLM.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries OPTIONAL)
+install(FILES ${CMAKE_BINARY_DIR}/lib/_GLM.pyd DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
+install(FILES ${CMAKE_BINARY_DIR}/lib/_GLM.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries OPTIONAL)
 elseif(APPLE)
-install(FILES ${CMAKE_BINARY_DIR}/_GLM.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
+install(FILES ${CMAKE_BINARY_DIR}/lib/_GLM.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
 else()
-install(FILES ${CMAKE_BINARY_DIR}/_GLM.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
+install(FILES ${CMAKE_BINARY_DIR}/lib/_GLM.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Libraries)
 endif()
 
 # ┌──────────────────────────────────────────────────────────────────┐
@@ -227,12 +230,12 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/Systems/__init__.py DESTINATION ${CMAK
 install(FILES ${CMAKE_BINARY_DIR}/SWIG/Systems/Systems.py DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems)
 
 if (WIN32) 
-install(FILES ${CMAKE_BINARY_DIR}/_Systems.pyd DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems)
-install(FILES ${CMAKE_BINARY_DIR}/_Systems.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems OPTIONAL)
+install(FILES ${CMAKE_BINARY_DIR}/lib/_Systems.pyd DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems)
+install(FILES ${CMAKE_BINARY_DIR}/lib/_Systems.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems OPTIONAL)
 elseif(APPLE)
-install(FILES ${CMAKE_BINARY_DIR}/_Systems.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems)
+install(FILES ${CMAKE_BINARY_DIR}/lib/_Systems.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems)
 else()
-install(FILES ${CMAKE_BINARY_DIR}/_Systems.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems)
+install(FILES ${CMAKE_BINARY_DIR}/lib/_Systems.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto/Systems)
 endif()
 
 # ┌──────────────────────────────────────────────────────────────────┐
