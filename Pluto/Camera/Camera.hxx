@@ -11,7 +11,7 @@
 
 class Texture;
 
-enum RenderMode;
+enum RenderMode : uint32_t;
 
 class Camera : public StaticFactory
 {

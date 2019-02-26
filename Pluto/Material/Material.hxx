@@ -31,7 +31,7 @@ class Texture;
 class Camera;
 
 /* An enumeration used to select a pipeline type for use when drawing a given entity. */
-enum RenderMode { BLINN, PBR, NORMAL, TEXCOORD, SKYBOX, BASECOLOR, DEPTH, VOLUME, HIDDEN, NONE };
+enum RenderMode : uint32_t { BLINN, PBR, NORMAL, TEXCOORD, SKYBOX, BASECOLOR, DEPTH, VOLUME, HIDDEN, NONE };
 
 class Material : public StaticFactory
 {
