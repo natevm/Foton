@@ -34,6 +34,9 @@ std::map<vk::RenderPass, Material::RasterPipelineResources> Material::skybox;
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::depth;
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::volume;
 
+std::map<vk::RenderPass, Material::RasterPipelineResources> Material::shadowmap;
+std::map<vk::RenderPass, Material::RasterPipelineResources> Material::fragmentdepth;
+
 std::map<vk::RenderPass, Material::RaytracingPipelineResources> Material::rttest;
 
 Material::Material() {
@@ -195,7 +198,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
         vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
         vertShaderStageInfo.module = vertShaderModule;
-        vertShaderStageInfo.pName = "main"; // entry point here? would be nice to combine shaders into one file
+        vertShaderStageInfo.pName = "main";
 
         vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
         fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
@@ -235,7 +238,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
         vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
         vertShaderStageInfo.module = vertShaderModule;
-        vertShaderStageInfo.pName = "main"; // entry point here? would be nice to combine shaders into one file
+        vertShaderStageInfo.pName = "main";
 
         vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
         fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
@@ -274,7 +277,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
         vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
         vertShaderStageInfo.module = vertShaderModule;
-        vertShaderStageInfo.pName = "main"; // entry point here? would be nice to combine shaders into one file
+        vertShaderStageInfo.pName = "main";
 
         vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
         fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
@@ -313,7 +316,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
         vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
         vertShaderStageInfo.module = vertShaderModule;
-        vertShaderStageInfo.pName = "main"; // entry point here? would be nice to combine shaders into one file
+        vertShaderStageInfo.pName = "main";
 
         vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
         fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
@@ -352,7 +355,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
         vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
         vertShaderStageInfo.module = vertShaderModule;
-        vertShaderStageInfo.pName = "main"; // entry point here? would be nice to combine shaders into one file
+        vertShaderStageInfo.pName = "main";
 
         vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
         fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
@@ -391,7 +394,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
         vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
         vertShaderStageInfo.module = vertShaderModule;
-        vertShaderStageInfo.pName = "main"; // entry point here? would be nice to combine shaders into one file
+        vertShaderStageInfo.pName = "main";
 
         vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
         fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
@@ -433,7 +436,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
         vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
         vertShaderStageInfo.module = vertShaderModule;
-        vertShaderStageInfo.pName = "main"; // entry point here? would be nice to combine shaders into one file
+        vertShaderStageInfo.pName = "main";
 
         vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
         fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
@@ -491,6 +494,80 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
             volume[renderpass].pipelineParameters, 
             renderpass, 0, 
             volume[renderpass].pipeline, volume[renderpass].pipelineLayout);
+
+        device.destroyShaderModule(fragShaderModule);
+        device.destroyShaderModule(vertShaderModule);
+    }
+
+    /*  G BUFFERS  */
+
+    /* ------ Fragment Depth  ------ */
+    {
+        fragmentdepth[renderpass] = RasterPipelineResources();
+
+        std::string ResourcePath = Options::GetResourcePath();
+        auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/FragmentDepth/vert.spv"));
+
+        /* Create shader modules */
+        auto vertShaderModule = CreateShaderModule(vertShaderCode);
+
+        /* Info for shader stages */
+        vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
+        vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
+        vertShaderStageInfo.module = vertShaderModule;
+        vertShaderStageInfo.pName = "main";
+
+        std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo };
+        
+        /* Account for possibly multiple samples */
+        fragmentdepth[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
+        fragmentdepth[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
+
+        fragmentdepth[renderpass].pipelineParameters.depthStencil.depthWriteEnable = true;
+
+        CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+            { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
+            fragmentdepth[renderpass].pipelineParameters, 
+            renderpass, 0, 
+            fragmentdepth[renderpass].pipeline, fragmentdepth[renderpass].pipelineLayout);
+
+        device.destroyShaderModule(vertShaderModule);
+    }
+
+    {
+        shadowmap[renderpass] = RasterPipelineResources();
+
+        std::string ResourcePath = Options::GetResourcePath();
+        auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/ShadowMap/vert.spv"));
+        auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/ShadowMap/frag.spv"));
+
+        /* Create shader modules */
+        auto vertShaderModule = CreateShaderModule(vertShaderCode);
+        auto fragShaderModule = CreateShaderModule(fragShaderCode);
+
+        /* Info for shader stages */
+        vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
+        vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
+        vertShaderStageInfo.module = vertShaderModule;
+        vertShaderStageInfo.pName = "main";
+
+        vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
+        fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
+        fragShaderStageInfo.module = fragShaderModule;
+        fragShaderStageInfo.pName = "main";
+
+        std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
+        
+        /* Account for possibly multiple samples */
+        shadowmap[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
+        shadowmap[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
+        // shadowmap[renderpass].pipelineParameters.rasterizer.cullMode = vk::CullModeFlagBits::eNone;
+
+        CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+            { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
+            shadowmap[renderpass].pipelineParameters, 
+            renderpass, 0, 
+            shadowmap[renderpass].pipeline, shadowmap[renderpass].pipelineLayout);
 
         device.destroyShaderModule(fragShaderModule);
         device.destroyShaderModule(vertShaderModule);
@@ -1138,6 +1215,14 @@ void Material::DrawEntity(vk::CommandBuffer &command_buffer, Camera* camera, vk:
     else if (rendermode == SKYBOX) {
         command_buffer.pushConstants(skybox[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, skybox[render_pass].pipeline);
+    }
+    else if (rendermode == FRAGMENTDEPTH) {
+        command_buffer.pushConstants(fragmentdepth[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, fragmentdepth[render_pass].pipeline);
+    }
+    else if (rendermode == SHADOWMAP) {
+        command_buffer.pushConstants(shadowmap[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, shadowmap[render_pass].pipeline);
     }
     
     command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});

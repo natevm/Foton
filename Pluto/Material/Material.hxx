@@ -31,7 +31,7 @@ class Texture;
 class Camera;
 
 /* An enumeration used to select a pipeline type for use when drawing a given entity. */
-enum RenderMode : uint32_t { BLINN, PBR, NORMAL, TEXCOORD, SKYBOX, BASECOLOR, DEPTH, VOLUME, HIDDEN, NONE };
+enum RenderMode : uint32_t { BLINN, PBR, NORMAL, TEXCOORD, SKYBOX, BASECOLOR, DEPTH, VOLUME, SHADOWMAP, FRAGMENTDEPTH, HIDDEN, NONE };
 
 class Material : public StaticFactory
 {
@@ -212,9 +212,10 @@ class Material : public StaticFactory
         static std::map<vk::RenderPass, RasterPipelineResources> skybox;
         static std::map<vk::RenderPass, RasterPipelineResources> depth;
         static std::map<vk::RenderPass, RasterPipelineResources> volume;
+        static std::map<vk::RenderPass, RasterPipelineResources> shadowmap;
+        static std::map<vk::RenderPass, RasterPipelineResources> fragmentdepth;
 
         static std::map<vk::RenderPass, RaytracingPipelineResources> rttest;
-
 
         /* Wrapper for shader module creation.  */
         static vk::ShaderModule CreateShaderModule(const std::vector<char>& code);
@@ -252,7 +253,6 @@ class Material : public StaticFactory
         
         /* The structure containing all shader material properties. This is what's coppied into the SSBO per instance */
         MaterialStruct material_struct;
-
         
         RenderMode renderMode = PBR;
 };

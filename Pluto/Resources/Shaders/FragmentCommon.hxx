@@ -1045,6 +1045,10 @@ vec3 ToSRGB(vec3 v)   { return PowV3(v, 1.0/gamma); }
 
 float get_shadow_contribution(EntityStruct light_entity, vec3 w_light_position, vec3 w_position) 
 {
+    LightStruct light = lbo.lights[light_entity.light_id];
+    /* If casting shadows is disabled */
+    if ((light.flags & (1 << 2)) == 0) return 1.0;
+
     float bias = .1;
     CameraStruct light_camera = cbo.cameras[light_entity.camera_id];
     int tex_id = light_camera.multiviews[0].tex_id;

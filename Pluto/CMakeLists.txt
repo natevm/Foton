@@ -201,6 +201,11 @@ set(SHADERS_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/VolumeMaterials/Volume/shader.vert
     ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/VolumeMaterials/Volume/shader.frag
 
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/GBuffers/ShadowMap/shader.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/GBuffers/ShadowMap/shader.frag
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/GBuffers/FragmentDepth/shader.vert
+
     ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/RaytracedMaterials/TutorialShaders/shader.rgen
 )
 

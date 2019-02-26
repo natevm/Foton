@@ -48,6 +48,8 @@ class Light : public StaticFactory
         void set_intensity(float intensity);
         void set_double_sided(bool double_sided);
         void show_end_caps(bool show_end_caps);
+        void cast_shadows(bool enable_cast_shadows);
+        bool should_cast_shadows();
         void set_cone_angle(float angle);
         void set_cone_softness(float softness);
 
