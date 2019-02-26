@@ -64,6 +64,7 @@ namespace Systems
             
             vk::CommandBuffer main_command_buffer;
             bool main_command_buffer_recorded = false;
+            bool final_renderpass_semaphore_signalled = false;
             std::vector<vk::Fence> maincmd_fences;
 
             std::vector<std::vector<vk::Semaphore>> renderpass_semaphores;

@@ -509,7 +509,12 @@ void RenderSystem::enqueue_render_commands() {
 
         /* Else this is the last pass and we're going to present an image, signal the final signal semaphores. */
         else {
-            currentSignalSemaphores.push_back(final_renderpass_semaphores[currentFrame]);
+            if (image_available_semaphores.size() > 0) {
+                currentSignalSemaphores.push_back(final_renderpass_semaphores[currentFrame]);
+                final_renderpass_semaphore_signalled = true;
+            }
+            else
+                final_renderpass_semaphore_signalled = false;
             // Also add a fence for now. 
             currentFence = maincmd_fences[currentFrame];
         }
@@ -655,7 +660,9 @@ bool RenderSystem::start()
                 /* 4. Optional: Wait on render complete. Present a frame. */
                 stream_frames();
                 present_openvr_frames();
-                glfw->present_glfw_frames({final_renderpass_semaphores[currentFrame]});
+                std::vector<vk::Semaphore> present_wait_semaphores;
+                if (final_renderpass_semaphore_signalled) present_wait_semaphores.push_back(final_renderpass_semaphores[currentFrame]);
+                glfw->present_glfw_frames(present_wait_semaphores);
                 vulkan->submit_present_commands();
             }
 
