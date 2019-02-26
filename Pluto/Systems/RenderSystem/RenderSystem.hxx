@@ -66,14 +66,20 @@ namespace Systems
             bool main_command_buffer_recorded = false;
             std::vector<vk::Fence> maincmd_fences;
 
-            std::vector<vk::Semaphore> renderCompleteSemaphores;
+            std::vector<std::vector<vk::Semaphore>> renderpass_semaphores;
+            std::vector<vk::Semaphore> final_renderpass_semaphores;
             vk::Fence main_fence;
             uint32_t max_frames_in_flight = 2;
+            uint32_t max_renderpass_semaphore_sets = 2;
 
+            bool update_push_constants();
             void record_render_commands();
+            void record_cameras();
+            void record_blit_textures();
             void enqueue_render_commands();
 
             void stream_frames();
+            void update_openvr_transforms();
             void present_openvr_frames();
             void allocate_vulkan_resources();
             void release_vulkan_resources();

@@ -490,7 +490,6 @@ namespace Libraries {
         info.clipped = VK_TRUE;
        
         /* Create the swap chain */
-        std::cout<<"Creating vulkan swapchain for window: " << key <<std::endl;
         window.swapchain = device.createSwapchainKHR(info);
 
         if (!window.swapchain)
@@ -854,17 +853,21 @@ namespace Libraries {
         auto device = vulkan->get_device();
 
         for (auto &window : Windows()) {
-            /* The current window must have a valid swapchain which we can acquire from. */
-            if (!window.second.swapchain) continue;
-            if (window.second.swapchain_out_of_date) continue;
+            /* The current window must have a valid swapchain which we can acquire from. 
+            If it does not, indicate that the image avilable semaphore will not be triggered. */
+            if ((!window.second.swapchain) || (window.second.swapchain_out_of_date)) {
+                window.second.image_acquired = false;
+                continue;
+            }
 
             vk::Fence acquireFence;
             try {
                 /* Acquire a swapchain image, waiting on the acquire fence. 
                 I believe this fence is used for handling vsync, but I could be wrong... */
+                vk::Semaphore imageAvailableSemaphore = window.second.imageAvailableSemaphores[current_frame];
                 
                 acquireFence = device.createFence(vk::FenceCreateInfo());
-                auto result = device.acquireNextImageKHR(window.second.swapchain, std::numeric_limits<uint32_t>::max(), window.second.imageAvailableSemaphores[current_frame], acquireFence);
+                auto result = device.acquireNextImageKHR(window.second.swapchain, std::numeric_limits<uint32_t>::max(), imageAvailableSemaphore, acquireFence);
                 window.second.current_image_index = result.value;
                 //auto swapchain_texture = glfw->get_texture(keys[i], swapchain_index);
                 auto result2 = device.waitForFences(acquireFence, true, 10000000000);
@@ -872,6 +875,8 @@ namespace Libraries {
                     std::cout<<"Fence timeout while acquiring swapchain image!"<<std::endl;
                 }
                 device.destroyFence(acquireFence);
+
+                window.second.image_acquired = true;
             } catch(...)
             {
                 if (acquireFence)
@@ -889,9 +894,10 @@ namespace Libraries {
         std::vector<vk::Semaphore> semaphores;
 
         for (auto &window : Windows()) {
-            /* The current window must have a valid swapchain which we can acquire from. */
-            if (!window.second.swapchain) continue;
-            if (window.second.swapchain_out_of_date) continue;
+            /* The current window must have a valid swapchain which was acquired from. 
+            If it does not, the image available semaphore wont be signalled */
+            if (!window.second.image_acquired) continue;
+
             semaphores.push_back(window.second.imageAvailableSemaphores[current_frame]);
         }
 
@@ -906,18 +912,15 @@ namespace Libraries {
         std::vector<uint32_t> swapchain_indices;
 
         for (auto &window : Windows()) {
-            /* The current window must have a valid swapchain which we can acquire from. */
+            /* The current window must have a valid swapchain which we can present to. */
             if ((!window.second.swapchain) || (window.second.swapchain_out_of_date) ) continue;
 
             swapchains.push_back(window.second.swapchain);
             swapchain_indices.push_back(window.second.current_image_index);
         }
 
-        if (swapchains.size() != 0)
-        {
-            /* Wait for the semaphore to complete, then present the swapchains. */
-            vulkan->enqueue_present_commands(swapchains, swapchain_indices, semaphores);
-        }    
+        /* Wait for the semaphore to complete, then present the swapchains. */
+        vulkan->enqueue_present_commands(swapchains, swapchain_indices, semaphores);
     }
 
     void GLFW::update_swapchains()

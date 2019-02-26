@@ -1681,3 +1681,45 @@ Texture* Texture::GetFront() {
 uint32_t Texture::GetCount() {
     return MAX_TEXTURES;
 }
+
+void Texture::make_renderable(vk::CommandBuffer commandBuffer)
+{
+    if (this->data.colorImageLayout == vk::ImageLayout::eColorAttachmentOptimal) return;
+
+    /* Transition destination image to transfer destination optimal */
+    vk::ImageSubresourceRange subresourceRange;
+    subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+    subresourceRange.baseMipLevel = 0;
+    subresourceRange.baseMipLevel = 0;
+    subresourceRange.levelCount = this->data.colorMipLevels;
+    subresourceRange.layerCount = this->data.layers;
+
+    setImageLayout(
+        commandBuffer,
+        this->data.colorImage,
+        this->data.colorImageLayout,
+        vk::ImageLayout::eColorAttachmentOptimal,
+        subresourceRange);
+    this->data.colorImageLayout = vk::ImageLayout::eColorAttachmentOptimal;
+}
+
+void Texture::make_samplable(vk::CommandBuffer commandBuffer)
+{
+    if (this->data.colorImageLayout == vk::ImageLayout::eShaderReadOnlyOptimal) return;
+
+    /* Transition destination image to transfer destination optimal */
+    vk::ImageSubresourceRange subresourceRange;
+    subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+    subresourceRange.baseMipLevel = 0;
+    subresourceRange.baseMipLevel = 0;
+    subresourceRange.levelCount = this->data.colorMipLevels;
+    subresourceRange.layerCount = this->data.layers;
+
+    setImageLayout(
+        commandBuffer,
+        this->data.colorImage,
+        this->data.colorImageLayout,
+        vk::ImageLayout::eShaderReadOnlyOptimal,
+        subresourceRange);
+    this->data.colorImageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+}

@@ -1,3 +1,5 @@
+#pragma optimize("", off)
+
 #define NOMINMAX
 //#include <zmq.h>
 
@@ -17,17 +19,14 @@
 #include "Pluto/Libraries/OpenVR/OpenVR.hxx"
 #endif
 
-// #ifndef _WIN32
-// #include <unistd.h>
-// #else
-// #include <windows.h>
-
-// #define sleep(n)    Sleep(n)
-// #endif
 using namespace Libraries;
 
 namespace Systems
 {
+
+RenderSystem::RenderSystem() {}
+RenderSystem::~RenderSystem() {}
+
 RenderSystem *RenderSystem::Get()
 {
     static RenderSystem instance;
@@ -40,7 +39,7 @@ bool RenderSystem::initialize()
     if (initialized)
         return false;
 
-#if ZMQ_BUILD_DRAFT_API == 1
+    #if ZMQ_BUILD_DRAFT_API == 1
     /* Setup Server/Client */
     if (Options::IsServer() || Options::IsClient())
     {
@@ -70,7 +69,7 @@ bool RenderSystem::initialize()
         int64_t rate = 100000;
         zmq_setsockopt(socket, ZMQ_RATE, &rate, sizeof(int64_t));
     }
-#endif
+    #endif
 
     push_constants.gamma = 2.2f;
     push_constants.exposure = 2.0f;
@@ -87,48 +86,8 @@ bool RenderSystem::initialize()
     return true;
 }
 
-void RenderSystem::record_render_commands()
+bool RenderSystem::update_push_constants()
 {
-#if BUILD_OPENVR
-    /* Set OpenVR transform data right before rendering */
-    if (using_openvr) {
-        auto entity_id = Entity::GetEntityForVR();
-        
-        /* If there's an entity connected to VR */
-        if (entity_id != -1) {
-            auto entity = Entity::Get(entity_id);
-            auto cam_id = entity->get_camera();
-            auto left = Transform::Get("VRLeftHand");
-            auto right = Transform::Get("VRRightHand");
-            auto ovr = OpenVR::Get();
-
-            /* If that entity has a camera */
-            if (cam_id != -1) {
-                Camera* current_camera = Camera::Get(cam_id);
-
-                /* Wait get poses. Move the camera to where the headset is. */
-                ovr->wait_get_poses();
-                current_camera->set_view(ovr->get_left_view_matrix(), 0);
-                current_camera->set_custom_projection(ovr->get_left_projection_matrix(.1f), .1f, 0);
-                current_camera->set_view(ovr->get_right_view_matrix(), 1);
-                current_camera->set_custom_projection(ovr->get_right_projection_matrix(.1f), .1f, 1);
-            }
-            if (left) left->set_transform(ovr->get_left_controller_transform());
-            if (right) right->set_transform(ovr->get_right_controller_transform());
-        }
-    }
-#endif
-
-    /* Upload SSBO data */
-    Material::UploadSSBO();
-    Transform::UploadSSBO();
-    Light::UploadSSBO();
-    Camera::UploadSSBO();
-    Entity::UploadSSBO();
-    Texture::UploadSSBO();
-    Material::UpdateRasterDescriptorSets();
-    Material::UpdateRaytracingDescriptorSets();
-
     /* Find lookup tables */
     Texture* brdf = nullptr;
     Texture* ltc_mat = nullptr;
@@ -138,8 +97,17 @@ void RenderSystem::record_render_commands()
         ltc_mat = Texture::Get("LTCMAT");
         ltc_amp = Texture::Get("LTCAMP");
     } catch (...) {}
-    if ((!brdf) || (!ltc_mat) || (!ltc_amp)) return;
-    
+    if ((!brdf) || (!ltc_mat) || (!ltc_amp)) return false;
+
+    /* Find shadow maps */
+    std::vector<Camera*> shadowCams;
+    try {
+        for (uint32_t i = 0; i < MAX_LIGHTS; ++i) {
+            shadowCams.push_back(Camera::Get("ShadowCam_" + std::to_string(i)));
+        }
+    } catch (...) {}
+    if (shadowCams.size() < MAX_LIGHTS) return false;
+
     /* Update some push constants */
     auto brdf_id = brdf->get_id();
     auto ltc_mat_id = ltc_mat->get_id();
@@ -149,19 +117,15 @@ void RenderSystem::record_render_commands()
     push_constants.ltc_amp_lut_id = ltc_amp_id;
     push_constants.time = (float) glfwGetTime();
 
-    auto entities = Entity::GetFront();
-
-    /* Get window to camera mapping */
-    auto glfw = GLFW::Get();
-    auto window_to_cam = glfw->get_window_to_camera_map();
-
     /* Get light list */
+    auto entities = Entity::GetFront();
     std::vector<int32_t> light_entity_ids(MAX_LIGHTS, -1);
     int32_t light_count = 0;
     for (uint32_t i = 0; i < Entity::GetCount(); ++i)
     {
         if (entities[i].is_initialized() && (entities[i].get_light() != -1))
         {
+            entities[i].set_camera(shadowCams[light_count]);
             light_entity_ids[light_count] = i;
             light_count++;
         }
@@ -169,6 +133,15 @@ void RenderSystem::record_render_commands()
             break;
     }
     memcpy(push_constants.light_entity_ids, light_entity_ids.data(), sizeof(push_constants.light_entity_ids));
+    return true;
+}
+
+void RenderSystem::record_cameras()
+{
+    /* Get window to camera mapping */
+    auto glfw = GLFW::Get();
+    auto window_to_cam = glfw->get_window_to_camera_map();
+    auto entities = Entity::GetFront();
 
     /* Render all cameras */
     auto cameras = Camera::GetFront();
@@ -213,7 +186,7 @@ void RenderSystem::record_render_commands()
                         push_constants.target_id = i;
                         push_constants.camera_id = entity_id;
                         push_constants.viewIndex = rp_idx;
-                        Material::DrawEntity(command_buffer, rp, entities[i], push_constants);
+                        Material::DrawEntity(command_buffer, &cameras[cam_id], rp, entities[i], push_constants);
                     }
                 }
                 
@@ -226,7 +199,7 @@ void RenderSystem::record_render_commands()
                         push_constants.target_id = i;
                         push_constants.camera_id = entity_id;
                         push_constants.viewIndex = rp_idx;
-                        Material::DrawVolume(command_buffer, rp, entities[i], push_constants);
+                        Material::DrawVolume(command_buffer, &cameras[cam_id], rp, entities[i], push_constants);
                     }
                 }
 
@@ -254,7 +227,7 @@ void RenderSystem::record_render_commands()
         }
     
         /* Record blit to OpenVR eyes. */
-#if BUILD_OPENVR
+    #if BUILD_OPENVR
         if (using_openvr) {
             if (entity_id == Entity::GetEntityForVR()) {
                 auto ovr = OpenVR::Get();
@@ -264,13 +237,17 @@ void RenderSystem::record_render_commands()
                 if (right_eye_texture) texture->record_blit_to(command_buffer, right_eye_texture, 1);
             }
         }
-#endif
+    #endif
 
         /* End this recording. */
         command_buffer.end();
     }
+}
 
-    /* Finally, blit any textures to windows which request them. */
+void RenderSystem::record_blit_textures()
+{
+    /* Blit any textures to windows which request them. */
+    auto glfw = GLFW::Get();
     auto window_to_tex = glfw->get_window_to_texture_map();
     vk::CommandBufferBeginInfo beginInfo;
     beginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
@@ -296,10 +273,63 @@ void RenderSystem::record_render_commands()
     main_command_buffer.end();
 }
 
+void RenderSystem::record_render_commands()
+{
+    update_openvr_transforms();
+
+    /* Upload SSBO data */
+    Material::UploadSSBO();
+    Transform::UploadSSBO();
+    Light::UploadSSBO();
+    Camera::UploadSSBO();
+    Entity::UploadSSBO();
+    Texture::UploadSSBO();
+    Material::UpdateRasterDescriptorSets();
+    Material::UpdateRaytracingDescriptorSets();
+    
+    if (update_push_constants() == true) {
+        record_cameras();
+    }
+    
+    record_blit_textures();
+}
+
+void RenderSystem::update_openvr_transforms()
+{
+    #if BUILD_OPENVR
+    /* Set OpenVR transform data right before rendering */
+    if (using_openvr) {
+        auto entity_id = Entity::GetEntityForVR();
+        
+        /* If there's an entity connected to VR */
+        if (entity_id != -1) {
+            auto entity = Entity::Get(entity_id);
+            auto cam_id = entity->get_camera();
+            auto left = Transform::Get("VRLeftHand");
+            auto right = Transform::Get("VRRightHand");
+            auto ovr = OpenVR::Get();
+
+            /* If that entity has a camera */
+            if (cam_id != -1) {
+                Camera* current_camera = Camera::Get(cam_id);
+
+                /* Wait get poses. Move the camera to where the headset is. */
+                ovr->wait_get_poses();
+                current_camera->set_view(ovr->get_left_view_matrix(), 0);
+                current_camera->set_custom_projection(ovr->get_left_projection_matrix(.1f), .1f, 0);
+                current_camera->set_view(ovr->get_right_view_matrix(), 1);
+                current_camera->set_custom_projection(ovr->get_right_projection_matrix(.1f), .1f, 1);
+            }
+            if (left) left->set_transform(ovr->get_left_controller_transform());
+            if (right) right->set_transform(ovr->get_right_controller_transform());
+        }
+    }
+    #endif
+}
+
 void RenderSystem::present_openvr_frames()
 {
-    
-#if BUILD_OPENVR
+    #if BUILD_OPENVR
     /* Ignore if openvr isn't in use. */
     if (!using_openvr) return;
 
@@ -325,7 +355,7 @@ void RenderSystem::present_openvr_frames()
     /* Submit the left and right eye textures to OpenVR */
     auto ovr = OpenVR::Get();
     ovr->submit_textures();
-#endif
+    #endif
 }
 
 void RenderSystem::stream_frames()
@@ -352,7 +382,7 @@ void RenderSystem::stream_frames()
     
     Bucket bucket = {};
 
-#if ZMQ_BUILD_DRAFT_API == 1
+    #if ZMQ_BUILD_DRAFT_API == 1
     /* If we're the server, send the frame over UDP */
     if (Options::IsServer())
     {
@@ -385,50 +415,107 @@ void RenderSystem::stream_frames()
         //     memcpy(color_data.data(), bucket.data, 16 * 16 * 4 * sizeof(float));
         //     current_camera->get_texture()->upload_color_data(16, 16, 1, color_data, 0);
     }
-#endif
+    #endif
 }
 
 void RenderSystem::enqueue_render_commands() {
     auto vulkan = Vulkan::Get();
     auto glfw = GLFW::Get();
-    std::vector<vk::CommandBuffer> commands;
 
     auto entities = Entity::GetFront();
     auto cameras = Camera::GetFront();
-    for (uint32_t entity_id = 0; entity_id < Entity::GetCount(); ++entity_id) {
-        /* Entity must be initialized */
-        if (!entities[entity_id].is_initialized()) continue;
+    
+    int32_t min_render_idx = Camera::GetMinRenderOrder();
+    int32_t max_render_idx = Camera::GetMaxRenderOrder();
 
-        /* Entity needs a camera */
-        auto cam_id = entities[entity_id].get_camera();
-        if (cam_id < 0) continue;
+    /* Aggregate command sets */
+    std::vector<std::vector<vk::CommandBuffer>> command_sets;
+    for (int32_t render_idx = min_render_idx; render_idx <= max_render_idx; ++render_idx)
+    {
+        bool render_idx_found = false;
 
-        /* Camera needs a texture */
-        Texture * texture = cameras[cam_id].get_texture();
-        if (!texture) continue;
+        for (uint32_t entity_id = 0; entity_id < Entity::GetCount(); ++entity_id) {
+            /* Entity must be initialized */
+            if (!entities[entity_id].is_initialized()) continue;
 
-        commands.push_back(cameras[cam_id].get_command_buffer());
+            /* Entity needs a camera */
+            auto cam_id = entities[entity_id].get_camera();
+            if (cam_id < 0) continue;
+
+            /* Camera needs a texture */
+            Texture * texture = cameras[cam_id].get_texture();
+            if (!texture) continue;
+
+            /* Camera must match the render idx */
+            if (cameras[cam_id].get_render_order() != render_idx) continue;
+
+            if (!render_idx_found) {
+                command_sets.push_back(std::vector<vk::CommandBuffer>());
+                render_idx_found = true;
+            }
+
+            command_sets[command_sets.size() - 1].push_back(cameras[cam_id].get_command_buffer());
+        }
     }
 
     /* For other misc commands not specific to any camera */
-    if (main_command_buffer_recorded) commands.push_back(main_command_buffer);
+    if (main_command_buffer_recorded) {
+        command_sets.push_back(std::vector<vk::CommandBuffer>());
+        command_sets[command_sets.size() - 1].push_back(main_command_buffer);
+    }
     main_command_buffer_recorded = false;
 
-    auto submitPipelineStages = vk::PipelineStageFlags();
-    submitPipelineStages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+    /* Build semaphore graph */
 
-    std::vector<vk::Semaphore> waitSemaphores = glfw->get_image_available_semaphores(currentFrame);
-    std::vector<vk::PipelineStageFlags> waitDstStageMask;
-    std::vector<vk::Semaphore> signalSemaphores;
+    /* The semaphore strategy here is to only place an initial wait semaphore if presenting, place semaphores 
+        between renderpass sets, and then place a final semaphore only if presenting. */
 
-    if (waitSemaphores.size() > 0) {
-        signalSemaphores.push_back(renderCompleteSemaphores[currentFrame]);
+    /* This is occasionally missing some semaphores when a swapchain is out of date. 
+        This will screw up any queue submission dependent on the acquire image semaphore to signal the
+        corresponding wait semaphore in the next stage. So we have to occasionally not wait on the second
+        queue submission depending on if a swapchain is out of date or not. We also would need to somehow
+        guess when a swapchain will be ready so that the next time that swapchain acquires an image, it 
+        will somehow be signalled the frame before. In practice, we always signal the final semaphore,
+        and either reset it via an image present, or if no swapchains are available, reset it via an 
+        empty graphics queue submission followed by a fence.
+    */
+    auto image_available_semaphores = glfw->get_image_available_semaphores(currentFrame);
+    
+    for (uint32_t i = 0; i < command_sets.size(); ++i) {
+        std::vector<vk::Semaphore> currentWaitSemaphores;
+        std::vector<vk::PipelineStageFlags> currentWaitDstStageMasks;
+        std::vector<vk::Semaphore> currentSignalSemaphores;
+        vk::Fence currentFence;
+
+        /* If this is the first pass wait for any given image available semaphores */
+        if (i == 0) {
+            currentWaitSemaphores = image_available_semaphores;
+            for (uint32_t i = 0; i < currentWaitSemaphores.size(); ++i)
+                currentWaitDstStageMasks.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+        } 
+
+        /* Else wait on the previous renderpass signal semaphore */
+        else {
+            currentWaitSemaphores.push_back(renderpass_semaphores[i-1][currentFrame]);
+            for (uint32_t i = 0; i < currentWaitSemaphores.size(); ++i) {
+                currentWaitDstStageMasks.push_back(vk::PipelineStageFlagBits::eBottomOfPipe);
+            }
+        }
+
+        /* If we're not the last renderpass, signal our renderpass semaphore */
+        if (i != (command_sets.size() - 1)) {
+            currentSignalSemaphores.push_back(renderpass_semaphores[i][currentFrame]);
+        }
+
+        /* Else this is the last pass and we're going to present an image, signal the final signal semaphores. */
+        else {
+            currentSignalSemaphores.push_back(final_renderpass_semaphores[currentFrame]);
+            // Also add a fence for now. 
+            currentFence = maincmd_fences[currentFrame];
+        }
+
+        vulkan->enqueue_graphics_commands(command_sets[i], currentWaitSemaphores, currentWaitDstStageMasks, currentSignalSemaphores, currentFence, "drawcalls"  + std::to_string(i));
     }
-    for (uint32_t i = 0; i < waitSemaphores.size(); ++i) {
-        waitDstStageMask.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
-    }
-
-    vulkan->enqueue_graphics_commands(commands, waitSemaphores, waitDstStageMask, signalSemaphores, maincmd_fences[currentFrame], "drawcalls");
 }
 
 void RenderSystem::release_vulkan_resources() 
@@ -452,9 +539,16 @@ void RenderSystem::release_vulkan_resources()
         device.destroyFence(maincmd_fences[idx]);
     }
 
-    for (int idx = 0; idx < renderCompleteSemaphores.size(); ++idx) {
-        device.destroySemaphore(renderCompleteSemaphores[idx]);
+    for (auto &semaphoreSet : renderpass_semaphores){
+        for (uint32_t idx = 0; idx < max_frames_in_flight; ++idx) {
+            device.destroySemaphore(semaphoreSet[idx]);
+        }
     }
+
+    for (uint32_t frame = 0; frame < max_frames_in_flight; ++frame) {
+        device.destroySemaphore(final_renderpass_semaphores[frame]);
+    }
+
     
     vulkan_resources_created = false;
 }
@@ -482,11 +576,19 @@ void RenderSystem::allocate_vulkan_resources()
     }
 
     /* Create semaphores to synchronize GPU between renderpasses and presenting. */
-    renderCompleteSemaphores.resize(max_frames_in_flight);
-
     vk::SemaphoreCreateInfo semaphoreInfo;
-    for (uint32_t idx = 0; idx < max_frames_in_flight; ++idx) {
-        renderCompleteSemaphores[idx] = device.createSemaphore(semaphoreInfo);
+    renderpass_semaphores.resize(max_renderpass_semaphore_sets);
+    for (uint32_t rpset_idx = 0; rpset_idx < max_renderpass_semaphore_sets; ++rpset_idx) 
+    {
+        renderpass_semaphores[rpset_idx].resize(max_frames_in_flight);
+        for (uint32_t frame = 0; frame < max_frames_in_flight; ++frame) {
+            renderpass_semaphores[rpset_idx][frame] = device.createSemaphore(semaphoreInfo);
+        }
+    }
+
+    final_renderpass_semaphores.resize(max_frames_in_flight);
+    for (uint32_t frame = 0; frame < max_frames_in_flight; ++frame) {
+        final_renderpass_semaphores[frame] = device.createSemaphore(semaphoreInfo);
     }
 
     vulkan_resources_created = true;
@@ -553,7 +655,7 @@ bool RenderSystem::start()
                 /* 4. Optional: Wait on render complete. Present a frame. */
                 stream_frames();
                 present_openvr_frames();
-                glfw->present_glfw_frames({renderCompleteSemaphores[currentFrame]});
+                glfw->present_glfw_frames({final_renderpass_semaphores[currentFrame]});
                 vulkan->submit_present_commands();
             }
 
@@ -594,87 +696,22 @@ bool RenderSystem::stop()
     return true;
 }
 
-RenderSystem::RenderSystem() {}
-RenderSystem::~RenderSystem() {}
+/* SETS */
+void RenderSystem::set_gamma(float gamma) { this->push_constants.gamma = gamma; }
+void RenderSystem::set_exposure(float exposure) { this->push_constants.exposure = exposure; }
+void RenderSystem::set_environment_map(int32_t id) { this->push_constants.environment_id = id; }
+void RenderSystem::set_environment_map(Texture *texture) { this->push_constants.environment_id = texture->get_id(); }
+void RenderSystem::set_environment_roughness(float roughness) { this->push_constants.environment_roughness = roughness; }
+void RenderSystem::clear_environment_map() { this->push_constants.environment_id = -1; }
+void RenderSystem::set_irradiance_map(int32_t id) { this->push_constants.specular_environment_id = id; }
+void RenderSystem::set_irradiance_map(Texture *texture) { this->push_constants.specular_environment_id = texture->get_id(); }
+void RenderSystem::clear_irradiance_map() { this->push_constants.specular_environment_id = -1; }
+void RenderSystem::set_diffuse_map(int32_t id) { this->push_constants.diffuse_environment_id = id; }
+void RenderSystem::set_diffuse_map(Texture *texture) { this->push_constants.diffuse_environment_id = texture->get_id(); }
+void RenderSystem::clear_diffuse_map() { this->push_constants.diffuse_environment_id = -1; }
+void RenderSystem::set_top_sky_color(glm::vec3 color) { push_constants.top_sky_color = glm::vec4(color.r, color.g, color.b, 1.0); }
+void RenderSystem::set_bottom_sky_color(glm::vec3 color) { push_constants.bottom_sky_color = glm::vec4(color.r, color.g, color.b, 1.0); }
+void RenderSystem::set_sky_transition(float transition) { push_constants.sky_transition = transition; }
+void RenderSystem::use_openvr(bool useOpenVR) { this->using_openvr = useOpenVR; }
 
-
-void RenderSystem::set_gamma(float gamma)
-{
-    this->push_constants.gamma = gamma;
-}
-
-void RenderSystem::set_exposure(float exposure)
-{
-    this->push_constants.exposure = exposure;
-}
-
-void RenderSystem::set_environment_map(int32_t id) 
-{
-    this->push_constants.environment_id = id;
-}
-
-void RenderSystem::set_environment_map(Texture *texture) 
-{
-    this->push_constants.environment_id = texture->get_id();
-}
-
-void RenderSystem::set_environment_roughness(float roughness)
-{
-    this->push_constants.environment_roughness = roughness;
-}
-
-void RenderSystem::clear_environment_map()
-{
-    this->push_constants.environment_id = -1;
-}
-
-void RenderSystem::set_irradiance_map(int32_t id)
-{
-    this->push_constants.specular_environment_id = id;
-}
-
-void RenderSystem::set_irradiance_map(Texture *texture)
-{
-    this->push_constants.specular_environment_id = texture->get_id();
-}
-
-void RenderSystem::clear_irradiance_map()
-{
-    this->push_constants.specular_environment_id = -1;
-}
-
-void RenderSystem::set_diffuse_map(int32_t id)
-{
-    this->push_constants.diffuse_environment_id = id;
-}
-
-void RenderSystem::set_diffuse_map(Texture *texture)
-{
-    this->push_constants.diffuse_environment_id = texture->get_id();
-}
-
-void RenderSystem::clear_diffuse_map()
-{
-    this->push_constants.diffuse_environment_id = -1;
-}
-
-void RenderSystem::set_top_sky_color(glm::vec3 color) 
-{
-    push_constants.top_sky_color = glm::vec4(color.r, color.g, color.b, 1.0);
-}
-
-void RenderSystem::set_bottom_sky_color(glm::vec3 color) 
-{
-    push_constants.bottom_sky_color = glm::vec4(color.r, color.g, color.b, 1.0);
-}
-
-void RenderSystem::set_sky_transition(float transition) 
-{
-    push_constants.sky_transition = transition;
-}
-
-
-void RenderSystem::use_openvr(bool useOpenVR) {
-    this->using_openvr = useOpenVR;
-}
 } // namespace Systems

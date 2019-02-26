@@ -45,6 +45,12 @@ void Transform::UploadSSBO()
         /* TODO: account for parent transforms */
         transformObjects[i].worldToLocal = transforms[i].parent_to_local_matrix();
         transformObjects[i].localToWorld = transforms[i].local_to_parent_matrix();
+        transformObjects[i].worldToLocalRotation = transforms[i].parent_to_local_rotation();
+        transformObjects[i].localToWorldRotation = transforms[i].local_to_parent_rotation();
+        transformObjects[i].worldToLocalTranslation = transforms[i].parent_to_local_position();
+        transformObjects[i].localToWorldTranslation = transforms[i].local_to_parent_position();
+        transformObjects[i].worldToLocalScale = transforms[i].parent_to_local_scale();
+        transformObjects[i].localToWorldScale = transforms[i].local_to_parent_scale();
     };
 
     auto device = Libraries::Vulkan::Get()->get_device();

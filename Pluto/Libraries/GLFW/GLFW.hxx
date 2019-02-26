@@ -112,6 +112,7 @@ namespace Libraries {
             std::vector<vk::Image> swapchainColorImages;
             std::vector<Texture*> textures; 
             bool swapchain_out_of_date;
+            bool image_acquired = false;
             double xpos;
             double ypos;
             Button buttons[8];

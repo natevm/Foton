@@ -445,6 +445,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         /* Account for possibly multiple samples */
         depth[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
         depth[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
+        // depth[renderpass].pipelineParameters.rasterizer.cullMode = vk::CullModeFlagBits::eNone;
 
         CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
             { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
@@ -1090,7 +1091,7 @@ void Material::BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderP
     command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, volume[render_pass].pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
 }
 
-void Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants) //int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time)
+void Material::DrawEntity(vk::CommandBuffer &command_buffer, Camera* camera, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants) //int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time)
 {    
     /* Need a mesh to render. */
     auto mesh_id = entity.get_mesh();
@@ -1108,31 +1109,33 @@ void Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &ren
     auto material = Material::Get(material_id);
     if (!material) return;
 
-    /* Dont render volumes yet. */
-    if (material->renderMode == VOLUME) return;
-    if (material->renderMode == HIDDEN) return;
+    auto rendermode = (camera->get_rendermode_override() == RenderMode::NONE) ? material->renderMode : camera->get_rendermode_override();
 
-    if (material->renderMode == NORMAL) {
+    /* Dont render volumes yet. */
+    if (rendermode == VOLUME) return;
+    if (rendermode == HIDDEN) return;
+
+    if (rendermode == NORMAL) {
         command_buffer.pushConstants(normalsurface[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, normalsurface[render_pass].pipeline);
     }
-    else if (material->renderMode == BLINN) {
+    else if (rendermode == BLINN) {
         command_buffer.pushConstants(blinn[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, blinn[render_pass].pipeline);
     }
-    else if (material->renderMode == TEXCOORD) {
+    else if (rendermode == TEXCOORD) {
         command_buffer.pushConstants(texcoordsurface[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, texcoordsurface[render_pass].pipeline);
     }
-    else if (material->renderMode == PBR) {
+    else if (rendermode == PBR) {
         command_buffer.pushConstants(pbr[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pbr[render_pass].pipeline);
     }
-    else if (material->renderMode == DEPTH) {
+    else if (rendermode == DEPTH) {
         command_buffer.pushConstants(depth[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, depth[render_pass].pipeline);
     }
-    else if (material->renderMode == SKYBOX) {
+    else if (rendermode == SKYBOX) {
         command_buffer.pushConstants(skybox[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, skybox[render_pass].pipeline);
     }
@@ -1142,7 +1145,7 @@ void Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &ren
     command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
 }
 
-void Material::DrawVolume(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants) //int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time)
+void Material::DrawVolume(vk::CommandBuffer &command_buffer, Camera* camera, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants) //int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time)
 {    
     /* Need a mesh to render. */
     auto mesh_id = entity.get_mesh();
@@ -1160,7 +1163,9 @@ void Material::DrawVolume(vk::CommandBuffer &command_buffer, vk::RenderPass &ren
     auto material = Material::Get(material_id);
     if (!material) return;
 
-    if (material->renderMode != VOLUME) return;
+    auto rendermode = (camera->get_rendermode_override() == RenderMode::NONE) ? material->renderMode : camera->get_rendermode_override();
+
+    if (rendermode != VOLUME) return;
     
     {
         command_buffer.pushConstants(volume[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);

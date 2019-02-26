@@ -956,17 +956,40 @@ bool Vulkan::submit_present_commands() {
     bool result = true;
     while (!presentCommandQueue.empty()) {
         auto item = presentCommandQueue.front();
-
         try {
-            vk::PresentInfoKHR presentInfo;
-            presentInfo.swapchainCount = (uint32_t) item.swapchains.size();
-            presentInfo.pSwapchains = item.swapchains.data();
-            presentInfo.pImageIndices = item.swapchain_indices.data();
-            presentInfo.pWaitSemaphores = item.waitSemaphores.data();
-            presentInfo.waitSemaphoreCount = (uint32_t) item.waitSemaphores.size();
 
-            presentQueues[0].presentKHR(presentInfo);
-            //presentQueues[0].waitIdle();
+            if (item.swapchains.size() > 0)
+            {
+                vk::PresentInfoKHR presentInfo;
+                presentInfo.swapchainCount = (uint32_t) item.swapchains.size();
+                presentInfo.pSwapchains = item.swapchains.data();
+                presentInfo.pImageIndices = item.swapchain_indices.data();
+                presentInfo.pWaitSemaphores = item.waitSemaphores.data();
+                presentInfo.waitSemaphoreCount = (uint32_t) item.waitSemaphores.size();
+
+                presentQueues[0].presentKHR(presentInfo);
+                //presentQueues[0].waitIdle();
+            } else 
+            {
+                std::vector<vk::PipelineStageFlags> waitDstStageMasks;
+                for (uint32_t i = 0; i < item.waitSemaphores.size(); ++i) {
+                    waitDstStageMasks.push_back(vk::PipelineStageFlagBits::eBottomOfPipe);
+                }
+                vk::FenceCreateInfo fenceInfo;
+                auto fence = device.createFence(fenceInfo);
+
+                vk::SubmitInfo submit_info;
+                submit_info.waitSemaphoreCount = (uint32_t) item.waitSemaphores.size();
+                submit_info.pWaitSemaphores = item.waitSemaphores.data();
+                submit_info.pWaitDstStageMask = waitDstStageMasks.data();
+                submit_info.commandBufferCount = 0;
+                submit_info.pCommandBuffers = nullptr;
+                submit_info.signalSemaphoreCount = 0;
+                submit_info.pSignalSemaphores = nullptr;
+                graphicsQueues[0].submit(submit_info, fence);
+                device.waitForFences(fence, true, 10000000000);
+
+            }
         }
         catch (...) {
             result = false;

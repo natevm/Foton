@@ -159,6 +159,10 @@ class Texture : public StaticFactory
 			vk::PipelineStageFlags srcStageMask = vk::PipelineStageFlagBits::eAllCommands,
 			vk::PipelineStageFlags dstStageMask = vk::PipelineStageFlagBits::eAllCommands);
 
+		// Kinda kludgy. Need to go back and forth between renderpasses
+		void make_renderable(vk::CommandBuffer commandBuffer);
+		void make_samplable(vk::CommandBuffer commandBuffer);
+
 	private:
 
 		/* The list of texture components, allocated statically */
