@@ -185,42 +185,6 @@ int32_t Entity::GetEntityForVR()
     return entityToVR;
 }
 
-void Entity::connect_to_window(std::string key) {
-    auto glfw = Libraries::GLFW::Get();
-    if (!glfw->does_window_exist(key))
-        throw std::runtime_error( std::string("Window with key " + key + " does not exist"));
-
-    if (!initialized) 
-        throw std::runtime_error( std::string("Entity not initialized"));
-    
-    windowToEntity[key] = this->id;
-    entityToWindow[this->id] = key;
-}
-
-void Entity::disconnect_window()
-{
-    if (!initialized) 
-        throw std::runtime_error( std::string("Entity not initialized"));
-
-    auto it = entityToWindow.find(this->id);
-    if (it != entityToWindow.end()) {
-        std::string key = entityToWindow[this->id];
-        windowToEntity.erase(key);
-        entityToWindow.erase(this->id);
-    }
-}
-
-std::string Entity::get_connected_window() {
-    auto glfw = Libraries::GLFW::Get();
-
-    if (!initialized) 
-        throw std::runtime_error( std::string("Entity not initialized"));
-
-    auto it = entityToWindow.find(this->id);
-    if (it == entityToWindow.end()) return "";
-    return entityToWindow[this->id];
-}
-
 void Entity::connect_to_vr()
 {
     if (!initialized) 

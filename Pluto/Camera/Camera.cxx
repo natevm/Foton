@@ -15,7 +15,7 @@ int32_t Camera::maxRenderOrder = 0;
 
 using namespace Libraries;
 
-void Camera::setup(bool allow_recording, bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers)
+void Camera::setup(bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers)
 {
 	layers = (cubemap) ? 6 : layers;
 	if (layers > MAX_MULTIVIEW)
@@ -26,32 +26,28 @@ void Camera::setup(bool allow_recording, bool cubemap, uint32_t tex_width, uint3
 	maxMultiview = layers;
 	set_view(glm::mat4(1.0), 0);
 	// set_orthographic_projection(-1, 1, -1, 1, -1, 1);
-	if (allow_recording)
+	this->msaa_samples = msaa_samples;
+	
+	if (cubemap)
 	{
-		this->allow_recording = true;
-		this->msaa_samples = msaa_samples;
-		
-		if (cubemap)
-		{
-			renderTexture = Texture::CreateCubemap(name, tex_width, tex_height, true, true);
-		}
-		else
-		{
-			renderTexture = Texture::Create2D(name, tex_width, tex_height, true, true, msaa_samples, layers);
-			if (msaa_samples != 1)
-				resolveTexture = Texture::Create2D(name + "_resolve", tex_width, tex_height, true, true, 1, layers);
-		}
+		renderTexture = Texture::CreateCubemap(name, tex_width, tex_height, true, true);
+	}
+	else
+	{
+		renderTexture = Texture::Create2D(name, tex_width, tex_height, true, true, msaa_samples, layers);
+		if (msaa_samples != 1)
+			resolveTexture = Texture::Create2D(name + "_resolve", tex_width, tex_height, true, true, 1, layers);
+	}
 
-		for (uint32_t i = 0; i < layers; ++i) {
-			camera_struct.multiviews[i].tex_id = (msaa_samples != 1) ? resolveTexture->get_id() : renderTexture->get_id();
-		}
+	for (uint32_t i = 0; i < layers; ++i) {
+		camera_struct.multiviews[i].tex_id = (msaa_samples != 1) ? resolveTexture->get_id() : renderTexture->get_id();
+	}
 
-		create_command_buffers(layers);
-		create_render_passes(tex_width, tex_height, layers, msaa_samples);
-		create_frame_buffers(layers);
-        for(auto renderpass : renderpasses) {
-            Material::SetupGraphicsPipelines(renderpass, msaa_samples);
-        }
+	create_command_buffers(layers);
+	create_render_passes(tex_width, tex_height, layers, msaa_samples);
+	create_frame_buffers(layers);
+	for(auto renderpass : renderpasses) {
+		Material::SetupGraphicsPipelines(renderpass, msaa_samples);
 	}
 }
 
@@ -413,19 +409,11 @@ std::string Camera::to_string()
 	return output;
 }
 
-bool Camera::allows_recording()
-{
-	return allow_recording;
-}
-
 // this should be in the render system...
 void Camera::begin_renderpass(vk::CommandBuffer command_buffer, uint32_t index)
 {
     if(index >= renderpasses.size())
         throw std::runtime_error( std::string("Error: renderpass index out of bounds"));
-	/* Not all cameras allow recording. */
-	if (!allow_recording)
-		throw std::runtime_error( std::string("Error: this camera does not allow recording"));
 
 	if (renderOrder < 0) {
 		renderTexture->make_renderable(command_buffer);
@@ -482,8 +470,6 @@ uint32_t Camera::get_num_renderpasses() {
 void Camera::end_renderpass(vk::CommandBuffer command_buffer, uint32_t index) {
     if(index >= renderpasses.size())
         throw std::runtime_error( std::string("Error: renderpass index out of bounds"));
-	if (!allow_recording) 
-		throw std::runtime_error( std::string("Error: this camera does not allow recording"));
 		
 	command_buffer.endRenderPass();
 
@@ -579,10 +565,10 @@ void Camera::CleanUp()
 
 
 /* Static Factory Implementations */
-Camera* Camera::Create(std::string name, bool allow_recording, bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers)
+Camera* Camera::Create(std::string name, bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers)
 {
 	auto camera = StaticFactory::Create(name, "Camera", lookupTable, cameras, MAX_CAMERAS);
-	camera->setup(allow_recording, cubemap, tex_width, tex_height, msaa_samples, layers);
+	camera->setup(cubemap, tex_width, tex_height, msaa_samples, layers);
 	return camera;
 }
 

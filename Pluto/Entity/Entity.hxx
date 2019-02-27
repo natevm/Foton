@@ -58,13 +58,7 @@ public:
 
 	std::string to_string();
 
-	void connect_to_window(std::string key);
-	
-	void disconnect_window();
-
 	void connect_to_vr();
-
-	std::string get_connected_window();
 
 	static int32_t GetEntityFromWindow(std::string key);
 

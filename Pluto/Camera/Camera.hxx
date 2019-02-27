@@ -18,7 +18,7 @@ class Camera : public StaticFactory
   public:
 	/* Creates a camera, which can be used to record the scene. Can be used to render to several texture layers for use in cubemap rendering/VR renderpasses. 
 		Note, "layers" parameter is ignored if cubemap is enabled. */
-	static Camera *Create(std::string name, bool allow_recording = false, bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1, uint32_t layers = 1);
+	static Camera *Create(std::string name, bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1, uint32_t layers = 1);
 
 	/* Retrieves a camera component by name. */
 	static Camera *Get(std::string name);
@@ -90,41 +90,41 @@ class Camera : public StaticFactory
 		an orthographic view. */
 	glm::mat4 get_projection(uint32_t multiview = 0);
 
-	/* If recording is allowed, returns the texture component being rendered to. 
+	/* Returns the texture component being rendered to. 
 		Otherwise, returns None/nullptr. */
 	Texture *get_texture();
 
 	/* Returns a json string summarizing the camera. */
 	std::string to_string();
 
-	/* If recording is allowed, records vulkan commands to the given command buffer required to 
+	/* Records vulkan commands to the given command buffer required to 
 		start a renderpass for the current camera setup. This should only be called by the render 
 		system, and only after the command buffer has begun recording commands. */
 	void begin_renderpass(vk::CommandBuffer command_buffer, uint32_t index = 0);
 
-	/* If recording is allowed, returns the vulkan renderpass handle. 
+	/* Returns the vulkan renderpass handle. 
 		Note: This handle might change throughout the lifetime of this camera component. */
 	vk::RenderPass get_renderpass(uint32_t);
     
     /* Get the number of renderpasses for this camera */
     uint32_t get_num_renderpasses();
 
-	/* If recording is allowed, records vulkan commands to the given command buffer required to 
+	/* Records vulkan commands to the given command buffer required to 
 		end a renderpass for the current camera setup. */
 	void end_renderpass(vk::CommandBuffer command_buffer, uint32_t index = 0);
 
 	/* Returns the vulkan command buffer handle. */
 	vk::CommandBuffer get_command_buffer();
 
-	/* If recording is allowed, sets the clear color to be used to reset the color image of this camera's
+	/* Sets the clear color to be used to reset the color image of this camera's
 		texture component when beginning a renderpass. */
 	void set_clear_color(float r, float g, float b, float a);
 
-	/* If recording is allowed, sets the clear stencil to be used to reset the depth/stencil image of this 
+	/* Sets the clear stencil to be used to reset the depth/stencil image of this 
 		camera's texture component when beginning a renderpass. */
 	void set_clear_stencil(uint32_t stencil);
 
-	/* If recording is allowed, sets the clear depth to be used to reset the depth/stencil image of this 
+	/* Sets the clear depth to be used to reset the depth/stencil image of this 
 		camera's texture component when beginning a renderpass. Note: If reverse Z projections are used, 
 		this should always be 1.0 */
 	void set_clear_depth(float depth);
@@ -142,9 +142,6 @@ class Camera : public StaticFactory
 	
 	/* Returns the maximum render order set in the camera list */
 	static int32_t GetMaxRenderOrder();
-
-	/* Returns whether or not a camera is allowed to record draw calls. */
-	bool allows_recording();
 
 	/* TODO: Explain this */
 	void force_render_mode(RenderMode rendermode);
@@ -171,7 +168,7 @@ class Camera : public StaticFactory
 
 	/* The vulkan renderpass handle, used to begin and end renderpasses for the given camera. 
 		Handles all multiviews at once. */
-    std::vector<vk::RenderPass> renderpasses;
+  std::vector<vk::RenderPass> renderpasses;
 	
 	/* The vulkan framebuffer handle, which associates attachments with image views. 
 		Handles all multiviews at once. */
@@ -186,9 +183,6 @@ class Camera : public StaticFactory
 	/* If msaa_samples is more than one, this texture component is used to resolve MSAA samples. */
 	Texture *resolveTexture = nullptr;
 	
-	/* This flag indicates whether this camera can be used for rendering to textures. */
-	bool allow_recording = false;
-
 	/* The RGBA color used when clearing the color attachment at the beginning of a renderpass. */
 	glm::vec4 clearColor = glm::vec4(0.0);
 	
@@ -220,7 +214,7 @@ class Camera : public StaticFactory
 	RenderMode renderModeOverride;
 
 	/* Allocates (and possibly frees existing) textures, renderpass, and framebuffer required for rendering. */
-	void setup(bool allow_recording = false, bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1, uint32_t layers = 1);
+	void setup(bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1, uint32_t layers = 1);
 
 	/* Creates a vulkan renderpass handle which will be used when recording from the current camera component. */
 	void create_render_passes(uint32_t framebufferWidth, uint32_t framebufferHeight, uint32_t layers = 1, uint32_t sample_count = 1);
@@ -236,7 +230,7 @@ class Camera : public StaticFactory
 	void update_used_views(uint32_t multiview);
 
 	/* Checks to see if a given multiview index is within the multiview bounds, bounded either by MAX_MULTIVIEW, or the 
-		camera's texture layers when recording is allowed..  */
+		camera's texture layers */
 	void check_multiview_index(uint32_t multiview);
 
 	/* Releases any vulkan resources. */

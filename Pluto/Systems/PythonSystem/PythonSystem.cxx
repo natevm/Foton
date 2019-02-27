@@ -86,6 +86,7 @@ bool PythonSystem::start()
             PyRun_SimpleString("import sys");
             PyRun_SimpleString("import os");
             PyRun_SimpleString("import importlib");
+            PyRun_SimpleString("from importlib import util");
 
             PyRun_SimpleString(std::string(std::string("sys.path.insert(0, r\"") + executable_path + std::string("\")")).c_str());
             PyRun_SimpleString(std::string(std::string("sys.path.insert(0, os.path.join(r\"") + executable_path + std::string("\", \"..\" ))")).c_str());
