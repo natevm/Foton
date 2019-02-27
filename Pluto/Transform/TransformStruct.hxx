@@ -1,7 +1,7 @@
 /* File shared by both GLSL and C++ */
 
 #ifndef MAX_TRANSFORMS
-#define MAX_TRANSFORMS 1024
+#define MAX_TRANSFORMS 512
 #endif
 
 #ifndef GLSL
