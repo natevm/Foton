@@ -53,8 +53,6 @@ void Transform::UploadSSBO()
         transformObjects[i].localToWorldScale = transforms[i].local_to_parent_scale();
     };
 
-    auto device = Libraries::Vulkan::Get()->get_device();
-
     /* Copy to GPU mapped memory */
     memcpy(pinnedMemory, transformObjects, sizeof(transformObjects));
 }

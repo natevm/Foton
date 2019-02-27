@@ -171,9 +171,10 @@ vec3 sampleIrradiance(vec3 N)
             return texture(
                 samplerCube(texture_cubes[push.consts.diffuse_environment_id], samplers[tex.sampler_id]), adjusted
             ).rgb;
+            
         }
 	}
-	
+
 	return getSky(adjusted);
 }
 
@@ -186,7 +187,7 @@ vec3 Uncharted2Tonemap(vec3 x)
 	float D = 0.20;
 	float E = 0.02;
 	float F = 0.30;
-	return ((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F;
+	return max(vec3(0.0f),  ((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F );
 }
 
 // Normal Distribution function --------------------------------------
@@ -320,7 +321,7 @@ vec3 get_environment_color(vec3 dir) {
 		return mix(a, b, lod - lodf);
 	}
 
-	return getSky(dir);// + getSun(dir);
+    return getSky(dir);
 
 
 	// vec3 up = vec3(0.0, 1.0, 0.0);
