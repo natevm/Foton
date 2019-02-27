@@ -640,9 +640,9 @@ void Camera::cleanup()
     }
 }
 
-void Camera::force_render_depth()
+void Camera::force_render_mode(RenderMode rendermode)
 {
-	renderModeOverride = RenderMode::DEPTH;
+	renderModeOverride = rendermode;
 }
 
 RenderMode Camera::get_rendermode_override() {

@@ -849,8 +849,6 @@ namespace Libraries {
         return -1;
     }
 
-    #pragma GCC push_options
-    #pragma GCC optimize("O0")
     void GLFW::acquire_swapchain_images(uint32_t current_frame) {
         auto vulkan = Vulkan::Get();
         auto device = vulkan->get_device();
@@ -885,14 +883,11 @@ namespace Libraries {
                 if (acquireFence)
                     device.destroyFence(acquireFence);
 
-                std::cout<<"Swapchain out of date"<<std::endl;
-
                 set_swapchain_out_of_date(window.first);
                 window.second.image_acquired = false;
             }
         }
     }
-    #pragma GCC pop_options
 
     std::vector<vk::Semaphore> GLFW::get_image_available_semaphores(uint32_t current_frame)
     {

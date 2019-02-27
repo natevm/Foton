@@ -147,7 +147,7 @@ class Camera : public StaticFactory
 	bool allows_recording();
 
 	/* TODO: Explain this */
-	void force_render_depth();
+	void force_render_mode(RenderMode rendermode);
 
 	/* TODO: Explain this */
 	RenderMode get_rendermode_override();

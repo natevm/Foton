@@ -74,7 +74,7 @@ void Initialize(
     auto transform = Transform::Create("SkyboxTransform");
     auto material = Material::Create("SkyboxMaterial");
     material->show_environment();
-    transform->set_scale(1000, 1000, 1000);
+    transform->set_scale(100000, 100000, 100000);
     skybox->set_mesh(sphere);
     skybox->set_material(material);
     skybox->set_transform(transform);

@@ -168,87 +168,102 @@ void RenderSystem::record_cameras()
         Texture * texture = cameras[cam_id].get_texture();
         if (!texture) continue;
 
-        vk::CommandBufferBeginInfo beginInfo;
-        vk::CommandBuffer command_buffer = cameras[cam_id].get_command_buffer();
-        beginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
-        command_buffer.begin(beginInfo);
+        /* If entity is a shadow camera (TODO: REFACTOR THIS...) */
+        if (entities[entity_id].get_light() != -1){
+            /* If that light should cast shadows */
+            auto light = Light::Get(entities[entity_id].get_light());
+            if (!light->should_cast_shadows()) continue;
+        }
 
-        /* If we're the client, we recieve color data from "stream_frames". Only render a scene if not the client. */
-        for(uint32_t rp_idx = 0; rp_idx < cameras[cam_id].get_num_renderpasses(); rp_idx++) {
+        /* Record Z prepasses */
+        {
+            // TODO
+        }
+
+        /* Record forward renderpasses */
+        {
+            vk::CommandBufferBeginInfo beginInfo;
+            vk::CommandBuffer command_buffer = cameras[cam_id].get_command_buffer();
+            beginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
+            command_buffer.begin(beginInfo);
+
+            /* If we're the client, we recieve color data from "stream_frames". Only render a scene if not the client. */
+            for(uint32_t rp_idx = 0; rp_idx < cameras[cam_id].get_num_renderpasses(); rp_idx++) {
+                if (!Options::IsClient())
+                {
+                    /* Get the renderpass for the current camera */
+                    vk::RenderPass rp = cameras[cam_id].get_renderpass(rp_idx);
+
+                    /* Bind all descriptor sets to that renderpass.
+                        Note that we're using a single bind. The same descriptors are shared across pipelines. */
+                    Material::BindDescriptorSets(command_buffer, rp);
+
+                    {
+                        cameras[cam_id].begin_renderpass(command_buffer, rp_idx);
+                        for (uint32_t i = 0; i < Entity::GetCount(); ++i)
+                        {
+                            if (entities[rp_idx].is_initialized())
+                            {
+                                // Push constants
+                                push_constants.target_id = i;
+                                push_constants.camera_id = entity_id;
+                                push_constants.viewIndex = rp_idx;
+                                Material::DrawEntity(command_buffer, &cameras[cam_id], rp, entities[i], push_constants);
+                            }
+                        }
+                        
+                        /* Draw transparent objects last */
+                        for (uint32_t i = 0; i < Entity::GetCount(); ++i)
+                        {
+                            if (entities[i].is_initialized())
+                            {
+                                // Push constants
+                                push_constants.target_id = i;
+                                push_constants.camera_id = entity_id;
+                                push_constants.viewIndex = rp_idx;
+                                Material::DrawVolume(command_buffer, &cameras[cam_id], rp, entities[i], push_constants);
+                            }
+                        }
+                        cameras[cam_id].end_renderpass(command_buffer, rp_idx);
+                    }
+                }
+            }
             
-            if (!Options::IsClient())
-            {
-                /* Get the renderpass for the current camera */
-                vk::RenderPass rp = cameras[cam_id].get_renderpass(rp_idx);
+            /* See if we should blit to a GLFW window. */
+            for (auto w2c : window_to_cam) {
+                if ((w2c.second.first->get_id() == cam_id)) {
+                    /* Window needs a swapchain */
+                    auto swapchain = glfw->get_swapchain(w2c.first);
+                    if (!swapchain) {
+                        continue;
+                    }
 
-                /* Bind all descriptor sets to that renderpass.
-                    Note that we're using a single bind. The same descriptors are shared across pipelines. */
-                Material::BindDescriptorSets(command_buffer, rp);
+                    /* Need to be able to get swapchain/texture by key...*/
+                    auto swapchain_texture = glfw->get_texture(w2c.first);
 
-                cameras[cam_id].begin_renderpass(command_buffer, rp_idx);
-                for (uint32_t i = 0; i < Entity::GetCount(); ++i)
-                {
-                    if (entities[rp_idx].is_initialized())
-                    {
-                        // Push constants
-                        push_constants.target_id = i;
-                        push_constants.camera_id = entity_id;
-                        push_constants.viewIndex = rp_idx;
-                        Material::DrawEntity(command_buffer, &cameras[cam_id], rp, entities[i], push_constants);
+                    /* Record blit to swapchain */
+                    if (swapchain_texture && swapchain_texture->is_initialized()) {
+                        texture->record_blit_to(command_buffer, swapchain_texture, w2c.second.second);
                     }
                 }
-                
-                /* Draw volumes last */
-                for (uint32_t i = 0; i < Entity::GetCount(); ++i)
-                {
-                    if (entities[i].is_initialized())
-                    {
-                        // Push constants
-                        push_constants.target_id = i;
-                        push_constants.camera_id = entity_id;
-                        push_constants.viewIndex = rp_idx;
-                        Material::DrawVolume(command_buffer, &cameras[cam_id], rp, entities[i], push_constants);
-                    }
-                }
-
-                cameras[cam_id].end_renderpass(command_buffer, rp_idx);
             }
-        }
         
-        /* See if we should blit to a GLFW window. */
-        for (auto w2c : window_to_cam) {
-            if ((w2c.second.first->get_id() == cam_id)) {
-                /* Window needs a swapchain */
-                auto swapchain = glfw->get_swapchain(w2c.first);
-                if (!swapchain) {
-                    continue;
-                }
-
-                /* Need to be able to get swapchain/texture by key...*/
-                auto swapchain_texture = glfw->get_texture(w2c.first);
-
-                /* Record blit to swapchain */
-                if (swapchain_texture && swapchain_texture->is_initialized()) {
-                    texture->record_blit_to(command_buffer, swapchain_texture, w2c.second.second);
+            /* Record blit to OpenVR eyes. */
+            #if BUILD_OPENVR
+            if (using_openvr) {
+                if (entity_id == Entity::GetEntityForVR()) {
+                    auto ovr = OpenVR::Get();
+                    auto left_eye_texture = ovr->get_left_eye_texture();
+                    auto right_eye_texture = ovr->get_right_eye_texture();
+                    if (left_eye_texture)  texture->record_blit_to(command_buffer, left_eye_texture, 0);
+                    if (right_eye_texture) texture->record_blit_to(command_buffer, right_eye_texture, 1);
                 }
             }
+            #endif
+        
+            /* End this recording. */
+            command_buffer.end();
         }
-    
-        /* Record blit to OpenVR eyes. */
-    #if BUILD_OPENVR
-        if (using_openvr) {
-            if (entity_id == Entity::GetEntityForVR()) {
-                auto ovr = OpenVR::Get();
-                auto left_eye_texture = ovr->get_left_eye_texture();
-                auto right_eye_texture = ovr->get_right_eye_texture();
-                if (left_eye_texture)  texture->record_blit_to(command_buffer, left_eye_texture, 0);
-                if (right_eye_texture) texture->record_blit_to(command_buffer, right_eye_texture, 1);
-            }
-        }
-    #endif
-
-        /* End this recording. */
-        command_buffer.end();
     }
 }
 
@@ -390,7 +405,7 @@ void RenderSystem::stream_frames()
     
     Bucket bucket = {};
 
-    #if ZMQ_BUILD_DRAFT_API == 1
+#if ZMQ_BUILD_DRAFT_API == 1
     /* If we're the server, send the frame over UDP */
     if (Options::IsServer())
     {
@@ -423,7 +438,7 @@ void RenderSystem::stream_frames()
         //     memcpy(color_data.data(), bucket.data, 16 * 16 * 4 * sizeof(float));
         //     current_camera->get_texture()->upload_color_data(16, 16, 1, color_data, 0);
     }
-    #endif
+#endif
 }
 
 void RenderSystem::enqueue_render_commands() {
@@ -456,6 +471,13 @@ void RenderSystem::enqueue_render_commands() {
 
             /* Camera must match the render idx */
             if (cameras[cam_id].get_render_order() != render_idx) continue;
+
+            /* If entity is a shadow camera (TODO: REFACTOR THIS...) */
+            if (entities[entity_id].get_light() != -1){
+                /* If that light should cast shadows */
+                auto light = Light::Get(entities[entity_id].get_light());
+                if (!light->should_cast_shadows()) continue;
+            }
 
             if (!render_idx_found) {
                 command_sets.push_back(std::vector<vk::CommandBuffer>());

@@ -25,6 +25,9 @@ struct LightStruct {
 	float coneAngle, coneSoftness;
 	float constantAttenuation, linearAttenuation, quadraticAttenuation;
 	int type; 
+	// 100 - double sided
+	// 010 - show end caps
+	// 001 - cast shadows
 	int flags;
 };
 

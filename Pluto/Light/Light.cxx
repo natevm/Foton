@@ -1,5 +1,6 @@
 #include "./Light.hxx"
 #include "Pluto/Camera/Camera.hxx"
+#include "Pluto/Material/Material.hxx"
 #include <math.h>
 
 Light Light::lights[MAX_LIGHTS];
@@ -90,6 +91,24 @@ void Light::show_end_caps(bool show_end_caps)
     }
 }
 
+void Light::cast_shadows(bool enable_cast_shadows)
+{
+    if (enable_cast_shadows) {
+        light_struct.flags |= (1 << 2);
+    }
+    else
+    {
+        light_struct.flags &= (~(1 << 2));
+    }
+}
+
+bool Light::should_cast_shadows()
+{
+    if ((light_struct.flags & (1 << 2)) != 0)
+        return true;
+    return false;
+}
+
 void Light::set_cone_angle(float angle)
 {
     light_struct.coneAngle = angle;
@@ -175,7 +194,7 @@ void Light::CreateShadowCameras()
     // Right, Left, Up, Down, Far, Near
     /* Create shadow map textures */
     for (uint32_t i = 0; i < MAX_LIGHTS; ++i) {
-        auto cam = Camera::Create("ShadowCam_" + std::to_string(i), true, true, 512, 512);
+        auto cam = Camera::Create("ShadowCam_" + std::to_string(i), true, true, 256, 256);
         cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .001f, 0);
         cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .001f, 1);
         cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .001f, 2);
@@ -189,7 +208,7 @@ void Light::CreateShadowCameras()
         cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0,  1,  0), glm::vec3(0.0, 0.0, 1.0)), 4);
         cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0,  -1,  0), glm::vec3(0.0, 0.0, 1.0)), 5);
         cam->set_render_order(-1);
-        cam->force_render_depth();
+        cam->force_render_mode(RenderMode::SHADOWMAP);
         shadowCameras.push_back(cam);
     }
 }
