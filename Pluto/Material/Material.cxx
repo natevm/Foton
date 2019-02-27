@@ -173,7 +173,7 @@ void Material::CreateRasterPipeline(
 }
 
 /* Compiles all shaders */
-void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sampleCount)
+void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sampleCount, bool use_depth_prepass)
 {
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
@@ -289,7 +289,15 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         /* Account for possibly multiple samples */
         pbr[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
         pbr[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
-
+        
+        /* Because we use a depth prepass */
+        if (use_depth_prepass) {
+            pbr[renderpass].pipelineParameters.depthStencil.depthTestEnable = true;
+            pbr[renderpass].pipelineParameters.depthStencil.depthWriteEnable = false; // not VK_TRUE since we have a depth prepass
+            pbr[renderpass].pipelineParameters.depthStencil.depthCompareOp = vk::CompareOp::eEqual;
+        }
+		// depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL; //not VK_COMPARE_OP_LESS since we have a depth prepass;
+        
         CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
             { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
             pbr[renderpass].pipelineParameters, 
@@ -524,6 +532,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         fragmentdepth[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
 
         fragmentdepth[renderpass].pipelineParameters.depthStencil.depthWriteEnable = true;
+        fragmentdepth[renderpass].pipelineParameters.depthStencil.depthCompareOp = vk::CompareOp::eGreater;
 
         CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
             { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
@@ -1168,7 +1177,7 @@ void Material::BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderP
     command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, volume[render_pass].pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
 }
 
-void Material::DrawEntity(vk::CommandBuffer &command_buffer, Camera* camera, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants) //int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time)
+void Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants, RenderMode rendermode_override) //int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time)
 {    
     /* Need a mesh to render. */
     auto mesh_id = entity.get_mesh();
@@ -1186,7 +1195,7 @@ void Material::DrawEntity(vk::CommandBuffer &command_buffer, Camera* camera, vk:
     auto material = Material::Get(material_id);
     if (!material) return;
 
-    auto rendermode = (camera->get_rendermode_override() == RenderMode::NONE) ? material->renderMode : camera->get_rendermode_override();
+    auto rendermode = (rendermode_override == RenderMode::NONE) ? material->renderMode : rendermode_override;
 
     /* Dont render volumes yet. */
     if (rendermode == VOLUME) return;
@@ -1230,7 +1239,7 @@ void Material::DrawEntity(vk::CommandBuffer &command_buffer, Camera* camera, vk:
     command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
 }
 
-void Material::DrawVolume(vk::CommandBuffer &command_buffer, Camera* camera, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants) //int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time)
+void Material::DrawVolume(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants, RenderMode rendermode_override) //int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time)
 {    
     /* Need a mesh to render. */
     auto mesh_id = entity.get_mesh();
@@ -1248,7 +1257,7 @@ void Material::DrawVolume(vk::CommandBuffer &command_buffer, Camera* camera, vk:
     auto material = Material::Get(material_id);
     if (!material) return;
 
-    auto rendermode = (camera->get_rendermode_override() == RenderMode::NONE) ? material->renderMode : camera->get_rendermode_override();
+    auto rendermode = (rendermode_override == RenderMode::NONE) ? material->renderMode : rendermode_override;
 
     if (rendermode != VOLUME) return;
     

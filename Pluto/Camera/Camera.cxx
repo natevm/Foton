@@ -15,8 +15,9 @@ int32_t Camera::maxRenderOrder = 0;
 
 using namespace Libraries;
 
-void Camera::setup(bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers)
+void Camera::setup(bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers, bool use_depth_prepass)
 {
+	this->use_depth_prepass = use_depth_prepass;
 	layers = (cubemap) ? 6 : layers;
 	if (layers > MAX_MULTIVIEW)
     {
@@ -47,7 +48,13 @@ void Camera::setup(bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32
 	create_render_passes(tex_width, tex_height, layers, msaa_samples);
 	create_frame_buffers(layers);
 	for(auto renderpass : renderpasses) {
-		Material::SetupGraphicsPipelines(renderpass, msaa_samples);
+		Material::SetupGraphicsPipelines(renderpass, msaa_samples, use_depth_prepass);
+	}
+	if (use_depth_prepass)
+	{
+		for(auto renderpass : depthPrepasses) {
+			Material::SetupGraphicsPipelines(renderpass, msaa_samples, use_depth_prepass);
+		}
 	}
 }
 
@@ -65,12 +72,13 @@ void Camera::create_command_buffers(uint32_t count)
 void Camera::create_render_passes(uint32_t framebufferWidth, uint32_t framebufferHeight, uint32_t layers, uint32_t sample_count)
 {
     renderpasses.clear();
+    depthPrepasses.clear();
     
-#ifdef DISABLE_MULTIVIEW
+	#ifdef DISABLE_MULTIVIEW
     int iterations = layers;
-#else
+	#else
     int iterations = 1;
-#endif
+	#endif
     
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
@@ -127,24 +135,6 @@ void Camera::create_render_passes(uint32_t framebufferWidth, uint32_t framebuffe
         colorAttachmentResolveRef.attachment = 2;
         colorAttachmentResolveRef.layout = renderTexture->get_color_image_layout();
         #pragma endregion
-
-        // #pragma region CreateDepthAttachmentResolve
-        // vk::AttachmentDescription depthAttachmentResolve;
-        // depthAttachmentResolve.format = renderTexture->get_depth_format();
-        // depthAttachmentResolve.samples = vk::SampleCountFlagBits::e1;
-        // depthAttachmentResolve.loadOp = vk::AttachmentLoadOp::eDontCare;
-        // depthAttachmentResolve.storeOp = vk::AttachmentStoreOp::eStore;
-        // depthAttachmentResolve.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-        // depthAttachmentResolve.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-        // depthAttachmentResolve.initialLayout = vk::ImageLayout::eUndefined;
-        // depthAttachmentResolve.finalLayout = renderTexture->get_depth_image_layout();
-
-        // vk::AttachmentReference depthAttachmentResolveRef;
-        // depthAttachmentResolveRef.attachment = 3;
-        // depthAttachmentResolveRef.layout = renderTexture->get_depth_image_layout();
-        // #pragma endregion
-
-
 
         #pragma region CreateSubpass
         vk::SubpassDescription subpass;
@@ -207,8 +197,22 @@ void Camera::create_render_passes(uint32_t framebufferWidth, uint32_t framebuffe
 #else
         renderPassInfo.pNext = &renderPassMultiviewInfo;
 #endif
-
-        renderpasses.push_back(device.createRenderPass(renderPassInfo));
+		if (use_depth_prepass)
+		{
+			attachments[1].initialLayout = renderTexture->get_depth_image_layout();
+			attachments[1].finalLayout = renderTexture->get_depth_image_layout();
+			attachments[1].loadOp = vk::AttachmentLoadOp::eLoad;
+			attachments[1].storeOp = vk::AttachmentStoreOp::eDontCare;
+			renderpasses.push_back(device.createRenderPass(renderPassInfo));
+			
+			attachments[1].initialLayout = vk::ImageLayout::eUndefined;
+			attachments[1].finalLayout = renderTexture->get_depth_image_layout();
+			attachments[1].loadOp = vk::AttachmentLoadOp::eClear;
+			attachments[1].storeOp = vk::AttachmentStoreOp::eStore;
+        	depthPrepasses.push_back(device.createRenderPass(renderPassInfo));
+		} else {
+			renderpasses.push_back(device.createRenderPass(renderPassInfo));
+		}
     }
 	#pragma endregion
 }
@@ -220,7 +224,7 @@ void Camera::create_frame_buffers(uint32_t layers) {
 	auto device = vulkan->get_device();
 
     
-#ifdef DISABLE_MULTIVIEW
+	#ifdef DISABLE_MULTIVIEW
     for(uint32_t i = 0; i < layers; i++) {
         vk::ImageView attachments[3];
         attachments[0] = renderTexture->get_color_image_view_layers()[i];
@@ -237,8 +241,11 @@ void Camera::create_frame_buffers(uint32_t layers) {
         fbufCreateInfo.layers = 1;
         
         framebuffers.push_back(device.createFramebuffer(fbufCreateInfo));
+
+		fbufCreateInfo.renderPass = depthPrepasses[i];
+    	depthPrepassFramebuffers.push_back(device.createFramebuffer(fbufCreateInfo));
     }
-#else
+	#else
     vk::ImageView attachments[3];
     attachments[0] = renderTexture->get_color_image_view();
     attachments[1] = renderTexture->get_depth_image_view();
@@ -254,7 +261,14 @@ void Camera::create_frame_buffers(uint32_t layers) {
     fbufCreateInfo.layers = renderTexture->get_total_layers();
     
     framebuffers.push_back(device.createFramebuffer(fbufCreateInfo));
-#endif
+
+	if (use_depth_prepass)
+	{
+		fbufCreateInfo.renderPass = depthPrepasses[0];
+		depthPrepassFramebuffers.push_back(device.createFramebuffer(fbufCreateInfo));
+	}
+
+	#endif
     
 }
 
@@ -425,6 +439,72 @@ void Camera::begin_renderpass(vk::CommandBuffer command_buffer, uint32_t index)
     rpInfo.renderArea.offset = vk::Offset2D{0, 0};
 	rpInfo.renderArea.extent = vk::Extent2D{renderTexture->get_width(), renderTexture->get_height()};
 
+	std::vector<vk::ClearValue> clearValues;
+
+	clearValues.push_back(vk::ClearValue());
+	clearValues[0].color = vk::ClearColorValue(std::array<float, 4>{clearColor.r, clearColor.g, clearColor.b, clearColor.a});
+	if (!use_depth_prepass){
+		clearValues.push_back(vk::ClearValue());
+		clearValues[1].depthStencil = vk::ClearDepthStencilValue(clearDepth, clearStencil);
+	}
+
+	rpInfo.clearValueCount = (uint32_t)clearValues.size();
+	rpInfo.pClearValues = clearValues.data();
+
+	/* Start the render pass */
+	command_buffer.beginRenderPass(rpInfo, vk::SubpassContents::eInline);
+
+	/* Set viewport*/
+	vk::Viewport viewport;
+	viewport.width = (float)renderTexture->get_width();
+	viewport.height = -(float)renderTexture->get_height();
+	viewport.y = (float)renderTexture->get_height();
+	viewport.x = 0;
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+
+	command_buffer.setViewport(0, {viewport});
+
+	/* Set Scissors */
+	vk::Rect2D rect2D;
+	rect2D.extent.width = renderTexture->get_width();
+	rect2D.extent.height = renderTexture->get_height();
+	rect2D.offset.x = 0;
+	rect2D.offset.y = 0;
+
+	command_buffer.setScissor(0, {rect2D});
+}
+
+void Camera::end_renderpass(vk::CommandBuffer command_buffer, uint32_t index) {
+    if(index >= renderpasses.size())
+        throw std::runtime_error( std::string("Error: renderpass index out of bounds"));
+		
+	command_buffer.endRenderPass();
+
+	/* hack for now*/ 
+	if (renderOrder < 0) {
+		renderTexture->make_samplable(command_buffer);
+	}
+}
+
+void Camera::begin_depth_prepass(vk::CommandBuffer command_buffer, uint32_t index)
+{
+	if (!use_depth_prepass)
+		throw std::runtime_error( std::string("Error: depth prepass not enabled on this camera"));
+
+    if(index >= depthPrepasses.size())
+        throw std::runtime_error( std::string("Error: renderpass index out of bounds"));
+
+	if (renderOrder < 0) {
+		renderTexture->make_renderable(command_buffer);
+	}
+
+	vk::RenderPassBeginInfo rpInfo;
+	rpInfo.renderPass = depthPrepasses[index];
+	rpInfo.framebuffer = depthPrepassFramebuffers[index];
+    rpInfo.renderArea.offset = vk::Offset2D{0, 0};
+	rpInfo.renderArea.extent = vk::Extent2D{renderTexture->get_width(), renderTexture->get_height()};
+
 	std::array<vk::ClearValue, 2> clearValues = {};
 	clearValues[0].color = vk::ClearColorValue(std::array<float, 4>{clearColor.r, clearColor.g, clearColor.b, clearColor.a});
 	clearValues[1].depthStencil = vk::ClearDepthStencilValue(clearDepth, clearStencil);
@@ -456,19 +536,11 @@ void Camera::begin_renderpass(vk::CommandBuffer command_buffer, uint32_t index)
 	command_buffer.setScissor(0, {rect2D});
 }
 
-vk::RenderPass Camera::get_renderpass(uint32_t index)
-{
-    if(index >= renderpasses.size())
-        throw std::runtime_error( std::string("Error: renderpass index out of bounds"));
-	return renderpasses[index];
-}
+void Camera::end_depth_prepass(vk::CommandBuffer command_buffer, uint32_t index) {
+	if (!use_depth_prepass)
+		throw std::runtime_error( std::string("Error: depth prepass not enabled on this camera"));
 
-uint32_t Camera::get_num_renderpasses() {
-    return (uint32_t) renderpasses.size();
-}
-
-void Camera::end_renderpass(vk::CommandBuffer command_buffer, uint32_t index) {
-    if(index >= renderpasses.size())
+    if(index >= depthPrepasses.size())
         throw std::runtime_error( std::string("Error: renderpass index out of bounds"));
 		
 	command_buffer.endRenderPass();
@@ -477,6 +549,24 @@ void Camera::end_renderpass(vk::CommandBuffer command_buffer, uint32_t index) {
 	if (renderOrder < 0) {
 		renderTexture->make_samplable(command_buffer);
 	}
+}
+
+vk::RenderPass Camera::get_renderpass(uint32_t index)
+{
+    if(index >= renderpasses.size())
+        throw std::runtime_error( std::string("Error: renderpass index out of bounds"));
+	return renderpasses[index];
+}
+
+vk::RenderPass Camera::get_depth_prepass(uint32_t index)
+{
+    if(index >= depthPrepasses.size())
+        throw std::runtime_error( std::string("Error: depthPrepasses index out of bounds"));
+	return depthPrepasses[index];
+}
+
+uint32_t Camera::get_num_renderpasses() {
+    return (uint32_t) renderpasses.size();
 }
 
 vk::CommandBuffer Camera::get_command_buffer() {
@@ -565,10 +655,10 @@ void Camera::CleanUp()
 
 
 /* Static Factory Implementations */
-Camera* Camera::Create(std::string name, bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers)
+Camera* Camera::Create(std::string name, bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers, bool use_depth_prepass)
 {
 	auto camera = StaticFactory::Create(name, "Camera", lookupTable, cameras, MAX_CAMERAS);
-	camera->setup(cubemap, tex_width, tex_height, msaa_samples, layers);
+	camera->setup(cubemap, tex_width, tex_height, msaa_samples, layers, use_depth_prepass);
 	return camera;
 }
 
@@ -624,6 +714,11 @@ void Camera::cleanup()
             device.destroyRenderPass(renderpass);
         }
     }
+	if (depthPrepasses.size() > 0) {
+        for(auto renderpass : depthPrepasses) {
+            device.destroyRenderPass(renderpass);
+        }
+    }
 }
 
 void Camera::force_render_mode(RenderMode rendermode)
@@ -633,4 +728,9 @@ void Camera::force_render_mode(RenderMode rendermode)
 
 RenderMode Camera::get_rendermode_override() {
 	return renderModeOverride;
+}
+
+bool Camera::should_record_depth_prepass()
+{
+	return use_depth_prepass;
 }

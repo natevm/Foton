@@ -172,18 +172,46 @@ void RenderSystem::record_cameras()
             if (!light->should_cast_shadows()) continue;
         }
 
+        vk::CommandBufferBeginInfo beginInfo;
+        vk::CommandBuffer command_buffer = cameras[cam_id].get_command_buffer();
+        beginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
+        command_buffer.begin(beginInfo);
+
         /* Record Z prepasses */
         {
-            // TODO
+            if (cameras[cam_id].should_record_depth_prepass()) {
+                /* If we're the client, we recieve color data from "stream_frames". Only render a scene if not the client. */
+                for(uint32_t rp_idx = 0; rp_idx < cameras[cam_id].get_num_renderpasses(); rp_idx++) {
+                    if (!Options::IsClient())
+                    {
+                        /* Get the renderpass for the current camera */
+                        vk::RenderPass rp = cameras[cam_id].get_depth_prepass(rp_idx);
+
+                        /* Bind all descriptor sets to that renderpass.
+                            Note that we're using a single bind. The same descriptors are shared across pipelines. */
+                        Material::BindDescriptorSets(command_buffer, rp);
+                        {
+                            cameras[cam_id].begin_depth_prepass(command_buffer, rp_idx);
+                            for (uint32_t i = 0; i < Entity::GetCount(); ++i)
+                            {
+                                if (entities[rp_idx].is_initialized())
+                                {
+                                    // Push constants
+                                    push_constants.target_id = i;
+                                    push_constants.camera_id = entity_id;
+                                    push_constants.viewIndex = rp_idx;
+                                    Material::DrawEntity(command_buffer, rp, entities[i], push_constants, RenderMode::FRAGMENTDEPTH);
+                                }
+                            }
+                            cameras[cam_id].end_depth_prepass(command_buffer, rp_idx);
+                        }
+                    }
+                }
+            }
         }
 
         /* Record forward renderpasses */
         {
-            vk::CommandBufferBeginInfo beginInfo;
-            vk::CommandBuffer command_buffer = cameras[cam_id].get_command_buffer();
-            beginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
-            command_buffer.begin(beginInfo);
-
             /* If we're the client, we recieve color data from "stream_frames". Only render a scene if not the client. */
             for(uint32_t rp_idx = 0; rp_idx < cameras[cam_id].get_num_renderpasses(); rp_idx++) {
                 if (!Options::IsClient())
@@ -205,7 +233,7 @@ void RenderSystem::record_cameras()
                                 push_constants.target_id = i;
                                 push_constants.camera_id = entity_id;
                                 push_constants.viewIndex = rp_idx;
-                                Material::DrawEntity(command_buffer, &cameras[cam_id], rp, entities[i], push_constants);
+                                Material::DrawEntity(command_buffer, rp, entities[i], push_constants, cameras[cam_id].get_rendermode_override());
                             }
                         }
                         
@@ -218,7 +246,7 @@ void RenderSystem::record_cameras()
                                 push_constants.target_id = i;
                                 push_constants.camera_id = entity_id;
                                 push_constants.viewIndex = rp_idx;
-                                Material::DrawVolume(command_buffer, &cameras[cam_id], rp, entities[i], push_constants);
+                                Material::DrawVolume(command_buffer, rp, entities[i], push_constants, cameras[cam_id].get_rendermode_override());
                             }
                         }
                         cameras[cam_id].end_renderpass(command_buffer, rp_idx);
@@ -257,10 +285,9 @@ void RenderSystem::record_cameras()
                 }
             }
             #endif
-        
-            /* End this recording. */
-            command_buffer.end();
         }
+        /* End this recording. */
+        command_buffer.end();
     }
 }
 

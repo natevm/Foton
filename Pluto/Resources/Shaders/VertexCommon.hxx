@@ -13,6 +13,4 @@ layout(location = 4) out vec4 vert_color;
 layout(location = 5) out vec3 m_position;
 layout(location = 6) out vec3 s_position;
 
-out gl_PerVertex {
-    vec4 gl_Position;
-};
+invariant gl_Position;

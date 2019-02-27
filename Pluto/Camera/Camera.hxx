@@ -18,7 +18,7 @@ class Camera : public StaticFactory
   public:
 	/* Creates a camera, which can be used to record the scene. Can be used to render to several texture layers for use in cubemap rendering/VR renderpasses. 
 		Note, "layers" parameter is ignored if cubemap is enabled. */
-	static Camera *Create(std::string name, bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1, uint32_t layers = 1);
+	static Camera *Create(std::string name, bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1, uint32_t layers = 1, bool use_depth_prepass = true);
 
 	/* Retrieves a camera component by name. */
 	static Camera *Get(std::string name);
@@ -102,16 +102,27 @@ class Camera : public StaticFactory
 		system, and only after the command buffer has begun recording commands. */
 	void begin_renderpass(vk::CommandBuffer command_buffer, uint32_t index = 0);
 
-	/* Returns the vulkan renderpass handle. 
-		Note: This handle might change throughout the lifetime of this camera component. */
-	vk::RenderPass get_renderpass(uint32_t);
-    
-    /* Get the number of renderpasses for this camera */
-    uint32_t get_num_renderpasses();
-
 	/* Records vulkan commands to the given command buffer required to 
 		end a renderpass for the current camera setup. */
 	void end_renderpass(vk::CommandBuffer command_buffer, uint32_t index = 0);
+
+	/* Records vulkan commands to the given command buffer required to 
+		start a depth prepass for the current camera setup. This should only be called by the render 
+		system, and only after the command buffer has begun recording commands. */
+	void begin_depth_prepass(vk::CommandBuffer command_buffer, uint32_t index = 0);
+
+	/* Records vulkan commands to the given command buffer required to 
+		end a depth prepass for the current camera setup. */
+	void end_depth_prepass(vk::CommandBuffer command_buffer, uint32_t index = 0);
+
+	/* Returns the vulkan renderpass handle. */
+	vk::RenderPass get_renderpass(uint32_t);
+
+	/* Returns the vulkan depth prepass handle. */
+	vk::RenderPass get_depth_prepass(uint32_t);
+    
+  /* Get the number of renderpasses for this camera */
+  uint32_t get_num_renderpasses();
 
 	/* Returns the vulkan command buffer handle. */
 	vk::CommandBuffer get_command_buffer();
@@ -149,7 +160,15 @@ class Camera : public StaticFactory
 	/* TODO: Explain this */
 	RenderMode get_rendermode_override();
 
+	/* TODO: Explain this */
+	bool should_record_depth_prepass();
+
   private:
+	
+	/* Determines whether this camera should use a depth prepass to reduce fragment complexity at the cost of 
+	vertex shader complexity */
+	bool use_depth_prepass;
+
 	/* Marks the total number of multiviews being used by the current camera. */
 	uint32_t usedViews = 1;
 
@@ -166,13 +185,17 @@ class Camera : public StaticFactory
 	/* A struct containing all data to be uploaded to the GPU via an SSBO. */
 	CameraStruct camera_struct;
 
-	/* The vulkan renderpass handle, used to begin and end renderpasses for the given camera. 
-		Handles all multiviews at once. */
+	/* The vulkan renderpass handles, used to begin and end final renderpasses for the given camera. */
   std::vector<vk::RenderPass> renderpasses;
+
+	/* The vulkan depth prpass renderpass handles, used to begin and end depth prepasses for the given camera. */
+  std::vector<vk::RenderPass> depthPrepasses;
 	
-	/* The vulkan framebuffer handle, which associates attachments with image views. 
-		Handles all multiviews at once. */
+	/* The vulkan framebuffer handles, which associates attachments with image views. */
 	std::vector<vk::Framebuffer> framebuffers;
+
+/* The vulkan prepass framebuffer handles, which associates attachments with image views. */
+	std::vector<vk::Framebuffer> depthPrepassFramebuffers;
 
 	/* The vulkan command buffer handle, used to record the renderpass. */
 	vk::CommandBuffer command_buffer;
@@ -214,7 +237,7 @@ class Camera : public StaticFactory
 	RenderMode renderModeOverride;
 
 	/* Allocates (and possibly frees existing) textures, renderpass, and framebuffer required for rendering. */
-	void setup(bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1, uint32_t layers = 1);
+	void setup(bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1, uint32_t layers = 1, bool use_depth_prepass = true);
 
 	/* Creates a vulkan renderpass handle which will be used when recording from the current camera component. */
 	void create_render_passes(uint32_t framebufferWidth, uint32_t framebufferHeight, uint32_t layers = 1, uint32_t sample_count = 1);

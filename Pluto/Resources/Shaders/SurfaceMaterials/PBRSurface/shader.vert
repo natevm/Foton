@@ -21,7 +21,7 @@ void main() {
     w_cameraPos = vec3(camera.multiviews[viewIndex].viewinv[3]) + vec3(camera_transform.localToWorld[3]);
 
     fragTexCoord = texcoord;
-    gl_Position = camera.multiviews[viewIndex].proj * camera.multiviews[viewIndex].view * camera_transform.worldToLocal * vec4(w_position, 1.0);
+    gl_Position = camera.multiviews[viewIndex].proj * camera.multiviews[viewIndex].view * camera_transform.worldToLocal * target_transform.localToWorld * vec4(point.xyz, 1.0);
 
     m_position = point;
     s_position = gl_Position.xyz / gl_Position.w;
