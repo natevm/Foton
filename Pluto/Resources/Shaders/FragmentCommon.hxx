@@ -370,7 +370,7 @@ vec3 SolveCubic(vec4 Coefficient)
 {
     // Normalize the polynomial
     Coefficient.xyz /= Coefficient.w;
-    // Divide middle coefficients by three
+    // Divide middle coefficients w_light_forward three
     Coefficient.yz /= 3.0;
 
     float A = Coefficient.w;
@@ -1044,12 +1044,8 @@ const float gamma = 2.2;
 vec3 ToLinear(vec3 v) { return PowV3(v,     gamma); }
 vec3 ToSRGB(vec3 v)   { return PowV3(v, 1.0/gamma); }
 
-float get_shadow_contribution(EntityStruct light_entity, vec3 w_light_position, vec3 w_position) 
+float get_shadow_contribution(EntityStruct light_entity, LightStruct light, vec3 w_light_position, vec3 w_position) 
 {
-    LightStruct light = lbo.lights[light_entity.light_id];
-    /* If casting shadows is disabled */
-    if ((light.flags & (1 << 2)) == 0) return 1.0;
-
     float bias = .1;
     CameraStruct light_camera = cbo.cameras[light_entity.camera_id];
     int tex_id = light_camera.multiviews[0].tex_id;
@@ -1119,13 +1115,21 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
         }
         
         TransformStruct light_transform = tbo.transforms[light_entity.transform_id];
-        vec3 w_light_position = vec3(light_transform.localToWorld[3]);
+        vec3 w_light_right =    light_transform.localToWorld[0].xyz;
+        vec3 w_light_forward =  light_transform.localToWorld[1].xyz;
+        vec3 w_light_up =       light_transform.localToWorld[2].xyz;
+        vec3 w_light_position = light_transform.localToWorld[3].xyz;
         vec3 w_light_dir = normalize(w_light_position - w_position);
 
         // Precalculate vectors and dot products	
         vec3 w_half = normalize(w_view + w_light_dir);
         float dotNH = clamp(dot(w_normal, w_half), 0.0, 1.0);
         float dotNL = clamp(dot(w_normal, w_light_dir), 0.0, 1.0);
+
+        /* Some info for geometric terms */
+        float dun = dot(normalize(w_light_up), w_normal);
+        float drn = dot(normalize(w_light_right), w_normal);
+        float dfn = dot(normalize(w_light_forward), w_normal);
 
         // D = Normal distribution (Distribution of the microfacets)
         float D = D_GGX(dotNH, roughness); 
@@ -1137,52 +1141,47 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
         vec3 lcol = vec3(light.intensity * light.color.rgb);
         vec3 dcol = albedo * (1.0 - metallic);
         vec3 scol = albedo;
-        // dcol = ToLinear(dcol);
-        // scol = ToLinear(scol);
 
         bool double_sided = bool(light.flags & (1 << 0));
         bool show_end_caps = bool(light.flags & (1 << 1));
-
-        /* Compute basis changes (TODO: change out with just reading columns...) */
-        vec3 bx = (light_transform.localToWorld * vec4(1.0, 0.0, 0.0, 0.0)).xyz;
-        vec3 by = (light_transform.localToWorld * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
-        vec3 bz = (light_transform.localToWorld * vec4(0.0, 0.0, 1.0, 0.0)).xyz;
-
-        float light_angle = 1.0 - (acos(abs( dot(normalize(bz), w_light_dir))) / PI);
+        
+        float light_angle = 1.0 - (acos(abs( dot(normalize(w_light_up), w_light_dir))) / PI);
         float cone_angle_difference = clamp((light.coneAngle - light_angle) / ( max(light.coneAngle, .001) ), 0.0, 1.0);
         float cone_term = (light.coneAngle == 0.0) ? 1.0 : max((2.0 / (1.0 + exp( 6.0 * ((cone_angle_difference / max(light.coneSoftness, .01)) - 1.0)) )) - 1.0, 0.0);
 
+        /* If casting shadows is disabled */
+        float shadow_term = 1.0;
+        if ((light.flags & (1 << 2)) != 0) {
+            shadow_term = get_shadow_contribution(light_entity, light, w_light_position, w_position);
+        }
+        
+        shadow_term *= cone_term;
+        
         /* Point light */
-        if (light.type == 0)
-        {
+        if (light.type == 0) {
             if (dotNL < 0.0) continue;
             vec3 spec = (D * F * G / (4.0 * dotNL * dotNV + 0.001));
             float dist_squared = max(sqr(length(w_light_position - w_position)), 1.0);
-
-            float shadow_term = get_shadow_contribution(light_entity, w_light_position, w_position);
-            finalColor += shadow_term * cone_term * (1.0 / dist_squared) * lcol * dotNL * (kD * albedo / PI + spec) / (2.0 * PI);
+            finalColor += shadow_term * (1.0 / dist_squared) * lcol * dotNL * (kD * albedo + spec);
         }
         
         /* Rectangle light */
         else if (light.type == 1)
         {
             /* Verify the area light isn't degenerate */
-            if (distance(bx, by) < .01) continue;
+            if (distance(w_light_right, w_light_forward) < .01) continue;
 
             /* Compute geometric term */
-            float d1 = dot(normalize(bx), w_normal);
-            float d2 = dot(normalize(by), w_normal);
-            vec3 dr = bx * d1 + by * d2;
+            vec3 dr = w_light_right * drn + w_light_forward * dfn;
             float geometric_term = dot( normalize((w_light_position + dr) - w_position), w_normal);
             if (geometric_term < 0.0) continue;
 
-
             /* Create points for area light polygon */
             vec3 points[4];
-            points[0] = w_light_position - bx - by;
-            points[1] = w_light_position + bx - by;
-            points[2] = w_light_position + bx + by;
-            points[3] = w_light_position - bx + by;
+            points[0] = w_light_position - w_light_right - w_light_forward;
+            points[1] = w_light_position + w_light_right - w_light_forward;
+            points[2] = w_light_position + w_light_right + w_light_forward;
+            points[3] = w_light_position - w_light_right + w_light_forward;
 
             // Get Specular
             vec3 spec = LTC_Evaluate_Rect_Clipped(w_normal, w_view, w_position, m_inv, points, double_sided);
@@ -1193,29 +1192,25 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
             // Get diffuse
             vec3 diff = LTC_Evaluate_Rect_Clipped(w_normal, w_view, w_position, mat3(1), points, double_sided); 
 
-            float shadow_term = get_shadow_contribution(light_entity, w_light_position, w_position);
-            finalColor += shadow_term * cone_term * geometric_term * lcol * (spec + dcol*diff);
+            finalColor += shadow_term * geometric_term * lcol * (spec + dcol*diff);
         }
 
         /* Disk Light */
         else if (light.type == 2)
         {
             /* Verify the area light isn't degenerate */
-            if (distance(bx, by) < .1) continue;
+            if (distance(w_light_right, w_light_forward) < .1) continue;
 
             /* Compute geometric term */
-            float d1 = dot(normalize(bx), w_normal);
-            float d2 = dot(normalize(by), w_normal);
-            vec3 dr = bx * d1 + by * d2;
+            vec3 dr = w_light_right * drn + w_light_forward * dfn;
             float geometric_term = dot( normalize((w_light_position + dr) - w_position), w_normal);
             if (geometric_term < 0.0) continue;
 
-
             vec3 points[4];
-            points[0] = w_light_position - bx - by;
-            points[1] = w_light_position + bx - by;
-            points[2] = w_light_position + bx + by;
-            points[3] = w_light_position - bx + by;
+            points[0] = w_light_position - w_light_right - w_light_forward;
+            points[1] = w_light_position + w_light_right - w_light_forward;
+            points[2] = w_light_position + w_light_right + w_light_forward;
+            points[3] = w_light_position - w_light_right + w_light_forward;
 
             // Get Specular
             vec3 spec = LTC_Evaluate_Disk(w_normal, w_view, w_position, m_inv, points, double_sided);
@@ -1226,27 +1221,24 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
             // Get diffuse
             vec3 diff = LTC_Evaluate_Disk(w_normal, w_view, w_position, mat3(1), points, double_sided); 
 
-            float shadow_term = get_shadow_contribution(light_entity, w_light_position, w_position);
-            finalColor += shadow_term * cone_term * geometric_term * lcol * (spec + dcol*diff);
+            finalColor += shadow_term * geometric_term * lcol * (spec + dcol*diff);
         }
         
         /* Rod light */
         else if (light.type == 3) {
             vec3 points[2];
-            points[0] = w_light_position - bz;
-            points[1] = w_light_position + bz;
-            float radius = .1;//max(length(bz), length(ex));
+            points[0] = w_light_position - w_light_up;
+            points[1] = w_light_position + w_light_up;
+            float radius = .1;//max(length(w_light_up), length(ex));
 
             /* Verify the area light isn't degenerate */
-            if (length(bz) < .1) continue;
+            if (length(w_light_up) < .1) continue;
             if (radius < .1) continue;
 
             /* Compute geometric term */
-            float d1 = dot(normalize(bz), w_normal);
-            vec3 dr = d1 * bz;
+            vec3 dr = dun * w_light_up;
             float geometric_term = dot( normalize((w_light_position + dr) - w_position), w_normal);
             if (geometric_term <= 0) continue;
-
             
             // Get Specular
             vec3 spec = LTC_Evaluate_Rod(w_normal, w_view, w_position, m_inv, points, radius, show_end_caps);
@@ -1258,8 +1250,7 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
             vec3 diff = LTC_Evaluate_Rod(w_normal, w_view, w_position, mat3(1), points, radius, show_end_caps); 
             // diff /= (PI);
 
-            float shadow_term = get_shadow_contribution(light_entity, w_light_position, w_position);
-            finalColor += shadow_term * cone_term * geometric_term * lcol * (spec + dcol*diff);
+            finalColor += shadow_term * geometric_term * lcol * (spec + dcol*diff);
         }
         
         /* Sphere light */
@@ -1271,9 +1262,9 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
             T1 = normalize(T1);
             T2 = normalize(T2);
 
-            float s1 = length(bx);
-            float s2 = length(by);
-            float s3 = length(bz);
+            float s1 = length(w_light_right);
+            float s2 = length(w_light_forward);
+            float s3 = length(w_light_up);
 
             float maxs = max(max(abs(s1), abs(s2) ), abs(s3) );
 
@@ -1291,7 +1282,6 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
             float geometric_term = dot( normalize((w_light_position + maxs * w_normal) - w_position), w_normal);
             if (geometric_term <= 0) continue;
 
-
             /* Create points for the area light around the light center */
             vec3 points[4];
             points[0] = w_light_position - ex - ey;
@@ -1308,8 +1298,7 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
             // Get diffuse
             vec3 diff = LTC_Evaluate_Disk(w_normal, w_view, w_position, mat3(1), points, true); 
 
-            float shadow_term = get_shadow_contribution(light_entity, w_light_position, w_position);
-            finalColor += shadow_term * cone_term * geometric_term * lcol * (spec + dcol*diff);
+            finalColor += shadow_term * geometric_term * lcol * (spec + dcol*diff);
         }
     }
 

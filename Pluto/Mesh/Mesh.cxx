@@ -59,6 +59,20 @@ class Vertex
 	}
 };
 
+void buildOrthonormalBasis(glm::vec3 n, glm::vec3 &b1, glm::vec3 &b2)
+{
+    if (n.z < -0.9999999)
+    {
+        b1 = glm::vec3( 0.0, -1.0, 0.0);
+        b2 = glm::vec3(-1.0,  0.0, 0.0);
+        return;
+    }
+    float a = 1.0 / (1.0 + n.z);
+    float b = -n.x*n.y*a;
+    b1 = glm::vec3(1.0 - n.x*n.x*a, b, -n.x);
+    b2 = glm::vec3(b, 1.0 - n.y*n.y*a, -n.y);
+}
+
 namespace std
 {
 template <>
@@ -1364,6 +1378,145 @@ Mesh* Mesh::CreateTube(std::string name, bool allow_edits, bool submit_immediate
 	mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
 	return mesh;
 }
+
+Mesh* Mesh::CreateTubeFromPolyline(std::string name, std::vector<glm::vec3> points, float radius, uint32_t segments, bool allow_edits, bool submit_immediately)
+{
+	if (points.size() <= 1)
+		throw std::runtime_error("Error: points must be greater than 1!");
+	
+	using namespace generator;
+	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
+	if (!mesh) return nullptr;
+	
+	ParametricPath parametricPath {
+		[points](double t) {
+			// t is 1.0 / points.size() - 1 and goes from 0 to 1.0
+			float t_scaled = t * (points.size() - 1);
+			uint32_t p1_idx = (uint32_t) floor(t_scaled);
+			uint32_t p2_idx = p1_idx + 1;
+
+			float t_segment = t_scaled - floor(t_scaled);
+
+			glm::vec3 p1 = points[p1_idx];
+			glm::vec3 p2 = points[p2_idx];
+
+			PathVertex vertex;
+			
+			vertex.position = (p2 * t_segment) + (p1 * (1.0f - t_segment));
+
+			glm::vec3 next = (p2 * (t_segment + .01f)) + (p1 * (1.0f - (t_segment + .01f)));
+			glm::vec3 prev = (p2 * (t_segment - .01f)) + (p1 * (1.0f - (t_segment - .01f)));
+
+			glm::vec3 tangent = glm::normalize(next - prev);
+			glm::vec3 B1;
+			glm::vec3 B2;
+			buildOrthonormalBasis(tangent, B1, B2);
+			vertex.tangent = tangent;
+			vertex.normal = B1;
+			vertex.texCoord = t;
+
+			return vertex;
+		},
+		((int32_t) points.size() - 1) // number of segments
+	} ;
+	CircleShape circle_shape(radius, segments);
+	ExtrudeMesh extrude_mesh(circle_shape, parametricPath);
+	mesh->make_primitive(extrude_mesh, allow_edits, submit_immediately);
+	return mesh;
+}
+
+Mesh* Mesh::CreateRoundedRectangleTubeFromPolyline(std::string name, std::vector<glm::vec3> points, float radius, float size_x, float size_y, bool allow_edits, bool submit_immediately)
+{
+	if (points.size() <= 1)
+		throw std::runtime_error("Error: points must be greater than 1!");
+	
+	using namespace generator;
+	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
+	if (!mesh) return nullptr;
+	
+	ParametricPath parametricPath {
+		[points](double t) {
+			// t is 1.0 / points.size() - 1 and goes from 0 to 1.0
+			float t_scaled = t * (points.size() - 1);
+			uint32_t p1_idx = (uint32_t) floor(t_scaled);
+			uint32_t p2_idx = p1_idx + 1;
+
+			float t_segment = t_scaled - floor(t_scaled);
+
+			glm::vec3 p1 = points[p1_idx];
+			glm::vec3 p2 = points[p2_idx];
+
+			PathVertex vertex;
+			
+			vertex.position = (p2 * t_segment) + (p1 * (1.0f - t_segment));
+
+			glm::vec3 next = (p2 * (t_segment + .01f)) + (p1 * (1.0f - (t_segment + .01f)));
+			glm::vec3 prev = (p2 * (t_segment - .01f)) + (p1 * (1.0f - (t_segment - .01f)));
+
+			glm::vec3 tangent = glm::normalize(next - prev);
+			glm::vec3 B1;
+			glm::vec3 B2;
+			buildOrthonormalBasis(tangent, B1, B2);
+			vertex.tangent = tangent;
+			vertex.normal = B1;
+			vertex.texCoord = t;
+
+			return vertex;
+		},
+		((int32_t) points.size() - 1) // number of segments
+	} ;
+	RoundedRectangleShape rounded_rectangle_shape(radius, {size_x, size_y}, 4, {1, 1});
+	ExtrudeMesh extrude_mesh(rounded_rectangle_shape, parametricPath);
+	mesh->make_primitive(extrude_mesh, allow_edits, submit_immediately);
+	return mesh;
+}
+
+Mesh* Mesh::CreateRectangleTubeFromPolyline(std::string name, std::vector<glm::vec3> points, float size_x, float size_y, bool allow_edits, bool submit_immediately)
+{
+	if (points.size() <= 1)
+		throw std::runtime_error("Error: points must be greater than 1!");
+	
+	using namespace generator;
+	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
+	if (!mesh) return nullptr;
+	
+	ParametricPath parametricPath {
+		[points](double t) {
+			// t is 1.0 / points.size() - 1 and goes from 0 to 1.0
+			float t_scaled = t * (points.size() - 1);
+			uint32_t p1_idx = (uint32_t) floor(t_scaled);
+			uint32_t p2_idx = p1_idx + 1;
+
+			float t_segment = t_scaled - floor(t_scaled);
+
+			glm::vec3 p1 = points[p1_idx];
+			glm::vec3 p2 = points[p2_idx];
+
+			PathVertex vertex;
+			
+			vertex.position = (p2 * t_segment) + (p1 * (1.0f - t_segment));
+
+			glm::vec3 next = (p2 * (t_segment + .01f)) + (p1 * (1.0f - (t_segment + .01f)));
+			glm::vec3 prev = (p2 * (t_segment - .01f)) + (p1 * (1.0f - (t_segment - .01f)));
+
+			glm::vec3 tangent = glm::normalize(next - prev);
+			glm::vec3 B1;
+			glm::vec3 B2;
+			buildOrthonormalBasis(tangent, B1, B2);
+			vertex.tangent = tangent;
+			vertex.normal = B1;
+			vertex.texCoord = t;
+
+			return vertex;
+		},
+		((int32_t) points.size() - 1) // number of segments
+	} ;
+	RectangleShape rectangle_shape({size_x, size_y}, {1, 1});
+	ExtrudeMesh extrude_mesh(rectangle_shape, parametricPath);
+	mesh->make_primitive(extrude_mesh, allow_edits, submit_immediately);
+	return mesh;
+}
+
 
 Mesh* Mesh::CreateFromOBJ(std::string name, std::string objPath, bool allow_edits, bool submit_immediately)
 {

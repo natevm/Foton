@@ -90,6 +90,15 @@ class Mesh : public StaticFactory
 		/* Creates a mesh component from a procedural tube (uncapped) */
 		static Mesh* CreateTube(std::string name, bool allow_edits = false, bool submit_immediately = false);
 
+		/* Creates a mesh component from a procedural tube (uncapped) generated from a polyline */
+		static Mesh* CreateTubeFromPolyline(std::string name, std::vector<glm::vec3> points, float radius = 1.0, uint32_t segments = 16, bool allow_edits = false, bool submit_immediately = false);
+
+		/* Creates a mesh component from a procedural rounded rectangle tube (uncapped) generated from a polyline */
+		static Mesh* CreateRoundedRectangleTubeFromPolyline(std::string name, std::vector<glm::vec3> points, float radius = 1.0, float size_x = .75, float size_y = .75, bool allow_edits = false, bool submit_immediately = false);
+
+		/* Creates a mesh component from a procedural rectangle tube (uncapped) generated from a polyline */
+		static Mesh* CreateRectangleTubeFromPolyline(std::string name, std::vector<glm::vec3> points, float size_x = 1.0, float size_y = 1.0, bool allow_edits = false, bool submit_immediately = false);
+
 		/* Creates a mesh component from an OBJ file (ignores .mtl files) */
 		static Mesh* CreateFromOBJ(std::string name, std::string objPath, bool allow_edits = false, bool submit_immediately = false);
 
