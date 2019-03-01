@@ -294,7 +294,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         if (use_depth_prepass) {
             pbr[renderpass].pipelineParameters.depthStencil.depthTestEnable = true;
             pbr[renderpass].pipelineParameters.depthStencil.depthWriteEnable = false; // not VK_TRUE since we have a depth prepass
-            pbr[renderpass].pipelineParameters.depthStencil.depthCompareOp = vk::CompareOp::eEqual;
+            pbr[renderpass].pipelineParameters.depthStencil.depthCompareOp = vk::CompareOp::eGreaterOrEqual;
         }
 		// depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL; //not VK_COMPARE_OP_LESS since we have a depth prepass;
         

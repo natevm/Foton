@@ -94,11 +94,11 @@ using namespace Systems;
 %include "Pluto/Libraries/Vulkan/Vulkan.hxx";
 
 #ifdef BUILD_OPENVR
-%include "./OpenVR/OpenVR.hxx";
+%include "Pluto/Libraries/OpenVR/OpenVR.hxx";
 #endif
 
 #ifdef BUILD_SPACEMOUSE
-%include "./SpaceMouse/SpaceMouse.hxx";
+%include "Pluto/Libraries/SpaceMouse/SpaceMouse.hxx";
 #endif
 
 %include "Pluto/Tools/System.hxx"
