@@ -29,6 +29,8 @@ using namespace Systems;
 #include "Pluto/Light/Light.hxx"
 #include "Pluto/Material/Material.hxx"
 #include "Pluto/Entity/Entity.hxx"
+
+#include "Pluto/Prefabs/Prefabs.hxx"
 %}
 
 %feature("autodoc","4");
@@ -75,8 +77,11 @@ using namespace Systems;
 %nodefaultctor EventSystem;
 %nodefaultdtor EventSystem;
 
+%nodefaultctor Prefabs;
+%nodefaultdtor Prefabs;
+
 // Issue where swig tries to construct a std future from non-existant copy constructor...
-%ignore Libraries::Vulkan::enqueue_graphics_commands(std::vector<vk::CommandBuffer> commandBuffers, std::vector<vk::Semaphore> waitSemaphores, std::vector<vk::PipelineStageFlags> waitDstStageMasks, std::vector<vk::Semaphore> signalSemaphores, vk::Fence fence, std::string hint);
+%ignore Libraries::Vulkan::enqueue_graphics_commands(std::vector<vk::CommandBuffer> commandBuffers, std::vector<vk::Semaphore> waitSemaphores, std::vector<vk::PipelineStageFlags> waitDstStageMasks, std::vector<vk::Semaphore> signalSemaphores, vk::Fence fence, std::string hint, uint32_t queue_idx);
 %ignore Libraries::Vulkan::enqueue_present_commands(std::vector<vk::SwapchainKHR> swapchains, std::vector<uint32_t> swapchain_indices, std::vector<vk::Semaphore> waitSemaphores);
 
 %ignore CommandQueueItem;
@@ -112,6 +117,8 @@ using namespace Systems;
 %include "Pluto/Material/Material.hxx"
 %include "Pluto/Camera/Camera.hxx"
 %include "Pluto/Entity/Entity.hxx"
+
+%include "Pluto/Prefabs/Prefabs.hxx"
 
 /* Representations */
 %extend Transform {

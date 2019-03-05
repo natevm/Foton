@@ -127,6 +127,12 @@ class Camera : public StaticFactory
 	/* Returns the vulkan command buffer handle. */
 	vk::CommandBuffer get_command_buffer();
 
+	/* TODO: Explain this */
+	vk::Semaphore get_semaphore(uint32_t frame_idx);
+	
+	/* TODO: Explain this */
+	vk::Fence get_fence(uint32_t frame_idx);
+
 	/* Sets the clear color to be used to reset the color image of this camera's
 		texture component when beginning a renderpass. */
 	void set_clear_color(float r, float g, float b, float a);
@@ -194,11 +200,17 @@ class Camera : public StaticFactory
 	/* The vulkan framebuffer handles, which associates attachments with image views. */
 	std::vector<vk::Framebuffer> framebuffers;
 
-/* The vulkan prepass framebuffer handles, which associates attachments with image views. */
+	/* The vulkan prepass framebuffer handles, which associates attachments with image views. */
 	std::vector<vk::Framebuffer> depthPrepassFramebuffers;
 
 	/* The vulkan command buffer handle, used to record the renderpass. */
 	vk::CommandBuffer command_buffer;
+
+	/* TODO: explain this */
+	std::vector<vk::Semaphore> semaphores;
+
+	/* TODO: explain this */
+	std::vector<vk::Fence> fences;
 
 	/* The texture component attached to the framebuffer, which will be rendered to. */
 	Texture *renderTexture = nullptr;
@@ -247,6 +259,12 @@ class Camera : public StaticFactory
 
 	/* Creates a vulkan commandbuffer handle used to record the renderpass. */
 	void create_command_buffers(uint32_t count);
+
+	/* TODO: Explain this */
+	void create_semaphores();
+
+	/* TODO: Explain this */
+	void create_fences();
 
 	/* Updates the usedViews field to account for a new multiview. This is fixed to the allocated texture layers 
 		when recording is enabled. */

@@ -56,7 +56,8 @@ namespace Libraries {
             std::vector<vk::PipelineStageFlags> waitDstStageMasks,
             std::vector<vk::Semaphore> signalSemaphores,
             vk::Fence fence,
-            std::string hint);
+            std::string hint,
+            uint32_t queue_idx);
         std::future<void> enqueue_present_commands(
             std::vector<vk::SwapchainKHR> swapchains, 
             std::vector<uint32_t> swapchain_indices, 
@@ -78,7 +79,7 @@ namespace Libraries {
         float get_max_anisotropy();
 
         vk::CommandBuffer begin_one_time_graphics_command();
-        bool end_one_time_graphics_command(vk::CommandBuffer command_buffer, std::string hint, bool free_after_use = true, bool submit_immediately = false);
+        bool end_one_time_graphics_command(vk::CommandBuffer command_buffer, std::string hint, bool free_after_use = true, bool submit_immediately = false, uint32_t queue_idx = 0);
 
         vk::DispatchLoaderDynamic get_dldi();
     private:
@@ -136,6 +137,7 @@ namespace Libraries {
             std::vector<vk::CommandBuffer> commandBuffers;
             std::vector<vk::Semaphore> signalSemaphores;
             vk::Fence fence;
+            uint32_t queue_idx = 0;
             std::shared_ptr<std::promise<void>> promise;
             bool should_free;
         };

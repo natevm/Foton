@@ -12,7 +12,20 @@ int windowed_xpos, windowed_ypos, windowed_width, windowed_height;
 void resize_window_callback(GLFWwindow * window, int width, int height) {
     auto window_key = Libraries::GLFW::Get()->get_key_from_ptr(window);
     if (window_key.size() > 0 && (width > 0) && (height > 0)) {
-        Libraries::GLFW::Get()->set_swapchain_out_of_date(window_key);
+
+        /* If the mutex isn't taken here, on windows I get validation layer errors 
+            due to imageAvailableSemaphores being signaled. */
+        
+        /* If I take the lock however, I throw a C exception... */
+        try {
+
+            auto mutex = Libraries::GLFW::Get()->get_mutex();
+            std::lock_guard<std::mutex> lock(*mutex);
+
+            Libraries::GLFW::Get()->set_swapchain_out_of_date(window_key);
+        } catch(...) {
+            Libraries::GLFW::Get()->set_swapchain_out_of_date(window_key);
+        }
     }
 }
 
@@ -578,6 +591,20 @@ namespace Libraries {
         return nullptr;
     }
 
+    glm::vec2 GLFW::get_size(std::string window_key)
+    {
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, cannot get window size."));
+        
+        auto ittr = Windows().find(window_key);
+        if ( ittr == Windows().end() )
+            throw std::runtime_error( std::string("Error: window does not exist, cannot get window size."));
+
+        auto window = &Windows()[window_key];
+        return glm::vec2(window->surfaceExtent.width, window->surfaceExtent.height);
+    }
+
+
     bool GLFW::set_cursor_pos(std::string key, double xpos, double ypos) {
         if (initialized == false)
             throw std::runtime_error( std::string("Error: Uninitialized, cannot set cursor position."));
@@ -592,7 +619,7 @@ namespace Libraries {
         return true;
     }
 
-    std::vector<double> GLFW::get_cursor_pos(std::string key) {
+    glm::vec2 GLFW::get_cursor_pos(std::string key) {
         if (initialized == false)
             throw std::runtime_error( std::string("Error: Uninitialized, cannot get cursor position."));
 
@@ -861,6 +888,17 @@ namespace Libraries {
                 continue;
             }
 
+            auto swapchain_texture = get_texture(window.first);
+            if ( (!swapchain_texture) || (!swapchain_texture->is_initialized())) {
+                window.second.image_acquired = false;
+                continue;
+            }
+
+            if ((window.second.connectedCamera == nullptr) && (window.second.connectedTexture == nullptr)) {
+                window.second.image_acquired = false;
+                continue;
+            }
+
             vk::Fence acquireFence;
             try {
                 /* Acquire a swapchain image, waiting on the acquire fence. 
@@ -899,11 +937,21 @@ namespace Libraries {
             /* The current window must have a valid swapchain which was acquired from. 
             If it does not, the image available semaphore wont be signalled */
             if (!window.second.image_acquired) continue;
+            if (window.second.swapchain_out_of_date) continue;
 
             semaphores.push_back(window.second.imageAvailableSemaphores[current_frame]);
         }
 
         return semaphores;
+    }
+
+    vk::Semaphore GLFW::get_image_available_semaphore(std::string window_key, uint32_t current_frame)
+    {
+        /* The current window must have a valid swapchain which was acquired from. 
+            If it does not, the image available semaphore wont be signalled */
+        if (!Windows()[window_key].image_acquired) return vk::Semaphore();
+
+        return Windows()[window_key].imageAvailableSemaphores[current_frame];
     }
 
     void GLFW::present_glfw_frames(std::vector<vk::Semaphore> semaphores)
@@ -916,6 +964,10 @@ namespace Libraries {
         for (auto &window : Windows()) {
             /* The current window must have a valid swapchain which we can present to. */
             if ((!window.second.swapchain) || (window.second.swapchain_out_of_date) ) continue;
+
+            if ((window.second.connectedCamera == nullptr) && (window.second.connectedTexture == nullptr)) {
+                continue;
+            }
 
             swapchains.push_back(window.second.swapchain);
             swapchain_indices.push_back(window.second.current_image_index);

@@ -1,4 +1,4 @@
-#pragma optimize("", off)
+// #pragma optimize("", off)
 
 #include <cstring>
 #include <chrono>
@@ -850,7 +850,7 @@ vk::CommandBuffer Vulkan::begin_one_time_graphics_command() {
     return cmdBuffer;
 }
 
-bool Vulkan::end_one_time_graphics_command(vk::CommandBuffer command_buffer, std::string hint, bool free_after_use, bool submit_immediately) {
+bool Vulkan::end_one_time_graphics_command(vk::CommandBuffer command_buffer, std::string hint, bool free_after_use, bool submit_immediately, uint32_t queue_idx) {
     command_buffer.end();
 
     uint32_t pool_id = get_thread_id();
@@ -858,7 +858,7 @@ bool Vulkan::end_one_time_graphics_command(vk::CommandBuffer command_buffer, std
     vk::FenceCreateInfo fenceInfo;
     vk::Fence fence = device.createFence(fenceInfo);
 
-    std::future<void> fut = enqueue_graphics_commands({command_buffer}, {},{}, {}, fence, hint);
+    std::future<void> fut = enqueue_graphics_commands({command_buffer}, {},{}, {}, fence, hint, queue_idx);
 
     if (submit_immediately) submit_graphics_commands();
 
@@ -883,11 +883,13 @@ std::future<void> Vulkan::enqueue_graphics_commands
     vector<vk::PipelineStageFlags> waitDstStageMasks,
     vector<vk::Semaphore> signalSemaphores,
     vk::Fence fence,
-    std::string hint
+    std::string hint,
+    uint32_t queue_idx
 ) {
     std::lock_guard<std::mutex> lock(graphics_queue_mutex);
 
     CommandQueueItem item;
+    item.queue_idx = (item.queue_idx < (graphicsQueues.size() - 1)) ? queue_idx : 0;
     item.commandBuffers = commandBuffers;
     item.waitSemaphores = waitSemaphores;
     item.waitDstStageMask = waitDstStageMasks;
@@ -934,7 +936,7 @@ bool Vulkan::submit_graphics_commands() {
         submit_info.signalSemaphoreCount = (uint32_t) item.signalSemaphores.size();
         submit_info.pSignalSemaphores = item.signalSemaphores.data();
 
-        graphicsQueues[0].submit(submit_info, item.fence);
+        graphicsQueues[item.queue_idx].submit(submit_info, item.fence);
         try {
             item.promise->set_value();
         }
@@ -968,7 +970,9 @@ bool Vulkan::submit_present_commands() {
                 presentInfo.waitSemaphoreCount = (uint32_t) item.waitSemaphores.size();
 
                 presentQueues[0].presentKHR(presentInfo);
-                //presentQueues[0].waitIdle();
+                
+                /* TEMPORARY!!!!! REMOVE THIS WAIT IDLE */
+                // presentQueues[0].waitIdle();
             } else 
             {
                 std::vector<vk::PipelineStageFlags> waitDstStageMasks;

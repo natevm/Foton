@@ -1,5 +1,6 @@
 #include "EventSystem.hxx"
 
+#include "Pluto/Prefabs/Prefabs.hxx"
 #if BUILD_OPENVR
 #include "Pluto/Libraries/OpenVR/OpenVR.hxx"
 #endif
@@ -37,10 +38,16 @@ namespace Systems
         using namespace Libraries;
         
         running = true;
+
+        auto lastTime = glfwGetTime();
        
         while (!close)
         {
             auto glfw = GLFW::Get();
+
+            auto currentTime = glfwGetTime();
+            if ((currentTime - lastTime) < .008) continue;
+            lastTime = currentTime;
 
             if (glfw) {
                 glfw->poll_events();
@@ -80,9 +87,8 @@ namespace Systems
                 sm->poll_event();
             }
 #endif
-            std::this_thread::sleep_for (std::chrono::milliseconds(10));
+            Prefabs::Update();
         }
-        
         return true;
     }
 

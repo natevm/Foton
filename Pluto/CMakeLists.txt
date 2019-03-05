@@ -14,6 +14,7 @@ add_subdirectory(Libraries)
 add_subdirectory(Light)
 add_subdirectory(Material)
 add_subdirectory(Mesh)
+add_subdirectory(Prefabs)
 add_subdirectory(Systems)
 add_subdirectory(Texture)
 add_subdirectory(Tools)
@@ -28,6 +29,7 @@ set (SRC
     ${Resources_SRC}
     ${Material_SRC}
     ${Mesh_SRC}
+    ${Prefabs_SRC}
     ${Systems_SRC}
     ${Texture_SRC}
     ${Tools_SRC}
@@ -43,6 +45,7 @@ set (HDR
     ${Resources_HDR}
     ${Material_HDR}
     ${Mesh_HDR}
+    ${Prefabs_HDR}
     ${Systems_HDR}
     ${Texture_HDR}
     ${Tools_HDR}

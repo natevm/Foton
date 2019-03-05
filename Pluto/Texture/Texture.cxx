@@ -1,4 +1,4 @@
-#pragma optimize("", off)
+// #pragma optimize("", off)
 
 #include "./Texture.hxx"
 #include "Pluto/Tools/Options.hxx"
@@ -1598,7 +1598,7 @@ Texture* Texture::Create2D(
     if (tex->data.sampleCount != sampleFlag)
         std::cout<<"Warning: provided sample count is larger than max supported sample count on the device. Using " 
             << vk::to_string(tex->data.sampleCount) << " instead."<<std::endl;
-    if (hasColor) tex->create_color_image_resources(submit_immediately);
+    if (hasColor) tex->create_color_image_resources(submit_immediately, false);
     if (hasDepth) tex->create_depth_stencil_resources(submit_immediately);
 
     tex->texture_struct.sampler_id = 0;

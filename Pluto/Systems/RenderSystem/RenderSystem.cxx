@@ -1,4 +1,6 @@
-#pragma optimize("", off)
+// #pragma optimize("", off)
+
+#include "Pluto/Prefabs/Prefabs.hxx"
 
 #define NOMINMAX
 //#include <zmq.h>
@@ -125,10 +127,10 @@ bool RenderSystem::update_push_constants()
     push_constants.ltc_amp_lut_id = ltc_amp_id;
     push_constants.time = (float) glfwGetTime();
 
+    int32_t light_count = 0;
     /* Get light list */
     auto entities = Entity::GetFront();
     std::vector<int32_t> light_entity_ids(MAX_LIGHTS, -1);
-    int32_t light_count = 0;
     for (uint32_t i = 0; i < Entity::GetCount(); ++i)
     {
         if (entities[i].is_initialized() && (entities[i].get_light() != -1))
@@ -143,6 +145,8 @@ bool RenderSystem::update_push_constants()
     memcpy(push_constants.light_entity_ids, light_entity_ids.data(), sizeof(push_constants.light_entity_ids));
     return true;
 }
+
+uint32_t shadow_idx = 0;
 
 void RenderSystem::record_cameras()
 {
@@ -165,127 +169,122 @@ void RenderSystem::record_cameras()
         Texture * texture = cameras[cam_id].get_texture();
         if (!texture) continue;
 
+        bool skip = false;
+
         /* If entity is a shadow camera (TODO: REFACTOR THIS...) */
-        if (entities[entity_id].get_light() != -1){
-            /* If that light should cast shadows */
+        if (entities[entity_id].get_light() != -1) {
+            /* Skip shadowmaps which shouldn't cast shadows */
             auto light = Light::Get(entities[entity_id].get_light());
             if (!light->should_cast_shadows()) continue;
+
+            // /* Temporary for testing. Only render one shadow map at a time. */
+            /* This doesn't work well in practice. Transforms update while renders do not,
+            which result in flickering moving artifacts. Would need a unique shadow transform.
+            Even then, shadows updating slowly look pretty bad.  */
+            // if (entity_id != push_constants.light_entity_ids[shadow_idx]) {
+            //     skip = true;
+            // }
         }
 
+        /* Begin recording */
         vk::CommandBufferBeginInfo beginInfo;
         vk::CommandBuffer command_buffer = cameras[cam_id].get_command_buffer();
         beginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
         command_buffer.begin(beginInfo);
 
         /* Record Z prepasses */
-        {
-            if (cameras[cam_id].should_record_depth_prepass()) {
-                /* If we're the client, we recieve color data from "stream_frames". Only render a scene if not the client. */
-                for(uint32_t rp_idx = 0; rp_idx < cameras[cam_id].get_num_renderpasses(); rp_idx++) {
-                    if (!Options::IsClient())
-                    {
-                        /* Get the renderpass for the current camera */
-                        vk::RenderPass rp = cameras[cam_id].get_depth_prepass(rp_idx);
+        /* If we're the client, we recieve color data from "stream_frames". Only render a scene if not the client. */
+        if ((!skip) && (!Options::IsClient()) && (cameras[cam_id].should_record_depth_prepass())) {
+            for(uint32_t rp_idx = 0; rp_idx < cameras[cam_id].get_num_renderpasses(); rp_idx++) {
+                /* Get the renderpass for the current camera */
+                vk::RenderPass rp = cameras[cam_id].get_depth_prepass(rp_idx);
 
-                        /* Bind all descriptor sets to that renderpass.
-                            Note that we're using a single bind. The same descriptors are shared across pipelines. */
-                        Material::BindDescriptorSets(command_buffer, rp);
-                        {
-                            cameras[cam_id].begin_depth_prepass(command_buffer, rp_idx);
-                            for (uint32_t i = 0; i < Entity::GetCount(); ++i)
-                            {
-                                if (entities[rp_idx].is_initialized())
-                                {
-                                    // Push constants
-                                    push_constants.target_id = i;
-                                    push_constants.camera_id = entity_id;
-                                    push_constants.viewIndex = rp_idx;
-                                    Material::DrawEntity(command_buffer, rp, entities[i], push_constants, RenderMode::FRAGMENTDEPTH);
-                                }
-                            }
-                            cameras[cam_id].end_depth_prepass(command_buffer, rp_idx);
-                        }
-                    }
+                /* Bind all descriptor sets to that renderpass.
+                    Note that we're using a single bind. The same descriptors are shared across pipelines. */
+                Material::BindDescriptorSets(command_buffer, rp);
+                
+                cameras[cam_id].begin_depth_prepass(command_buffer, rp_idx);
+                for (uint32_t i = 0; i < Entity::GetCount(); ++i) {
+                    if (!entities[i].is_initialized()) continue;
+                    // Push constants
+                    push_constants.target_id = i;
+                    push_constants.camera_id = entity_id;
+                    push_constants.viewIndex = rp_idx;
+                    Material::DrawEntity(command_buffer, rp, entities[i], push_constants, RenderMode::FRAGMENTDEPTH);
                 }
+                cameras[cam_id].end_depth_prepass(command_buffer, rp_idx);
             }
         }
 
         /* Record forward renderpasses */
-        {
+        if ((!skip) && (!Options::IsClient())) {
             /* If we're the client, we recieve color data from "stream_frames". Only render a scene if not the client. */
             for(uint32_t rp_idx = 0; rp_idx < cameras[cam_id].get_num_renderpasses(); rp_idx++) {
-                if (!Options::IsClient())
+                /* Get the renderpass for the current camera */
+                vk::RenderPass rp = cameras[cam_id].get_renderpass(rp_idx);
+
+                /* Bind all descriptor sets to that renderpass.
+                    Note that we're using a single bind. The same descriptors are shared across pipelines. */
+                Material::BindDescriptorSets(command_buffer, rp);
+                
+                cameras[cam_id].begin_renderpass(command_buffer, rp_idx);
+                for (uint32_t i = 0; i < Entity::GetCount(); ++i) {
+                    if (!entities[i].is_initialized()) continue;
+                    // Push constants
+                    push_constants.target_id = i;
+                    push_constants.camera_id = entity_id;
+                    push_constants.viewIndex = rp_idx;
+                    Material::DrawEntity(command_buffer, rp, entities[i], push_constants, cameras[cam_id].get_rendermode_override());
+                }
+                
+                /* Draw transparent objects last */
+                for (uint32_t i = 0; i < Entity::GetCount(); ++i)
                 {
-                    /* Get the renderpass for the current camera */
-                    vk::RenderPass rp = cameras[cam_id].get_renderpass(rp_idx);
-
-                    /* Bind all descriptor sets to that renderpass.
-                        Note that we're using a single bind. The same descriptors are shared across pipelines. */
-                    Material::BindDescriptorSets(command_buffer, rp);
-
-                    {
-                        cameras[cam_id].begin_renderpass(command_buffer, rp_idx);
-                        for (uint32_t i = 0; i < Entity::GetCount(); ++i)
-                        {
-                            if (entities[rp_idx].is_initialized())
-                            {
-                                // Push constants
-                                push_constants.target_id = i;
-                                push_constants.camera_id = entity_id;
-                                push_constants.viewIndex = rp_idx;
-                                Material::DrawEntity(command_buffer, rp, entities[i], push_constants, cameras[cam_id].get_rendermode_override());
-                            }
-                        }
-                        
-                        /* Draw transparent objects last */
-                        for (uint32_t i = 0; i < Entity::GetCount(); ++i)
-                        {
-                            if (entities[i].is_initialized())
-                            {
-                                // Push constants
-                                push_constants.target_id = i;
-                                push_constants.camera_id = entity_id;
-                                push_constants.viewIndex = rp_idx;
-                                Material::DrawVolume(command_buffer, rp, entities[i], push_constants, cameras[cam_id].get_rendermode_override());
-                            }
-                        }
-                        cameras[cam_id].end_renderpass(command_buffer, rp_idx);
-                    }
+                    if (!entities[i].is_initialized()) continue;
+                    // Push constants
+                    push_constants.target_id = i;
+                    push_constants.camera_id = entity_id;
+                    push_constants.viewIndex = rp_idx;
+                    Material::DrawVolume(command_buffer, rp, entities[i], push_constants, cameras[cam_id].get_rendermode_override());
                 }
+                cameras[cam_id].end_renderpass(command_buffer, rp_idx);
             }
-            
-            /* See if we should blit to a GLFW window. */
-            for (auto w2c : window_to_cam) {
-                if ((w2c.second.first->get_id() == cam_id)) {
-                    /* Window needs a swapchain */
-                    auto swapchain = glfw->get_swapchain(w2c.first);
-                    if (!swapchain) {
-                        continue;
-                    }
-
-                    /* Need to be able to get swapchain/texture by key...*/
-                    auto swapchain_texture = glfw->get_texture(w2c.first);
-
-                    /* Record blit to swapchain */
-                    if (swapchain_texture && swapchain_texture->is_initialized()) {
-                        texture->record_blit_to(command_buffer, swapchain_texture, w2c.second.second);
-                    }
-                }
-            }
-        
-            /* Record blit to OpenVR eyes. */
-            #if BUILD_OPENVR
-            if (using_openvr) {
-                if (entity_id == Entity::GetEntityForVR()) {
-                    auto ovr = OpenVR::Get();
-                    auto left_eye_texture = ovr->get_left_eye_texture();
-                    auto right_eye_texture = ovr->get_right_eye_texture();
-                    if (left_eye_texture)  texture->record_blit_to(command_buffer, left_eye_texture, 0);
-                    if (right_eye_texture) texture->record_blit_to(command_buffer, right_eye_texture, 1);
-                }
-            }
-            #endif
         }
+
+        
+        /* Blit to GLFW windows */
+        for (auto w2c : window_to_cam) {
+            if ((w2c.second.first->get_id() == cam_id)) {
+                /* Window needs a swapchain */
+                auto swapchain = glfw->get_swapchain(w2c.first);
+                if (!swapchain) {
+                    continue;
+                }
+
+                /* Need to be able to get swapchain/texture by key...*/
+                auto swapchain_texture = glfw->get_texture(w2c.first);
+
+                /* Record blit to swapchain */
+                if (swapchain_texture && swapchain_texture->is_initialized()) {
+                    texture->record_blit_to(command_buffer, swapchain_texture, w2c.second.second);
+                }
+            }
+        }
+    
+        /* Blit to OpenVR eyes. */
+        #if BUILD_OPENVR
+        if (using_openvr) {
+            if (entity_id == Entity::GetEntityForVR()) {
+                auto ovr = OpenVR::Get();
+                auto left_eye_texture = ovr->get_left_eye_texture();
+                auto right_eye_texture = ovr->get_right_eye_texture();
+                if (left_eye_texture)  texture->record_blit_to(command_buffer, left_eye_texture, 0);
+                if (right_eye_texture) texture->record_blit_to(command_buffer, right_eye_texture, 1);
+            }
+        }
+        #endif
+    
+
         /* End this recording. */
         command_buffer.end();
     }
@@ -300,21 +299,21 @@ void RenderSystem::record_blit_textures()
     beginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
     main_command_buffer.begin(beginInfo);
     main_command_buffer_recorded = true;
-    if (window_to_tex.size() > 0) {
-        for (auto &w2t : window_to_tex) {
-            /* Window needs a swapchain */
-            auto swapchain = glfw->get_swapchain(w2t.first);
-            if (!swapchain) {
-                continue;
-            }
+    main_command_buffer_presenting = false;
+    for (auto &w2t : window_to_tex) {
+        /* Window needs a swapchain */
+        auto swapchain = glfw->get_swapchain(w2t.first);
+        if (!swapchain) {
+            continue;
+        }
 
-            /* Need to be able to get swapchain/texture by key...*/
-            auto swapchain_texture = glfw->get_texture(w2t.first);
+        /* Need to be able to get swapchain/texture by key...*/
+        auto swapchain_texture = glfw->get_texture(w2t.first);
 
-            /* Record blit to swapchain */
-            if (swapchain_texture && swapchain_texture->is_initialized()) {
-                w2t.second.first->record_blit_to(main_command_buffer, swapchain_texture, w2t.second.second);
-            }
+        /* Record blit to swapchain */
+        if (swapchain_texture && swapchain_texture->is_initialized()) {
+            w2t.second.first->record_blit_to(main_command_buffer, swapchain_texture, w2t.second.second);
+            main_command_buffer_presenting = true;
         }
     }
     main_command_buffer.end();
@@ -323,7 +322,7 @@ void RenderSystem::record_blit_textures()
 void RenderSystem::record_render_commands()
 {
     update_openvr_transforms();
-
+    
     /* Upload SSBO data */
     Material::UploadSSBO();
     Transform::UploadSSBO();
@@ -429,7 +428,7 @@ void RenderSystem::stream_frames()
     
     Bucket bucket = {};
 
-#if ZMQ_BUILD_DRAFT_API == 1
+    #if ZMQ_BUILD_DRAFT_API == 1
     /* If we're the server, send the frame over UDP */
     if (Options::IsServer())
     {
@@ -462,12 +461,16 @@ void RenderSystem::stream_frames()
         //     memcpy(color_data.data(), bucket.data, 16 * 16 * 4 * sizeof(float));
         //     current_camera->get_texture()->upload_color_data(16, 16, 1, color_data, 0);
     }
-#endif
+    #endif
 }
 
 void RenderSystem::enqueue_render_commands() {
     auto vulkan = Vulkan::Get();
+    auto device = vulkan->get_device();
     auto glfw = GLFW::Get();
+
+    auto window_to_cam = glfw->get_window_to_camera_map();
+    auto window_to_tex = glfw->get_window_to_texture_map();
 
     auto entities = Entity::GetFront();
     auto cameras = Camera::GetFront();
@@ -475,105 +478,165 @@ void RenderSystem::enqueue_render_commands() {
     int32_t min_render_idx = Camera::GetMinRenderOrder();
     int32_t max_render_idx = Camera::GetMaxRenderOrder();
 
+    compute_graph.clear();
+    final_fences.clear();
+    final_renderpass_semaphores.clear();
+
     /* Aggregate command sets */
-    std::vector<std::vector<vk::CommandBuffer>> command_sets;
-    for (int32_t render_idx = min_render_idx; render_idx <= max_render_idx; ++render_idx)
+    std::vector<std::shared_ptr<ComputeNode>> last_level;
+    std::vector<std::shared_ptr<ComputeNode>> current_level;
+
+    uint32_t level_idx = 0;
+    for (int32_t rp_idx = min_render_idx; rp_idx <= max_render_idx; ++rp_idx)
     {
-        bool render_idx_found = false;
+        uint32_t queue_idx = 0;
+        bool command_found = false;
+        for (uint32_t e_id = 0; e_id < Entity::GetCount(); ++e_id) {
 
-        for (uint32_t entity_id = 0; entity_id < Entity::GetCount(); ++entity_id) {
-            /* Entity must be initialized */
-            if (!entities[entity_id].is_initialized()) continue;
-
-            /* Entity needs a camera */
-            auto cam_id = entities[entity_id].get_camera();
-            if (cam_id < 0) continue;
-
-            /* Camera needs a texture */
-            Texture * texture = cameras[cam_id].get_texture();
+            /* Look for entities with valid command buffers */
+            if (!entities[e_id].is_initialized()) continue;
+            auto c_id = entities[e_id].get_camera();
+            if (c_id < 0) continue;
+            Texture * texture = cameras[c_id].get_texture();
             if (!texture) continue;
-
-            /* Camera must match the render idx */
-            if (cameras[cam_id].get_render_order() != render_idx) continue;
-
-            /* If entity is a shadow camera (TODO: REFACTOR THIS...) */
-            if (entities[entity_id].get_light() != -1){
+            if (cameras[c_id].get_render_order() != rp_idx) continue;
+            
+            /* If the entity is a shadow camera (TODO: REFACTOR THIS...) */
+            if (entities[e_id].get_light() != -1){
                 /* If that light should cast shadows */
-                auto light = Light::Get(entities[entity_id].get_light());
+                auto light = Light::Get(entities[e_id].get_light());
                 if (!light->should_cast_shadows()) continue;
             }
 
-            if (!render_idx_found) {
-                command_sets.push_back(std::vector<vk::CommandBuffer>());
-                render_idx_found = true;
+            /* Make a compute node for this command buffer */
+            auto node = std::make_shared<ComputeNode>();
+            node->level = level_idx;
+            node->queue_idx = queue_idx;
+            node->command_buffers.push_back(cameras[c_id].get_command_buffer());
+
+            /* Add any connected windows to this node */
+            for (auto w2c : window_to_cam) {
+                if ((w2c.second.first->get_id() == c_id)) {
+                    auto swapchain = glfw->get_swapchain(w2c.first);
+                    if (!swapchain) continue;
+                    auto swapchain_texture = glfw->get_texture(w2c.first);
+                    if ( (!swapchain_texture) || (!swapchain_texture->is_initialized())) continue;
+                    node->connected_windows.push_back(w2c.first);
+                }
             }
 
-            command_sets[command_sets.size() - 1].push_back(cameras[cam_id].get_command_buffer());
+            /* Mark the previous level as a set of dependencies */
+            if (level_idx > 0) node->dependencies = last_level;
+            current_level.push_back(node);
+            command_found = true;
+            queue_idx++;
+        }
+
+        if (command_found) {
+            /* Keep a reference to the top of the graph. */
+            compute_graph.push_back(current_level);
+
+            /* Update children references */
+            for (auto &node : last_level) {
+                node->children = current_level;
+            }
+
+            /* Increase the graph level, and replace the last level with the current one */
+            level_idx++;
+            last_level = current_level;
+            current_level = std::vector<std::shared_ptr<ComputeNode>>();
         }
     }
 
     /* For other misc commands not specific to any camera */
     if (main_command_buffer_recorded) {
-        command_sets.push_back(std::vector<vk::CommandBuffer>());
-        command_sets[command_sets.size() - 1].push_back(main_command_buffer);
+        auto node = std::make_shared<ComputeNode>();
+        node->level = level_idx;
+        node->queue_idx = 0;
+        node->command_buffers.push_back(main_command_buffer);
+        if (main_command_buffer_presenting) {
+            for (auto &w2t : window_to_tex) {
+                node->connected_windows.push_back(w2t.first);
+            }
+        }
+        main_command_buffer_recorded = false;
     }
-    main_command_buffer_recorded = false;
 
-    /* Build semaphore graph */
+    /* Create semaphores and fences for nodes in the graph */
+    for (auto &level : compute_graph) {
+        vk::SemaphoreCreateInfo semaphoreInfo;
+        vk::FenceCreateInfo fenceInfo;
 
-    /* The semaphore strategy here is to only place an initial wait semaphore if presenting, place semaphores 
-        between renderpass sets, and then place a final semaphore only if presenting. */
+        for (auto &node : level) {
 
-    /* This is occasionally missing some semaphores when a swapchain is out of date. 
-        This will screw up any queue submission dependent on the acquire image semaphore to signal the
-        corresponding wait semaphore in the next stage. So we have to occasionally not wait on the second
-        queue submission depending on if a swapchain is out of date or not. We also would need to somehow
-        guess when a swapchain will be ready so that the next time that swapchain acquires an image, it 
-        will somehow be signalled the frame before. In practice, we always signal the final semaphore,
-        and either reset it via an image present, or if no swapchains are available, reset it via an 
-        empty graphics queue submission followed by a fence.
-    */
-    auto image_available_semaphores = glfw->get_image_available_semaphores(currentFrame);
-    
-    for (uint32_t i = 0; i < command_sets.size(); ++i) {
-        std::vector<vk::Semaphore> currentWaitSemaphores;
-        std::vector<vk::PipelineStageFlags> currentWaitDstStageMasks;
-        std::vector<vk::Semaphore> currentSignalSemaphores;
-        vk::Fence currentFence;
+            for (uint32_t i = 0; i < node->children.size(); ++i) {
+                /* Create a signal semaphore for the child */
+                node->signal_semaphores.push_back(device.createSemaphore(semaphoreInfo));
+            }
 
-        /* If this is the first pass wait for any given image available semaphores */
-        if (i == 0) {
-            currentWaitSemaphores = image_available_semaphores;
-            for (uint32_t i = 0; i < currentWaitSemaphores.size(); ++i)
-                currentWaitDstStageMasks.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
-        } 
+            /* If the current node is connected to any windows, make signal semaphores for those windows */
+            for (auto &window_key : node->connected_windows) {
+                auto image_available = glfw->get_image_available_semaphore(window_key, currentFrame);
+                if (image_available != vk::Semaphore()) {
+                    auto swapchain = glfw->get_swapchain(window_key);
+                    if (!swapchain) continue;
+                    auto swapchain_texture = glfw->get_texture(window_key);
+                    if ( (!swapchain_texture) || (!swapchain_texture->is_initialized())) continue;
+                    
+                    auto render_complete = device.createSemaphore(semaphoreInfo);
+                    node->window_signal_semaphores.push_back(render_complete);
+                    final_renderpass_semaphores.push_back(render_complete);
+                }
+            }
 
-        /* Else wait on the previous renderpass signal semaphore */
-        else {
-            currentWaitSemaphores.push_back(renderpass_semaphores[i-1][currentFrame]);
-            for (uint32_t i = 0; i < currentWaitSemaphores.size(); ++i) {
-                currentWaitDstStageMasks.push_back(vk::PipelineStageFlagBits::eBottomOfPipe);
+            /* If the node has no children, make a fence */
+            if (node->children.size() == 0) {
+                node->fence = device.createFence(fenceInfo);
+                final_fences.push_back(node->fence);
             }
         }
+    }
 
-        /* If we're not the last renderpass, signal our renderpass semaphore */
-        if (i != (command_sets.size() - 1)) {
-            currentSignalSemaphores.push_back(renderpass_semaphores[i][currentFrame]);
-        }
+    for (auto &level : compute_graph) {
+        vk::SemaphoreCreateInfo semaphoreInfo;
+        vk::FenceCreateInfo fenceInfo;
 
-        /* Else this is the last pass and we're going to present an image, signal the final signal semaphores. */
-        else {
-            if (image_available_semaphores.size() > 0) {
-                currentSignalSemaphores.push_back(final_renderpass_semaphores[currentFrame]);
-                final_renderpass_semaphore_signalled = true;
+        for (auto &node : level) {
+            /* Connect signal semaphores to wait semaphore slots in the graph */
+            std::vector<vk::Semaphore> wait_semaphores;
+            std::vector<vk::Semaphore> signal_semaphores;
+            std::vector<vk::PipelineStageFlags> wait_stage_masks;
+            if (node->dependencies.size() > 0) {
+                for (auto &dependency : node->dependencies) {
+                    for (uint32_t i = 0; i < dependency->children.size(); ++i) {
+                        if (dependency->children[i] == node) {
+                            wait_semaphores.push_back(dependency->signal_semaphores[i]);
+                            // Todo: optimize this 
+                            wait_stage_masks.push_back(vk::PipelineStageFlagBits::eBottomOfPipe);
+                            break;
+                        }
+                    }
+                }
             }
-            else
-                final_renderpass_semaphore_signalled = false;
-            // Also add a fence for now. 
-            currentFence = maincmd_fences[currentFrame];
-        }
 
-        vulkan->enqueue_graphics_commands(command_sets[i], currentWaitSemaphores, currentWaitDstStageMasks, currentSignalSemaphores, currentFence, "drawcalls"  + std::to_string(i));
+            /* If the node is connected to a window, wait for that window's image to be available */
+            for (auto &window_key : node->connected_windows) {
+                auto image_available = glfw->get_image_available_semaphore(window_key, currentFrame);
+                if (image_available != vk::Semaphore()) {
+                    wait_semaphores.push_back(image_available);
+                    wait_stage_masks.push_back(vk::PipelineStageFlagBits::eBottomOfPipe);
+                }
+            }
+
+            for (auto &signal_semaphore : node->signal_semaphores) 
+                signal_semaphores.push_back(signal_semaphore);
+
+            for (auto &signal_semaphore : node->window_signal_semaphores)
+                signal_semaphores.push_back(signal_semaphore);
+
+            vulkan->enqueue_graphics_commands(node->command_buffers, wait_semaphores, wait_stage_masks, signal_semaphores, 
+                node->fence, "draw call lvl " + std::to_string(node->level) + " queue " + std::to_string(node->queue_idx), node->queue_idx);
+        }
     }
 }
 
@@ -593,21 +656,9 @@ void RenderSystem::release_vulkan_resources()
 
     /* Release vulkan resources */
     device.freeCommandBuffers(vulkan->get_command_pool(2), {main_command_buffer});
-    
-    for (int idx = 0; idx < maincmd_fences.size(); ++idx) {
-        device.destroyFence(maincmd_fences[idx]);
-    }
-
-    for (auto &semaphoreSet : renderpass_semaphores){
-        for (uint32_t idx = 0; idx < max_frames_in_flight; ++idx) {
-            device.destroySemaphore(semaphoreSet[idx]);
-        }
-    }
-
-    for (uint32_t frame = 0; frame < max_frames_in_flight; ++frame) {
-        device.destroySemaphore(final_renderpass_semaphores[frame]);
-    }
-
+    // device.destroyFence(main_fence);
+    // for (auto &semaphore : main_command_buffer_semaphores)
+    //     device.destroySemaphore(semaphore);
     
     vulkan_resources_created = false;
 }
@@ -625,30 +676,15 @@ void RenderSystem::allocate_vulkan_resources()
     mainCmdAllocInfo.level = vk::CommandBufferLevel::ePrimary;
     mainCmdAllocInfo.commandPool = vulkan->get_command_pool(2);
     mainCmdAllocInfo.commandBufferCount = max_frames_in_flight;
-    main_command_buffer = device.allocateCommandBuffers(mainCmdAllocInfo)[0];
-    
-    maincmd_fences.resize(max_frames_in_flight);
-    for (uint32_t idx = 0; idx < max_frames_in_flight; ++idx) {
-        vk::FenceCreateInfo fenceInfo;
-        // fenceInfo.flags |= vk::FenceCreateFlagBits::eSignaled;
-        maincmd_fences[idx] = device.createFence(fenceInfo);
-    }
 
-    /* Create semaphores to synchronize GPU between renderpasses and presenting. */
     vk::SemaphoreCreateInfo semaphoreInfo;
-    renderpass_semaphores.resize(max_renderpass_semaphore_sets);
-    for (uint32_t rpset_idx = 0; rpset_idx < max_renderpass_semaphore_sets; ++rpset_idx) 
-    {
-        renderpass_semaphores[rpset_idx].resize(max_frames_in_flight);
-        for (uint32_t frame = 0; frame < max_frames_in_flight; ++frame) {
-            renderpass_semaphores[rpset_idx][frame] = device.createSemaphore(semaphoreInfo);
-        }
-    }
-
-    final_renderpass_semaphores.resize(max_frames_in_flight);
-    for (uint32_t frame = 0; frame < max_frames_in_flight; ++frame) {
-        final_renderpass_semaphores[frame] = device.createSemaphore(semaphoreInfo);
-    }
+    vk::FenceCreateInfo fenceInfo;
+    
+    main_command_buffer = device.allocateCommandBuffers(mainCmdAllocInfo)[0];
+    // for (uint32_t i = 0; i < max_frames_in_flight; ++i) {
+    //     main_command_buffer_semaphores.push_back(device.createSemaphore(semaphoreInfo));
+    // }
+    // main_fence = device.createFence(fenceInfo);
 
     vulkan_resources_created = true;
 }
@@ -704,20 +740,37 @@ bool RenderSystem::start()
                 // If the delay on this fence is too short and we receive too many timeouts,
                 // the intel graphics driver on windows crashes...
                 auto device = vulkan->get_device();
-                auto result = device.waitForFences(maincmd_fences[currentFrame], true, 10000000000);
-                if (result != vk::Result::eSuccess) {
-                    std::cout<<"Fence timeout in render loop!"<<std::endl;
-                }
+                if (final_fences.size() > 0 )
+                {
+                    auto result = device.waitForFences(final_fences, true, 10000000000);
+                    if (result != vk::Result::eSuccess) {
+                        std::cout<<"Fence timeout in render loop!"<<std::endl;
+                    }
 
-                device.resetFences(maincmd_fences[currentFrame]);
+                    /* Cleanup fences. */
+                    // for (auto &fence : final_fences) device.destroyFence(fence);
+                }
 
                 /* 4. Optional: Wait on render complete. Present a frame. */
                 stream_frames();
                 present_openvr_frames();
-                std::vector<vk::Semaphore> present_wait_semaphores;
-                if (final_renderpass_semaphore_signalled) present_wait_semaphores.push_back(final_renderpass_semaphores[currentFrame]);
-                glfw->present_glfw_frames(present_wait_semaphores);
+                glfw->present_glfw_frames(final_renderpass_semaphores);
                 vulkan->submit_present_commands();
+
+                for (auto &level : compute_graph) {
+                    vk::SemaphoreCreateInfo semaphoreInfo;
+                    vk::FenceCreateInfo fenceInfo;
+
+                    for (auto &node : level) {
+                        auto device = vulkan->get_device();
+                        for (auto signal_semaphore : node->signal_semaphores) device.destroySemaphore(signal_semaphore);
+                        node->signal_semaphores.clear();
+                        for (auto signal_semaphore : node->window_signal_semaphores) device.destroySemaphore(signal_semaphore);
+                        node->window_signal_semaphores.clear();
+                        if (node->fence != vk::Fence()) device.destroyFence(node->fence);
+                        node->fence = vk::Fence();
+                    }
+                }
             }
 
             glfw->update_swapchains();

@@ -16,6 +16,8 @@
 #include <map>
 #include <utility>
 
+#include <glm/glm.hpp>
+
 #include "Pluto/Tools/Singleton.hxx"
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
 
@@ -58,7 +60,7 @@ namespace Libraries {
         bool is_swapchain_out_of_date(std::string key);
         void update_swapchains();
         bool set_cursor_pos(std::string key, double xpos, double ypos);
-        std::vector<double> get_cursor_pos(std::string key);
+        glm::vec2 get_cursor_pos(std::string key);
         bool set_button_data(std::string key, int button, int action, int mods);
         int get_button_action(std::string key, int button);
         int get_button_mods(std::string key, int button);
@@ -71,9 +73,12 @@ namespace Libraries {
         GLFWwindow* get_ptr(std::string key);
         std::shared_ptr<std::mutex> get_mutex();
         double get_time();
+
+        glm::vec2 get_size(std::string window_key);
         
         void acquire_swapchain_images(uint32_t current_frame);
         std::vector<vk::Semaphore> get_image_available_semaphores(uint32_t current_frame);
+        vk::Semaphore get_image_available_semaphore(std::string window_key, uint32_t current_frame);
         void present_glfw_frames(std::vector<vk::Semaphore> semaphores);
 
         void connect_camera_to_window(std::string key, Camera* camera, uint32_t layer_idx = 0);

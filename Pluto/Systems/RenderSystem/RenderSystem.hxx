@@ -52,6 +52,20 @@ namespace Systems
 
             double lastTime, currentTime;
 
+            struct ComputeNode
+            {
+                std::vector<std::shared_ptr<ComputeNode>> dependencies;
+                std::vector<std::shared_ptr<ComputeNode>> children;
+                std::vector<std::string> connected_windows;
+                std::vector<vk::Semaphore> signal_semaphores;
+                std::vector<vk::Semaphore> window_signal_semaphores;
+                std::vector<vk::CommandBuffer> command_buffers;
+                vk::Fence fence = vk::Fence();
+                uint32_t level;
+                uint32_t queue_idx;
+            };
+
+            std::vector<std::vector<std::shared_ptr<ComputeNode>>> compute_graph;
 
             struct Bucket
             {
@@ -63,15 +77,18 @@ namespace Systems
             uint32_t currentFrame = 0;
             
             vk::CommandBuffer main_command_buffer;
+            // std::vector<vk::Semaphore> main_command_buffer_semaphores;
+            // vk::Fence main_fence;
             bool main_command_buffer_recorded = false;
-            bool final_renderpass_semaphore_signalled = false;
-            std::vector<vk::Fence> maincmd_fences;
+            bool main_command_buffer_presenting = false;
+            // bool final_renderpass_semaphore_signalled = false;
 
-            std::vector<std::vector<vk::Semaphore>> renderpass_semaphores;
+            // std::vector<vk::Fence> maincmd_fences;
+
             std::vector<vk::Semaphore> final_renderpass_semaphores;
-            vk::Fence main_fence;
+            std::vector<vk::Fence> final_fences;
             uint32_t max_frames_in_flight = 2;
-            uint32_t max_renderpass_semaphore_sets = 2;
+            // uint32_t max_renderpass_semaphore_sets = 2;
 
             bool update_push_constants();
             void record_render_commands();

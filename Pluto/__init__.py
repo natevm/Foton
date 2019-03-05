@@ -7,5 +7,5 @@ from Pluto.Pluto import *
 __all__ = [
     "GLM", "GLFW", "OpenVR", "SpaceMouse", 
     "EventSystem", "RenderSystem", 
-    "Camera", "Entity", "Light", "Material", "Mesh", 
+    "Camera", "Entity", "Light", "Material", "Mesh", "Prefabs", 
     "Texture", "Transform", "Pluto"]

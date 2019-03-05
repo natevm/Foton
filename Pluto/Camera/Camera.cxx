@@ -45,6 +45,8 @@ void Camera::setup(bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32
 	}
 
 	create_command_buffers(layers);
+	create_semaphores();
+	create_fences();
 	create_render_passes(tex_width, tex_height, layers, msaa_samples);
 	create_frame_buffers(layers);
 	for(auto renderpass : renderpasses) {
@@ -67,6 +69,34 @@ void Camera::create_command_buffers(uint32_t count)
     cmdAllocInfo.level = vk::CommandBufferLevel::ePrimary;
     cmdAllocInfo.commandBufferCount = 1;
     command_buffer = device.allocateCommandBuffers(cmdAllocInfo)[0];
+}
+
+void Camera::create_semaphores()
+{
+	auto vulkan = Libraries::Vulkan::Get();
+	auto device = vulkan->get_device();
+
+	uint32_t max_frames_in_flight = 2;
+	vk::SemaphoreCreateInfo semaphoreInfo;
+	
+	semaphores.resize(max_frames_in_flight);
+	for (uint32_t frame = 0; frame < max_frames_in_flight; ++frame) {
+		semaphores[frame] = device.createSemaphore(semaphoreInfo);
+	}
+}
+
+void Camera::create_fences()
+{
+	auto vulkan = Libraries::Vulkan::Get();
+	auto device = vulkan->get_device();
+
+	uint32_t max_frames_in_flight = 2;
+	vk::FenceCreateInfo fenceInfo;
+
+	fences.resize(max_frames_in_flight);
+	for (uint32_t frame = 0; frame < max_frames_in_flight; ++frame) {
+		fences[frame] = device.createFence(fenceInfo);
+	}
 }
 
 void Camera::create_render_passes(uint32_t framebufferWidth, uint32_t framebufferHeight, uint32_t layers, uint32_t sample_count)
@@ -573,6 +603,14 @@ vk::CommandBuffer Camera::get_command_buffer() {
 	return command_buffer;
 }
 
+vk::Semaphore Camera::get_semaphore(uint32_t frame_idx) {
+	return semaphores[frame_idx];
+}
+
+vk::Fence Camera::get_fence(uint32_t frame_idx) {
+	return fences[frame_idx];
+}
+
 void Camera::set_clear_color(float r, float g, float b, float a) {
 	clearColor = glm::vec4(r, g, b, a);
 }
@@ -719,6 +757,11 @@ void Camera::cleanup()
             device.destroyRenderPass(renderpass);
         }
     }
+
+	uint32_t max_frames_in_flight = 2;
+	for (uint32_t frame = 0; frame < max_frames_in_flight; ++frame) {
+		device.destroySemaphore(semaphores[frame]);
+	}
 }
 
 void Camera::force_render_mode(RenderMode rendermode)
