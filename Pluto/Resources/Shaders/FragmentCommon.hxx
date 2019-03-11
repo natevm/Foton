@@ -1051,7 +1051,7 @@ float get_shadow_contribution(EntityStruct light_entity, LightStruct light, vec3
     int tex_id = light_camera.multiviews[0].tex_id;
 
     TransformStruct light_transform = tbo.transforms[light_entity.transform_id];
-    vec3 l_position = (light_transform.worldToLocalRotation*light_transform.worldToLocalTranslation * vec4(w_position, 1.0)).xyz;
+    vec3 l_position = (light_transform.worldToLocalRotation * light_transform.worldToLocalTranslation * vec4(w_position, 1.0)).xyz;
     vec3 pos_dir = -normalize(l_position);
     vec3 adjusted = vec3(pos_dir.x, -pos_dir.z, pos_dir.y);
 

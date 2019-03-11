@@ -146,10 +146,22 @@ bool RenderSystem::update_push_constants()
     return true;
 }
 
+void RenderSystem::download_visibility_queries()
+{
+    auto cameras = Camera::GetFront();
+    for (uint32_t i = 0; i < Camera::GetCount(); ++i ) {
+        if (!cameras[i].is_initialized()) continue;
+        cameras[i].download_query_pool_results();
+    }
+}
+
 uint32_t shadow_idx = 0;
 
 void RenderSystem::record_cameras()
 {
+    auto vulkan = Vulkan::Get();
+    auto device = vulkan->get_device();
+
     /* Get window to camera mapping */
     auto glfw = GLFW::Get();
     auto window_to_cam = glfw->get_window_to_camera_map();
@@ -176,26 +188,26 @@ void RenderSystem::record_cameras()
             /* Skip shadowmaps which shouldn't cast shadows */
             auto light = Light::Get(entities[entity_id].get_light());
             if (!light->should_cast_shadows()) continue;
-
-            // /* Temporary for testing. Only render one shadow map at a time. */
-            /* This doesn't work well in practice. Transforms update while renders do not,
-            which result in flickering moving artifacts. Would need a unique shadow transform.
-            Even then, shadows updating slowly look pretty bad.  */
-            // if (entity_id != push_constants.light_entity_ids[shadow_idx]) {
-            //     skip = true;
-            // }
         }
 
         /* Begin recording */
         vk::CommandBufferBeginInfo beginInfo;
         vk::CommandBuffer command_buffer = cameras[cam_id].get_command_buffer();
+        auto query_pool = cameras[cam_id].get_query_pool();
+        
         beginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
         command_buffer.begin(beginInfo);
 
-        /* Record Z prepasses */
-        /* If we're the client, we recieve color data from "stream_frames". Only render a scene if not the client. */
+        auto visible_entites = cameras[cam_id].get_visible_entities(entity_id);
+
+        /* Record Z prepasses / Occlusion query  */
+        
+        cameras[cam_id].reset_query_pool(command_buffer);
+
         if ((!skip) && (!Options::IsClient()) && (cameras[cam_id].should_record_depth_prepass())) {
             for(uint32_t rp_idx = 0; rp_idx < cameras[cam_id].get_num_renderpasses(); rp_idx++) {
+                Material::ResetBoundMaterial();
+                
                 /* Get the renderpass for the current camera */
                 vk::RenderPass rp = cameras[cam_id].get_depth_prepass(rp_idx);
 
@@ -203,14 +215,22 @@ void RenderSystem::record_cameras()
                     Note that we're using a single bind. The same descriptors are shared across pipelines. */
                 Material::BindDescriptorSets(command_buffer, rp);
                 
+
                 cameras[cam_id].begin_depth_prepass(command_buffer, rp_idx);
-                for (uint32_t i = 0; i < Entity::GetCount(); ++i) {
-                    if (!entities[i].is_initialized()) continue;
+                for (uint32_t i = 0; i < visible_entites.size(); ++i) {
+                    auto target_id = visible_entites[i].second->get_id();
+
+                    /* This is a problem, since a single entity may be drawn multiple times on devices
+                    not supporting multiview, (mac). Might need to increase query pool size to MAX_ENTITIES * renderpass count */
+                    cameras[cam_id].begin_visibility_query(command_buffer, target_id, i);
+
                     // Push constants
-                    push_constants.target_id = i;
+                    push_constants.target_id = target_id;
                     push_constants.camera_id = entity_id;
                     push_constants.viewIndex = rp_idx;
-                    Material::DrawEntity(command_buffer, rp, entities[i], push_constants, RenderMode::FRAGMENTDEPTH);
+                    Material::DrawEntity(command_buffer, rp, *visible_entites[i].second, push_constants, RenderMode::FRAGMENTDEPTH);
+
+                    cameras[cam_id].end_visibility_query(command_buffer, target_id, i);
                 }
                 cameras[cam_id].end_depth_prepass(command_buffer, rp_idx);
             }
@@ -220,6 +240,8 @@ void RenderSystem::record_cameras()
         if ((!skip) && (!Options::IsClient())) {
             /* If we're the client, we recieve color data from "stream_frames". Only render a scene if not the client. */
             for(uint32_t rp_idx = 0; rp_idx < cameras[cam_id].get_num_renderpasses(); rp_idx++) {
+                Material::ResetBoundMaterial();
+
                 /* Get the renderpass for the current camera */
                 vk::RenderPass rp = cameras[cam_id].get_renderpass(rp_idx);
 
@@ -228,30 +250,33 @@ void RenderSystem::record_cameras()
                 Material::BindDescriptorSets(command_buffer, rp);
                 
                 cameras[cam_id].begin_renderpass(command_buffer, rp_idx);
-                for (uint32_t i = 0; i < Entity::GetCount(); ++i) {
-                    if (!entities[i].is_initialized()) continue;
-                    // Push constants
-                    push_constants.target_id = i;
-                    push_constants.camera_id = entity_id;
-                    push_constants.viewIndex = rp_idx;
-                    Material::DrawEntity(command_buffer, rp, entities[i], push_constants, cameras[cam_id].get_rendermode_override());
+                for (uint32_t i = 0; i < visible_entites.size(); ++i) {
+                    auto target_id = visible_entites[i].second->get_id();
+
+                    if (cameras[cam_id].is_entity_visible(target_id) || (!cameras[cam_id].should_record_depth_prepass())) {
+                        push_constants.target_id = target_id;
+                        push_constants.camera_id = entity_id;
+                        push_constants.viewIndex = rp_idx;
+                        Material::DrawEntity(command_buffer, rp, *visible_entites[i].second, push_constants, cameras[cam_id].get_rendermode_override());
+                    }
                 }
                 
                 /* Draw transparent objects last */
-                for (uint32_t i = 0; i < Entity::GetCount(); ++i)
+                for (uint32_t i = 0; i < visible_entites.size(); ++i)
                 {
-                    if (!entities[i].is_initialized()) continue;
-                    // Push constants
-                    push_constants.target_id = i;
-                    push_constants.camera_id = entity_id;
-                    push_constants.viewIndex = rp_idx;
-                    Material::DrawVolume(command_buffer, rp, entities[i], push_constants, cameras[cam_id].get_rendermode_override());
+                    auto target_id = visible_entites[i].second->get_id();
+
+                    if (cameras[cam_id].is_entity_visible(target_id) || (!cameras[cam_id].should_record_depth_prepass())) {
+                        push_constants.target_id = target_id;
+                        push_constants.camera_id = entity_id;
+                        push_constants.viewIndex = rp_idx;
+                        Material::DrawVolume(command_buffer, rp, *visible_entites[i].second, push_constants, cameras[cam_id].get_rendermode_override());
+                    }
                 }
                 cameras[cam_id].end_renderpass(command_buffer, rp_idx);
             }
         }
 
-        
         /* Blit to GLFW windows */
         for (auto w2c : window_to_cam) {
             if ((w2c.second.first->get_id() == cam_id)) {
@@ -283,7 +308,6 @@ void RenderSystem::record_cameras()
             }
         }
         #endif
-    
 
         /* End this recording. */
         command_buffer.end();
@@ -612,7 +636,7 @@ void RenderSystem::enqueue_render_commands() {
                         if (dependency->children[i] == node) {
                             wait_semaphores.push_back(dependency->signal_semaphores[i]);
                             // Todo: optimize this 
-                            wait_stage_masks.push_back(vk::PipelineStageFlagBits::eBottomOfPipe);
+                            wait_stage_masks.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
                             break;
                         }
                     }
@@ -751,11 +775,14 @@ bool RenderSystem::start()
                     // for (auto &fence : final_fences) device.destroyFence(fence);
                 }
 
+
                 /* 4. Optional: Wait on render complete. Present a frame. */
                 stream_frames();
                 present_openvr_frames();
                 glfw->present_glfw_frames(final_renderpass_semaphores);
                 vulkan->submit_present_commands();
+
+                download_visibility_queries();
 
                 for (auto &level : compute_graph) {
                     vk::SemaphoreCreateInfo semaphoreInfo;

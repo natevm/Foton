@@ -108,7 +108,7 @@ void CleanUp()
     }
 }
 
-std::vector<Entity*> ImportOBJ(std::string filepath, std::string mtl_base_dir)
+std::vector<Entity*> ImportOBJ(std::string filepath, std::string mtl_base_dir, glm::vec3 position, glm::vec3 scale, glm::quat rotation)
 {
     struct stat st;
 	if (stat(filepath.c_str(), &st) != 0)
@@ -158,7 +158,7 @@ std::vector<Entity*> ImportOBJ(std::string filepath, std::string mtl_base_dir)
             // texture_paths.insert(materials[i].alpha_texname);
 
         if (materials[i].diffuse_texname.length() > 0) {
-            materialComponents[i]->use_base_color_texture(texture_map[materials[i].diffuse_texname]);
+            materialComponents[i]->set_base_color_texture(texture_map[materials[i].diffuse_texname]);
         }
         
         // if (materials[i].bump_texname.length() > 0)
@@ -243,6 +243,9 @@ std::vector<Entity*> ImportOBJ(std::string filepath, std::string mtl_base_dir)
 
             auto entity = Entity::Create(shapes[i].name + "_" + std::to_string(mat_offset));
             auto transform = Transform::Create(shapes[i].name + "_" + std::to_string(mat_offset));
+            transform->set_position(position);
+            transform->set_scale(scale);
+            transform->set_rotation(rotation);
             entities.push_back(entity);
             transformComponents.push_back(transform);
             entity->set_transform(transform);

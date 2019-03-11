@@ -2,6 +2,8 @@
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
 #include "Pluto/Texture/Texture.hxx"
 #include "Pluto/Material/Material.hxx"
+#include "Pluto/Entity/Entity.hxx"
+#include "Pluto/Transform/Transform.hxx"
 
 #include <algorithm>
 
@@ -49,6 +51,7 @@ void Camera::setup(bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32
 	create_fences();
 	create_render_passes(tex_width, tex_height, layers, msaa_samples);
 	create_frame_buffers(layers);
+	create_query_pool();
 	for(auto renderpass : renderpasses) {
 		Material::SetupGraphicsPipelines(renderpass, msaa_samples, use_depth_prepass);
 	}
@@ -58,6 +61,19 @@ void Camera::setup(bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32
 			Material::SetupGraphicsPipelines(renderpass, msaa_samples, use_depth_prepass);
 		}
 	}
+}
+
+void Camera::create_query_pool()
+{
+	auto vulkan = Libraries::Vulkan::Get();
+	auto device = vulkan->get_device();
+
+	vk::QueryPoolCreateInfo queryPoolInfo;
+	queryPoolInfo.queryType = vk::QueryType::eOcclusion;
+	queryPoolInfo.queryCount = MAX_ENTITIES;
+	queryPool = device.createQueryPool(queryPoolInfo);
+
+	queryResults.resize(MAX_ENTITIES + 1, 1);
 }
 
 void Camera::create_command_buffers(uint32_t count)
@@ -138,7 +154,7 @@ void Camera::create_render_passes(uint32_t framebufferWidth, uint32_t framebuffe
         depthAttachment.format = renderTexture->get_depth_format();
         depthAttachment.samples = sampleFlag;
         depthAttachment.loadOp = vk::AttachmentLoadOp::eClear;
-        depthAttachment.storeOp = vk::AttachmentStoreOp::eStore;
+        depthAttachment.storeOp = vk::AttachmentStoreOp::eDontCare; 
         depthAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
         depthAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
         depthAttachment.initialLayout = vk::ImageLayout::eUndefined;
@@ -235,6 +251,13 @@ void Camera::create_render_passes(uint32_t framebufferWidth, uint32_t framebuffe
 			attachments[1].storeOp = vk::AttachmentStoreOp::eDontCare;
 			renderpasses.push_back(device.createRenderPass(renderPassInfo));
 			
+			attachments[0].loadOp = vk::AttachmentLoadOp::eDontCare; // dont clear
+			attachments[0].storeOp = vk::AttachmentStoreOp::eDontCare;
+			attachments[0].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+			attachments[0].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+			attachments[0].initialLayout = vk::ImageLayout::eUndefined;
+			attachments[0].finalLayout = vk::ImageLayout::eUndefined;
+
 			attachments[1].initialLayout = vk::ImageLayout::eUndefined;
 			attachments[1].finalLayout = renderTexture->get_depth_image_layout();
 			attachments[1].loadOp = vk::AttachmentLoadOp::eClear;
@@ -382,8 +405,7 @@ glm::mat4 Camera::get_view(uint32_t multiview) {
 void Camera::set_view(glm::mat4 view, uint32_t multiview)
 {
 	check_multiview_index(multiview);
-	update_used_views(multiview);
-	usedViews = (usedViews >= multiview) ? usedViews : multiview;
+	update_used_views(multiview + 1);
 	camera_struct.multiviews[multiview].view = view;
 	camera_struct.multiviews[multiview].viewinv = glm::inverse(view);
 };
@@ -473,6 +495,7 @@ void Camera::begin_renderpass(vk::CommandBuffer command_buffer, uint32_t index)
 
 	clearValues.push_back(vk::ClearValue());
 	clearValues[0].color = vk::ClearColorValue(std::array<float, 4>{clearColor.r, clearColor.g, clearColor.b, clearColor.a});
+	
 	if (!use_depth_prepass){
 		clearValues.push_back(vk::ClearValue());
 		clearValues[1].depthStencil = vk::ClearDepthStencilValue(clearDepth, clearStencil);
@@ -601,6 +624,99 @@ uint32_t Camera::get_num_renderpasses() {
 
 vk::CommandBuffer Camera::get_command_buffer() {
 	return command_buffer;
+}
+
+vk::QueryPool Camera::get_query_pool()
+{
+	return queryPool;
+}
+
+void Camera::reset_query_pool(vk::CommandBuffer command_buffer)
+{
+	// This might need to be changed, depending on if MAX_ENTITIES is the "number of queries in the query pool".
+	// The spec might be referring to visable_entities.size() instead...
+	// if (queryDownloaded) {
+		command_buffer.resetQueryPool(queryPool, 0, MAX_ENTITIES); 
+		max_queried = 0;
+	// }
+
+	queryRecorded = false;
+
+}
+
+void Camera::download_query_pool_results()
+{
+	if (queryPool == vk::QueryPool()) return;
+
+	if (!queryRecorded) return;
+	
+	if (max_queried == 0) return;
+
+	auto vulkan = Libraries::Vulkan::Get();
+	auto device = vulkan->get_device();
+	// vulkan->flush_queues();
+
+
+	uint32_t num_queries = max_queried;
+	uint32_t data_size = sizeof(uint64_t) * (MAX_ENTITIES); // Why do I need an extra number here?
+	uint32_t first_query = 0;
+	uint32_t stride = sizeof(uint64_t);
+
+	std::vector<uint64_t> temp(MAX_ENTITIES, 0);
+	auto result = device.getQueryPoolResults(queryPool, first_query, num_queries, 
+			data_size, temp.data(), stride, // wait locks up... with availability requires an extra integer?
+			vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::eWait | vk::QueryResultFlagBits::ePartial | vk::QueryResultFlagBits::eWithAvailability); //  vk::QueryResultFlagBits::ePartial |
+
+	if (result == vk::Result::eSuccess) {
+		for (uint32_t i = 0; i < max_queried; ++i) {
+			if (temp[i] > 0) {
+				queryResults[i] = temp[i] - 1;
+			}
+		}
+		previousEntityToDrawIdx = entityToDrawIdx;
+		queryDownloaded = true;
+	}
+	else {
+		std::cout<<"camera " << id << " " << vk::to_string(result)<<std::endl;
+	}
+
+}
+
+std::vector<uint64_t> & Camera::get_query_pool_results()
+{
+		// /* For some reason, multiview doesn't seem to work with this? */
+	// if (usedViews > 0) {
+	// 	queryResults = std::vector<uint64_t>(MAX_ENTITIES, 2);
+	// 	return queryResults;
+	// }
+
+
+	return queryResults;
+}
+
+bool Camera::is_entity_visible(uint32_t entity_id)
+{
+	/* Assume true if not queried. */
+	if (previousEntityToDrawIdx.find( entity_id ) == previousEntityToDrawIdx.end()) return true;
+	
+	/* This should never happen, but if it does, assume the object is visible */
+	if (previousEntityToDrawIdx[entity_id] >= queryResults.size()) return true;
+	
+	return (queryResults[previousEntityToDrawIdx[entity_id]]) > 0;
+}
+
+void Camera::begin_visibility_query(vk::CommandBuffer command_buffer, uint32_t entity_id, uint32_t draw_idx)
+{
+	queryRecorded = true;
+	queryDownloaded = false;
+	entityToDrawIdx[entity_id] = draw_idx;
+	command_buffer.beginQuery(queryPool, draw_idx, vk::QueryControlFlags());
+}
+
+void Camera::end_visibility_query(vk::CommandBuffer command_buffer, uint32_t entity_id, uint32_t draw_idx)
+{
+	max_queried = std::max((uint64_t)draw_idx + 1, max_queried);
+	command_buffer.endQuery(queryPool, draw_idx);
 }
 
 vk::Semaphore Camera::get_semaphore(uint32_t frame_idx) {
@@ -762,6 +878,10 @@ void Camera::cleanup()
 	for (uint32_t frame = 0; frame < max_frames_in_flight; ++frame) {
 		device.destroySemaphore(semaphores[frame]);
 	}
+
+	if (queryPool != vk::QueryPool()) {
+		device.destroyQueryPool(queryPool);
+	}
 }
 
 void Camera::force_render_mode(RenderMode rendermode)
@@ -776,4 +896,124 @@ RenderMode Camera::get_rendermode_override() {
 bool Camera::should_record_depth_prepass()
 {
 	return use_depth_prepass;
+}
+
+enum side { LEFT = 0, RIGHT = 1, TOP = 2, BOTTOM = 3, BACK = 4, FRONT = 5 };
+
+bool checkSphere(std::array<glm::vec4, 6> &planes, glm::vec3 pos, float radius)
+{
+	for (auto i = 0; i < planes.size(); i++)
+	{
+		if ((planes[i].x * pos.x) + (planes[i].y * pos.y) + (planes[i].z * pos.z) + planes[i].w <= -radius)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+std::vector<std::pair<float, Entity*>> Camera::get_visible_entities(uint32_t camera_entity_id)
+{
+	std::vector<Entity*> visible_entities;
+
+	Entity* entities = Entity::GetFront();
+	auto camera_entity = Entity::Get(camera_entity_id);
+	if (!camera_entity) return {};
+	if (camera_entity->get_transform() == -1) return {};
+	auto cam_transform = Transform::Get(camera_entity->get_transform());
+	if (!cam_transform) return {};
+
+	glm::vec3 cam_pos = cam_transform->get_position();
+
+	std::vector<std::array<glm::vec4, 6>> planes;
+
+	/* Get projection planes for frustum/sphere intersection */
+	for (uint32_t view_idx = 0; view_idx < usedViews; ++view_idx) {
+		auto matrix = camera_struct.multiviews[view_idx].proj * camera_struct.multiviews[view_idx].view * cam_transform->parent_to_local_matrix();
+
+		planes.push_back(std::array<glm::vec4, 6>());
+
+		planes[view_idx][LEFT].x = matrix[0].w + matrix[0].x;
+		planes[view_idx][LEFT].y = matrix[1].w + matrix[1].x;
+		planes[view_idx][LEFT].z = matrix[2].w + matrix[2].x;
+		planes[view_idx][LEFT].w = matrix[3].w + matrix[3].x;
+
+		planes[view_idx][RIGHT].x = matrix[0].w - matrix[0].x;
+		planes[view_idx][RIGHT].y = matrix[1].w - matrix[1].x;
+		planes[view_idx][RIGHT].z = matrix[2].w - matrix[2].x;
+		planes[view_idx][RIGHT].w = matrix[3].w - matrix[3].x;
+
+		planes[view_idx][TOP].x = matrix[0].w - matrix[0].y;
+		planes[view_idx][TOP].y = matrix[1].w - matrix[1].y;
+		planes[view_idx][TOP].z = matrix[2].w - matrix[2].y;
+		planes[view_idx][TOP].w = matrix[3].w - matrix[3].y;
+
+		planes[view_idx][BOTTOM].x = matrix[0].w + matrix[0].y;
+		planes[view_idx][BOTTOM].y = matrix[1].w + matrix[1].y;
+		planes[view_idx][BOTTOM].z = matrix[2].w + matrix[2].y;
+		planes[view_idx][BOTTOM].w = matrix[3].w + matrix[3].y;
+
+		planes[view_idx][BACK].x = matrix[0].w + matrix[0].z;
+		planes[view_idx][BACK].y = matrix[1].w + matrix[1].z;
+		planes[view_idx][BACK].z = matrix[2].w + matrix[2].z;
+		planes[view_idx][BACK].w = matrix[3].w + matrix[3].z;
+
+		planes[view_idx][FRONT].x = matrix[0].w - matrix[0].z;
+		planes[view_idx][FRONT].y = matrix[1].w - matrix[1].z;
+		planes[view_idx][FRONT].z = matrix[2].w - matrix[2].z;
+		planes[view_idx][FRONT].w = matrix[3].w - matrix[3].z;
+
+		for (auto i = 0; i < planes.size(); i++)
+		{
+			float length = sqrtf(planes[view_idx][i].x * planes[view_idx][i].x + planes[view_idx][i].y * planes[view_idx][i].y + planes[view_idx][i].z * planes[view_idx][i].z);
+			planes[view_idx][i] /= length;
+		}
+	}
+
+	/* Test each entities bounding sphere against the frustum */
+	for (uint32_t i = 0; i < Entity::GetCount(); ++i) 
+	{
+		if (i == camera_entity_id) continue;
+		
+		if (!entities[i].is_initialized()) continue;
+		auto mesh_id = entities[i].get_mesh();
+		auto transform_id = entities[i].get_transform();
+		if ((mesh_id == -1) || (transform_id == -1)) continue;
+
+		auto mesh = Mesh::Get(mesh_id);
+		auto transform = Transform::Get(transform_id);
+		if ((!mesh) || (!transform)) continue;
+
+		auto centroid = mesh->get_centroid();
+		auto radius = mesh->get_bounding_sphere_radius();
+
+		auto scale = transform->get_scale();
+		float max_scale = std::max( std::max(scale.x, scale.y), scale.z);
+
+		auto w_centroid =  transform->local_to_parent_matrix() * glm::vec4(centroid.x, centroid.y, centroid.z, 1.0);
+		auto w_radius = radius * max_scale; 
+
+		bool entity_seen = false;
+		for (uint32_t view_idx = 0; view_idx < usedViews; ++view_idx) {
+			entity_seen |= checkSphere(planes[view_idx], w_centroid, w_radius * 2.0f);
+		}
+
+		if (entity_seen) visible_entities.push_back(&entities[i]);
+	}
+
+	/* Sort by depth */
+	std::vector<std::pair<float, Entity*>> sorted_visible_entities;
+
+	for (uint32_t i = 0; i < visible_entities.size(); ++i) 
+	{
+		auto transform_id = visible_entities[i]->get_transform();
+		auto transform = Transform::Get(transform_id);
+		glm::vec3 entity_pos = transform->get_position();
+
+		sorted_visible_entities.push_back(std::pair<float, Entity*>(glm::distance(cam_pos, entity_pos), visible_entities[i]));
+	}
+
+	std::sort(sorted_visible_entities.begin(), sorted_visible_entities.end());	
+
+	return sorted_visible_entities;
 }

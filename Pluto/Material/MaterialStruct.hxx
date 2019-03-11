@@ -32,7 +32,7 @@ struct MaterialStruct {
     float transmission; // 100
     float transmission_roughness; // 104
     int32_t volume_texture_id; // 108
-    int32_t ph5; // 112
+    int32_t transfer_function_texture_id; // 112
     int32_t flags; // 116
     int32_t base_color_texture_id; // 120
     int32_t roughness_texture_id; // 124

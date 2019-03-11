@@ -188,13 +188,21 @@ class Mesh : public StaticFactory
 		/* Returns the total number of bytes per index */
 		uint32_t get_index_bytes();
 
-		/* Computes the average of all vertex positions. 
-			This is called during mesh creation, but might need to be 
-			called again if mesh edits were made. */
-		glm::vec3 compute_centroid();
+		/* Computes the average of all vertex positions. (centroid) 
+			as well as min/max bounds and bounding sphere data. */
+		void compute_metadata();
 
 		/* Returns the last computed centroid. */
 		glm::vec3 get_centroid();
+
+		/* Returns the minimum axis aligned bounding box position */
+		glm::vec3 get_min_aabb_corner();
+
+		/* Returns the maximum axis aligned bounding box position */
+		glm::vec3 get_max_aabb_corner();
+
+		/* Returns the radius of a sphere centered at the centroid which completely contains the mesh */
+		float get_bounding_sphere_radius();
 
 		/* If mesh editing is enabled, replaces the position at the given index with a new position */
 		void edit_position(uint32_t index, glm::vec3 new_position);
@@ -244,6 +252,13 @@ class Mesh : public StaticFactory
 
 		/* The last computed average of all mesh positions */
 		glm::vec3 centroid;
+		
+		/* The radius of a sphere centered at the centroid which contains the mesh */
+		float bounding_sphere_radius;
+
+		/* Minimum and maximum bounding box coordinates */
+		glm::vec3 bbmin;
+		glm::vec3 bbmax;
 
 		/* Lists of per vertex data. These might not match GPU memory if editing is disabled. */
 		std::vector<glm::vec3> points;
@@ -372,7 +387,7 @@ class Mesh : public StaticFactory
 			allowEdits = allow_edits;
 
 			cleanup();
-			compute_centroid();
+			compute_metadata();
 			createPointBuffer(allow_edits, submit_immediately);
 			createColorBuffer(allow_edits, submit_immediately);
 			createNormalBuffer(allow_edits, submit_immediately);

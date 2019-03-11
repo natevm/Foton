@@ -791,10 +791,9 @@ uint32_t Vulkan::get_present_family() const
 
 vk::CommandPool Vulkan::get_command_pool(uint32_t index) const
 {
-    if (index >= commandPools.size()) {
-        std::cout<<"Error, max command pool index is " << commandPools.size() - 1 << std::endl;
-        return vk::CommandPool();
-    }
+    if (index >= commandPools.size())
+        throw std::runtime_error("Error: max command pool index is " + std::to_string(commandPools.size() - 1) );
+        
     return commandPools[index];
 }
 
@@ -1014,7 +1013,7 @@ bool Vulkan::flush_queues()
 
 uint32_t Vulkan::get_thread_id() {
     /* Todo: make this thread safe */
-    if (thread_id == -1){
+    if (thread_id == -1) {
         thread_id = registered_threads;
         registered_threads++;
     }

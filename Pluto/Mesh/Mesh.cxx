@@ -1,3 +1,6 @@
+// Because windows is silly and thinks it has the right to define min/max D:<
+#define NOMINMAX
+
 #ifndef TINYOBJLOADER_IMPLEMENTATION
 #define TINYOBJLOADER_IMPLEMENTATION
 #endif
@@ -67,7 +70,7 @@ void buildOrthonormalBasis(glm::vec3 n, glm::vec3 &b1, glm::vec3 &b2)
         b2 = glm::vec3(-1.0,  0.0, 0.0);
         return;
     }
-    float a = 1.0 / (1.0 + n.z);
+    float a = 1.0f / (1.0f + n.z);
     float b = -n.x*n.y*a;
     b1 = glm::vec3(1.0 - n.x*n.x*a, b, -n.x);
     b2 = glm::vec3(b, 1.0 - n.y*n.y*a, -n.y);
@@ -168,23 +171,47 @@ uint32_t Mesh::get_index_bytes()
 	return sizeof(uint32_t);
 }
 
-glm::vec3 Mesh::compute_centroid()
+void Mesh::compute_metadata()
 {
 	glm::vec3 s(0.0);
+	bbmin = glm::vec3(0.0f);
+	bbmax = glm::vec3(0.0f);
 	for (int i = 0; i < points.size(); i += 1)
 	{
 		s += points[i];
+		bbmin = glm::min(points[i], bbmin);
+		bbmax = glm::max(points[i], bbmax);
 	}
 	s /= points.size();
 	centroid = s;
 
-	return centroid;
+	bounding_sphere_radius = 0.0;
+	for (int i = 0; i < points.size(); i += 1) {
+		bounding_sphere_radius = std::max(bounding_sphere_radius, 
+			glm::distance(points[i], centroid));
+	}
 }
 
 glm::vec3 Mesh::get_centroid()
 {
 	return centroid;
 }
+
+float Mesh::get_bounding_sphere_radius()
+{
+	return bounding_sphere_radius;
+}
+
+glm::vec3 Mesh::get_min_aabb_corner()
+{
+	return bbmin;
+}
+
+glm::vec3 Mesh::get_max_aabb_corner()
+{
+	return bbmax;
+}
+
 
 void Mesh::cleanup()
 {
@@ -377,7 +404,7 @@ void Mesh::load_obj(std::string objPath, bool allow_edits, bool submit_immediate
 	}
 
 	cleanup();
-	compute_centroid();
+	compute_metadata();
 	createPointBuffer(allow_edits, submit_immediately);
 	createColorBuffer(allow_edits, submit_immediately);
 	createIndexBuffer(allow_edits, submit_immediately);
@@ -442,7 +469,7 @@ void Mesh::load_stl(std::string stlPath, bool allow_edits, bool submit_immediate
 	}
 
 	cleanup();
-	compute_centroid();
+	compute_metadata();
 	createPointBuffer(allow_edits, submit_immediately);
 	createColorBuffer(allow_edits, submit_immediately);
 	createIndexBuffer(allow_edits, submit_immediately);
@@ -562,7 +589,7 @@ void Mesh::load_glb(std::string glbPath, bool allow_edits, bool submit_immediate
 	}
 
 	cleanup();
-	compute_centroid();
+	compute_metadata();
 	createPointBuffer(allow_edits, submit_immediately);
 	createColorBuffer(allow_edits, submit_immediately);
 	createIndexBuffer(allow_edits, submit_immediately);
@@ -662,7 +689,7 @@ void Mesh::load_raw(
 	}
 
 	cleanup();
-	compute_centroid();
+	compute_metadata();
 	createPointBuffer(allow_edits, submit_immediately);
 	createColorBuffer(allow_edits, submit_immediately);
 	createIndexBuffer(allow_edits, submit_immediately);
@@ -1391,7 +1418,7 @@ Mesh* Mesh::CreateTubeFromPolyline(std::string name, std::vector<glm::vec3> poin
 	ParametricPath parametricPath {
 		[points](double t) {
 			// t is 1.0 / points.size() - 1 and goes from 0 to 1.0
-			float t_scaled = t * (points.size() - 1);
+			float t_scaled = (float)t * (((float)points.size()) - 1.0f);
 			uint32_t p1_idx = (uint32_t) floor(t_scaled);
 			uint32_t p2_idx = p1_idx + 1;
 
@@ -1437,7 +1464,7 @@ Mesh* Mesh::CreateRoundedRectangleTubeFromPolyline(std::string name, std::vector
 	ParametricPath parametricPath {
 		[points](double t) {
 			// t is 1.0 / points.size() - 1 and goes from 0 to 1.0
-			float t_scaled = t * (points.size() - 1);
+			float t_scaled = (float)t * ((float)(points.size()) - 1.0f);
 			uint32_t p1_idx = (uint32_t) floor(t_scaled);
 			uint32_t p2_idx = p1_idx + 1;
 
@@ -1483,7 +1510,7 @@ Mesh* Mesh::CreateRectangleTubeFromPolyline(std::string name, std::vector<glm::v
 	ParametricPath parametricPath {
 		[points](double t) {
 			// t is 1.0 / points.size() - 1 and goes from 0 to 1.0
-			float t_scaled = t * (points.size() - 1);
+			float t_scaled = (float)t * ((float)(points.size()) - 1.0f);
 			uint32_t p1_idx = (uint32_t) floor(t_scaled);
 			uint32_t p2_idx = p1_idx + 1;
 

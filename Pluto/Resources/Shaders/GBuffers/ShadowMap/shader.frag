@@ -25,5 +25,5 @@ vec3 hsv2rgb(vec3 c) {
 void main() 
 {
   vec3 distvec = w_position - c_position;
-  outFragColor = vec4(length(distvec), length(distvec), length(distvec), 1.0);
+  outFragColor = vec4(length(distvec), 0.0, 0.0, 1.0);
 }

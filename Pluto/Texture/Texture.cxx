@@ -1418,11 +1418,12 @@ bool Texture::get_supported_depth_format(vk::PhysicalDevice physicalDevice, vk::
 {
     // Since all depth formats may be optional, we need to find a suitable depth format to use
     // Start with the highest precision packed format
+    
     std::vector<vk::Format> depthFormats = {
         vk::Format::eD32SfloatS8Uint,
         vk::Format::eD32Sfloat,
-        vk::Format::eD24UnormS8Uint,
         vk::Format::eD16UnormS8Uint,
+        vk::Format::eD24UnormS8Uint,
         vk::Format::eD16Unorm};
 
     for (auto &format : depthFormats)
@@ -1684,42 +1685,63 @@ uint32_t Texture::GetCount() {
 
 void Texture::make_renderable(vk::CommandBuffer commandBuffer)
 {
-    if (this->data.colorImageLayout == vk::ImageLayout::eColorAttachmentOptimal) return;
 
-    /* Transition destination image to transfer destination optimal */
-    vk::ImageSubresourceRange subresourceRange;
-    subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-    subresourceRange.baseMipLevel = 0;
-    subresourceRange.baseMipLevel = 0;
-    subresourceRange.levelCount = this->data.colorMipLevels;
-    subresourceRange.layerCount = this->data.layers;
+    if (this->data.colorImageLayout != vk::ImageLayout::eColorAttachmentOptimal)
+    {
+        /* Transition destination image to transfer destination optimal */
+        vk::ImageSubresourceRange subresourceRange;
+        subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+        subresourceRange.baseMipLevel = 0;
+        subresourceRange.baseMipLevel = 0;
+        subresourceRange.levelCount = this->data.colorMipLevels;
+        subresourceRange.layerCount = this->data.layers;
 
-    setImageLayout(
-        commandBuffer,
-        this->data.colorImage,
-        this->data.colorImageLayout,
-        vk::ImageLayout::eColorAttachmentOptimal,
-        subresourceRange);
-    this->data.colorImageLayout = vk::ImageLayout::eColorAttachmentOptimal;
+        setImageLayout(
+            commandBuffer,
+            this->data.colorImage,
+            this->data.colorImageLayout,
+            vk::ImageLayout::eColorAttachmentOptimal,
+            subresourceRange);
+        this->data.colorImageLayout = vk::ImageLayout::eColorAttachmentOptimal;
+    }
+
+    if (this->data.depthImageLayout != vk::ImageLayout::eDepthStencilAttachmentOptimal)
+    {
+        /* Transition destination image to transfer destination optimal */
+        vk::ImageSubresourceRange subresourceRange;
+        subresourceRange.aspectMask = vk::ImageAspectFlagBits::eDepth;
+        subresourceRange.baseMipLevel = 0;
+        subresourceRange.baseMipLevel = 0;
+        subresourceRange.levelCount = 1;
+        subresourceRange.layerCount = this->data.layers;
+
+        setImageLayout(
+            commandBuffer,
+            this->data.depthImage,
+            this->data.depthImageLayout,
+            vk::ImageLayout::eDepthStencilAttachmentOptimal,
+            subresourceRange);
+        this->data.depthImageLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+    }
 }
 
 void Texture::make_samplable(vk::CommandBuffer commandBuffer)
 {
-    if (this->data.colorImageLayout == vk::ImageLayout::eShaderReadOnlyOptimal) return;
+    if (this->data.colorImageLayout != vk::ImageLayout::eShaderReadOnlyOptimal) {
+        /* Transition destination image to transfer destination optimal */
+        vk::ImageSubresourceRange subresourceRange;
+        subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+        subresourceRange.baseMipLevel = 0;
+        subresourceRange.baseMipLevel = 0;
+        subresourceRange.levelCount = this->data.colorMipLevels;
+        subresourceRange.layerCount = this->data.layers;
 
-    /* Transition destination image to transfer destination optimal */
-    vk::ImageSubresourceRange subresourceRange;
-    subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-    subresourceRange.baseMipLevel = 0;
-    subresourceRange.baseMipLevel = 0;
-    subresourceRange.levelCount = this->data.colorMipLevels;
-    subresourceRange.layerCount = this->data.layers;
-
-    setImageLayout(
-        commandBuffer,
-        this->data.colorImage,
-        this->data.colorImageLayout,
-        vk::ImageLayout::eShaderReadOnlyOptimal,
-        subresourceRange);
+        setImageLayout(
+            commandBuffer,
+            this->data.colorImage,
+            this->data.colorImageLayout,
+            vk::ImageLayout::eShaderReadOnlyOptimal,
+            subresourceRange);
+    }
     this->data.colorImageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
 }

@@ -95,6 +95,7 @@ namespace Systems
             void record_cameras();
             void record_blit_textures();
             void enqueue_render_commands();
+            void download_visibility_queries();
 
             void stream_frames();
             void update_openvr_transforms();

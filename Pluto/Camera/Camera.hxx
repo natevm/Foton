@@ -10,6 +10,7 @@
 #include "Pluto/Camera/CameraStruct.hxx"
 
 class Texture;
+class Entity;
 
 enum RenderMode : uint32_t;
 
@@ -120,12 +121,32 @@ class Camera : public StaticFactory
 
 	/* Returns the vulkan depth prepass handle. */
 	vk::RenderPass get_depth_prepass(uint32_t);
-    
-  /* Get the number of renderpasses for this camera */
-  uint32_t get_num_renderpasses();
+
+	/* Get the number of renderpasses for this camera */
+	uint32_t get_num_renderpasses();
 
 	/* Returns the vulkan command buffer handle. */
 	vk::CommandBuffer get_command_buffer();
+
+	/* TODO: Explain this */
+	vk::QueryPool get_query_pool();
+
+	/* TODO: */
+	void reset_query_pool(vk::CommandBuffer command_buffer);
+
+	/* TODO: Explain this */
+	std::vector<uint64_t> & get_query_pool_results();
+
+	void download_query_pool_results();
+
+	/* TODO: Explain this */
+	void begin_visibility_query(vk::CommandBuffer command_buffer, uint32_t entity_id, uint32_t drawIdx);
+	
+	/* TODO: Explain this */
+	void end_visibility_query(vk::CommandBuffer command_buffer, uint32_t entity_id, uint32_t drawIdx);
+
+	/* TODO: */
+	bool is_entity_visible(uint32_t entity_id);
 
 	/* TODO: Explain this */
 	vk::Semaphore get_semaphore(uint32_t frame_idx);
@@ -169,6 +190,9 @@ class Camera : public StaticFactory
 	/* TODO: Explain this */
 	bool should_record_depth_prepass();
 
+	/* TODO: Explain this */
+	std::vector<std::pair<float, Entity*>> get_visible_entities(uint32_t camera_entity_id);
+
   private:
 	
 	/* Determines whether this camera should use a depth prepass to reduce fragment complexity at the cost of 
@@ -192,10 +216,27 @@ class Camera : public StaticFactory
 	CameraStruct camera_struct;
 
 	/* The vulkan renderpass handles, used to begin and end final renderpasses for the given camera. */
-  std::vector<vk::RenderPass> renderpasses;
+	std::vector<vk::RenderPass> renderpasses;
+
+	/* TODO: Explain this */
+	vk::QueryPool queryPool;
+
+	/* TODO: */
+	bool queryRecorded = false;
+
+	bool queryDownloaded = true;
+
+	uint64_t max_queried = 0;
+
+	std::map<uint32_t, uint32_t> previousEntityToDrawIdx;
+	
+	std::map<uint32_t, uint32_t> entityToDrawIdx;
+
+	/* TODO: Explain this */
+	std::vector<uint64_t> queryResults;
 
 	/* The vulkan depth prpass renderpass handles, used to begin and end depth prepasses for the given camera. */
-  std::vector<vk::RenderPass> depthPrepasses;
+	std::vector<vk::RenderPass> depthPrepasses;
 	
 	/* The vulkan framebuffer handles, which associates attachments with image views. */
 	std::vector<vk::Framebuffer> framebuffers;
@@ -259,6 +300,9 @@ class Camera : public StaticFactory
 
 	/* Creates a vulkan commandbuffer handle used to record the renderpass. */
 	void create_command_buffers(uint32_t count);
+
+	/* TODO: Explain this */
+	void create_query_pool();
 
 	/* TODO: Explain this */
 	void create_semaphores();

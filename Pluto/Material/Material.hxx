@@ -94,6 +94,9 @@ class Material : public StaticFactory
         /* Records a draw of the supplied entity to the current command buffer. Call this during a renderpass. */
         static void DrawVolume(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants, RenderMode rendermode_override = RenderMode::NONE); // int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time
 
+        /* TODO... */
+        static void ResetBoundMaterial();
+
         /* Creates an uninitialized material. Useful for preallocation. */
         Material();
 
@@ -126,20 +129,26 @@ class Material : public StaticFactory
         void set_ior(float ior);
 
         /* Certain constant material properties can be replaced with texture lookups. */
-        void use_base_color_texture(uint32_t texture_id);
-        void use_base_color_texture(Texture *texture);
+        void set_base_color_texture(uint32_t texture_id);
+        void set_base_color_texture(Texture *texture);
         void clear_base_color_texture();
 
-        void use_roughness_texture(uint32_t texture_id);
-        void use_roughness_texture(Texture *texture);
+        void set_roughness_texture(uint32_t texture_id);
+        void set_roughness_texture(Texture *texture);
         void clear_roughness_texture();
 
         /* A uniform base color can be replaced with per-vertex colors as well. */
         void use_vertex_colors(bool use);
 
         /* The volume texture to be used by volume type materials */
-        void use_volume_texture(uint32_t texture_id);
-        void use_volume_texture(Texture *texture);
+        void set_volume_texture(uint32_t texture_id);
+        void set_volume_texture(Texture *texture);
+
+        void set_transfer_function_texture(uint32_t texture_id);
+        void set_transfer_function_texture(Texture *texture);
+        void clear_transfer_function_texture();
+
+
     private:
     
         /*  A list of the material components, allocated statically */
@@ -255,4 +264,8 @@ class Material : public StaticFactory
         MaterialStruct material_struct;
         
         RenderMode renderMode = PBR;
+
+        static RenderMode currentlyBoundRenderMode;
+
+        static vk::RenderPass currentRenderpass;
 };

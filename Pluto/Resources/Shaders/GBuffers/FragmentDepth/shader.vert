@@ -14,8 +14,10 @@ void main() {
     #else
     int viewIndex = gl_ViewIndex;
     #endif
-
     fragTexCoord = texcoord;
-    gl_Position = camera.multiviews[viewIndex].proj * camera.multiviews[viewIndex].view * camera_transform.worldToLocal * target_transform.localToWorld * vec4(point.xyz, 1.0);
+    gl_Position = camera.multiviews[viewIndex].proj * camera.multiviews[viewIndex].view * 
+        camera_transform.worldToLocalRotation * camera_transform.worldToLocalTranslation * 
+        target_transform.localToWorld * vec4(point.xyz, 1.0);
+    // gl_Position = camera.multiviews[viewIndex].proj * camera.multiviews[viewIndex].view * camera_transform.worldToLocal * target_transform.localToWorld * vec4(point.xyz, 1.0);
     gl_Position -= vec4(0.0, 0.0, .0001, 0.0);
 }

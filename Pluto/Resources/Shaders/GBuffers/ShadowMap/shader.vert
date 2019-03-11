@@ -31,5 +31,6 @@ void main() {
     #else
     int viewIndex = gl_ViewIndex;
     #endif
-    gl_Position = camera.multiviews[viewIndex].proj * camera.multiviews[viewIndex].view * camera_transform.worldToLocalRotation * camera_transform.worldToLocalTranslation * vec4(w_position, 1.0);
+    gl_Position = camera.multiviews[viewIndex].proj * camera.multiviews[viewIndex].view * 
+                    camera_transform.worldToLocalRotation * camera_transform.worldToLocalTranslation * vec4(w_position, 1.0);
 }
