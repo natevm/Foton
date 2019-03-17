@@ -39,6 +39,10 @@
 
 Mesh Mesh::meshes[MAX_MESHES];
 std::map<std::string, uint32_t> Mesh::lookupTable;
+vk::Buffer Mesh::SSBO;
+vk::DeviceMemory Mesh::SSBOMemory;
+vk::Buffer Mesh::stagingSSBO;
+vk::DeviceMemory Mesh::stagingSSBOMemory;
 vk::AccelerationStructureNV Mesh::topAS;
 vk::DeviceMemory Mesh::topASMemory;
 vk::Buffer Mesh::instanceBuffer;
@@ -174,42 +178,42 @@ uint32_t Mesh::get_index_bytes()
 void Mesh::compute_metadata()
 {
 	glm::vec3 s(0.0);
-	bbmin = glm::vec3(0.0f);
-	bbmax = glm::vec3(0.0f);
+	mesh_struct.bbmin = glm::vec3(0.0f);
+	mesh_struct.bbmax = glm::vec3(0.0f);
 	for (int i = 0; i < points.size(); i += 1)
 	{
 		s += points[i];
-		bbmin = glm::min(points[i], bbmin);
-		bbmax = glm::max(points[i], bbmax);
+		mesh_struct.bbmin = glm::min(points[i], mesh_struct.bbmin);
+		mesh_struct.bbmax = glm::max(points[i], mesh_struct.bbmax);
 	}
 	s /= points.size();
-	centroid = s;
+	mesh_struct.centroid = s;
 
-	bounding_sphere_radius = 0.0;
+	mesh_struct.bounding_sphere_radius = 0.0;
 	for (int i = 0; i < points.size(); i += 1) {
-		bounding_sphere_radius = std::max(bounding_sphere_radius, 
-			glm::distance(points[i], centroid));
+		mesh_struct.bounding_sphere_radius = std::max(mesh_struct.bounding_sphere_radius, 
+			glm::distance(points[i], mesh_struct.centroid));
 	}
 }
 
 glm::vec3 Mesh::get_centroid()
 {
-	return centroid;
+	return mesh_struct.centroid;
 }
 
 float Mesh::get_bounding_sphere_radius()
 {
-	return bounding_sphere_radius;
+	return mesh_struct.bounding_sphere_radius;
 }
 
 glm::vec3 Mesh::get_min_aabb_corner()
 {
-	return bbmin;
+	return mesh_struct.bbmin;
 }
 
 glm::vec3 Mesh::get_max_aabb_corner()
 {
-	return bbmax;
+	return mesh_struct.bbmax;
 }
 
 
@@ -243,8 +247,93 @@ void Mesh::cleanup()
 	device.freeMemory(texCoordBufferMemory);
 }
 
-void Mesh::Initialize() {    
+void Mesh::Initialize() {
+	CreateBox("BoundingBox");
 
+	auto vulkan = Libraries::Vulkan::Get();
+    auto device = vulkan->get_device();
+    if (device == vk::Device())
+        throw std::runtime_error( std::string("Invalid vulkan device"));
+
+    auto physical_device = vulkan->get_physical_device();
+    if (physical_device == vk::PhysicalDevice())
+        throw std::runtime_error( std::string("Invalid vulkan physical device"));
+
+    {
+        vk::BufferCreateInfo bufferInfo = {};
+        bufferInfo.size = MAX_MESHES * sizeof(MeshStruct);
+        bufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+        bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+        stagingSSBO = device.createBuffer(bufferInfo);
+
+        vk::MemoryRequirements memReqs = device.getBufferMemoryRequirements(stagingSSBO);
+        vk::MemoryAllocateInfo allocInfo = {};
+        allocInfo.allocationSize = memReqs.size;
+
+        vk::PhysicalDeviceMemoryProperties memProperties = physical_device.getMemoryProperties();
+        vk::MemoryPropertyFlags properties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+        allocInfo.memoryTypeIndex = vulkan->find_memory_type(memReqs.memoryTypeBits, properties);
+
+        stagingSSBOMemory = device.allocateMemory(allocInfo);
+        device.bindBufferMemory(stagingSSBO, stagingSSBOMemory, 0);
+    }
+
+    {
+        vk::BufferCreateInfo bufferInfo = {};
+        bufferInfo.size = MAX_MESHES * sizeof(MeshStruct);
+        bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst ;
+        bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+        SSBO = device.createBuffer(bufferInfo);
+
+        vk::MemoryRequirements memReqs = device.getBufferMemoryRequirements(SSBO);
+        vk::MemoryAllocateInfo allocInfo = {};
+        allocInfo.allocationSize = memReqs.size;
+
+        vk::PhysicalDeviceMemoryProperties memProperties = physical_device.getMemoryProperties();
+        vk::MemoryPropertyFlags properties = vk::MemoryPropertyFlagBits::eDeviceLocal;
+        allocInfo.memoryTypeIndex = vulkan->find_memory_type(memReqs.memoryTypeBits, properties);
+
+        SSBOMemory = device.allocateMemory(allocInfo);
+        device.bindBufferMemory(SSBO, SSBOMemory, 0);
+    }
+}
+
+void Mesh::UploadSSBO(vk::CommandBuffer command_buffer)
+{
+    auto vulkan = Libraries::Vulkan::Get();
+    auto device = vulkan->get_device();
+
+    if (SSBOMemory == vk::DeviceMemory()) return;
+    if (stagingSSBOMemory == vk::DeviceMemory()) return;
+
+    auto bufferSize = MAX_MESHES * sizeof(MeshStruct);
+
+    /* Pin the buffer */
+	auto pinnedMemory = (MeshStruct*) device.mapMemory(stagingSSBOMemory, 0, bufferSize);
+	if (pinnedMemory == nullptr) return;
+	
+	for (uint32_t i = 0; i < MAX_MESHES; ++i) {
+		if (!meshes[i].is_initialized()) continue;
+		pinnedMemory[i] = meshes[i].mesh_struct;
+	};
+
+	device.unmapMemory(stagingSSBOMemory);
+
+    vk::BufferCopy copyRegion;
+	copyRegion.size = bufferSize;
+    command_buffer.copyBuffer(stagingSSBO, SSBO, copyRegion);
+}
+
+vk::Buffer Mesh::GetSSBO()
+{
+    if ((SSBO != vk::Buffer()) && (SSBOMemory != vk::DeviceMemory()))
+        return SSBO;
+    else return vk::Buffer();
+}
+
+uint32_t Mesh::GetSSBOSize()
+{
+    return MAX_MESHES * sizeof(MeshStruct);
 }
 
 void Mesh::load_obj(std::string objPath, bool allow_edits, bool submit_immediately)
@@ -1361,11 +1450,11 @@ Mesh* Mesh::CreateSpring(std::string name, bool allow_edits, bool submit_immedia
 	return mesh;
 }
 
-Mesh* Mesh::CreateTeapot(std::string name, bool allow_edits, bool submit_immediately)
+Mesh* Mesh::CreateTeapotahedron(std::string name, uint32_t segments, bool allow_edits, bool submit_immediately)
 {
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
-	generator::TeapotMesh gen_mesh{};
+	generator::TeapotMesh gen_mesh(segments);
 	mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
 	return mesh;
 }
@@ -1713,11 +1802,12 @@ void Mesh::createIndexBuffer(bool allow_edits, bool submit_immediately)
 	device.unmapMemory(stagingBufferMemory);
 
 	vk::MemoryPropertyFlags memoryProperties;
-	if (!allowEdits) memoryProperties = vk::MemoryPropertyFlagBits::eDeviceLocal;
-	else {
+	// if (!allowEdits) memoryProperties = vk::MemoryPropertyFlagBits::eDeviceLocal;
+	// else {
 		memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible;
 		memoryProperties |= vk::MemoryPropertyFlagBits::eHostCoherent;
-	}
+	// }
+	// Why cant I create a device local index buffer?..
 	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, memoryProperties, indexBuffer, indexBufferMemory);
 	
 	auto cmd = vulkan->begin_one_time_graphics_command();
@@ -1800,4 +1890,15 @@ void Mesh::createTexCoordBuffer(bool allow_edits, bool submit_immediately)
 	/* Clean up the staging buffer */
 	device.destroyBuffer(stagingBuffer);
 	device.freeMemory(stagingBufferMemory);
+}
+
+/* TODO */
+void Mesh::show_bounding_box(bool should_show)
+{
+	this->showBoundingBox = should_show;
+}
+
+bool Mesh::should_show_bounding_box()
+{
+	return showBoundingBox;
 }

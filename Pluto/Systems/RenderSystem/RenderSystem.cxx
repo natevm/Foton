@@ -192,16 +192,15 @@ void RenderSystem::record_cameras()
 
         /* Begin recording */
         vk::CommandBufferBeginInfo beginInfo;
+        if (cameras[cam_id].needs_command_buffers()) cameras[cam_id].create_command_buffers();
         vk::CommandBuffer command_buffer = cameras[cam_id].get_command_buffer();
-        auto query_pool = cameras[cam_id].get_query_pool();
         
-        beginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
+        beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
         command_buffer.begin(beginInfo);
 
-        auto visible_entites = cameras[cam_id].get_visible_entities(entity_id);
+        auto visible_entities = cameras[cam_id].get_visible_entities(entity_id);
 
         /* Record Z prepasses / Occlusion query  */
-        
         cameras[cam_id].reset_query_pool(command_buffer);
 
         if ((!skip) && (!Options::IsClient()) && (cameras[cam_id].should_record_depth_prepass())) {
@@ -217,9 +216,10 @@ void RenderSystem::record_cameras()
                 
 
                 cameras[cam_id].begin_depth_prepass(command_buffer, rp_idx);
-                for (uint32_t i = 0; i < visible_entites.size(); ++i) {
-                    auto target_id = visible_entites[i].second->get_id();
+                for (uint32_t i = 0; i < visible_entities.size(); ++i) {
+                    auto target_id = visible_entities[i].second->get_id();
 
+                    // if (cameras[cam_id].is_entity_visible(target_id) {
                     /* This is a problem, since a single entity may be drawn multiple times on devices
                     not supporting multiview, (mac). Might need to increase query pool size to MAX_ENTITIES * renderpass count */
                     cameras[cam_id].begin_visibility_query(command_buffer, target_id, i);
@@ -228,9 +228,11 @@ void RenderSystem::record_cameras()
                     push_constants.target_id = target_id;
                     push_constants.camera_id = entity_id;
                     push_constants.viewIndex = rp_idx;
-                    Material::DrawEntity(command_buffer, rp, *visible_entites[i].second, push_constants, RenderMode::FRAGMENTDEPTH);
+                    Material::DrawEntity(command_buffer, rp, *visible_entities[i].second, push_constants, RenderMode::FRAGMENTDEPTH);
 
                     cameras[cam_id].end_visibility_query(command_buffer, target_id, i);
+                    // }
+
                 }
                 cameras[cam_id].end_depth_prepass(command_buffer, rp_idx);
             }
@@ -250,27 +252,27 @@ void RenderSystem::record_cameras()
                 Material::BindDescriptorSets(command_buffer, rp);
                 
                 cameras[cam_id].begin_renderpass(command_buffer, rp_idx);
-                for (uint32_t i = 0; i < visible_entites.size(); ++i) {
-                    auto target_id = visible_entites[i].second->get_id();
+                for (uint32_t i = 0; i < visible_entities.size(); ++i) {
+                    auto target_id = visible_entities[i].second->get_id();
 
                     if (cameras[cam_id].is_entity_visible(target_id) || (!cameras[cam_id].should_record_depth_prepass())) {
                         push_constants.target_id = target_id;
                         push_constants.camera_id = entity_id;
                         push_constants.viewIndex = rp_idx;
-                        Material::DrawEntity(command_buffer, rp, *visible_entites[i].second, push_constants, cameras[cam_id].get_rendermode_override());
+                        Material::DrawEntity(command_buffer, rp, *visible_entities[i].second, push_constants, cameras[cam_id].get_rendermode_override());
                     }
                 }
                 
                 /* Draw transparent objects last */
-                for (uint32_t i = 0; i < visible_entites.size(); ++i)
+                for (uint32_t i = 0; i < visible_entities.size(); ++i)
                 {
-                    auto target_id = visible_entites[i].second->get_id();
+                    auto target_id = visible_entities[i].second->get_id();
 
                     if (cameras[cam_id].is_entity_visible(target_id) || (!cameras[cam_id].should_record_depth_prepass())) {
                         push_constants.target_id = target_id;
                         push_constants.camera_id = entity_id;
                         push_constants.viewIndex = rp_idx;
-                        Material::DrawVolume(command_buffer, rp, *visible_entites[i].second, push_constants, cameras[cam_id].get_rendermode_override());
+                        Material::DrawVolume(command_buffer, rp, *visible_entities[i].second, push_constants, cameras[cam_id].get_rendermode_override());
                     }
                 }
                 cameras[cam_id].end_renderpass(command_buffer, rp_idx);
@@ -320,7 +322,7 @@ void RenderSystem::record_blit_textures()
     auto glfw = GLFW::Get();
     auto window_to_tex = glfw->get_window_to_texture_map();
     vk::CommandBufferBeginInfo beginInfo;
-    beginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
+    beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
     main_command_buffer.begin(beginInfo);
     main_command_buffer_recorded = true;
     main_command_buffer_presenting = false;
@@ -345,17 +347,25 @@ void RenderSystem::record_blit_textures()
 
 void RenderSystem::record_render_commands()
 {
+    auto vulkan = Vulkan::Get();
+    auto device = vulkan->get_device();
+
     update_openvr_transforms();
     
+    auto upload_command = vulkan->begin_one_time_graphics_command();
+
     /* Upload SSBO data */
-    Material::UploadSSBO();
-    Transform::UploadSSBO();
-    Light::UploadSSBO();
-    Camera::UploadSSBO();
-    Entity::UploadSSBO();
-    Texture::UploadSSBO();
+    Material::UploadSSBO(upload_command);
+    Transform::UploadSSBO(upload_command);
+    Light::UploadSSBO(upload_command);
+    Camera::UploadSSBO(upload_command);
+    Entity::UploadSSBO(upload_command);
+    Texture::UploadSSBO(upload_command);
+    Mesh::UploadSSBO(upload_command);
     Material::UpdateRasterDescriptorSets();
     Material::UpdateRaytracingDescriptorSets();
+
+	vulkan->end_one_time_graphics_command(upload_command, "Upload SSBO Data", true, true);
     
     if (update_push_constants() == true) {
         record_cameras();
@@ -621,22 +631,26 @@ void RenderSystem::enqueue_render_commands() {
         }
     }
 
+    level_idx = 0;
     for (auto &level : compute_graph) {
         vk::SemaphoreCreateInfo semaphoreInfo;
         vk::FenceCreateInfo fenceInfo;
 
+        std::set<vk::Semaphore> wait_semaphores_set;
+        std::set<vk::Semaphore> signal_semaphores_set;
+        std::vector<vk::CommandBuffer> command_buffers;
+
+        vk::Fence possible_fence = vk::Fence();
+        
         for (auto &node : level) {
             /* Connect signal semaphores to wait semaphore slots in the graph */
-            std::vector<vk::Semaphore> wait_semaphores;
-            std::vector<vk::Semaphore> signal_semaphores;
-            std::vector<vk::PipelineStageFlags> wait_stage_masks;
             if (node->dependencies.size() > 0) {
                 for (auto &dependency : node->dependencies) {
                     for (uint32_t i = 0; i < dependency->children.size(); ++i) {
                         if (dependency->children[i] == node) {
-                            wait_semaphores.push_back(dependency->signal_semaphores[i]);
+                            wait_semaphores_set.insert(dependency->signal_semaphores[i]);
                             // Todo: optimize this 
-                            wait_stage_masks.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+                            // wait_stage_masks.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
                             break;
                         }
                     }
@@ -647,20 +661,48 @@ void RenderSystem::enqueue_render_commands() {
             for (auto &window_key : node->connected_windows) {
                 auto image_available = glfw->get_image_available_semaphore(window_key, currentFrame);
                 if (image_available != vk::Semaphore()) {
-                    wait_semaphores.push_back(image_available);
-                    wait_stage_masks.push_back(vk::PipelineStageFlagBits::eBottomOfPipe);
+                    wait_semaphores_set.insert(image_available);
+                    // wait_stage_masks.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
                 }
             }
 
             for (auto &signal_semaphore : node->signal_semaphores) 
-                signal_semaphores.push_back(signal_semaphore);
+                signal_semaphores_set.insert(signal_semaphore);
 
             for (auto &signal_semaphore : node->window_signal_semaphores)
-                signal_semaphores.push_back(signal_semaphore);
+                signal_semaphores_set.insert(signal_semaphore);
 
-            vulkan->enqueue_graphics_commands(node->command_buffers, wait_semaphores, wait_stage_masks, signal_semaphores, 
-                node->fence, "draw call lvl " + std::to_string(node->level) + " queue " + std::to_string(node->queue_idx), node->queue_idx);
+            if (node->fence != vk::Fence()) {
+                if (possible_fence != vk::Fence()) throw std::runtime_error("Error, not expecting more than one fence per level!");
+                possible_fence = node->fence;
+            }
+
+            for (auto &command : node->command_buffers)
+                command_buffers.push_back(command);
+            
+            // For some reason, queues arent actually ran in parallel? Also calling submit many times turns out to be expensive...
+            // vulkan->enqueue_graphics_commands(node->command_buffers, wait_semaphores, wait_stage_masks, signal_semaphores, 
+            //     node->fence, "draw call lvl " + std::to_string(node->level) + " queue " + std::to_string(node->queue_idx), node->queue_idx);
         }
+
+        std::vector<vk::Semaphore> wait_semaphores;
+        std::vector<vk::PipelineStageFlags> wait_stage_masks;
+
+        /* Making hasty assumptions here about wait stage masks. */
+        for (auto &semaphore : wait_semaphores_set) {
+            wait_semaphores.push_back(semaphore);
+            wait_stage_masks.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+        }
+
+        std::vector<vk::Semaphore> signal_semaphores;
+        for (auto &semaphore : signal_semaphores_set) {
+            signal_semaphores.push_back(semaphore);
+        }
+        
+        vulkan->enqueue_graphics_commands(command_buffers, wait_semaphores, wait_stage_masks, signal_semaphores, 
+            possible_fence, "draw call lvl " + std::to_string(level_idx) + " queue " + std::to_string(0), 0);
+        
+        level_idx++;
     }
 }
 
@@ -679,7 +721,7 @@ void RenderSystem::release_vulkan_resources()
     if (!vulkan_resources_created) return;
 
     /* Release vulkan resources */
-    device.freeCommandBuffers(vulkan->get_command_pool(2), {main_command_buffer});
+    device.freeCommandBuffers(vulkan->get_command_pool(), {main_command_buffer});
     // device.destroyFence(main_fence);
     // for (auto &semaphore : main_command_buffer_semaphores)
     //     device.destroySemaphore(semaphore);
@@ -698,7 +740,7 @@ void RenderSystem::allocate_vulkan_resources()
     /* Create a main command buffer if one does not already exist */
     vk::CommandBufferAllocateInfo mainCmdAllocInfo;
     mainCmdAllocInfo.level = vk::CommandBufferLevel::ePrimary;
-    mainCmdAllocInfo.commandPool = vulkan->get_command_pool(2);
+    mainCmdAllocInfo.commandPool = vulkan->get_command_pool();
     mainCmdAllocInfo.commandBufferCount = max_frames_in_flight;
 
     vk::SemaphoreCreateInfo semaphoreInfo;

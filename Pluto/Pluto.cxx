@@ -51,12 +51,11 @@ void Initialize(
     event_system->use_openvr(useOpenVR);
     render_system->use_openvr(useOpenVR);
 
-    if (useGLFW) event_system->create_window("Window", 1, 1, false, false, false, false);
+    if (useGLFW) event_system->create_window("TEMP", 1, 1, false, false, false, false);
     vulkan->create_instance(validation_layers.size() > 0, validation_layers, instance_extensions, useOpenVR);
     
-    auto surface = (useGLFW) ? glfw->create_vulkan_surface(vulkan, "Window") : vk::SurfaceKHR();
+    auto surface = (useGLFW) ? glfw->create_vulkan_surface(vulkan, "TEMP") : vk::SurfaceKHR();
     vulkan->create_device(device_extensions, device_features, 8, surface, useOpenVR);
-    if (useGLFW) event_system->destroy_window("Window");
     
     /* Initialize Component Factories. Order is important. */
     Transform::Initialize();
@@ -88,6 +87,7 @@ void Initialize(
         Transform::Create("VRRightHand");
 	}
 #endif
+    if (useGLFW) event_system->destroy_window("TEMP");
 }
 
 void CleanUp()

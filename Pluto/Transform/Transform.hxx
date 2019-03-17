@@ -62,8 +62,10 @@ class Transform : public StaticFactory
     static Transform transforms[MAX_TRANSFORMS];
     static TransformStruct* pinnedMemory;
     static std::map<std::string, uint32_t> lookupTable;
-    static vk::Buffer transformSSBO;
-    static vk::DeviceMemory transformSSBOMemory;
+    static vk::Buffer stagingSSBO;
+    static vk::DeviceMemory stagingSSBOMemory;
+    static vk::Buffer SSBO;
+    static vk::DeviceMemory SSBOMemory;
 
   public:
     static Transform* Create(std::string name);
@@ -75,7 +77,7 @@ class Transform : public StaticFactory
     static void Delete(uint32_t id);
 
     static void Initialize();
-    static void UploadSSBO();
+    static void UploadSSBO(vk::CommandBuffer cmmand_buffer);
     static vk::Buffer GetSSBO();
     static uint32_t GetSSBOSize();
     static void CleanUp();

@@ -16,8 +16,10 @@ Texture Texture::textures[MAX_TEXTURES];
 vk::Sampler Texture::samplers[MAX_SAMPLERS];
 std::map<std::string, uint32_t> Texture::lookupTable;
 TextureStruct* Texture::pinnedMemory;
-vk::Buffer Texture::ssbo;
-vk::DeviceMemory Texture::ssboMemory;
+vk::Buffer Texture::SSBO;
+vk::DeviceMemory Texture::SSBOMemory;
+vk::Buffer Texture::stagingSSBO;
+vk::DeviceMemory Texture::stagingSSBOMemory;
 
 Texture::Texture()
 {
@@ -492,25 +494,43 @@ void Texture::Initialize()
     if (physical_device == vk::PhysicalDevice())
         throw std::runtime_error( std::string("Invalid vulkan physical device"));
 
-    vk::BufferCreateInfo bufferInfo = {};
-    bufferInfo.size = MAX_TEXTURES * sizeof(TextureStruct);
-    bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer;
-    bufferInfo.sharingMode = vk::SharingMode::eExclusive;
-    ssbo = device.createBuffer(bufferInfo);
+    {
+        vk::BufferCreateInfo bufferInfo = {};
+        bufferInfo.size = MAX_TEXTURES * sizeof(TextureStruct);
+        bufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+        bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+        stagingSSBO = device.createBuffer(bufferInfo);
 
-    vk::MemoryRequirements memReqs = device.getBufferMemoryRequirements(ssbo);
-    vk::MemoryAllocateInfo allocInfo = {};
-    allocInfo.allocationSize = memReqs.size;
+        vk::MemoryRequirements memReqs = device.getBufferMemoryRequirements(stagingSSBO);
+        vk::MemoryAllocateInfo allocInfo = {};
+        allocInfo.allocationSize = memReqs.size;
 
-    vk::PhysicalDeviceMemoryProperties memProperties = physical_device.getMemoryProperties();
-    vk::MemoryPropertyFlags properties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
-    allocInfo.memoryTypeIndex = vulkan->find_memory_type(memReqs.memoryTypeBits, properties);
+        vk::PhysicalDeviceMemoryProperties memProperties = physical_device.getMemoryProperties();
+        vk::MemoryPropertyFlags properties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+        allocInfo.memoryTypeIndex = vulkan->find_memory_type(memReqs.memoryTypeBits, properties);
 
-    ssboMemory = device.allocateMemory(allocInfo);
-    device.bindBufferMemory(ssbo, ssboMemory, 0);
+        stagingSSBOMemory = device.allocateMemory(allocInfo);
+        device.bindBufferMemory(stagingSSBO, stagingSSBOMemory, 0);
+    }
 
-    /* Pin the buffer */
-    pinnedMemory = (TextureStruct*) device.mapMemory(ssboMemory, 0, MAX_TEXTURES * sizeof(TextureStruct));
+    {
+        vk::BufferCreateInfo bufferInfo = {};
+        bufferInfo.size = MAX_TEXTURES * sizeof(TextureStruct);
+        bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst ;
+        bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+        SSBO = device.createBuffer(bufferInfo);
+
+        vk::MemoryRequirements memReqs = device.getBufferMemoryRequirements(SSBO);
+        vk::MemoryAllocateInfo allocInfo = {};
+        allocInfo.allocationSize = memReqs.size;
+
+        vk::PhysicalDeviceMemoryProperties memProperties = physical_device.getMemoryProperties();
+        vk::MemoryPropertyFlags properties = vk::MemoryPropertyFlagBits::eDeviceLocal;
+        allocInfo.memoryTypeIndex = vulkan->find_memory_type(memReqs.memoryTypeBits, properties);
+
+        SSBOMemory = device.allocateMemory(allocInfo);
+        device.bindBufferMemory(SSBO, SSBOMemory, 0);
+    }
 
     /* Create a sampler to sample from the attachment in the fragment shader */
     vk::SamplerCreateInfo sInfo;
@@ -530,8 +550,19 @@ void Texture::Initialize()
 }
 
 
-void Texture::UploadSSBO()
+void Texture::UploadSSBO(vk::CommandBuffer command_buffer)
 {
+    auto vulkan = Libraries::Vulkan::Get();
+    auto device = vulkan->get_device();
+
+    if (SSBOMemory == vk::DeviceMemory()) return;
+    if (stagingSSBOMemory == vk::DeviceMemory()) return;
+
+    auto bufferSize = MAX_TEXTURES * sizeof(TextureStruct);
+
+    /* Pin the buffer */
+    pinnedMemory = (TextureStruct*) device.mapMemory(stagingSSBOMemory, 0, bufferSize);
+
     if (pinnedMemory == nullptr) return;
     TextureStruct texture_structs[MAX_TEXTURES];
     
@@ -543,11 +574,19 @@ void Texture::UploadSSBO()
 
     /* Copy to GPU mapped memory */
     memcpy(pinnedMemory, texture_structs, sizeof(texture_structs));
+
+    device.unmapMemory(stagingSSBOMemory);
+
+    vk::BufferCopy copyRegion;
+	copyRegion.size = bufferSize;
+    command_buffer.copyBuffer(stagingSSBO, SSBO, copyRegion);
 }
 
 vk::Buffer Texture::GetSSBO()
 {
-    return ssbo;
+    if ((SSBO != vk::Buffer()) && (SSBOMemory != vk::DeviceMemory()))
+        return SSBO;
+    else return vk::Buffer();
 }
 
 uint32_t Texture::GetSSBOSize()
@@ -573,9 +612,11 @@ void Texture::CleanUp()
         }
     }
 
-    device.destroyBuffer(ssbo);
-    device.unmapMemory(ssboMemory);
-    device.freeMemory(ssboMemory);
+    device.destroyBuffer(SSBO);
+    device.freeMemory(SSBOMemory);
+
+    device.destroyBuffer(stagingSSBO);
+    device.freeMemory(stagingSSBOMemory);
 }
 
 std::vector<vk::ImageView> Texture::GetImageViews(vk::ImageViewType view_type) 
@@ -747,6 +788,14 @@ void Texture::setImageLayout(
         0, nullptr,
         0, nullptr,
         1, &imageMemoryBarrier);
+}
+
+void Texture::overrideColorImageLayout(vk::ImageLayout layout) {
+    data.colorImageLayout = layout;
+}
+
+void Texture::overrideDepthImageLayout(vk::ImageLayout layout) {
+    data.depthImageLayout = layout;
 }
 
 void Texture::loadKTX(std::string imagePath, bool submit_immediately)
@@ -1599,7 +1648,7 @@ Texture* Texture::Create2D(
     if (tex->data.sampleCount != sampleFlag)
         std::cout<<"Warning: provided sample count is larger than max supported sample count on the device. Using " 
             << vk::to_string(tex->data.sampleCount) << " instead."<<std::endl;
-    if (hasColor) tex->create_color_image_resources(submit_immediately, false);
+    if (hasColor) tex->create_color_image_resources(submit_immediately, false); 
     if (hasDepth) tex->create_depth_stencil_resources(submit_immediately);
 
     tex->texture_struct.sampler_id = 0;
@@ -1683,7 +1732,7 @@ uint32_t Texture::GetCount() {
     return MAX_TEXTURES;
 }
 
-void Texture::make_renderable(vk::CommandBuffer commandBuffer)
+void Texture::make_renderable(vk::CommandBuffer commandBuffer, vk::PipelineStageFlags srcStageMask, vk::PipelineStageFlags dstStageMask)
 {
 
     if (this->data.colorImageLayout != vk::ImageLayout::eColorAttachmentOptimal)
@@ -1701,7 +1750,7 @@ void Texture::make_renderable(vk::CommandBuffer commandBuffer)
             this->data.colorImage,
             this->data.colorImageLayout,
             vk::ImageLayout::eColorAttachmentOptimal,
-            subresourceRange);
+            subresourceRange, srcStageMask, dstStageMask);
         this->data.colorImageLayout = vk::ImageLayout::eColorAttachmentOptimal;
     }
 
@@ -1720,12 +1769,14 @@ void Texture::make_renderable(vk::CommandBuffer commandBuffer)
             this->data.depthImage,
             this->data.depthImageLayout,
             vk::ImageLayout::eDepthStencilAttachmentOptimal,
-            subresourceRange);
+            subresourceRange, srcStageMask, dstStageMask);
         this->data.depthImageLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
     }
 }
 
-void Texture::make_samplable(vk::CommandBuffer commandBuffer)
+void Texture::make_samplable(vk::CommandBuffer commandBuffer, 
+    vk::PipelineStageFlags srcStageMask,
+	vk::PipelineStageFlags dstStageMask)
 {
     if (this->data.colorImageLayout != vk::ImageLayout::eShaderReadOnlyOptimal) {
         /* Transition destination image to transfer destination optimal */
@@ -1741,7 +1792,7 @@ void Texture::make_samplable(vk::CommandBuffer commandBuffer)
             this->data.colorImage,
             this->data.colorImageLayout,
             vk::ImageLayout::eShaderReadOnlyOptimal,
-            subresourceRange);
+            subresourceRange, srcStageMask, dstStageMask);
     }
     this->data.colorImageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
 }

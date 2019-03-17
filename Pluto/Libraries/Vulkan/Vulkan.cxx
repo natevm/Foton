@@ -6,6 +6,8 @@
 #include <iostream>
 #include <set>
 #include <string>
+#include <thread>
+// #include <hex>
 
 #include <vulkan/vulkan.hpp>
 
@@ -70,10 +72,10 @@ bool Vulkan::create_instance(bool enable_validation_layers, set<string> validati
 
     auto appInfo = vk::ApplicationInfo();
     appInfo.pApplicationName = "Pluto";
-    appInfo.applicationVersion = VK_MAKE_VERSION(1, 1, 97);
+    appInfo.applicationVersion = VK_MAKE_VERSION(1, 1, 96);
     appInfo.pEngineName = "Pluto";
-    appInfo.engineVersion = VK_MAKE_VERSION(1, 1, 97);
-    appInfo.apiVersion = VK_MAKE_VERSION(1, 1, 97);
+    appInfo.engineVersion = VK_MAKE_VERSION(1, 1, 96);
+    appInfo.apiVersion = VK_MAKE_VERSION(1, 1, 96);
 
     /* Determine the required instance extensions */
     uint32_t glfwExtensionCount = 0;
@@ -84,12 +86,12 @@ bool Vulkan::create_instance(bool enable_validation_layers, set<string> validati
         instanceExtensions.insert(glfwExtensions[i]);
 
     validationEnabled = enable_validation_layers;
-    if (validationEnabled)
+    if (validationEnabled) 
         instanceExtensions.insert(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
 
     for (auto &string : instance_extensions){
         instanceExtensions.insert(string);
-        std::cout<<"Enabling validation layer: " << string << std::endl;
+        std::cout<<"Enabling instance extension: " << string << std::endl;
     }
     
 #if BUILD_OPENVR
@@ -114,13 +116,11 @@ bool Vulkan::create_instance(bool enable_validation_layers, set<string> validati
     {
         bool extensionFound = false;
         for (auto extensionProp : extensionProperties)
-            if (requestedExtension.compare(extensionProp.extensionName) == 0)
-            {
+            if (requestedExtension.compare(extensionProp.extensionName) == 0) {
                 extensionFound = true;
                 break;
             }
-        if (!extensionFound)
-        {
+        if (!extensionFound) {
             throw std::runtime_error("Error: missing extension " + string(requestedExtension));
         }
     }
@@ -136,15 +136,18 @@ bool Vulkan::create_instance(bool enable_validation_layers, set<string> validati
     {
         bool layerFound = false;
         for (auto layerProp : layerProperties)
-            if (requestedLayer.compare(layerProp.layerName) == 0)
-            {
+            if (requestedLayer.compare(layerProp.layerName) == 0) {
                 layerFound = true;
                 break;
             }
         if (!layerFound)
         {
-            cout << "Missing validation layer " + string(requestedLayer) << endl;
-            return false;
+            std::string available_validation_layers = "";
+            for (auto layerProp : layerProperties) {
+                available_validation_layers += std::string(layerProp.layerName) + std::string(" , ");
+            }
+            throw std::runtime_error("Error: missing validation layer " + string(requestedLayer) + "\n" 
+            + "Available layers are " + available_validation_layers);
         }
     }
 
@@ -163,13 +166,14 @@ bool Vulkan::create_instance(bool enable_validation_layers, set<string> validati
     instance = vk::createInstance(info);
 
     /* This dispatch loader allows us to call extension functions */
-    dldi = vk::DispatchLoaderDynamic(instance);
+    dldi = vk::DispatchLoaderDynamic(instance, device);
 
     /* Add an internal callback for the validation layers */
     if (validationEnabled)
     {
         auto createCallbackInfo = vk::DebugReportCallbackCreateInfoEXT();
-        createCallbackInfo.flags = vk::DebugReportFlagBitsEXT::eWarning | vk::DebugReportFlagBitsEXT::eError;
+        createCallbackInfo.flags = vk::DebugReportFlagBitsEXT::eDebug | /*vk::DebugReportFlagBitsEXT::eInformation | */
+            vk::DebugReportFlagBitsEXT::ePerformanceWarning | vk::DebugReportFlagBitsEXT::eWarning | vk::DebugReportFlagBitsEXT::eError ;
         createCallbackInfo.pfnCallback = DebugCallback;
 
         /* The function to assign a callback for validation layers isn't loaded by default. Here, we get that function. */
@@ -226,6 +230,9 @@ vk::DispatchLoaderDynamic Vulkan::get_dldi()
 /* Vulkan Device */ 
 bool Vulkan::create_device(set<string> device_extensions, set<string> device_features, uint32_t num_command_pools, vk::SurfaceKHR surface, bool use_openvr)
 {
+    if (instance == vk::Instance())
+        throw std::runtime_error("Error: Cannot create device. Vulkan instance is null.");
+
     if (device)
         return false;
 
@@ -432,6 +439,10 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
     /* We now need to create a logical device, which is like an instance of a physical device */
     std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
     
+    std::cout<<"TEMPORARY4"<<std::endl;
+    numGraphicsQueues = 1;
+    numPresentQueues = 1;
+    
     /* Add these queue create infos to a vector to be used when creating the logical device */
     /* Vulkan allows you to specify a queue priority between 0 and one, which influences scheduling */
     
@@ -472,11 +483,20 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
     device = physicalDevice.createDevice(createInfo);
 
     /* Queues are implicitly created when creating device. This just gets handles. */
-    for (uint32_t i = 0; i < numGraphicsQueues; ++i)
+    for (uint32_t i = 0; i < numGraphicsQueues; ++i) {
         graphicsQueues.push_back(device.getQueue(graphicsFamilyIndex, i));
+        std::cout<<"TEMPORARY1"<<std::endl;
+        numGraphicsQueues = 1;
+        break;
+    }
     if (surface)
         for (uint32_t i = 0; i < numPresentQueues; ++i)
+        {
             presentQueues.push_back(device.getQueue(presentFamilyIndex, i));
+            std::cout<<"TEMPORARY2"<<std::endl;
+            numPresentQueues = 1;
+            break;
+        }
 
     /* Command pools manage the memory that is used to store the buffers and command buffers are allocated from them */
     for (uint32_t i = 0; i < num_command_pools; ++i) {
@@ -789,10 +809,15 @@ uint32_t Vulkan::get_present_family() const
     return presentFamilyIndex;
 }
 
-vk::CommandPool Vulkan::get_command_pool(uint32_t index) const
+vk::CommandPool Vulkan::get_command_pool() const
 {
+    auto vulkan = Get();
+    uint32_t index = vulkan->get_thread_id();
     if (index >= commandPools.size())
         throw std::runtime_error("Error: max command pool index is " + std::to_string(commandPools.size() - 1) );
+
+    if (commandPools[index] == vk::CommandPool())
+        throw std::runtime_error("Error: command pool at index " + std::to_string(index) + " was null!" );
         
     return commandPools[index];
 }
@@ -821,24 +846,29 @@ vk::DispatchLoaderDynamic Vulkan::get_dispatch_loader_dynamic() const
 
 /* Utility functions */
 
-uint32_t Vulkan::find_memory_type(uint32_t typeFilter, vk::MemoryPropertyFlags properties) {
+uint32_t Vulkan::find_memory_type(uint32_t typeBits, vk::MemoryPropertyFlags properties)
+{
     /* Query available device memory properties */
-    vk::PhysicalDeviceMemoryProperties memProperties = physicalDevice.getMemoryProperties();
+    vk::PhysicalDeviceMemoryProperties memoryProperties = physicalDevice.getMemoryProperties();
     
-    /* Try to find some memory that matches the type we'd like. */
-    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-            return i;
+    for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++)
+    {
+        if ((typeBits & 1) == 1)
+        {
+            if ((memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
+            {
+                return i;
+            }
         }
+        typeBits >>= 1;
     }
 
-    return -1;
+    throw std::runtime_error("Could not find a matching memory type");
 }
 
 vk::CommandBuffer Vulkan::begin_one_time_graphics_command() {
-    uint32_t pool_id = get_thread_id();
     vk::CommandBufferAllocateInfo cmdAllocInfo;
-    cmdAllocInfo.commandPool = get_command_pool(pool_id);
+    cmdAllocInfo.commandPool = get_command_pool();
     cmdAllocInfo.level = vk::CommandBufferLevel::ePrimary;
     cmdAllocInfo.commandBufferCount = 1;
     vk::CommandBuffer cmdBuffer = device.allocateCommandBuffers(cmdAllocInfo)[0];
@@ -861,6 +891,8 @@ bool Vulkan::end_one_time_graphics_command(vk::CommandBuffer command_buffer, std
 
     if (submit_immediately) submit_graphics_commands();
 
+    // std::cout<<"Pool id: " << pool_id << " pool " << std::to_string((uint32_t)VkCommandPool(get_command_pool())) << " msg " << hint << std::endl;
+
     fut.wait();
 
     auto result = device.waitForFences(fence, true, 10000000000);
@@ -869,7 +901,7 @@ bool Vulkan::end_one_time_graphics_command(vk::CommandBuffer command_buffer, std
     }
 
     if (free_after_use)
-        device.freeCommandBuffers(get_command_pool(pool_id), {command_buffer});
+        device.freeCommandBuffers(get_command_pool(), {command_buffer});
     device.destroyFence(fence);
     return true;
 }
@@ -1014,7 +1046,9 @@ bool Vulkan::flush_queues()
 uint32_t Vulkan::get_thread_id() {
     /* Todo: make this thread safe */
     if (thread_id == -1) {
+        std::lock_guard<std::mutex> lock(thread_id_mutex);
         thread_id = registered_threads;
+        std::cout<<"Designating " << std::hex << thread_id << " to thread id " << std::this_thread::get_id() << std::endl;
         registered_threads++;
     }
     return thread_id;

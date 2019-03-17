@@ -10,8 +10,10 @@
 Camera Camera::cameras[MAX_CAMERAS];
 CameraStruct* Camera::pinnedMemory;
 std::map<std::string, uint32_t> Camera::lookupTable;
-vk::Buffer Camera::ssbo;
-vk::DeviceMemory Camera::ssboMemory;
+vk::Buffer Camera::SSBO;
+vk::DeviceMemory Camera::SSBOMemory;
+vk::Buffer Camera::stagingSSBO;
+vk::DeviceMemory Camera::stagingSSBOMemory;
 int32_t Camera::minRenderOrder = 0;
 int32_t Camera::maxRenderOrder = 0;
 
@@ -19,6 +21,10 @@ using namespace Libraries;
 
 void Camera::setup(bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers, bool use_depth_prepass)
 {
+	if ((tex_width == 0) || (tex_height == 0)) {
+		throw std::runtime_error("Error: width and height of camera " + name + " texture must be greater than zero!");
+	}
+
 	this->use_depth_prepass = use_depth_prepass;
 	layers = (cubemap) ? 6 : layers;
 	if (layers > MAX_MULTIVIEW)
@@ -46,10 +52,11 @@ void Camera::setup(bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32
 		camera_struct.multiviews[i].tex_id = (msaa_samples != 1) ? resolveTexture->get_id() : renderTexture->get_id();
 	}
 
-	create_command_buffers(layers);
+	/* Since the main renderloop needs to use these command buffers, the main renderloop must create them */
+	// create_command_buffers();
 	create_semaphores();
 	create_fences();
-	create_render_passes(tex_width, tex_height, layers, msaa_samples);
+	create_render_passes(layers, msaa_samples);
 	create_frame_buffers(layers);
 	create_query_pool();
 	for(auto renderpass : renderpasses) {
@@ -76,12 +83,17 @@ void Camera::create_query_pool()
 	queryResults.resize(MAX_ENTITIES + 1, 1);
 }
 
-void Camera::create_command_buffers(uint32_t count)
+bool Camera::needs_command_buffers()
+{
+	return (command_buffer == vk::CommandBuffer());
+}
+
+void Camera::create_command_buffers()
 {
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
 	vk::CommandBufferAllocateInfo cmdAllocInfo;
-    cmdAllocInfo.commandPool = vulkan->get_command_pool(1);
+    cmdAllocInfo.commandPool = vulkan->get_command_pool();
     cmdAllocInfo.level = vk::CommandBufferLevel::ePrimary;
     cmdAllocInfo.commandBufferCount = 1;
     command_buffer = device.allocateCommandBuffers(cmdAllocInfo)[0];
@@ -115,7 +127,7 @@ void Camera::create_fences()
 	}
 }
 
-void Camera::create_render_passes(uint32_t framebufferWidth, uint32_t framebufferHeight, uint32_t layers, uint32_t sample_count)
+void Camera::create_render_passes(uint32_t layers, uint32_t sample_count)
 {
     renderpasses.clear();
     depthPrepasses.clear();
@@ -141,12 +153,12 @@ void Camera::create_render_passes(uint32_t framebufferWidth, uint32_t framebuffe
         colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;
         colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
         colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-        colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
-        colorAttachment.finalLayout = renderTexture->get_color_image_layout();
+        colorAttachment.initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
+        colorAttachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
 
         vk::AttachmentReference colorAttachmentRef;
         colorAttachmentRef.attachment = 0;
-        colorAttachmentRef.layout = renderTexture->get_color_image_layout();
+        colorAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
         #pragma endregion
 
         #pragma region CreateDepthAttachment
@@ -154,15 +166,15 @@ void Camera::create_render_passes(uint32_t framebufferWidth, uint32_t framebuffe
         depthAttachment.format = renderTexture->get_depth_format();
         depthAttachment.samples = sampleFlag;
         depthAttachment.loadOp = vk::AttachmentLoadOp::eClear;
-        depthAttachment.storeOp = vk::AttachmentStoreOp::eDontCare; 
+        depthAttachment.storeOp = vk::AttachmentStoreOp::eStore; 
         depthAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
         depthAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-        depthAttachment.initialLayout = vk::ImageLayout::eUndefined;
-        depthAttachment.finalLayout = renderTexture->get_depth_image_layout();
+        depthAttachment.initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+        depthAttachment.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 
         vk::AttachmentReference depthAttachmentRef;
         depthAttachmentRef.attachment = 1;
-        depthAttachmentRef.layout = renderTexture->get_depth_image_layout();
+        depthAttachmentRef.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
         #pragma endregion
 
         #pragma region ColorAttachmentResolve
@@ -174,12 +186,12 @@ void Camera::create_render_passes(uint32_t framebufferWidth, uint32_t framebuffe
         colorAttachmentResolve.storeOp = vk::AttachmentStoreOp::eStore;
         colorAttachmentResolve.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
         colorAttachmentResolve.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-        colorAttachmentResolve.initialLayout = vk::ImageLayout::eUndefined;
-        colorAttachmentResolve.finalLayout = renderTexture->get_color_image_layout();
+        colorAttachmentResolve.initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
+        colorAttachmentResolve.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
 
         vk::AttachmentReference colorAttachmentResolveRef;
         colorAttachmentResolveRef.attachment = 2;
-        colorAttachmentResolveRef.layout = renderTexture->get_color_image_layout();
+        colorAttachmentResolveRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
         #pragma endregion
 
         #pragma region CreateSubpass
@@ -245,21 +257,26 @@ void Camera::create_render_passes(uint32_t framebufferWidth, uint32_t framebuffe
 #endif
 		if (use_depth_prepass)
 		{
-			attachments[1].initialLayout = renderTexture->get_depth_image_layout();
-			attachments[1].finalLayout = renderTexture->get_depth_image_layout();
-			attachments[1].loadOp = vk::AttachmentLoadOp::eLoad;
+			/* Depth prepass will transition from undefined to optimal now. */
+			attachments[0].initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
+			attachments[0].finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
+			attachments[1].initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+			attachments[1].finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+
+			attachments[1].loadOp = vk::AttachmentLoadOp::eDontCare;
 			attachments[1].storeOp = vk::AttachmentStoreOp::eDontCare;
 			renderpasses.push_back(device.createRenderPass(renderPassInfo));
 			
+			/* Transition from undefined to attachment optimal in depth prepass. */
 			attachments[0].loadOp = vk::AttachmentLoadOp::eDontCare; // dont clear
 			attachments[0].storeOp = vk::AttachmentStoreOp::eDontCare;
 			attachments[0].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
 			attachments[0].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-			attachments[0].initialLayout = vk::ImageLayout::eUndefined;
-			attachments[0].finalLayout = vk::ImageLayout::eUndefined;
+			attachments[0].initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
+			attachments[0].finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
 
-			attachments[1].initialLayout = vk::ImageLayout::eUndefined;
-			attachments[1].finalLayout = renderTexture->get_depth_image_layout();
+			attachments[1].initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+			attachments[1].finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 			attachments[1].loadOp = vk::AttachmentLoadOp::eClear;
 			attachments[1].storeOp = vk::AttachmentStoreOp::eStore;
         	depthPrepasses.push_back(device.createRenderPass(renderPassInfo));
@@ -481,10 +498,8 @@ void Camera::begin_renderpass(vk::CommandBuffer command_buffer, uint32_t index)
     if(index >= renderpasses.size())
         throw std::runtime_error( std::string("Error: renderpass index out of bounds"));
 
-	if (renderOrder < 0) {
-		renderTexture->make_renderable(command_buffer);
-	}
-
+	renderTexture->make_renderable(command_buffer);
+	
 	vk::RenderPassBeginInfo rpInfo;
 	rpInfo.renderPass = renderpasses[index];
 	rpInfo.framebuffer = framebuffers[index];
@@ -534,6 +549,9 @@ void Camera::end_renderpass(vk::CommandBuffer command_buffer, uint32_t index) {
 		
 	command_buffer.endRenderPass();
 
+	renderTexture->overrideColorImageLayout(vk::ImageLayout::eColorAttachmentOptimal);	
+	renderTexture->overrideDepthImageLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);	
+
 	/* hack for now*/ 
 	if (renderOrder < 0) {
 		renderTexture->make_samplable(command_buffer);
@@ -548,9 +566,7 @@ void Camera::begin_depth_prepass(vk::CommandBuffer command_buffer, uint32_t inde
     if(index >= depthPrepasses.size())
         throw std::runtime_error( std::string("Error: renderpass index out of bounds"));
 
-	if (renderOrder < 0) {
-		renderTexture->make_renderable(command_buffer);
-	}
+	renderTexture->make_renderable(command_buffer);
 
 	vk::RenderPassBeginInfo rpInfo;
 	rpInfo.renderPass = depthPrepasses[index];
@@ -598,10 +614,7 @@ void Camera::end_depth_prepass(vk::CommandBuffer command_buffer, uint32_t index)
 		
 	command_buffer.endRenderPass();
 
-	/* hack for now*/ 
-	if (renderOrder < 0) {
-		renderTexture->make_samplable(command_buffer);
-	}
+	renderTexture->overrideDepthImageLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);	
 }
 
 vk::RenderPass Camera::get_renderpass(uint32_t index)
@@ -746,29 +759,57 @@ void Camera::Initialize()
 	auto device = vulkan->get_device();
 	auto physical_device = vulkan->get_physical_device();
 
-	vk::BufferCreateInfo bufferInfo = {};
-	bufferInfo.size = MAX_CAMERAS * sizeof(CameraStruct);
-	bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer;
-	bufferInfo.sharingMode = vk::SharingMode::eExclusive;
-	ssbo = device.createBuffer(bufferInfo);
+	{
+		vk::BufferCreateInfo bufferInfo = {};
+		bufferInfo.size = MAX_CAMERAS * sizeof(CameraStruct);
+		bufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+		bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+		stagingSSBO = device.createBuffer(bufferInfo);
 
-	vk::MemoryRequirements memReqs = device.getBufferMemoryRequirements(ssbo);
-	vk::MemoryAllocateInfo allocInfo = {};
-	allocInfo.allocationSize = memReqs.size;
+		vk::MemoryRequirements memReqs = device.getBufferMemoryRequirements(stagingSSBO);
+		vk::MemoryAllocateInfo allocInfo = {};
+		allocInfo.allocationSize = memReqs.size;
 
-	vk::PhysicalDeviceMemoryProperties memProperties = physical_device.getMemoryProperties();
-	vk::MemoryPropertyFlags properties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
-	allocInfo.memoryTypeIndex = vulkan->find_memory_type(memReqs.memoryTypeBits, properties);
+		vk::PhysicalDeviceMemoryProperties memProperties = physical_device.getMemoryProperties();
+		vk::MemoryPropertyFlags properties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+		allocInfo.memoryTypeIndex = vulkan->find_memory_type(memReqs.memoryTypeBits, properties);
 
-	ssboMemory = device.allocateMemory(allocInfo);
-	device.bindBufferMemory(ssbo, ssboMemory, 0);
+		stagingSSBOMemory = device.allocateMemory(allocInfo);
+		device.bindBufferMemory(stagingSSBO, stagingSSBOMemory, 0);
+	}
 
-	/* Pin the buffer */
-	pinnedMemory = (CameraStruct*) device.mapMemory(ssboMemory, 0, MAX_CAMERAS * sizeof(CameraStruct));
+	{
+		vk::BufferCreateInfo bufferInfo = {};
+		bufferInfo.size = MAX_CAMERAS * sizeof(CameraStruct);
+		bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst;
+		bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+		SSBO = device.createBuffer(bufferInfo);
+
+		vk::MemoryRequirements memReqs = device.getBufferMemoryRequirements(SSBO);
+		vk::MemoryAllocateInfo allocInfo = {};
+		allocInfo.allocationSize = memReqs.size;
+
+		vk::PhysicalDeviceMemoryProperties memProperties = physical_device.getMemoryProperties();
+		vk::MemoryPropertyFlags properties = vk::MemoryPropertyFlagBits::eDeviceLocal;
+		allocInfo.memoryTypeIndex = vulkan->find_memory_type(memReqs.memoryTypeBits, properties);
+
+		SSBOMemory = device.allocateMemory(allocInfo);
+		device.bindBufferMemory(SSBO, SSBOMemory, 0);
+	}
 }
 
-void Camera::UploadSSBO()
+void Camera::UploadSSBO(vk::CommandBuffer command_buffer)
 {
+	auto vulkan = Libraries::Vulkan::Get();
+    auto device = vulkan->get_device();
+
+    if (SSBOMemory == vk::DeviceMemory()) return;
+    if (stagingSSBOMemory == vk::DeviceMemory()) return;
+    
+    auto bufferSize = MAX_CAMERAS * sizeof(CameraStruct);
+
+	/* Pin the buffer */
+	pinnedMemory = (CameraStruct*) device.mapMemory(stagingSSBOMemory, 0, bufferSize);
 	if (pinnedMemory == nullptr) return;
 	
 	/* TODO: remove this for loop */
@@ -782,11 +823,17 @@ void Camera::UploadSSBO()
 			pinnedMemory[i].multiviews[j].viewproj = pinnedMemory[i].multiviews[j].proj * pinnedMemory[i].multiviews[j].view;
 		}
 	};
+
+	device.unmapMemory(stagingSSBOMemory);
+
+	vk::BufferCopy copyRegion;
+	copyRegion.size = bufferSize;
+    command_buffer.copyBuffer(stagingSSBO, SSBO, copyRegion);
 }
 
 vk::Buffer Camera::GetSSBO()
 {
-	return ssbo;
+	return SSBO;
 }
 
 uint32_t Camera::GetSSBOSize()
@@ -798,9 +845,8 @@ void Camera::CleanUp()
 {
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
-	device.destroyBuffer(ssbo);
-	device.unmapMemory(ssboMemory);
-	device.freeMemory(ssboMemory);
+	device.destroyBuffer(SSBO);
+	device.freeMemory(SSBOMemory);
 
 	for (uint32_t i = 0; i < GetCount(); ++i) {
 		cameras[i].cleanup();
@@ -861,7 +907,7 @@ void Camera::cleanup()
 
 	if (command_buffer)
 	{
-		device.freeCommandBuffers(vulkan->get_command_pool(1), {command_buffer});
+		device.freeCommandBuffers(vulkan->get_command_pool(), {command_buffer});
 	}
     if (renderpasses.size() > 0) {
         for(auto renderpass : renderpasses) {
@@ -882,6 +928,12 @@ void Camera::cleanup()
 	if (queryPool != vk::QueryPool()) {
 		device.destroyQueryPool(queryPool);
 	}
+
+	device.destroyBuffer(SSBO);
+    device.freeMemory(SSBOMemory);
+
+	device.destroyBuffer(stagingSSBO);
+    device.freeMemory(stagingSSBOMemory);
 }
 
 void Camera::force_render_mode(RenderMode rendermode)
@@ -1007,13 +1059,18 @@ std::vector<std::pair<float, Entity*>> Camera::get_visible_entities(uint32_t cam
 	for (uint32_t i = 0; i < visible_entities.size(); ++i) 
 	{
 		auto transform_id = visible_entities[i]->get_transform();
-		auto transform = Transform::Get(transform_id);
-		glm::vec3 entity_pos = transform->get_position();
+		auto mesh_id = visible_entities[i]->get_mesh();
 
-		sorted_visible_entities.push_back(std::pair<float, Entity*>(glm::distance(cam_pos, entity_pos), visible_entities[i]));
+		auto transform = Transform::Get(transform_id);
+		auto mesh = Mesh::Get(mesh_id);
+
+		auto centroid = mesh->get_centroid();
+		auto w_centroid =  glm::vec3(transform->local_to_parent_matrix() * glm::vec4(centroid.x, centroid.y, centroid.z, 1.0));
+
+		sorted_visible_entities.push_back(std::pair<float, Entity*>(glm::distance(cam_pos, w_centroid), visible_entities[i]));
 	}
 
-	std::sort(sorted_visible_entities.begin(), sorted_visible_entities.end());	
+	std::sort(sorted_visible_entities.begin(), sorted_visible_entities.end(), std::less<std::pair<float, Entity*>>());	
 
 	return sorted_visible_entities;
 }

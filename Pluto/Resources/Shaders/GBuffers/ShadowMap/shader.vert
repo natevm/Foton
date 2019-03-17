@@ -23,7 +23,13 @@ void main() {
 
     TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
 
-    w_position = (target_transform.localToWorld * vec4(point.xyz, 1.0)).xyz;
+    // if (push.consts.show_bounding_box > 0) {
+    //     w_position = (push.consts.bounding_box_local_to_world * vec4(point.xyz, 1.0)).xyz; 
+    // }
+    // else {
+        w_position = (target_transform.localToWorld * vec4(point.xyz, 1.0)).xyz;
+    // }
+
     c_position = (camera_transform.localToWorld[3]).xyz;
 
     #ifdef DISABLE_MULTIVIEW
@@ -31,6 +37,7 @@ void main() {
     #else
     int viewIndex = gl_ViewIndex;
     #endif
-    gl_Position = camera.multiviews[viewIndex].proj * camera.multiviews[viewIndex].view * 
-                    camera_transform.worldToLocalRotation * camera_transform.worldToLocalTranslation * vec4(w_position, 1.0);
+
+    gl_Position = camera.multiviews[viewIndex].viewproj * 
+        camera_transform.worldToLocalRotation * camera_transform.worldToLocalTranslation * vec4(w_position, 1.0);
 }

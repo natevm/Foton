@@ -65,8 +65,8 @@ struct PipelineParameters {
 		depthStencil.minDepthBounds = 0.0f; // Optional
 		depthStencil.maxDepthBounds = 1.0f; // Optional
 		depthStencil.stencilTestEnable = false;
-		depthStencil.front; // Optional
-		depthStencil.back; // Optional
+		depthStencil.front = vk::StencilOpState(); // Optional
+		depthStencil.back = vk::StencilOpState(); // Optional
 
 		/* Default Color Blending Attachment State */
 		colorBlendAttachment.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;

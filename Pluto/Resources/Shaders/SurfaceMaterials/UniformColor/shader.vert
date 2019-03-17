@@ -25,7 +25,7 @@ void main() {
     #else
     int viewIndex = gl_ViewIndex;
     #endif
-    gl_Position =  camera.multiviews[viewIndex].proj * camera.multiviews[viewIndex].view * transform.localToWorld * vec4(point, 1.0);
+    gl_Position =  camera.multiviews[viewIndex].viewproj * transform.localToWorld * vec4(point, 1.0);
     gl_PointSize = 1.0;
     fragColor = material.base_color;
     fragTexCoord = texcoord;

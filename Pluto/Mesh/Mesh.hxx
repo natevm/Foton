@@ -9,7 +9,7 @@
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
 #include "Pluto/Tools/StaticFactory.hxx"
 
-#define MAX_MESHES 1024
+#include "./MeshStruct.hxx"
 
 /* A mesh contains vertex information that has been loaded to the GPU. */
 class Vertex;
@@ -76,7 +76,7 @@ class Mesh : public StaticFactory
 		static Mesh* CreateSpring(std::string name, bool allow_edits = false, bool submit_immediately = false);
 
 		/* Creates a mesh component from a procedural utah teapot */
-		static Mesh* CreateTeapot(std::string name, bool allow_edits = false, bool submit_immediately = false);
+		static Mesh* CreateTeapotahedron(std::string name, uint32_t segments = 8, bool allow_edits = false, bool submit_immediately = false);
 
 		/* Creates a mesh component from a procedural torus */
 		static Mesh* CreateTorus(std::string name, bool allow_edits = false, bool submit_immediately = false);
@@ -141,6 +141,15 @@ class Mesh : public StaticFactory
 
 		/* Initializes static resources */
 		static void Initialize();
+
+		/* Transfers all mesh components to an SSBO */
+        static void UploadSSBO(vk::CommandBuffer command_buffer);
+
+		/* Returns the SSBO vulkan buffer handle */
+        static vk::Buffer GetSSBO();
+
+        /* Returns the size in bytes of the current mesh SSBO */
+        static uint32_t GetSSBOSize();
 
 		/* Creates an uninitialized mesh. Useful for preallocation. */
 		Mesh();
@@ -234,6 +243,12 @@ class Mesh : public StaticFactory
 		/* If RTX Raytracing is enabled, builds a top level BVH for all created meshes. (TODO, account for mesh transformations) */
 		static void build_top_level_bvh(bool submit_immediately = false);
 
+		/* TODO */
+		void show_bounding_box(bool should_show);
+
+		/* TODO */
+		bool should_show_bounding_box();
+
 	private:
 		
 		/* A list of the mesh components, allocated statically */
@@ -242,6 +257,24 @@ class Mesh : public StaticFactory
 		/* A lookup table of name to mesh id */
 		static std::map<std::string, uint32_t> lookupTable;
 
+		/* A pointer to the mapped mesh SSBO. This memory is shared between the GPU and CPU. */
+        static MeshStruct* pinnedMemory;
+
+		/* A vulkan buffer handle corresponding to the mesh SSBO  */
+        static vk::Buffer SSBO;
+
+        /* The corresponding mesh SSBO memory */
+        static vk::DeviceMemory SSBOMemory;
+
+		/* TODO  */
+        static vk::Buffer stagingSSBO;
+
+        /* TODO */
+        static vk::DeviceMemory stagingSSBOMemory;
+
+		/* The structure containing all shader mesh properties. This is what's coppied into the SSBO per instance */
+        MeshStruct mesh_struct;
+
 		/* A handle to an RTX top level BVH */
 		static vk::AccelerationStructureNV topAS;
 		static vk::DeviceMemory topASMemory;
@@ -249,16 +282,6 @@ class Mesh : public StaticFactory
 		/* A handle to an RTX buffer of geometry instances used to build the top level BVH */
 		static vk::Buffer instanceBuffer;
 		static vk::DeviceMemory instanceBufferMemory;
-
-		/* The last computed average of all mesh positions */
-		glm::vec3 centroid;
-		
-		/* The radius of a sphere centered at the centroid which contains the mesh */
-		float bounding_sphere_radius;
-
-		/* Minimum and maximum bounding box coordinates */
-		glm::vec3 bbmin;
-		glm::vec3 bbmax;
 
 		/* Lists of per vertex data. These might not match GPU memory if editing is disabled. */
 		std::vector<glm::vec3> points;
@@ -317,6 +340,9 @@ class Mesh : public StaticFactory
 		
 		/* True if this mesh component supports editing. If false, indices are automatically generated. */
 		bool allowEdits = false;
+
+		/* TODO */
+		bool showBoundingBox = false;
 
 		/* Frees any vulkan resources this mesh component may have allocated */
 		void cleanup();

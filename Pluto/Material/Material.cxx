@@ -11,8 +11,10 @@
 Material Material::materials[MAX_MATERIALS];
 MaterialStruct* Material::pinnedMemory;
 std::map<std::string, uint32_t> Material::lookupTable;
-vk::Buffer Material::ssbo;
-vk::DeviceMemory Material::ssboMemory;
+vk::Buffer Material::SSBO;
+vk::DeviceMemory Material::SSBOMemory;
+vk::Buffer Material::stagingSSBO;
+vk::DeviceMemory Material::stagingSSBOMemory;
 
 RenderMode Material::currentlyBoundRenderMode = RenderMode::NONE;
 vk::RenderPass Material::currentRenderpass = vk::RenderPass();;
@@ -762,10 +764,10 @@ void Material::CreateRasterDescriptorSetLayouts()
     lboLayoutBinding.pImmutableSamplers = nullptr;
     lboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
 
-    std::array<vk::DescriptorSetLayoutBinding, 5> ssbobindings = { eboLayoutBinding, tboLayoutBinding, cboLayoutBinding, mboLayoutBinding, lboLayoutBinding};
-    vk::DescriptorSetLayoutCreateInfo ssboLayoutInfo;
-    ssboLayoutInfo.bindingCount = (uint32_t)ssbobindings.size();
-    ssboLayoutInfo.pBindings = ssbobindings.data();
+    std::array<vk::DescriptorSetLayoutBinding, 5> SSBObindings = { eboLayoutBinding, tboLayoutBinding, cboLayoutBinding, mboLayoutBinding, lboLayoutBinding};
+    vk::DescriptorSetLayoutCreateInfo SSBOLayoutInfo;
+    SSBOLayoutInfo.bindingCount = (uint32_t)SSBObindings.size();
+    SSBOLayoutInfo.pBindings = SSBObindings.data();
     
     /* Texture descriptor bindings */
     
@@ -815,7 +817,7 @@ void Material::CreateRasterDescriptorSetLayouts()
     textureLayoutInfo.pBindings = bindings.data();
 
     // Create the layouts
-    componentDescriptorSetLayout = device.createDescriptorSetLayout(ssboLayoutInfo);
+    componentDescriptorSetLayout = device.createDescriptorSetLayout(SSBOLayoutInfo);
     textureDescriptorSetLayout = device.createDescriptorSetLayout(textureLayoutInfo);
 }
 
@@ -858,33 +860,33 @@ void Material::CreateDescriptorPools()
     auto device = vulkan->get_device();
 
     /* SSBO Descriptor Pool Info */
-    std::array<vk::DescriptorPoolSize, 5> ssboPoolSizes = {};
+    std::array<vk::DescriptorPoolSize, 5> SSBOPoolSizes = {};
     
     // Entity SSBO
-    ssboPoolSizes[0].type = vk::DescriptorType::eStorageBuffer;
-    ssboPoolSizes[0].descriptorCount = MAX_MATERIALS;
+    SSBOPoolSizes[0].type = vk::DescriptorType::eStorageBuffer;
+    SSBOPoolSizes[0].descriptorCount = MAX_MATERIALS;
     
     // Transform SSBO
-    ssboPoolSizes[1].type = vk::DescriptorType::eStorageBuffer;
-    ssboPoolSizes[1].descriptorCount = MAX_MATERIALS;
+    SSBOPoolSizes[1].type = vk::DescriptorType::eStorageBuffer;
+    SSBOPoolSizes[1].descriptorCount = MAX_MATERIALS;
     
     // Camera SSBO
-    ssboPoolSizes[2].type = vk::DescriptorType::eStorageBuffer;
-    ssboPoolSizes[2].descriptorCount = MAX_MATERIALS;
+    SSBOPoolSizes[2].type = vk::DescriptorType::eStorageBuffer;
+    SSBOPoolSizes[2].descriptorCount = MAX_MATERIALS;
     
     // Material SSBO
-    ssboPoolSizes[3].type = vk::DescriptorType::eStorageBuffer;
-    ssboPoolSizes[3].descriptorCount = MAX_MATERIALS;
+    SSBOPoolSizes[3].type = vk::DescriptorType::eStorageBuffer;
+    SSBOPoolSizes[3].descriptorCount = MAX_MATERIALS;
     
     // Light SSBO
-    ssboPoolSizes[4].type = vk::DescriptorType::eStorageBuffer;
-    ssboPoolSizes[4].descriptorCount = MAX_MATERIALS;
+    SSBOPoolSizes[4].type = vk::DescriptorType::eStorageBuffer;
+    SSBOPoolSizes[4].descriptorCount = MAX_MATERIALS;
 
-    vk::DescriptorPoolCreateInfo ssboPoolInfo;
-    ssboPoolInfo.poolSizeCount = (uint32_t)ssboPoolSizes.size();
-    ssboPoolInfo.pPoolSizes = ssboPoolSizes.data();
-    ssboPoolInfo.maxSets = MAX_MATERIALS;
-    ssboPoolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
+    vk::DescriptorPoolCreateInfo SSBOPoolInfo;
+    SSBOPoolInfo.poolSizeCount = (uint32_t)SSBOPoolSizes.size();
+    SSBOPoolInfo.pPoolSizes = SSBOPoolSizes.data();
+    SSBOPoolInfo.maxSets = MAX_MATERIALS;
+    SSBOPoolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 
     /* Texture Descriptor Pool Info */
     std::array<vk::DescriptorPoolSize, 5> texturePoolSizes = {};
@@ -933,7 +935,7 @@ void Material::CreateDescriptorPools()
     raytracingPoolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 
     // Create the pools
-    componentDescriptorPool = device.createDescriptorPool(ssboPoolInfo);
+    componentDescriptorPool = device.createDescriptorPool(SSBOPoolInfo);
     textureDescriptorPool = device.createDescriptorPool(texturePoolInfo);
 
     if (vulkan->is_ray_tracing_enabled())
@@ -947,14 +949,14 @@ void Material::UpdateRasterDescriptorSets()
     auto device = vulkan->get_device();
     
     /* ------ Component Descriptor Set  ------ */
-    vk::DescriptorSetLayout ssboLayouts[] = { componentDescriptorSetLayout };
-    std::array<vk::WriteDescriptorSet, 5> ssboDescriptorWrites = {};
+    vk::DescriptorSetLayout SSBOLayouts[] = { componentDescriptorSetLayout };
+    std::array<vk::WriteDescriptorSet, 5> SSBODescriptorWrites = {};
     if (componentDescriptorSet == vk::DescriptorSet())
     {
         vk::DescriptorSetAllocateInfo allocInfo;
         allocInfo.descriptorPool = componentDescriptorPool;
         allocInfo.descriptorSetCount = 1;
-        allocInfo.pSetLayouts = ssboLayouts;
+        allocInfo.pSetLayouts = SSBOLayouts;
         componentDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
     }
 
@@ -964,12 +966,14 @@ void Material::UpdateRasterDescriptorSets()
     entityBufferInfo.offset = 0;
     entityBufferInfo.range = Entity::GetSSBOSize();
 
-    ssboDescriptorWrites[0].dstSet = componentDescriptorSet;
-    ssboDescriptorWrites[0].dstBinding = 0;
-    ssboDescriptorWrites[0].dstArrayElement = 0;
-    ssboDescriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
-    ssboDescriptorWrites[0].descriptorCount = 1;
-    ssboDescriptorWrites[0].pBufferInfo = &entityBufferInfo;
+    if (entityBufferInfo.buffer == vk::Buffer()) return;
+
+    SSBODescriptorWrites[0].dstSet = componentDescriptorSet;
+    SSBODescriptorWrites[0].dstBinding = 0;
+    SSBODescriptorWrites[0].dstArrayElement = 0;
+    SSBODescriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
+    SSBODescriptorWrites[0].descriptorCount = 1;
+    SSBODescriptorWrites[0].pBufferInfo = &entityBufferInfo;
 
     // Transform SSBO
     vk::DescriptorBufferInfo transformBufferInfo;
@@ -977,12 +981,14 @@ void Material::UpdateRasterDescriptorSets()
     transformBufferInfo.offset = 0;
     transformBufferInfo.range = Transform::GetSSBOSize();
 
-    ssboDescriptorWrites[1].dstSet = componentDescriptorSet;
-    ssboDescriptorWrites[1].dstBinding = 1;
-    ssboDescriptorWrites[1].dstArrayElement = 0;
-    ssboDescriptorWrites[1].descriptorType = vk::DescriptorType::eStorageBuffer;
-    ssboDescriptorWrites[1].descriptorCount = 1;
-    ssboDescriptorWrites[1].pBufferInfo = &transformBufferInfo;
+    if (transformBufferInfo.buffer == vk::Buffer()) return;
+
+    SSBODescriptorWrites[1].dstSet = componentDescriptorSet;
+    SSBODescriptorWrites[1].dstBinding = 1;
+    SSBODescriptorWrites[1].dstArrayElement = 0;
+    SSBODescriptorWrites[1].descriptorType = vk::DescriptorType::eStorageBuffer;
+    SSBODescriptorWrites[1].descriptorCount = 1;
+    SSBODescriptorWrites[1].pBufferInfo = &transformBufferInfo;
 
     // Camera SSBO
     vk::DescriptorBufferInfo cameraBufferInfo;
@@ -990,12 +996,14 @@ void Material::UpdateRasterDescriptorSets()
     cameraBufferInfo.offset = 0;
     cameraBufferInfo.range = Camera::GetSSBOSize();
 
-    ssboDescriptorWrites[2].dstSet = componentDescriptorSet;
-    ssboDescriptorWrites[2].dstBinding = 2;
-    ssboDescriptorWrites[2].dstArrayElement = 0;
-    ssboDescriptorWrites[2].descriptorType = vk::DescriptorType::eStorageBuffer;
-    ssboDescriptorWrites[2].descriptorCount = 1;
-    ssboDescriptorWrites[2].pBufferInfo = &cameraBufferInfo;
+    if (cameraBufferInfo.buffer == vk::Buffer()) return;
+
+    SSBODescriptorWrites[2].dstSet = componentDescriptorSet;
+    SSBODescriptorWrites[2].dstBinding = 2;
+    SSBODescriptorWrites[2].dstArrayElement = 0;
+    SSBODescriptorWrites[2].descriptorType = vk::DescriptorType::eStorageBuffer;
+    SSBODescriptorWrites[2].descriptorCount = 1;
+    SSBODescriptorWrites[2].pBufferInfo = &cameraBufferInfo;
 
     // Material SSBO
     vk::DescriptorBufferInfo materialBufferInfo;
@@ -1003,12 +1011,14 @@ void Material::UpdateRasterDescriptorSets()
     materialBufferInfo.offset = 0;
     materialBufferInfo.range = Material::GetSSBOSize();
 
-    ssboDescriptorWrites[3].dstSet = componentDescriptorSet;
-    ssboDescriptorWrites[3].dstBinding = 3;
-    ssboDescriptorWrites[3].dstArrayElement = 0;
-    ssboDescriptorWrites[3].descriptorType = vk::DescriptorType::eStorageBuffer;
-    ssboDescriptorWrites[3].descriptorCount = 1;
-    ssboDescriptorWrites[3].pBufferInfo = &materialBufferInfo;
+    if (materialBufferInfo.buffer == vk::Buffer()) return;
+
+    SSBODescriptorWrites[3].dstSet = componentDescriptorSet;
+    SSBODescriptorWrites[3].dstBinding = 3;
+    SSBODescriptorWrites[3].dstArrayElement = 0;
+    SSBODescriptorWrites[3].descriptorType = vk::DescriptorType::eStorageBuffer;
+    SSBODescriptorWrites[3].descriptorCount = 1;
+    SSBODescriptorWrites[3].pBufferInfo = &materialBufferInfo;
 
     // Light SSBO
     vk::DescriptorBufferInfo lightBufferInfo;
@@ -1016,14 +1026,16 @@ void Material::UpdateRasterDescriptorSets()
     lightBufferInfo.offset = 0;
     lightBufferInfo.range = Light::GetSSBOSize();
 
-    ssboDescriptorWrites[4].dstSet = componentDescriptorSet;
-    ssboDescriptorWrites[4].dstBinding = 4;
-    ssboDescriptorWrites[4].dstArrayElement = 0;
-    ssboDescriptorWrites[4].descriptorType = vk::DescriptorType::eStorageBuffer;
-    ssboDescriptorWrites[4].descriptorCount = 1;
-    ssboDescriptorWrites[4].pBufferInfo = &lightBufferInfo;
+    if (lightBufferInfo.buffer == vk::Buffer()) return;
+
+    SSBODescriptorWrites[4].dstSet = componentDescriptorSet;
+    SSBODescriptorWrites[4].dstBinding = 4;
+    SSBODescriptorWrites[4].dstArrayElement = 0;
+    SSBODescriptorWrites[4].descriptorType = vk::DescriptorType::eStorageBuffer;
+    SSBODescriptorWrites[4].descriptorCount = 1;
+    SSBODescriptorWrites[4].pBufferInfo = &lightBufferInfo;
     
-    device.updateDescriptorSets((uint32_t)ssboDescriptorWrites.size(), ssboDescriptorWrites.data(), 0, nullptr);
+    device.updateDescriptorSets((uint32_t)SSBODescriptorWrites.size(), SSBODescriptorWrites.data(), 0, nullptr);
     
     /* ------ Texture Descriptor Set  ------ */
     vk::DescriptorSetLayout textureLayouts[] = { textureDescriptorSetLayout };
@@ -1052,6 +1064,8 @@ void Material::UpdateRasterDescriptorSets()
     textureBufferInfo.buffer = Texture::GetSSBO();
     textureBufferInfo.offset = 0;
     textureBufferInfo.range = Texture::GetSSBOSize();
+
+    if (textureBufferInfo.buffer == vk::Buffer()) return;
 
     textureDescriptorWrites[0].dstSet = textureDescriptorSet;
     textureDescriptorWrites[0].dstBinding = 0;
@@ -1207,6 +1221,14 @@ void Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &ren
     auto transform_id = entity.get_transform();
     if (transform_id < 0 || transform_id >= MAX_TRANSFORMS) return;
 
+    // push_constants.show_bounding_box = false;
+    // if (m->should_show_bounding_box()) {
+    //     push_constants.show_bounding_box = true;
+    //     m = Mesh::Get("BoundingBox");
+    //     push_constants.bounding_box_min = glm::vec4(m->get_min_aabb_corner(), 1.0f);
+    //     push_constants.bounding_box_max = glm::vec4(m->get_max_aabb_corner(), 1.0f);
+    // }
+
     /* Need a material to render. */
     auto material_id = entity.get_material();
     if (material_id < 0 || material_id >= MAX_MATERIALS) return;
@@ -1333,25 +1355,43 @@ void Material::CreateSSBO()
     auto device = vulkan->get_device();
     auto physical_device = vulkan->get_physical_device();
 
-    vk::BufferCreateInfo bufferInfo = {};
-    bufferInfo.size = MAX_MATERIALS * sizeof(MaterialStruct);
-    bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer;
-    bufferInfo.sharingMode = vk::SharingMode::eExclusive;
-    ssbo = device.createBuffer(bufferInfo);
+    {
+        vk::BufferCreateInfo bufferInfo = {};
+        bufferInfo.size = MAX_MATERIALS * sizeof(MaterialStruct);
+        bufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+        bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+        stagingSSBO = device.createBuffer(bufferInfo);
 
-    vk::MemoryRequirements memReqs = device.getBufferMemoryRequirements(ssbo);
-    vk::MemoryAllocateInfo allocInfo = {};
-    allocInfo.allocationSize = memReqs.size;
+        vk::MemoryRequirements memReqs = device.getBufferMemoryRequirements(stagingSSBO);
+        vk::MemoryAllocateInfo allocInfo = {};
+        allocInfo.allocationSize = memReqs.size;
 
-    vk::PhysicalDeviceMemoryProperties memProperties = physical_device.getMemoryProperties();
-    vk::MemoryPropertyFlags properties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
-    allocInfo.memoryTypeIndex = vulkan->find_memory_type(memReqs.memoryTypeBits, properties);
+        vk::PhysicalDeviceMemoryProperties memProperties = physical_device.getMemoryProperties();
+        vk::MemoryPropertyFlags properties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+        allocInfo.memoryTypeIndex = vulkan->find_memory_type(memReqs.memoryTypeBits, properties);
 
-    ssboMemory = device.allocateMemory(allocInfo);
-    device.bindBufferMemory(ssbo, ssboMemory, 0);
+        stagingSSBOMemory = device.allocateMemory(allocInfo);
+        device.bindBufferMemory(stagingSSBO, stagingSSBOMemory, 0);
+    }
 
-    /* Pin the buffer */
-    pinnedMemory = (MaterialStruct*) device.mapMemory(ssboMemory, 0, MAX_MATERIALS * sizeof(MaterialStruct));
+    {
+        vk::BufferCreateInfo bufferInfo = {};
+        bufferInfo.size = MAX_MATERIALS * sizeof(MaterialStruct);
+        bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst;
+        bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+        SSBO = device.createBuffer(bufferInfo);
+
+        vk::MemoryRequirements memReqs = device.getBufferMemoryRequirements(SSBO);
+        vk::MemoryAllocateInfo allocInfo = {};
+        allocInfo.allocationSize = memReqs.size;
+
+        vk::PhysicalDeviceMemoryProperties memProperties = physical_device.getMemoryProperties();
+        vk::MemoryPropertyFlags properties = vk::MemoryPropertyFlagBits::eDeviceLocal;
+        allocInfo.memoryTypeIndex = vulkan->find_memory_type(memReqs.memoryTypeBits, properties);
+
+        SSBOMemory = device.allocateMemory(allocInfo);
+        device.bindBufferMemory(SSBO, SSBOMemory, 0);
+    }
 }
 
 void Material::ResetBoundMaterial()
@@ -1360,8 +1400,19 @@ void Material::ResetBoundMaterial()
     currentlyBoundRenderMode = NONE;
 }
 
-void Material::UploadSSBO()
+void Material::UploadSSBO(vk::CommandBuffer command_buffer)
 {
+    auto vulkan = Libraries::Vulkan::Get();
+    auto device = vulkan->get_device();
+
+    if (SSBOMemory == vk::DeviceMemory()) return;
+    if (stagingSSBOMemory == vk::DeviceMemory()) return;
+
+    auto bufferSize = MAX_MATERIALS * sizeof(MaterialStruct);
+
+    /* Pin the buffer */
+    pinnedMemory = (MaterialStruct*) device.mapMemory(stagingSSBOMemory, 0, bufferSize);
+
     if (pinnedMemory == nullptr) return;
     MaterialStruct material_structs[MAX_MATERIALS];
     
@@ -1373,11 +1424,19 @@ void Material::UploadSSBO()
 
     /* Copy to GPU mapped memory */
     memcpy(pinnedMemory, material_structs, sizeof(material_structs));
-}
+
+    device.unmapMemory(stagingSSBOMemory);
+
+    vk::BufferCopy copyRegion;
+	copyRegion.size = bufferSize;
+    command_buffer.copyBuffer(stagingSSBO, SSBO, copyRegion);
+} 
 
 vk::Buffer Material::GetSSBO()
 {
-    return ssbo;
+    if ((SSBO != vk::Buffer()) && (SSBOMemory != vk::DeviceMemory()))
+        return SSBO;
+    else return vk::Buffer();
 }
 
 uint32_t Material::GetSSBOSize()
@@ -1394,9 +1453,8 @@ void Material::CleanUp()
     if (device == vk::Device())
         throw std::runtime_error( std::string("Invalid vulkan device"));
 
-    device.destroyBuffer(ssbo);
-    device.unmapMemory(ssboMemory);
-    device.freeMemory(ssboMemory);
+    device.destroyBuffer(SSBO);
+    device.freeMemory(SSBOMemory);
 
     device.destroyDescriptorSetLayout(componentDescriptorSetLayout);
     device.destroyDescriptorPool(componentDescriptorPool);

@@ -46,7 +46,7 @@ class Camera : public StaticFactory
 	static void Initialize();
 
 	/* Transfers all camera components to an SSBO */
-	static void UploadSSBO();
+	static void UploadSSBO(vk::CommandBuffer command_buffer);
 
 	/* Returns the SSBO vulkan buffer handle */
 	static vk::Buffer GetSSBO();
@@ -193,6 +193,12 @@ class Camera : public StaticFactory
 	/* TODO: Explain this */
 	std::vector<std::pair<float, Entity*>> get_visible_entities(uint32_t camera_entity_id);
 
+	/* Creates a vulkan commandbuffer handle used to record the renderpass. */
+	void create_command_buffers();
+
+	/* TODO: */
+	bool needs_command_buffers();
+
   private:
 	
 	/* Determines whether this camera should use a depth prepass to reduce fragment complexity at the cost of 
@@ -282,10 +288,16 @@ class Camera : public StaticFactory
 	static CameraStruct *pinnedMemory;
 	
 	/* A vulkan buffer handle corresponding to the material SSBO */
-	static vk::Buffer ssbo;
+	static vk::Buffer SSBO;
 	
 	/* The corresponding material SSBO memory. */
-	static vk::DeviceMemory ssboMemory;
+	static vk::DeviceMemory SSBOMemory;
+
+	/* TODO */
+	static vk::Buffer stagingSSBO;
+	
+	/* TODO */
+	static vk::DeviceMemory stagingSSBOMemory;
 
 	RenderMode renderModeOverride;
 
@@ -293,13 +305,10 @@ class Camera : public StaticFactory
 	void setup(bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1, uint32_t layers = 1, bool use_depth_prepass = true);
 
 	/* Creates a vulkan renderpass handle which will be used when recording from the current camera component. */
-	void create_render_passes(uint32_t framebufferWidth, uint32_t framebufferHeight, uint32_t layers = 1, uint32_t sample_count = 1);
+	void create_render_passes(uint32_t layers = 1, uint32_t sample_count = 1);
 
 	/* Creates a vulkan framebuffer handle used by the renderpass, which binds image views to the framebuffer attachments. */
 	void create_frame_buffers(uint32_t layers);
-
-	/* Creates a vulkan commandbuffer handle used to record the renderpass. */
-	void create_command_buffers(uint32_t count);
 
 	/* TODO: Explain this */
 	void create_query_pool();

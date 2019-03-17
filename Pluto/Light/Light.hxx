@@ -13,8 +13,10 @@ class Light : public StaticFactory
         static Light lights[MAX_LIGHTS];
         static LightStruct* pinnedMemory;
         static std::map<std::string, uint32_t> lookupTable;
-        static vk::Buffer ssbo;
-        static vk::DeviceMemory ssboMemory;
+        static vk::Buffer SSBO;
+        static vk::DeviceMemory SSBOMemory;
+        static vk::Buffer stagingSSBO;
+        static vk::DeviceMemory stagingSSBOMemory;
         static std::vector<Camera*> shadowCameras;
         
         /* Instance fields*/
@@ -32,7 +34,7 @@ class Light : public StaticFactory
     
         static void Initialize();
         static void CreateShadowCameras();
-        static void UploadSSBO();
+        static void UploadSSBO(vk::CommandBuffer command_buffer);
         static vk::Buffer GetSSBO();
         static uint32_t GetSSBOSize();
         static void CleanUp();

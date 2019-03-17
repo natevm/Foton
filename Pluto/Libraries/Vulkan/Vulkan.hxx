@@ -43,7 +43,7 @@ namespace Libraries {
         vk::Device get_device() const;
         uint32_t get_graphics_family() const;
         uint32_t get_present_family() const;
-        vk::CommandPool get_command_pool(uint32_t index = 0) const;
+        vk::CommandPool get_command_pool() const;
         vk::Queue get_graphics_queue(uint32_t index = 0) const;
         vk::Queue get_present_queue(uint32_t index = 0) const;
         vk::DispatchLoaderDynamic get_dispatch_loader_dynamic() const;
@@ -144,6 +144,7 @@ namespace Libraries {
 
         std::mutex graphics_queue_mutex;
         std::mutex present_queue_mutex;
+        std::mutex thread_id_mutex;
         std::queue<CommandQueueItem> graphicsCommandQueue;
         std::queue<CommandQueueItem> presentCommandQueue;
         

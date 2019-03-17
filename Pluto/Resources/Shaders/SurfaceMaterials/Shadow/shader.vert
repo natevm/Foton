@@ -44,6 +44,6 @@ void main() {
     w_pos = tbo.localToWorld * vec4(inPosition, 1.0);
     w_lightPos = pbo.at[gl_ViewIndex].viewinv[3];
 
-    gl_Position = pbo.at[gl_ViewIndex].proj * pbo.at[gl_ViewIndex].view * w_pos;
+    gl_Position = pbo.at[gl_ViewIndex].viewproj * w_pos;
     gl_PointSize = mbo.pointSize;
 }

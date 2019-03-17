@@ -75,7 +75,7 @@ class Texture : public StaticFactory
 		static void Initialize();
 
 		/* Transfers all texture components to an SSBO */
-        static void UploadSSBO();
+        static void UploadSSBO(vk::CommandBuffer command_buffer);
 
 		/* Returns the SSBO vulkan buffer handle */
         static vk::Buffer GetSSBO();
@@ -160,8 +160,15 @@ class Texture : public StaticFactory
 			vk::PipelineStageFlags dstStageMask = vk::PipelineStageFlagBits::eAllCommands);
 
 		// Kinda kludgy. Need to go back and forth between renderpasses
-		void make_renderable(vk::CommandBuffer commandBuffer);
-		void make_samplable(vk::CommandBuffer commandBuffer);
+		void make_renderable(vk::CommandBuffer commandBuffer, 
+			vk::PipelineStageFlags srcStageMask = vk::PipelineStageFlagBits::eAllCommands,
+			vk::PipelineStageFlags dstStageMask = vk::PipelineStageFlagBits::eAllCommands);
+		void make_samplable(vk::CommandBuffer commandBuffer, 
+			vk::PipelineStageFlags srcStageMask = vk::PipelineStageFlagBits::eAllCommands,
+			vk::PipelineStageFlags dstStageMask = vk::PipelineStageFlagBits::eAllCommands);
+
+		void overrideColorImageLayout(vk::ImageLayout layout);
+		void overrideDepthImageLayout(vk::ImageLayout layout);
 
 	private:
 
@@ -178,10 +185,16 @@ class Texture : public StaticFactory
         static TextureStruct* pinnedMemory;
 
         /* A vulkan buffer handle corresponding to the texture SSBO  */
-        static vk::Buffer ssbo;
+        static vk::Buffer SSBO;
 
         /* The corresponding texture SSBO memory */
-        static vk::DeviceMemory ssboMemory;
+        static vk::DeviceMemory SSBOMemory;
+
+		/* TODO  */
+        static vk::Buffer stagingSSBO;
+
+        /* TODO */
+        static vk::DeviceMemory stagingSSBOMemory;
 
 		/* The struct of texture data, aggregating vulkan resources */
 		Data data;

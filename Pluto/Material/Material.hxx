@@ -67,7 +67,7 @@ class Material : public StaticFactory
         static void Initialize();
 
         /* Transfers all material components to an SSBO */
-        static void UploadSSBO();
+        static void UploadSSBO(vk::CommandBuffer command_buffer);
 
         /* Copies SSBO / texture handles into the texture and component descriptor sets. 
             Also, allocates the descriptor sets if not yet allocated. */
@@ -161,10 +161,16 @@ class Material : public StaticFactory
         static MaterialStruct* pinnedMemory;
 
         /* A vulkan buffer handle corresponding to the material SSBO  */
-        static vk::Buffer ssbo;
+        static vk::Buffer SSBO;
 
         /* The corresponding material SSBO memory */
-        static vk::DeviceMemory ssboMemory;
+        static vk::DeviceMemory SSBOMemory;
+
+        /* TODO  */
+        static vk::Buffer stagingSSBO;
+
+        /* TODO */
+        static vk::DeviceMemory stagingSSBOMemory;
 
         /* A vector of vertex input binding descriptions, describing binding and stride of per vertex data. */
         static std::vector<vk::VertexInputBindingDescription> vertexInputBindingDescriptions;

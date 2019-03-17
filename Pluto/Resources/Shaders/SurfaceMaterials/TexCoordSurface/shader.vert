@@ -29,7 +29,7 @@ void main() {
     #else
     int viewIndex = gl_ViewIndex;
     #endif
-    gl_Position = camera.multiviews[viewIndex].proj * camera.multiviews[viewIndex].view * camera_transform.worldToLocal * vec4(w_position, 1.0);
+    gl_Position = camera.multiviews[viewIndex].viewproj * camera_transform.worldToLocal * vec4(w_position, 1.0);
     gl_PointSize = 1.0;
     fragColor = vec4(texcoord.x, 0.0, texcoord.y, 1.0);
 }

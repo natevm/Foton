@@ -5,7 +5,6 @@ layout(location = 2) in vec2 fragTexCoord;
 layout(location = 3) in vec3 w_cameraPos;
 layout(location = 4) in vec4 vert_color;
 layout(location = 5) in vec3 m_position;
-layout(location = 6) in vec3 s_position;
 
 /* Outputs */
 layout(location = 0) out vec4 outColor;
@@ -80,33 +79,35 @@ float checker(in vec3 uvw, float scale)
     return i.x * i.y * i.z + (1.0f - i.x) * (1.0f - i.y) * (1.0f - i.z);
 }
 
-vec4 getAlbedo()
+vec4 getAlbedo(inout MaterialStruct material)
 {
-	EntityStruct entity = ebo.entities[push.consts.target_id];
-	MaterialStruct material = mbo.materials[entity.material_id];
 	vec4 albedo = material.base_color; 
 
 	/* If the use vertex colors flag is set, use the vertex color as the base color instead. */
 	if ((material.flags & (1 << 0)) != 0)
 		albedo = vert_color;
 
-	if (material.base_color_texture_id != -1) {
-        TextureStruct tex = txbo.textures[material.base_color_texture_id];
+	if ((material.base_color_texture_id < 0) || (material.base_color_texture_id >= MAX_TEXTURES))
+        return vec4(pow(albedo.rgb, vec3(push.consts.gamma)), albedo.a);
+    
+    TextureStruct tex = txbo.textures[material.base_color_texture_id];
+    
+    if ((tex.sampler_id < 0) || (tex.sampler_id >= MAX_SAMPLERS)) 
+        return vec4(pow(albedo.rgb, vec3(push.consts.gamma)), albedo.a);
 
-        /* Raster texture */
-        if (tex.type == 0)
-        {
-  		    albedo = texture(sampler2D(texture_2Ds[material.base_color_texture_id], samplers[tex.sampler_id]), fragTexCoord);
-        }
-
-        else if (tex.type == 1)
-        {
-            float mate = checker(m_position, tex.scale);
-            // If I do gamma correction here on linux, I get weird nans...
-            return mix(tex.color1, tex.color2, mate);
-        }
+    /* Raster texture */
+    if (tex.type == 0) {
+        albedo = texture(sampler2D(texture_2Ds[material.base_color_texture_id], samplers[tex.sampler_id]), fragTexCoord);
     }
 
+    /* Procedural checker texture */
+    else if (tex.type == 1)
+    {
+        float mate = checker(m_position, tex.scale);
+        // If I do gamma correction here on linux, I get weird nans...
+        return mix(tex.color1, tex.color2, mate);
+    }
+    
 	return vec4(pow(albedo.rgb, vec3(push.consts.gamma)), albedo.a);
 }
 
@@ -133,49 +134,55 @@ vec4 sampleVolume(vec3 position, float lod)
 }
 
 
-float getRoughness(MaterialStruct material)
+float getRoughness(inout MaterialStruct material)
 {
 	float roughness = material.roughness;
 
-	if (material.roughness_texture_id != -1) {
-        TextureStruct tex = txbo.textures[material.roughness_texture_id];
-        if (tex.sampler_id != -1) 
-        {
-  		    roughness = texture(sampler2D(texture_2Ds[material.roughness_texture_id], samplers[tex.sampler_id]), fragTexCoord).r;
-        }
-	}
+    if ((material.roughness_texture_id < 0) || (material.roughness_texture_id >= MAX_TEXTURES)) 
+        return clamp(roughness, 0.0, 1.0);
+    
+    TextureStruct tex = txbo.textures[material.roughness_texture_id];
+    
+    if ((tex.sampler_id < 0) || (tex.sampler_id >= MAX_SAMPLERS)) 
+        return clamp(roughness, 0.0, 1.0);
 
-	return roughness;
+    return clamp(texture(sampler2D(texture_2Ds[material.roughness_texture_id], samplers[tex.sampler_id]), fragTexCoord).r, 0.0, 1.0);
+}
+
+float getTransmissionRoughness(inout MaterialStruct material)
+{
+    return clamp(material.transmission_roughness, 0.0, 1.0);
 }
 
 vec2 sampleBRDF(vec3 N, vec3 V, float roughness)
 {
+    if ((push.consts.brdf_lut_id < 0) || (push.consts.brdf_lut_id >= MAX_TEXTURES))
+        return vec2(0.0, 0.0);
+
     TextureStruct tex = txbo.textures[push.consts.brdf_lut_id];
 
-	roughness = clamp(roughness, 0.0, 1.0);
+    if ((tex.sampler_id < 0) || (tex.sampler_id >= MAX_SAMPLERS)) 
+        return vec2(0.0, 0.0);
+
 	return texture( 
 			sampler2D(texture_2Ds[push.consts.brdf_lut_id], samplers[tex.sampler_id]), 
 			vec2(max(dot(N, V), 0.0), roughness)
 	).rg;
 }
 
-// Todo: add support for sampled irradiance
 vec3 sampleIrradiance(vec3 N)
 {
-	vec3 adjusted = vec3(N.x, N.z, N.y);
+    if ((push.consts.diffuse_environment_id < 0 ) || (push.consts.diffuse_environment_id >= MAX_TEXTURES))
+	    return getSky(N.xzy);
 
-	if (push.consts.diffuse_environment_id != -1) 
-    {
-        TextureStruct tex = txbo.textures[push.consts.diffuse_environment_id];
-        if (tex.sampler_id != -1) {
-            return texture(
-                samplerCube(texture_cubes[push.consts.diffuse_environment_id], samplers[tex.sampler_id]), adjusted
-            ).rgb;
-            
-        }
-	}
+    TextureStruct tex = txbo.textures[push.consts.diffuse_environment_id];
+    
+    if ((tex.sampler_id < 0 ) || (tex.sampler_id >= MAX_SAMPLERS))
+        return getSky(N.xzy);
 
-	return getSky(adjusted);
+    return texture(
+        samplerCube(texture_cubes[push.consts.diffuse_environment_id], samplers[tex.sampler_id]), N.xzy
+    ).rgb;
 }
 
 // From http://filmicgames.com/archives/75
@@ -225,35 +232,26 @@ vec3 F_SchlickR(float cosTheta, vec3 F0, float roughness)
 
 
 // Todo: add support for prefiltered reflection 
-vec3 prefilteredReflection(vec3 R, float roughness)
+vec3 getPrefilteredReflection(vec3 R, float roughness)
 {
-	vec3 reflection = vec3(0.0, 0.0, 0.0);
-	
-	roughness = clamp(roughness, 0.0, 1.0);
-	vec3 adjusted = vec3(R.x, R.z, R.y);
+	if ((push.consts.specular_environment_id < 0) || (push.consts.specular_environment_id >= MAX_TEXTURES))
+		return mix(getSky(R.xzy), (push.consts.top_sky_color.rgb + push.consts.bottom_sky_color.rgb) * .5, roughness);
 
-	if (push.consts.specular_environment_id != -1) {
-        TextureStruct tex = txbo.textures[push.consts.specular_environment_id];
-		
-		float lod = roughness * max(tex.mip_levels, 0.0);
-		float lodf = floor(lod);
-		float lodc = ceil(lod);
-		
-		vec3 a = textureLod(
-			samplerCube(texture_cubes[push.consts.specular_environment_id], samplers[tex.sampler_id]), 
-			adjusted, lodf).rgb;
+    TextureStruct tex = txbo.textures[push.consts.specular_environment_id];
+    
+    float lod = roughness * max(tex.mip_levels, 0.0);
+    float lodf = floor(lod);
+    float lodc = ceil(lod);
+    
+    vec3 a = textureLod(
+        samplerCube(texture_cubes[push.consts.specular_environment_id], samplers[tex.sampler_id]), 
+        R.xzy, lodf).rgb;
 
-		vec3 b = textureLod(
-			samplerCube(texture_cubes[push.consts.specular_environment_id], samplers[tex.sampler_id]), 
-			adjusted, lodc).rgb;
+    vec3 b = textureLod(
+        samplerCube(texture_cubes[push.consts.specular_environment_id], samplers[tex.sampler_id]), 
+        R.xzy, lodc).rgb;
 
-		reflection = mix(a, b, lod - lodf);
-	}
-	 else {
-		reflection = mix(getSky(adjusted), (push.consts.top_sky_color.rgb + push.consts.bottom_sky_color.rgb) * .5, roughness);
-	}
-
-	return reflection;
+    return mix(a, b, lod - lodf);
 }
 
 vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 F0, vec3 albedo, float metallic, float roughness)

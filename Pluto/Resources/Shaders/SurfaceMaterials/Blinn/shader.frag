@@ -10,7 +10,7 @@ void main() {
   // CameraStruct camera = cbo.cameras[camera_entity.camera_id];
   // TransformStruct camera_transform = tbo.transforms[camera_entity.transform_id];
 
-  vec4 base_color = getAlbedo();
+  vec4 base_color = getAlbedo(material);
   
   /*Blinn-Phong shading model
     I = ka + Il * kd * (l dot n) + Il * ks * (h dot n)^N */	

@@ -3,8 +3,10 @@
 Transform Transform::transforms[MAX_TRANSFORMS];
 TransformStruct* Transform::pinnedMemory;
 std::map<std::string, uint32_t> Transform::lookupTable;
-vk::Buffer Transform::transformSSBO;
-vk::DeviceMemory Transform::transformSSBOMemory;
+vk::Buffer Transform::stagingSSBO;
+vk::Buffer Transform::SSBO;
+vk::DeviceMemory Transform::stagingSSBOMemory;
+vk::DeviceMemory Transform::SSBOMemory;
 
 void Transform::Initialize()
 {
@@ -12,30 +14,59 @@ void Transform::Initialize()
     auto device = vulkan->get_device();
     auto physical_device = vulkan->get_physical_device();
 
-    vk::BufferCreateInfo bufferInfo = {};
-    bufferInfo.size = MAX_TRANSFORMS * sizeof(TransformStruct);
-    bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer;
-    bufferInfo.sharingMode = vk::SharingMode::eExclusive;
-    transformSSBO = device.createBuffer(bufferInfo);
+    {
+        vk::BufferCreateInfo bufferInfo = {};
+        bufferInfo.size = MAX_TRANSFORMS * sizeof(TransformStruct);
+        bufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+        bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+        stagingSSBO = device.createBuffer(bufferInfo);
 
-    vk::MemoryRequirements memReqs = device.getBufferMemoryRequirements(transformSSBO);
-    vk::MemoryAllocateInfo allocInfo = {};
-    allocInfo.allocationSize = memReqs.size;
+        vk::MemoryRequirements memReqs = device.getBufferMemoryRequirements(stagingSSBO);
+        vk::MemoryAllocateInfo allocInfo = {};
+        allocInfo.allocationSize = memReqs.size;
 
-    vk::PhysicalDeviceMemoryProperties memProperties = physical_device.getMemoryProperties();
-    vk::MemoryPropertyFlags properties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
-    allocInfo.memoryTypeIndex = vulkan->find_memory_type(memReqs.memoryTypeBits, properties);
+        vk::PhysicalDeviceMemoryProperties memProperties = physical_device.getMemoryProperties();
+        vk::MemoryPropertyFlags properties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+        allocInfo.memoryTypeIndex = vulkan->find_memory_type(memReqs.memoryTypeBits, properties);
 
-    transformSSBOMemory = device.allocateMemory(allocInfo);
-    device.bindBufferMemory(transformSSBO, transformSSBOMemory, 0);
+        stagingSSBOMemory = device.allocateMemory(allocInfo);
+        device.bindBufferMemory(stagingSSBO, stagingSSBOMemory, 0);
+    }
 
-    /* Pin the buffer */
-    pinnedMemory = (TransformStruct*) device.mapMemory(transformSSBOMemory, 0, MAX_TRANSFORMS * sizeof(TransformStruct));
+    {
+        vk::BufferCreateInfo bufferInfo = {};
+        bufferInfo.size = MAX_TRANSFORMS * sizeof(TransformStruct);
+        bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst;
+        bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+        SSBO = device.createBuffer(bufferInfo);
+
+        vk::MemoryRequirements memReqs = device.getBufferMemoryRequirements(SSBO);
+        vk::MemoryAllocateInfo allocInfo = {};
+        allocInfo.allocationSize = memReqs.size;
+
+        vk::PhysicalDeviceMemoryProperties memProperties = physical_device.getMemoryProperties();
+        vk::MemoryPropertyFlags properties = vk::MemoryPropertyFlagBits::eDeviceLocal;
+        allocInfo.memoryTypeIndex = vulkan->find_memory_type(memReqs.memoryTypeBits, properties);
+
+        SSBOMemory = device.allocateMemory(allocInfo);
+        device.bindBufferMemory(SSBO, SSBOMemory, 0);
+    }
+
 }
 
-void Transform::UploadSSBO() 
+void Transform::UploadSSBO(vk::CommandBuffer command_buffer) 
 {
+    auto vulkan = Libraries::Vulkan::Get();
+    auto device = vulkan->get_device();
+
+    if (SSBOMemory == vk::DeviceMemory()) return;
+    if (stagingSSBOMemory == vk::DeviceMemory()) return;
+    
+    auto bufferSize = MAX_TRANSFORMS * sizeof(TransformStruct);
+
+    pinnedMemory = (TransformStruct*) device.mapMemory(stagingSSBOMemory, 0, bufferSize);
     if (pinnedMemory == nullptr) return;
+
     TransformStruct transformObjects[MAX_TRANSFORMS];
     
     /* TODO: remove this for loop */
@@ -55,11 +86,20 @@ void Transform::UploadSSBO()
 
     /* Copy to GPU mapped memory */
     memcpy(pinnedMemory, transformObjects, sizeof(transformObjects));
+
+    device.unmapMemory(stagingSSBOMemory);
+
+	vk::BufferCopy copyRegion;
+	copyRegion.size = bufferSize;
+    command_buffer.copyBuffer(stagingSSBO, SSBO, copyRegion);
+
 }
 
 vk::Buffer Transform::GetSSBO() 
 {
-    return transformSSBO;
+    if ((SSBO != vk::Buffer()) && (SSBOMemory != vk::DeviceMemory()))
+        return SSBO;
+    else return vk::Buffer();
 }
 
 uint32_t Transform::GetSSBOSize()
@@ -71,9 +111,11 @@ void Transform::CleanUp()
 {
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
-    device.destroyBuffer(transformSSBO);
-    device.unmapMemory(transformSSBOMemory);
-    device.freeMemory(transformSSBOMemory);
+    device.destroyBuffer(SSBO);
+    device.freeMemory(SSBOMemory);
+
+    device.destroyBuffer(stagingSSBO);
+    device.freeMemory(stagingSSBOMemory);
 }
 
 

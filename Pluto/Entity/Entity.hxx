@@ -30,8 +30,10 @@ private:
 	static Entity entities[MAX_ENTITIES];
 	static EntityStruct* pinnedMemory;
     static std::map<std::string, uint32_t> lookupTable;
-    static vk::Buffer ssbo;
-    static vk::DeviceMemory ssboMemory;
+    static vk::Buffer SSBO;
+    static vk::DeviceMemory SSBOMemory;
+	static vk::Buffer stagingSSBO;
+    static vk::DeviceMemory stagingSSBOMemory;
 
 	static std::map<std::string, uint32_t> windowToEntity;
 	static std::map<uint32_t, std::string> entityToWindow;
@@ -47,7 +49,7 @@ public:
 	static void Delete(uint32_t id);
 	
     static void Initialize();
-    static void UploadSSBO();
+    static void UploadSSBO(vk::CommandBuffer command_buffer);
     static vk::Buffer GetSSBO();
 	static uint32_t GetSSBOSize();
     static void CleanUp();	

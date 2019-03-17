@@ -6,8 +6,10 @@
 Light Light::lights[MAX_LIGHTS];
 LightStruct* Light::pinnedMemory;
 std::map<std::string, uint32_t> Light::lookupTable;
-vk::Buffer Light::ssbo;
-vk::DeviceMemory Light::ssboMemory;
+vk::Buffer Light::SSBO;
+vk::DeviceMemory Light::SSBOMemory;
+vk::Buffer Light::stagingSSBO;
+vk::DeviceMemory Light::stagingSSBOMemory;
 std::vector<Camera*> Light::shadowCameras;
 
 Light::Light()
@@ -168,25 +170,43 @@ void Light::Initialize()
     if (physical_device == vk::PhysicalDevice())
         throw std::runtime_error( std::string("Invalid vulkan physical device"));
 
-    vk::BufferCreateInfo bufferInfo = {};
-    bufferInfo.size = MAX_LIGHTS * sizeof(LightStruct);
-    bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer;
-    bufferInfo.sharingMode = vk::SharingMode::eExclusive;
-    ssbo = device.createBuffer(bufferInfo);
+    {
+        vk::BufferCreateInfo bufferInfo = {};
+        bufferInfo.size = MAX_LIGHTS * sizeof(LightStruct);
+        bufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+        bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+        stagingSSBO = device.createBuffer(bufferInfo);
 
-    vk::MemoryRequirements memReqs = device.getBufferMemoryRequirements(ssbo);
-    vk::MemoryAllocateInfo allocInfo = {};
-    allocInfo.allocationSize = memReqs.size;
+        vk::MemoryRequirements memReqs = device.getBufferMemoryRequirements(stagingSSBO);
+        vk::MemoryAllocateInfo allocInfo = {};
+        allocInfo.allocationSize = memReqs.size;
 
-    vk::PhysicalDeviceMemoryProperties memProperties = physical_device.getMemoryProperties();
-    vk::MemoryPropertyFlags properties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
-    allocInfo.memoryTypeIndex = vulkan->find_memory_type(memReqs.memoryTypeBits, properties);
+        vk::PhysicalDeviceMemoryProperties memProperties = physical_device.getMemoryProperties();
+        vk::MemoryPropertyFlags properties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+        allocInfo.memoryTypeIndex = vulkan->find_memory_type(memReqs.memoryTypeBits, properties);
 
-    ssboMemory = device.allocateMemory(allocInfo);
-    device.bindBufferMemory(ssbo, ssboMemory, 0);
+        stagingSSBOMemory = device.allocateMemory(allocInfo);
+        device.bindBufferMemory(stagingSSBO, stagingSSBOMemory, 0);
+    }
 
-    /* Pin the buffer */
-    pinnedMemory = (LightStruct*) device.mapMemory(ssboMemory, 0, MAX_LIGHTS * sizeof(LightStruct));
+    {
+        vk::BufferCreateInfo bufferInfo = {};
+        bufferInfo.size = MAX_LIGHTS * sizeof(LightStruct);
+        bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst;
+        bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+        SSBO = device.createBuffer(bufferInfo);
+
+        vk::MemoryRequirements memReqs = device.getBufferMemoryRequirements(SSBO);
+        vk::MemoryAllocateInfo allocInfo = {};
+        allocInfo.allocationSize = memReqs.size;
+
+        vk::PhysicalDeviceMemoryProperties memProperties = physical_device.getMemoryProperties();
+        vk::MemoryPropertyFlags properties = vk::MemoryPropertyFlagBits::eDeviceLocal;
+        allocInfo.memoryTypeIndex = vulkan->find_memory_type(memReqs.memoryTypeBits, properties);
+
+        SSBOMemory = device.allocateMemory(allocInfo);
+        device.bindBufferMemory(SSBO, SSBOMemory, 0);
+    }
 }
 
 void Light::CreateShadowCameras()
@@ -194,7 +214,7 @@ void Light::CreateShadowCameras()
     // Right, Left, Up, Down, Far, Near
     /* Create shadow map textures */
     for (uint32_t i = 0; i < MAX_LIGHTS; ++i) {
-        auto cam = Camera::Create("ShadowCam_" + std::to_string(i), true, 512, 512, 1, 6, false);
+        auto cam = Camera::Create("ShadowCam_" + std::to_string(i), true, 256, 256, 1, 6, false);
         cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 0);
         cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 1);
         cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 2);
@@ -213,8 +233,18 @@ void Light::CreateShadowCameras()
     }
 }
 
-void Light::UploadSSBO()
+void Light::UploadSSBO(vk::CommandBuffer command_buffer)
 {
+    auto vulkan = Libraries::Vulkan::Get();
+    auto device = vulkan->get_device();
+
+    if (SSBOMemory == vk::DeviceMemory()) return;
+    if (stagingSSBOMemory == vk::DeviceMemory()) return;
+    
+    auto bufferSize = MAX_LIGHTS * sizeof(LightStruct);
+
+    pinnedMemory = (LightStruct*) device.mapMemory(stagingSSBOMemory, 0, bufferSize);
+
     if (pinnedMemory == nullptr) return;
     LightStruct light_structs[MAX_LIGHTS];
     
@@ -227,11 +257,19 @@ void Light::UploadSSBO()
 
     /* Copy to GPU mapped memory */
     memcpy(pinnedMemory, light_structs, sizeof(light_structs));
+
+    device.unmapMemory(stagingSSBOMemory);
+
+    vk::BufferCopy copyRegion;
+	copyRegion.size = bufferSize;
+    command_buffer.copyBuffer(stagingSSBO, SSBO, copyRegion);
 }
 
 vk::Buffer Light::GetSSBO()
 {
-    return ssbo;
+    if ((SSBO != vk::Buffer()) && (SSBOMemory != vk::DeviceMemory()))
+        return SSBO;
+    else return vk::Buffer();
 }
 
 uint32_t Light::GetSSBOSize()
@@ -248,9 +286,11 @@ void Light::CleanUp()
     if (device == vk::Device())
         throw std::runtime_error( std::string("Invalid vulkan device"));
 
-    device.destroyBuffer(ssbo);
-    device.unmapMemory(ssboMemory);
-    device.freeMemory(ssboMemory);
+    device.destroyBuffer(SSBO);
+    device.freeMemory(SSBOMemory);
+
+    device.destroyBuffer(stagingSSBO);
+    device.freeMemory(stagingSSBOMemory);
 }	
 
 /* Static Factory Implementations */
