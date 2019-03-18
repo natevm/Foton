@@ -546,7 +546,7 @@ namespace Libraries {
 
             vk::CommandBuffer cmdBuffer = vulkan->begin_one_time_graphics_command();
             window.textures[i]->setImageLayout( cmdBuffer, data.colorImage, vk::ImageLayout::eUndefined, vk::ImageLayout::ePresentSrcKHR, subresourceRange);
-            auto fut = vulkan->end_one_time_graphics_command(cmdBuffer, "Transition swapchain image", true, true);
+            auto fut = vulkan->end_one_time_graphics_command_immediately(cmdBuffer, "Transition swapchain image", true);
         }
         window.swapchain_out_of_date = false;
         return true;

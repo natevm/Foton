@@ -506,7 +506,6 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
         commandPools.push_back(device.createCommandPool(poolInfo));
     }
 
-
     initialized = true;
     return true;
 }
@@ -879,30 +878,55 @@ vk::CommandBuffer Vulkan::begin_one_time_graphics_command() {
     return cmdBuffer;
 }
 
-bool Vulkan::end_one_time_graphics_command(vk::CommandBuffer command_buffer, std::string hint, bool free_after_use, bool submit_immediately, uint32_t queue_idx) {
+bool Vulkan::end_one_time_graphics_command(vk::CommandBuffer command_buffer, std::string hint, bool free_after_use, uint32_t queue_idx) {
+    std::lock_guard<std::mutex> lock(end_one_time_command_mutex);
+
     command_buffer.end();
 
     uint32_t pool_id = get_thread_id();
 
     vk::FenceCreateInfo fenceInfo;
-    vk::Fence fence = device.createFence(fenceInfo);
+    vk::Fence one_time_graphics_command_fence = device.createFence(fenceInfo);
 
-    std::future<void> fut = enqueue_graphics_commands({command_buffer}, {},{}, {}, fence, hint, queue_idx);
-
-    if (submit_immediately) submit_graphics_commands();
-
-    // std::cout<<"Pool id: " << pool_id << " pool " << std::to_string((uint32_t)VkCommandPool(get_command_pool())) << " msg " << hint << std::endl;
-
+    std::future<void> fut = enqueue_graphics_commands({command_buffer}, {},{}, {}, one_time_graphics_command_fence, hint, queue_idx);
     fut.wait();
 
-    auto result = device.waitForFences(fence, true, 10000000000);
+    auto result = device.waitForFences(one_time_graphics_command_fence, true, 10000000000);
     if (result != vk::Result::eSuccess) {
         std::cout<<"Fence timeout: " << hint << std::endl; 
     }
-
+    
     if (free_after_use)
         device.freeCommandBuffers(get_command_pool(), {command_buffer});
-    device.destroyFence(fence);
+
+    device.destroyFence(one_time_graphics_command_fence);
+    return true;
+}
+
+void Vulkan::register_main_thread() {
+    registered_main_thread = get_thread_id();
+}
+
+bool Vulkan::end_one_time_graphics_command_immediately(vk::CommandBuffer command_buffer, std::string hint, bool free_after_use, uint32_t queue_idx) {
+    command_buffer.end();
+    uint32_t pool_id = get_thread_id();
+
+    if (pool_id != registered_main_thread) 
+        throw std::runtime_error("Error: only the main thread can call this function!");
+
+    vk::FenceCreateInfo fenceInfo;
+    vk::Fence one_time_graphics_command_fence_immediately = device.createFence(fenceInfo);
+
+    enqueue_graphics_commands({command_buffer}, {},{},{}, one_time_graphics_command_fence_immediately, hint, queue_idx);
+    submit_graphics_commands();
+
+    auto result = device.waitForFences(one_time_graphics_command_fence_immediately, true, 10000000000);
+    if (result != vk::Result::eSuccess) {
+        std::cout<<"Fence timeout: " << hint << std::endl; 
+    }
+    device.destroyFence(one_time_graphics_command_fence_immediately);
+
+    if (free_after_use) device.freeCommandBuffers(get_command_pool(), {command_buffer});
     return true;
 }
 
@@ -1023,6 +1047,8 @@ bool Vulkan::submit_present_commands() {
                 submit_info.pSignalSemaphores = nullptr;
                 graphicsQueues[0].submit(submit_info, fence);
                 device.waitForFences(fence, true, 10000000000);
+
+                device.destroyFence(fence);
 
             }
         }

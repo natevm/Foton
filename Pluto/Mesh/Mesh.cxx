@@ -1101,7 +1101,11 @@ void Mesh::build_top_level_bvh(bool submit_immediately)
 		//     vk::PipelineStageFlagBits::eRayTracingShaderNV, 
 		//     vk::DependencyFlags(), {memoryBarrier}, {}, {});
 
-		vulkan->end_one_time_graphics_command(cmd, "build acceleration structure", true, submit_immediately);
+		if (submit_immediately)
+			vulkan->end_one_time_graphics_command_immediately(cmd, "build acceleration structure", true);
+		else
+			vulkan->end_one_time_graphics_command(cmd, "build acceleration structure", true);
+
 	}
 
 }
@@ -1262,7 +1266,10 @@ void Mesh::build_low_level_bvh(bool submit_immediately)
 		//     vk::PipelineStageFlagBits::eAccelerationStructureBuildNV, 
 		//     vk::DependencyFlags(), {memoryBarrier}, {}, {});
 
-		vulkan->end_one_time_graphics_command(cmd, "build acceleration structure", true, submit_immediately);
+		if (submit_immediately)
+			vulkan->end_one_time_graphics_command_immediately(cmd, "build acceleration structure", true);
+		else
+			vulkan->end_one_time_graphics_command(cmd, "build acceleration structure", true);
 	}
 
 	/* Might need a fence here */
@@ -1744,7 +1751,11 @@ void Mesh::createPointBuffer(bool allow_edits, bool submit_immediately)
 	vk::BufferCopy copyRegion;
 	copyRegion.size = bufferSize;
 	cmd.copyBuffer(stagingBuffer, pointBuffer, copyRegion);
-	vulkan->end_one_time_graphics_command(cmd, "copy point buffer", true, submit_immediately);
+
+	if (submit_immediately)
+		vulkan->end_one_time_graphics_command_immediately(cmd, "copy point buffer", true);
+	else
+		vulkan->end_one_time_graphics_command(cmd, "copy point buffer", true);
 
 	/* Clean up the staging buffer */
 	device.destroyBuffer(stagingBuffer);
@@ -1780,7 +1791,11 @@ void Mesh::createColorBuffer(bool allow_edits, bool submit_immediately)
 	vk::BufferCopy copyRegion;
 	copyRegion.size = bufferSize;
 	cmd.copyBuffer(stagingBuffer, colorBuffer, copyRegion);
-	vulkan->end_one_time_graphics_command(cmd, "copy point color buffer", true, submit_immediately);
+
+	if (submit_immediately)
+		vulkan->end_one_time_graphics_command_immediately(cmd, "copy point color buffer", true);
+	else
+		vulkan->end_one_time_graphics_command(cmd, "copy point color buffer", true);
 
 	/* Clean up the staging buffer */
 	device.destroyBuffer(stagingBuffer);
@@ -1814,7 +1829,11 @@ void Mesh::createIndexBuffer(bool allow_edits, bool submit_immediately)
 	vk::BufferCopy copyRegion;
 	copyRegion.size = bufferSize;
 	cmd.copyBuffer(stagingBuffer, indexBuffer, copyRegion);
-	vulkan->end_one_time_graphics_command(cmd, "copy point index buffer", true, submit_immediately);
+
+	if (submit_immediately)
+		vulkan->end_one_time_graphics_command_immediately(cmd, "copy point index buffer", true);
+	else
+		vulkan->end_one_time_graphics_command(cmd, "copy point index buffer", true);
 
 	device.destroyBuffer(stagingBuffer);
 	device.freeMemory(stagingBufferMemory);
@@ -1849,7 +1868,11 @@ void Mesh::createNormalBuffer(bool allow_edits, bool submit_immediately)
 	vk::BufferCopy copyRegion;
 	copyRegion.size = bufferSize;
 	cmd.copyBuffer(stagingBuffer, normalBuffer, copyRegion);
-	vulkan->end_one_time_graphics_command(cmd, "copy point normal buffer", true, submit_immediately);
+
+	if (submit_immediately)
+		vulkan->end_one_time_graphics_command_immediately(cmd, "copy point normal buffer", true);
+	else
+		vulkan->end_one_time_graphics_command(cmd, "copy point normal buffer", true);
 
 	/* Clean up the staging buffer */
 	device.destroyBuffer(stagingBuffer);
@@ -1885,7 +1908,11 @@ void Mesh::createTexCoordBuffer(bool allow_edits, bool submit_immediately)
 	vk::BufferCopy copyRegion;
 	copyRegion.size = bufferSize;
 	cmd.copyBuffer(stagingBuffer, texCoordBuffer, copyRegion);
-	vulkan->end_one_time_graphics_command(cmd, "copy point texcoord buffer", true, submit_immediately);
+
+	if (submit_immediately)
+		vulkan->end_one_time_graphics_command_immediately(cmd, "copy point texcoord buffer", true);
+	else
+		vulkan->end_one_time_graphics_command(cmd, "copy point texcoord buffer", true);
 
 	/* Clean up the staging buffer */
 	device.destroyBuffer(stagingBuffer);

@@ -36,6 +36,8 @@ namespace Systems
 
             void set_top_sky_color(glm::vec3 color);
             void set_bottom_sky_color(glm::vec3 color);
+            void set_top_sky_color(float r, float g, float b);
+            void set_bottom_sky_color(float r, float g, float b);
             void set_sky_transition(float transition);
 
             void use_openvr(bool useOpenVR);

@@ -614,6 +614,7 @@ void Camera::end_depth_prepass(vk::CommandBuffer command_buffer, uint32_t index)
 		
 	command_buffer.endRenderPass();
 
+	renderTexture->overrideColorImageLayout(vk::ImageLayout::eColorAttachmentOptimal);	
 	renderTexture->overrideDepthImageLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);	
 }
 

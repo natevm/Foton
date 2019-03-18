@@ -362,10 +362,11 @@ void RenderSystem::record_render_commands()
     Entity::UploadSSBO(upload_command);
     Texture::UploadSSBO(upload_command);
     Mesh::UploadSSBO(upload_command);
+    
+	vulkan->end_one_time_graphics_command_immediately(upload_command, "Upload SSBO Data", true);
+
     Material::UpdateRasterDescriptorSets();
     Material::UpdateRaytracingDescriptorSets();
-
-	vulkan->end_one_time_graphics_command(upload_command, "Upload SSBO Data", true, true);
     
     if (update_push_constants() == true) {
         record_cameras();
@@ -543,7 +544,7 @@ void RenderSystem::enqueue_render_commands() {
             }
 
             /* Make a compute node for this command buffer */
-            auto node = std::make_shared<ComputeNode>();
+        auto node = std::make_shared<ComputeNode>();
             node->level = level_idx;
             node->queue_idx = queue_idx;
             node->command_buffers.push_back(cameras[c_id].get_command_buffer());
@@ -777,6 +778,10 @@ bool RenderSystem::start()
             /* Wait until vulkan is initialized before rendering. */
             auto vulkan = Vulkan::Get();
             if (!vulkan->is_initialized()) continue;
+            
+            /* For error handling purposes related to queue access */
+            vulkan->register_main_thread();
+
 
             /* 0. Allocate the resources we'll need to render this scene. */
             allocate_vulkan_resources();
@@ -894,6 +899,8 @@ void RenderSystem::set_diffuse_map(Texture *texture) { this->push_constants.diff
 void RenderSystem::clear_diffuse_map() { this->push_constants.diffuse_environment_id = -1; }
 void RenderSystem::set_top_sky_color(glm::vec3 color) { push_constants.top_sky_color = glm::vec4(color.r, color.g, color.b, 1.0); }
 void RenderSystem::set_bottom_sky_color(glm::vec3 color) { push_constants.bottom_sky_color = glm::vec4(color.r, color.g, color.b, 1.0); }
+void RenderSystem::set_top_sky_color(float r, float g, float b) { set_top_sky_color(glm::vec4(r, g, b, 1.0)); }
+void RenderSystem::set_bottom_sky_color(float r, float g, float b) { set_bottom_sky_color(glm::vec4(r, g, b, 1.0)); }
 void RenderSystem::set_sky_transition(float transition) { push_constants.sky_transition = transition; }
 void RenderSystem::use_openvr(bool useOpenVR) { this->using_openvr = useOpenVR; }
 

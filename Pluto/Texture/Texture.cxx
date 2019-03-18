@@ -216,7 +216,11 @@ std::vector<float> Texture::download_color_data(uint32_t width, uint32_t height,
         originalLayout,
         srcSubresourceRange);
     data.colorImageLayout = originalLayout;
-    vulkan->end_one_time_graphics_command(cmdBuffer, "download color data", true, submit_immediately);
+
+    if (submit_immediately)
+		vulkan->end_one_time_graphics_command_immediately(cmdBuffer, "download color data", true);
+	else
+		vulkan->end_one_time_graphics_command(cmdBuffer, "download color data", true);
 
     /* Memcpy from host visable image here... */
     /* Copy texture data into staging buffer */
@@ -398,7 +402,10 @@ void Texture::upload_color_data(uint32_t width, uint32_t height, uint32_t depth,
     /* transition source back VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL  */
     setImageLayout(command_buffer, data.colorImage, vk::ImageLayout::eTransferDstOptimal, data.colorImageLayout, dstSubresourceRange);
 
-    vulkan->end_one_time_graphics_command(command_buffer, "upload color data", true, submit_immediately);
+    if (submit_immediately)
+		vulkan->end_one_time_graphics_command_immediately(command_buffer, "upload color data", true);
+	else
+		vulkan->end_one_time_graphics_command(command_buffer, "upload color data", true);
 
     device.destroyImage(src_image);
     device.freeMemory(src_image_memory);
@@ -1051,7 +1058,10 @@ void Texture::loadKTX(std::string imagePath, bool submit_immediately)
         vk::ImageLayout::eShaderReadOnlyOptimal,
         subresourceRange);
 
-    vulkan->end_one_time_graphics_command(copyCmd, "transition new ktx image", true, submit_immediately);
+    if (submit_immediately)
+		vulkan->end_one_time_graphics_command_immediately(copyCmd, "transition new ktx image", true);
+	else
+		vulkan->end_one_time_graphics_command(copyCmd, "transition new ktx image", true);
 
     /* Clean up staging resources */
     device.destroyBuffer(stagingBuffer);
@@ -1223,7 +1233,10 @@ void Texture::loadPNG(std::string imagePath, bool submit_immediately)
         vk::ImageLayout::eShaderReadOnlyOptimal,
         subresourceRange);
 
-    vulkan->end_one_time_graphics_command(copyCmd, "transition new png image", true, submit_immediately);
+    if (submit_immediately)
+		vulkan->end_one_time_graphics_command_immediately(copyCmd, "transition new png image", true);
+	else
+		vulkan->end_one_time_graphics_command(copyCmd, "transition new png image", true);
 
     /* Clean up staging resources */
     device.destroyBuffer(stagingBuffer);
@@ -1317,7 +1330,11 @@ void Texture::create_color_image_resources(bool submit_immediately, bool attachm
         setImageLayout(cmdBuffer, data.colorImage, vk::ImageLayout::eUndefined, vk::ImageLayout::eShaderReadOnlyOptimal, subresourceRange);
         data.colorImageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
     }
-    vulkan->end_one_time_graphics_command(cmdBuffer, "transition new color image", true, submit_immediately);
+
+    if (submit_immediately)
+		vulkan->end_one_time_graphics_command_immediately(cmdBuffer, "transition new color image", true);
+	else
+		vulkan->end_one_time_graphics_command(cmdBuffer, "transition new color image", true);
 
     /* Create the image view */
     vk::ImageViewCreateInfo vInfo;
@@ -1413,7 +1430,10 @@ void Texture::create_depth_stencil_resources(bool submit_immediately)
     vk::CommandBuffer cmdBuffer = vulkan->begin_one_time_graphics_command();
     setImageLayout(cmdBuffer, data.depthImage, vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthStencilAttachmentOptimal, subresourceRange);
     data.depthImageLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-    vulkan->end_one_time_graphics_command(cmdBuffer, "transition new depth image", true, submit_immediately);
+    if (submit_immediately)
+		vulkan->end_one_time_graphics_command_immediately(cmdBuffer, "transition new depth image", true);
+	else
+		vulkan->end_one_time_graphics_command(cmdBuffer, "transition new depth image", true);
 
     /* Create the image view */
     vk::ImageViewCreateInfo vInfo;
@@ -1734,7 +1754,6 @@ uint32_t Texture::GetCount() {
 
 void Texture::make_renderable(vk::CommandBuffer commandBuffer, vk::PipelineStageFlags srcStageMask, vk::PipelineStageFlags dstStageMask)
 {
-
     if (this->data.colorImageLayout != vk::ImageLayout::eColorAttachmentOptimal)
     {
         /* Transition destination image to transfer destination optimal */

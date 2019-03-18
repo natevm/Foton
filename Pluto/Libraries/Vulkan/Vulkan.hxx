@@ -35,6 +35,8 @@ namespace Libraries {
         );
         bool destroy_device();
 
+        void register_main_thread();
+
 
         vk::Instance get_instance() const;
         vk::PhysicalDevice get_physical_device() const;
@@ -79,10 +81,12 @@ namespace Libraries {
         float get_max_anisotropy();
 
         vk::CommandBuffer begin_one_time_graphics_command();
-        bool end_one_time_graphics_command(vk::CommandBuffer command_buffer, std::string hint, bool free_after_use = true, bool submit_immediately = false, uint32_t queue_idx = 0);
-
+        bool end_one_time_graphics_command(vk::CommandBuffer command_buffer, std::string hint, bool free_after_use = true, uint32_t queue_idx = 0);
+        bool end_one_time_graphics_command_immediately(vk::CommandBuffer command_buffer, std::string hint, bool free_after_use = true, uint32_t queue_idx = 0);
+        
         vk::DispatchLoaderDynamic get_dldi();
     private:
+        uint32_t registered_main_thread = -1;
         uint32_t registered_threads = 0; 
         bool validationEnabled = true;
         bool rayTracingEnabled = false;
@@ -125,8 +129,7 @@ namespace Libraries {
         vk::Device device;
         std::vector<vk::Queue> graphicsQueues;
         std::vector<vk::Queue> presentQueues;	
-
-            // vk::SubmitInfo submission;
+        // vk::SubmitInfo submission;
 
         struct CommandQueueItem {
             std::string hint;
@@ -145,6 +148,7 @@ namespace Libraries {
         std::mutex graphics_queue_mutex;
         std::mutex present_queue_mutex;
         std::mutex thread_id_mutex;
+        std::mutex end_one_time_command_mutex;
         std::queue<CommandQueueItem> graphicsCommandQueue;
         std::queue<CommandQueueItem> presentCommandQueue;
         
