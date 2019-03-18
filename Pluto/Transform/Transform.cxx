@@ -7,6 +7,7 @@ vk::Buffer Transform::stagingSSBO;
 vk::Buffer Transform::SSBO;
 vk::DeviceMemory Transform::stagingSSBOMemory;
 vk::DeviceMemory Transform::SSBOMemory;
+std::mutex Transform::creation_mutex;
 
 void Transform::Initialize()
 {
@@ -121,6 +122,7 @@ void Transform::CleanUp()
 
 /* Static Factory Implementations */
 Transform* Transform::Create(std::string name) {
+    std::lock_guard<std::mutex> lock(creation_mutex);
     return StaticFactory::Create(name, "Transform", lookupTable, transforms, MAX_TRANSFORMS);
 }
 

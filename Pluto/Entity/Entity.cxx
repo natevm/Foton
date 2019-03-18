@@ -12,6 +12,7 @@ vk::DeviceMemory Entity::stagingSSBOMemory;
 std::map<std::string, uint32_t> Entity::windowToEntity;
 std::map<uint32_t, std::string> Entity::entityToWindow;
 uint32_t Entity::entityToVR = -1;
+std::mutex Entity::creation_mutex;
 
 Entity::Entity() {
     this->initialized = false;
@@ -319,6 +320,7 @@ void Entity::CleanUp()
 
 /* Static Factory Implementations */
 Entity* Entity::Create(std::string name) {
+    std::lock_guard<std::mutex> lock(creation_mutex);
     return StaticFactory::Create(name, "Entity", lookupTable, entities, MAX_ENTITIES);
 }
 

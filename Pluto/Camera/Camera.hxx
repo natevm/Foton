@@ -5,6 +5,7 @@
 #pragma once
 
 #include <vulkan/vulkan.hpp>
+#include <mutex>
 
 #include "Pluto/Tools/StaticFactory.hxx"
 #include "Pluto/Camera/CameraStruct.hxx"
@@ -200,6 +201,8 @@ class Camera : public StaticFactory
 	bool needs_command_buffers();
 
   private:
+  	/* TODO */
+	static std::mutex creation_mutex;
 	
 	/* Determines whether this camera should use a depth prepass to reduce fragment complexity at the cost of 
 	vertex shader complexity */

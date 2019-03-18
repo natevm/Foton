@@ -29,6 +29,7 @@ std::vector<vk::VertexInputBindingDescription> Material::vertexInputBindingDescr
 std::vector<vk::VertexInputAttributeDescription> Material::vertexInputAttributeDescriptions;
 vk::DescriptorSet Material::componentDescriptorSet;
 vk::DescriptorSet Material::textureDescriptorSet;
+std::mutex Material::creation_mutex;
 
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::uniformColor;
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::blinn;
@@ -1465,6 +1466,7 @@ void Material::CleanUp()
 
 /* Static Factory Implementations */
 Material* Material::Create(std::string name) {
+    std::lock_guard<std::mutex> lock(creation_mutex);
     return StaticFactory::Create(name, "Material", lookupTable, materials, MAX_MATERIALS);
 }
 

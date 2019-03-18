@@ -11,6 +11,7 @@ vk::DeviceMemory Light::SSBOMemory;
 vk::Buffer Light::stagingSSBO;
 vk::DeviceMemory Light::stagingSSBOMemory;
 std::vector<Camera*> Light::shadowCameras;
+std::mutex Light::creation_mutex;
 
 Light::Light()
 {
@@ -295,6 +296,7 @@ void Light::CleanUp()
 
 /* Static Factory Implementations */
 Light* Light::Create(std::string name) {
+    std::lock_guard<std::mutex> lock(creation_mutex);
     return StaticFactory::Create(name, "Light", lookupTable, lights, MAX_LIGHTS);
 }
 

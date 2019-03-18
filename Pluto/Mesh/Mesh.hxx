@@ -4,6 +4,7 @@
 #include <glm/glm.hpp>
 #include <tiny_obj_loader.h>
 #include <map>
+#include <mutex>
 
 #include "Pluto/Tools/Options.hxx"
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
@@ -250,6 +251,8 @@ class Mesh : public StaticFactory
 		bool should_show_bounding_box();
 
 	private:
+		/* TODO */
+		static std::mutex creation_mutex;
 		
 		/* A list of the mesh components, allocated statically */
 		static Mesh meshes[MAX_MESHES];

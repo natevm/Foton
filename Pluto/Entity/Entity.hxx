@@ -27,6 +27,8 @@ private:
 	//std::map<std::type_index, std::vector<std::shared_ptr<Component>>> components;
 	
 	/* Static fields */
+	/* TODO */
+	static std::mutex creation_mutex;
 	static Entity entities[MAX_ENTITIES];
 	static EntityStruct* pinnedMemory;
     static std::map<std::string, uint32_t> lookupTable;

@@ -14,6 +14,7 @@ vk::Buffer Camera::SSBO;
 vk::DeviceMemory Camera::SSBOMemory;
 vk::Buffer Camera::stagingSSBO;
 vk::DeviceMemory Camera::stagingSSBOMemory;
+std::mutex Camera::creation_mutex;
 int32_t Camera::minRenderOrder = 0;
 int32_t Camera::maxRenderOrder = 0;
 

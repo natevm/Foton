@@ -47,6 +47,7 @@ vk::AccelerationStructureNV Mesh::topAS;
 vk::DeviceMemory Mesh::topASMemory;
 vk::Buffer Mesh::instanceBuffer;
 vk::DeviceMemory Mesh::instanceBufferMemory;
+std::mutex Mesh::creation_mutex;
 
 class Vertex
 {
@@ -1287,6 +1288,7 @@ Mesh* Mesh::Get(uint32_t id) {
 
 Mesh* Mesh::CreateBox(std::string name, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	generator::BoxMesh gen_mesh{};
@@ -1296,6 +1298,7 @@ Mesh* Mesh::CreateBox(std::string name, bool allow_edits, bool submit_immediatel
 
 Mesh* Mesh::CreateCappedCone(std::string name, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	generator::CappedConeMesh gen_mesh{};
@@ -1305,6 +1308,7 @@ Mesh* Mesh::CreateCappedCone(std::string name, bool allow_edits, bool submit_imm
 
 Mesh* Mesh::CreateCappedCylinder(std::string name, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	generator::CappedCylinderMesh gen_mesh{};
@@ -1314,6 +1318,7 @@ Mesh* Mesh::CreateCappedCylinder(std::string name, bool allow_edits, bool submit
 
 Mesh* Mesh::CreateCappedTube(std::string name, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	generator::CappedTubeMesh gen_mesh{};
@@ -1323,6 +1328,7 @@ Mesh* Mesh::CreateCappedTube(std::string name, bool allow_edits, bool submit_imm
 
 Mesh* Mesh::CreateCapsule(std::string name, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	generator::CapsuleMesh gen_mesh{};
@@ -1332,6 +1338,7 @@ Mesh* Mesh::CreateCapsule(std::string name, bool allow_edits, bool submit_immedi
 
 Mesh* Mesh::CreateCone(std::string name, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	generator::ConeMesh gen_mesh{};
@@ -1341,6 +1348,7 @@ Mesh* Mesh::CreateCone(std::string name, bool allow_edits, bool submit_immediate
 
 Mesh* Mesh::CreatePentagon(std::string name, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	generator::ConvexPolygonMesh gen_mesh{};
@@ -1350,6 +1358,7 @@ Mesh* Mesh::CreatePentagon(std::string name, bool allow_edits, bool submit_immed
 
 Mesh* Mesh::CreateCylinder(std::string name, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	generator::CylinderMesh gen_mesh{};
@@ -1359,6 +1368,7 @@ Mesh* Mesh::CreateCylinder(std::string name, bool allow_edits, bool submit_immed
 
 Mesh* Mesh::CreateDisk(std::string name, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	generator::DiskMesh gen_mesh{};
@@ -1368,6 +1378,7 @@ Mesh* Mesh::CreateDisk(std::string name, bool allow_edits, bool submit_immediate
 
 Mesh* Mesh::CreateDodecahedron(std::string name, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	generator::DodecahedronMesh gen_mesh{};
@@ -1377,6 +1388,7 @@ Mesh* Mesh::CreateDodecahedron(std::string name, bool allow_edits, bool submit_i
 
 Mesh* Mesh::CreatePlane(std::string name, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	generator::PlaneMesh gen_mesh{};
@@ -1386,6 +1398,7 @@ Mesh* Mesh::CreatePlane(std::string name, bool allow_edits, bool submit_immediat
 
 Mesh* Mesh::CreateIcosahedron(std::string name, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	generator::IcosahedronMesh gen_mesh{};
@@ -1395,6 +1408,7 @@ Mesh* Mesh::CreateIcosahedron(std::string name, bool allow_edits, bool submit_im
 
 Mesh* Mesh::CreateIcosphere(std::string name, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	generator::IcoSphereMesh gen_mesh{};
@@ -1414,6 +1428,7 @@ Mesh* Mesh::CreateIcosphere(std::string name, bool allow_edits, bool submit_imme
 
 Mesh* Mesh::CreateRoundedBox(std::string name, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	generator::RoundedBoxMesh gen_mesh{};
@@ -1423,6 +1438,7 @@ Mesh* Mesh::CreateRoundedBox(std::string name, bool allow_edits, bool submit_imm
 
 Mesh* Mesh::CreateSphere(std::string name, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	generator::SphereMesh gen_mesh{};
@@ -1432,6 +1448,7 @@ Mesh* Mesh::CreateSphere(std::string name, bool allow_edits, bool submit_immedia
 
 Mesh* Mesh::CreateSphericalCone(std::string name, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	generator::SphericalConeMesh gen_mesh{};
@@ -1441,6 +1458,7 @@ Mesh* Mesh::CreateSphericalCone(std::string name, bool allow_edits, bool submit_
 
 Mesh* Mesh::CreateSphericalTriangle(std::string name, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	generator::SphericalTriangleMesh gen_mesh{};
@@ -1450,6 +1468,7 @@ Mesh* Mesh::CreateSphericalTriangle(std::string name, bool allow_edits, bool sub
 
 Mesh* Mesh::CreateSpring(std::string name, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	generator::SpringMesh gen_mesh{};
@@ -1459,6 +1478,7 @@ Mesh* Mesh::CreateSpring(std::string name, bool allow_edits, bool submit_immedia
 
 Mesh* Mesh::CreateTeapotahedron(std::string name, uint32_t segments, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	generator::TeapotMesh gen_mesh(segments);
@@ -1468,6 +1488,7 @@ Mesh* Mesh::CreateTeapotahedron(std::string name, uint32_t segments, bool allow_
 
 Mesh* Mesh::CreateTorus(std::string name, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	generator::TorusMesh gen_mesh{};
@@ -1477,6 +1498,7 @@ Mesh* Mesh::CreateTorus(std::string name, bool allow_edits, bool submit_immediat
 
 Mesh* Mesh::CreateTorusKnot(std::string name, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	generator::TorusKnotMesh gen_mesh{};
@@ -1486,6 +1508,7 @@ Mesh* Mesh::CreateTorusKnot(std::string name, bool allow_edits, bool submit_imme
 
 Mesh* Mesh::CreateTriangle(std::string name, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	generator::TriangleMesh gen_mesh{};
@@ -1495,6 +1518,7 @@ Mesh* Mesh::CreateTriangle(std::string name, bool allow_edits, bool submit_immed
 
 Mesh* Mesh::CreateTube(std::string name, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	generator::TubeMesh gen_mesh{};
@@ -1504,6 +1528,7 @@ Mesh* Mesh::CreateTube(std::string name, bool allow_edits, bool submit_immediate
 
 Mesh* Mesh::CreateTubeFromPolyline(std::string name, std::vector<glm::vec3> points, float radius, uint32_t segments, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	if (points.size() <= 1)
 		throw std::runtime_error("Error: points must be greater than 1!");
 	
@@ -1550,6 +1575,7 @@ Mesh* Mesh::CreateTubeFromPolyline(std::string name, std::vector<glm::vec3> poin
 
 Mesh* Mesh::CreateRoundedRectangleTubeFromPolyline(std::string name, std::vector<glm::vec3> points, float radius, float size_x, float size_y, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	if (points.size() <= 1)
 		throw std::runtime_error("Error: points must be greater than 1!");
 	
@@ -1596,6 +1622,7 @@ Mesh* Mesh::CreateRoundedRectangleTubeFromPolyline(std::string name, std::vector
 
 Mesh* Mesh::CreateRectangleTubeFromPolyline(std::string name, std::vector<glm::vec3> points, float size_x, float size_y, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	if (points.size() <= 1)
 		throw std::runtime_error("Error: points must be greater than 1!");
 	
@@ -1643,6 +1670,7 @@ Mesh* Mesh::CreateRectangleTubeFromPolyline(std::string name, std::vector<glm::v
 
 Mesh* Mesh::CreateFromOBJ(std::string name, std::string objPath, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	mesh->load_obj(objPath, allow_edits, submit_immediately);
 	return mesh;
@@ -1650,6 +1678,7 @@ Mesh* Mesh::CreateFromOBJ(std::string name, std::string objPath, bool allow_edit
 
 Mesh* Mesh::CreateFromSTL(std::string name, std::string stlPath, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	mesh->load_stl(stlPath, allow_edits, submit_immediately);
 	return mesh;
@@ -1657,6 +1686,7 @@ Mesh* Mesh::CreateFromSTL(std::string name, std::string stlPath, bool allow_edit
 
 Mesh* Mesh::CreateFromGLB(std::string name, std::string glbPath, bool allow_edits, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	mesh->load_glb(glbPath, allow_edits, submit_immediately);
 	return mesh;
@@ -1672,6 +1702,7 @@ Mesh* Mesh::CreateFromRaw (
 	bool allow_edits, 
 	bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	mesh->load_raw(points, normals, colors, texcoords, indices, allow_edits, submit_immediately);
 	return mesh;

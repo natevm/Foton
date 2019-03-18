@@ -19,6 +19,7 @@
 #include <glm/gtx/matrix_interpolation.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
 #include <map>
+#include <mutex>
 
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
 #include "Pluto/Tools/StaticFactory.hxx"
@@ -58,6 +59,9 @@ class Transform : public StaticFactory
     mat4 parentToLocalMatrix = mat4(1);
 
     // float interpolation = 1.0;
+
+    /* TODO */
+	static std::mutex creation_mutex;
 
     static Transform transforms[MAX_TRANSFORMS];
     static TransformStruct* pinnedMemory;

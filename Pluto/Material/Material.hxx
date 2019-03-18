@@ -17,6 +17,7 @@
 
 #include <iostream>
 #include <map>
+#include <mutex>
 
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
 #include "Pluto/Tools/StaticFactory.hxx"
@@ -150,6 +151,8 @@ class Material : public StaticFactory
 
 
     private:
+        /* TODO */
+		static std::mutex creation_mutex;
     
         /*  A list of the material components, allocated statically */
         static Material materials[MAX_MATERIALS];
