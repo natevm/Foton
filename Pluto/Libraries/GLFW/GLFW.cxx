@@ -360,11 +360,12 @@ namespace Libraries {
 
     bool GLFW::create_vulkan_swapchain(std::string key)
     {
-        auto mutex = window_mutex.get();
-        std::lock_guard<std::mutex> lock(*mutex);
-        
         auto vulkan = Libraries::Vulkan::Get();
-        vulkan->flush_queues();
+
+        if (!vulkan->is_initialized()) return false;
+        if (!does_window_exist(key)) return false;
+        /* Is this required? */
+        // vulkan->flush_queues();
 
         /*
             VkSurfaceKHR + imageCount + surface format and color space + present mode => vkSwapChainKHR
@@ -546,8 +547,11 @@ namespace Libraries {
 
             vk::CommandBuffer cmdBuffer = vulkan->begin_one_time_graphics_command();
             window.textures[i]->setImageLayout( cmdBuffer, data.colorImage, vk::ImageLayout::eUndefined, vk::ImageLayout::ePresentSrcKHR, subresourceRange);
-            auto fut = vulkan->end_one_time_graphics_command_immediately(cmdBuffer, "Transition swapchain image", true);
+            auto fut = vulkan->end_one_time_graphics_command(cmdBuffer, "Transition swapchain image", true);
         }
+        
+        auto mutex = window_mutex.get();
+        std::lock_guard<std::mutex> lock(*mutex);
         window.swapchain_out_of_date = false;
         return true;
     }

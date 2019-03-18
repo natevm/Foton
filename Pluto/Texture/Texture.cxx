@@ -20,6 +20,7 @@ vk::Buffer Texture::SSBO;
 vk::DeviceMemory Texture::SSBOMemory;
 vk::Buffer Texture::stagingSSBO;
 vk::DeviceMemory Texture::stagingSSBOMemory;
+std::mutex Texture::creation_mutex;
 
 Texture::Texture()
 {
@@ -1598,6 +1599,7 @@ std::vector<vk::ImageLayout> Texture::GetLayouts(vk::ImageViewType view_type)
 /* Static Factory Implementations */
 Texture *Texture::CreateFromKTX(std::string name, std::string filepath, bool submit_immediately)
 {
+    std::lock_guard<std::mutex> lock(creation_mutex);
     auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
     if (!tex) return nullptr;
     tex->loadKTX(filepath, submit_immediately);
@@ -1607,6 +1609,7 @@ Texture *Texture::CreateFromKTX(std::string name, std::string filepath, bool sub
 
 Texture *Texture::CreateFromPNG(std::string name, std::string filepath, bool submit_immediately)
 {
+    std::lock_guard<std::mutex> lock(creation_mutex);
     auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
     if (!tex) return nullptr;
     tex->loadPNG(filepath, submit_immediately);
@@ -1617,6 +1620,7 @@ Texture *Texture::CreateFromPNG(std::string name, std::string filepath, bool sub
 Texture* Texture::CreateCubemap(
     std::string name, uint32_t width, uint32_t height, bool hasColor, bool hasDepth, bool submit_immediately) 
 {
+    std::lock_guard<std::mutex> lock(creation_mutex);
     auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
     if (!tex) return nullptr;
 
@@ -1633,6 +1637,7 @@ Texture* Texture::CreateCubemap(
 
 Texture* Texture::CreateChecker(std::string name, bool submit_immediately)
 {
+    std::lock_guard<std::mutex> lock(creation_mutex);
     // This is just temporary. Planning on using a procedural texture
     std::string ResourcePath = Options::GetResourcePath();
     auto checkerTexturePath = ResourcePath + std::string("/Defaults/checker.ktx");
@@ -1650,6 +1655,7 @@ Texture* Texture::Create2D(
     bool hasColor, bool hasDepth, uint32_t sampleCount, uint32_t layers, 
     bool submit_immediately)
 {
+    std::lock_guard<std::mutex> lock(creation_mutex);
     auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
     if (!tex) return nullptr;
 
@@ -1680,6 +1686,7 @@ Texture* Texture::Create3D(
     std::string name, uint32_t width, uint32_t height, uint32_t depth, 
     uint32_t layers, bool submit_immediately)
 {
+    std::lock_guard<std::mutex> lock(creation_mutex);
     auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
     if (!tex) return nullptr;
 
@@ -1705,6 +1712,7 @@ Texture* Texture::Create3D(
 Texture* Texture::Create2DFromColorData (
     std::string name, uint32_t width, uint32_t height, std::vector<float> data, bool submit_immediately)
 {
+    std::lock_guard<std::mutex> lock(creation_mutex);
     auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
     if (!tex) return nullptr;
     tex->data.width = width;
@@ -1721,6 +1729,7 @@ Texture* Texture::Create2DFromColorData (
 
 Texture* Texture::CreateFromExternalData(std::string name, Data data)
 {
+    std::lock_guard<std::mutex> lock(creation_mutex);
     auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
     if (!tex) return nullptr;
     tex->setData(data);

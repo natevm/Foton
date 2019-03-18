@@ -51,6 +51,7 @@ namespace Systems
 
             if (glfw) {
                 glfw->poll_events();
+                glfw->update_swapchains();
 
                 // glfw->wait_events(); // THIS CALL IS BLOCKING
                 {

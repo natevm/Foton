@@ -3,6 +3,8 @@
 #include <iostream>
 #include <map>
 #include <vector>
+#include <thread>
+#include <mutex>
 
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
 #include "Pluto/Tools/StaticFactory.hxx"
@@ -171,6 +173,8 @@ class Texture : public StaticFactory
 		void overrideDepthImageLayout(vk::ImageLayout layout);
 
 	private:
+		/* TODO */
+		static std::mutex creation_mutex;
 
 		/* The list of texture components, allocated statically */
 		static Texture textures[MAX_TEXTURES];

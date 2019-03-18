@@ -149,7 +149,7 @@ class Camera : public StaticFactory
 	bool is_entity_visible(uint32_t entity_id);
 
 	/* TODO: Explain this */
-	vk::Semaphore get_semaphore(uint32_t frame_idx);
+	// vk::Semaphore get_semaphore(uint32_t frame_idx);
 	
 	/* TODO: Explain this */
 	vk::Fence get_fence(uint32_t frame_idx);
@@ -254,7 +254,7 @@ class Camera : public StaticFactory
 	vk::CommandBuffer command_buffer;
 
 	/* TODO: explain this */
-	std::vector<vk::Semaphore> semaphores;
+	// std::vector<vk::Semaphore> semaphores;
 
 	/* TODO: explain this */
 	std::vector<vk::Fence> fences;
@@ -314,7 +314,7 @@ class Camera : public StaticFactory
 	void create_query_pool();
 
 	/* TODO: Explain this */
-	void create_semaphores();
+	// void create_semaphores();
 
 	/* TODO: Explain this */
 	void create_fences();

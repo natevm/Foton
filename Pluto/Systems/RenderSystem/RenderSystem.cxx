@@ -847,8 +847,6 @@ bool RenderSystem::start()
                 }
             }
 
-            glfw->update_swapchains();
-
             currentFrame = (currentFrame + 1) % max_frames_in_flight;
         }
 

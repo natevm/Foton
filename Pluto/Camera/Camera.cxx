@@ -54,7 +54,7 @@ void Camera::setup(bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32
 
 	/* Since the main renderloop needs to use these command buffers, the main renderloop must create them */
 	// create_command_buffers();
-	create_semaphores();
+	// create_semaphores();
 	create_fences();
 	create_render_passes(layers, msaa_samples);
 	create_frame_buffers(layers);
@@ -99,19 +99,19 @@ void Camera::create_command_buffers()
     command_buffer = device.allocateCommandBuffers(cmdAllocInfo)[0];
 }
 
-void Camera::create_semaphores()
-{
-	auto vulkan = Libraries::Vulkan::Get();
-	auto device = vulkan->get_device();
+// void Camera::create_semaphores()
+// {
+// 	auto vulkan = Libraries::Vulkan::Get();
+// 	auto device = vulkan->get_device();
 
-	uint32_t max_frames_in_flight = 2;
-	vk::SemaphoreCreateInfo semaphoreInfo;
+// 	uint32_t max_frames_in_flight = 2;
+// 	vk::SemaphoreCreateInfo semaphoreInfo;
 	
-	semaphores.resize(max_frames_in_flight);
-	for (uint32_t frame = 0; frame < max_frames_in_flight; ++frame) {
-		semaphores[frame] = device.createSemaphore(semaphoreInfo);
-	}
-}
+// 	semaphores.resize(max_frames_in_flight);
+// 	for (uint32_t frame = 0; frame < max_frames_in_flight; ++frame) {
+// 		semaphores[frame] = device.createSemaphore(semaphoreInfo);
+// 	}
+// }
 
 void Camera::create_fences()
 {
@@ -733,9 +733,9 @@ void Camera::end_visibility_query(vk::CommandBuffer command_buffer, uint32_t ent
 	command_buffer.endQuery(queryPool, draw_idx);
 }
 
-vk::Semaphore Camera::get_semaphore(uint32_t frame_idx) {
-	return semaphores[frame_idx];
-}
+// vk::Semaphore Camera::get_semaphore(uint32_t frame_idx) {
+// 	return semaphores[frame_idx];
+// }
 
 vk::Fence Camera::get_fence(uint32_t frame_idx) {
 	return fences[frame_idx];
@@ -847,7 +847,10 @@ void Camera::CleanUp()
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
 	device.destroyBuffer(SSBO);
-	device.freeMemory(SSBOMemory);
+    device.freeMemory(SSBOMemory);
+
+	device.destroyBuffer(stagingSSBO);
+    device.freeMemory(stagingSSBOMemory);
 
 	for (uint32_t i = 0; i < GetCount(); ++i) {
 		cameras[i].cleanup();
@@ -922,19 +925,13 @@ void Camera::cleanup()
     }
 
 	uint32_t max_frames_in_flight = 2;
-	for (uint32_t frame = 0; frame < max_frames_in_flight; ++frame) {
-		device.destroySemaphore(semaphores[frame]);
-	}
+	// for (uint32_t frame = 0; frame < max_frames_in_flight; ++frame) {
+	// 	device.destroySemaphore(semaphores[frame]);
+	// }
 
 	if (queryPool != vk::QueryPool()) {
 		device.destroyQueryPool(queryPool);
 	}
-
-	device.destroyBuffer(SSBO);
-    device.freeMemory(SSBOMemory);
-
-	device.destroyBuffer(stagingSSBO);
-    device.freeMemory(stagingSSBOMemory);
 }
 
 void Camera::force_render_mode(RenderMode rendermode)
