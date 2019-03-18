@@ -23,6 +23,8 @@ bool isIPyKernel = false;
 bool isMainModuleSet = false;
 std::string ip = "";
 
+int requestedDevice = -1;
+
 #define $(flag) (strcmp(argv[i], flag) == 0)
 bool ProcessArg(int &i, char **argv)
 {
@@ -49,6 +51,12 @@ bool ProcessArg(int &i, char **argv)
         ip = std::string(argv[i]);
         ++i;
         std::cout<<"Activating client mode. " <<std::endl;
+    }
+    else if $("-device") {
+        ++i;
+        requestedDevice = std::stoi(argv[i], nullptr, 10);
+        ++i;
+        std::cout<<"Requesting device "<< requestedDevice <<std::endl;
     }
 
     return i != orig_i;
@@ -124,6 +132,10 @@ std::string GetConnectionFile()
     return ConnectionFile;
 }
 
+int GetRequestedDevice()
+{
+    return requestedDevice;
+}
 
 std::string GetIP() {
     return ip;

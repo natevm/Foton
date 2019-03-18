@@ -14,6 +14,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include "Pluto/Tools/Options.hxx"
 #include "Vulkan.hxx"
 #include "../GLFW/GLFW.hxx"
 #if BUILD_OPENVR
@@ -339,8 +340,16 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
     {
         /* Check and see if any physical devices are suitable, since not all cards are equal */
         physicalDevice = vk::PhysicalDevice();
+        uint32_t device_idx = 0;
+        int requestedDevice = Options::GetRequestedDevice();
         for (const auto &device : devices)
         {
+            /* Allow a custom GPU to be selected */
+            if ((requestedDevice != -1) && (device_idx != requestedDevice)) {
+                device_idx++;
+                continue;
+            }
+
             swapChainAdequate = extensionsSupported = queuesFound = false;
             deviceProperties = device.getProperties();
             auto supportedFeatures = device.getFeatures();
@@ -421,13 +430,13 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
     }
 #endif
     
-    cout << "\tChoosing device " << std::string(deviceProperties.deviceName) << endl;
-
     if (!physicalDevice)
     {
         throw std::runtime_error("Failed to find a GPU which meets demands!" );
         return false;
     }
+
+    cout << "\tChoosing device " << std::string(deviceProperties.deviceName) << endl;
 
     /* If we're using raytracing, query raytracing properties */
     if (rayTracingEnabled) {
