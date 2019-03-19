@@ -260,3 +260,15 @@ install(FILES ${PROJECT_SOURCE_DIR}/MANIFEST.in DESTINATION ${CMAKE_INSTALL_PREF
 install(FILES ${PROJECT_SOURCE_DIR}/README.md DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/Pluto/Resources DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
+
+
+# ┌──────────────────────────────────────────────────────────────────┐
+# │  Tests                                                           │
+# └──────────────────────────────────────────────────────────────────┘
+file(GLOB TEST_SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/Tests/*.cxx)
+message(WARN ${TEST_SRC_FILES})
+add_executable(runUnitTests ${TEST_SRC_FILES})
+target_link_libraries(runUnitTests gtest gtest_main)
+target_link_libraries(runUnitTests ${LIBRARIES} PlutoLib)
+
+add_test( runUnitTests runUnitTests )

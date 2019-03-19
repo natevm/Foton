@@ -11,6 +11,10 @@ class Camera;
 class Light : public StaticFactory
 {
     private:
+        
+        /* TODO */
+		static std::mutex creation_mutex;
+
         /* Factory fields */
         static Light lights[MAX_LIGHTS];
         static LightStruct* pinnedMemory;
@@ -25,8 +29,6 @@ class Light : public StaticFactory
         LightStruct light_struct;
 
     public:
-        /* TODO */
-		static std::mutex creation_mutex;
         
         /* Factory functions */
         static Light* Create(std::string name);

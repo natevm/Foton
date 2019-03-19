@@ -4,6 +4,7 @@
 /* Common */
 #include "Pluto/Pluto.hxx"
 #include "Pluto/Tools/StaticFactory.hxx"
+using namespace Pluto;
 
 /* Libraries */
 #include "Pluto/Libraries/GLFW/GLFW.hxx"

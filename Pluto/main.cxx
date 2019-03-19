@@ -47,7 +47,7 @@ int main(int argc, char** argv)
     event_system->stop();
 
     /* event system currently stopped by Python thread */
-    CleanUp();
+    Pluto::CleanUp();
     
     std::cout<<"Shutting down Pluto"<<std::endl;
     
