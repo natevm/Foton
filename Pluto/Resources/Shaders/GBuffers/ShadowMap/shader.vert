@@ -15,6 +15,7 @@ out gl_PerVertex {
 };
 
 void main() {
+    gl_Position = vec4(0.0, 0.0, 0.0, 1.0);
     EntityStruct target_entity = ebo.entities[push.consts.target_id];
     EntityStruct camera_entity = ebo.entities[push.consts.camera_id];
     
@@ -35,7 +36,7 @@ void main() {
     #ifdef DISABLE_MULTIVIEW
     int viewIndex = push.consts.viewIndex;
     #else
-    int viewIndex = gl_ViewIndex;
+    int viewIndex = (push.consts.use_multiview == 0) ? push.consts.viewIndex : gl_ViewIndex;
     #endif
 
     gl_Position = camera.multiviews[viewIndex].viewproj * 

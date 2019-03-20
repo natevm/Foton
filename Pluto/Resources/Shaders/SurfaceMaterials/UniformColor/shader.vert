@@ -23,7 +23,7 @@ void main() {
     #ifdef DISABLE_MULTIVIEW
     int viewIndex = push.consts.viewIndex;
     #else
-    int viewIndex = gl_ViewIndex;
+    int viewIndex = (push.consts.use_multiview == 0) ? push.consts.viewIndex : gl_ViewIndex;
     #endif
     gl_Position =  camera.multiviews[viewIndex].viewproj * transform.localToWorld * vec4(point, 1.0);
     gl_PointSize = 1.0;

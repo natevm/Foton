@@ -1,3 +1,5 @@
+#pragma optimize("", off)
+
 #include "./Camera.hxx"
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
 #include "Pluto/Texture/Texture.hxx"
@@ -20,11 +22,17 @@ int32_t Camera::maxRenderOrder = 0;
 
 using namespace Libraries;
 
-void Camera::setup(bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers, bool use_depth_prepass)
+void Camera::setup(bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers, bool use_depth_prepass, bool use_multiview)
 {
 	if ((tex_width == 0) || (tex_height == 0)) {
 		throw std::runtime_error("Error: width and height of camera " + name + " texture must be greater than zero!");
 	}
+
+	#if DISABLE_MULTIVIEW
+	this->use_multiview = false;
+	#else
+	this->use_multiview = use_multiview;
+	#endif
 
 	this->use_depth_prepass = use_depth_prepass;
 	layers = (cubemap) ? 6 : layers;
@@ -133,12 +141,7 @@ void Camera::create_render_passes(uint32_t layers, uint32_t sample_count)
     renderpasses.clear();
     depthPrepasses.clear();
     
-	#ifdef DISABLE_MULTIVIEW
-    int iterations = layers;
-	#else
-    int iterations = 1;
-	#endif
-    
+    int iterations = (use_multiview) ? 1 : layers;
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
 
@@ -251,11 +254,7 @@ void Camera::create_render_passes(uint32_t layers, uint32_t sample_count)
         renderPassInfo.pSubpasses = &subpass;
         renderPassInfo.dependencyCount = (uint32_t) dependencies.size();
         renderPassInfo.pDependencies = dependencies.data();
-#ifdef DISABLE_MULTIVIEW
-        renderPassInfo.pNext = nullptr;
-#else
-        renderPassInfo.pNext = &renderPassMultiviewInfo;
-#endif
+        renderPassInfo.pNext = (use_multiview) ? (&renderPassMultiviewInfo) : nullptr;
 		if (use_depth_prepass)
 		{
 			/* Depth prepass will transition from undefined to optimal now. */
@@ -294,53 +293,54 @@ void Camera::create_frame_buffers(uint32_t layers) {
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
 
-    
-	#ifdef DISABLE_MULTIVIEW
-    for(uint32_t i = 0; i < layers; i++) {
-        vk::ImageView attachments[3];
-        attachments[0] = renderTexture->get_color_image_view_layers()[i];
-        attachments[1] = renderTexture->get_depth_image_view_layers()[i];
-        if (msaa_samples != 1)
-            attachments[2] = resolveTexture->get_color_image_view_layers()[i];
-        
-        vk::FramebufferCreateInfo fbufCreateInfo;
-        fbufCreateInfo.renderPass = renderpasses[i];
-        fbufCreateInfo.attachmentCount = (msaa_samples == 1) ? 2 : 3;
-        fbufCreateInfo.pAttachments = attachments;
-        fbufCreateInfo.width = renderTexture->get_width();
-        fbufCreateInfo.height = renderTexture->get_height();
-        fbufCreateInfo.layers = 1;
-        
-        framebuffers.push_back(device.createFramebuffer(fbufCreateInfo));
+	if (use_multiview) {
+		vk::ImageView attachments[3];
+		attachments[0] = renderTexture->get_color_image_view();
+		attachments[1] = renderTexture->get_depth_image_view();
+		if (msaa_samples != 1)
+			attachments[2] = resolveTexture->get_color_image_view();
 
-		fbufCreateInfo.renderPass = depthPrepasses[i];
-    	depthPrepassFramebuffers.push_back(device.createFramebuffer(fbufCreateInfo));
-    }
-	#else
-    vk::ImageView attachments[3];
-    attachments[0] = renderTexture->get_color_image_view();
-    attachments[1] = renderTexture->get_depth_image_view();
-    if (msaa_samples != 1)
-        attachments[2] = resolveTexture->get_color_image_view();
-    
-    vk::FramebufferCreateInfo fbufCreateInfo;
-    fbufCreateInfo.renderPass = renderpasses[0];
-    fbufCreateInfo.attachmentCount = (msaa_samples == 1) ? 2 : 3;
-    fbufCreateInfo.pAttachments = attachments;
-    fbufCreateInfo.width = renderTexture->get_width();
-    fbufCreateInfo.height = renderTexture->get_height();
-    fbufCreateInfo.layers = renderTexture->get_total_layers();
-    
-    framebuffers.push_back(device.createFramebuffer(fbufCreateInfo));
+		vk::FramebufferCreateInfo fbufCreateInfo;
+		fbufCreateInfo.renderPass = renderpasses[0];
+		fbufCreateInfo.attachmentCount = (msaa_samples == 1) ? 2 : 3;
+		fbufCreateInfo.pAttachments = attachments;
+		fbufCreateInfo.width = renderTexture->get_width();
+		fbufCreateInfo.height = renderTexture->get_height();
+		fbufCreateInfo.layers = renderTexture->get_total_layers();
 
-	if (use_depth_prepass)
-	{
-		fbufCreateInfo.renderPass = depthPrepasses[0];
-		depthPrepassFramebuffers.push_back(device.createFramebuffer(fbufCreateInfo));
+		framebuffers.push_back(device.createFramebuffer(fbufCreateInfo));
+
+		if (use_depth_prepass)
+		{
+			fbufCreateInfo.renderPass = depthPrepasses[0];
+			depthPrepassFramebuffers.push_back(device.createFramebuffer(fbufCreateInfo));
+		}
 	}
+	else {
+		for(uint32_t i = 0; i < layers; i++) {
+			vk::ImageView attachments[3];
+			attachments[0] = renderTexture->get_color_image_view_layers()[i];
+			attachments[1] = renderTexture->get_depth_image_view_layers()[i];
+			if (msaa_samples != 1)
+				attachments[2] = resolveTexture->get_color_image_view_layers()[i];
+			
+			vk::FramebufferCreateInfo fbufCreateInfo;
+			fbufCreateInfo.renderPass = renderpasses[i];
+			fbufCreateInfo.attachmentCount = (msaa_samples == 1) ? 2 : 3;
+			fbufCreateInfo.pAttachments = attachments;
+			fbufCreateInfo.width = renderTexture->get_width();
+			fbufCreateInfo.height = renderTexture->get_height();
+			fbufCreateInfo.layers = 1;
+			
+			framebuffers.push_back(device.createFramebuffer(fbufCreateInfo));
 
-	#endif
-    
+			if (use_depth_prepass)
+			{
+				fbufCreateInfo.renderPass = depthPrepasses[i];
+				depthPrepassFramebuffers.push_back(device.createFramebuffer(fbufCreateInfo));
+			}
+		}
+	}
 }
 
 void Camera::update_used_views(uint32_t multiview) {
@@ -553,7 +553,7 @@ void Camera::end_renderpass(vk::CommandBuffer command_buffer, uint32_t index) {
 	renderTexture->overrideColorImageLayout(vk::ImageLayout::eColorAttachmentOptimal);	
 	renderTexture->overrideDepthImageLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);	
 
-	/* hack for now*/ 
+	// /* hack for now*/ 
 	if (renderOrder < 0) {
 		renderTexture->make_samplable(command_buffer);
 	}
@@ -661,40 +661,42 @@ void Camera::reset_query_pool(vk::CommandBuffer command_buffer)
 
 void Camera::download_query_pool_results()
 {
-	if (queryPool == vk::QueryPool()) return;
+	if (!visibilityTestingPaused)
+	{
+		if (queryPool == vk::QueryPool()) return;
 
-	if (!queryRecorded) return;
-	
-	if (max_queried == 0) return;
+		if (!queryRecorded) return;
+		
+		if (max_queried == 0) return;
 
-	auto vulkan = Libraries::Vulkan::Get();
-	auto device = vulkan->get_device();
-	// vulkan->flush_queues();
+		auto vulkan = Libraries::Vulkan::Get();
+		auto device = vulkan->get_device();
+		// vulkan->flush_queues();
 
 
-	uint32_t num_queries = max_queried;
-	uint32_t data_size = sizeof(uint64_t) * (MAX_ENTITIES); // Why do I need an extra number here?
-	uint32_t first_query = 0;
-	uint32_t stride = sizeof(uint64_t);
+		uint32_t num_queries = max_queried;
+		uint32_t data_size = sizeof(uint64_t) * (MAX_ENTITIES); // Why do I need an extra number here?
+		uint32_t first_query = 0;
+		uint32_t stride = sizeof(uint64_t);
 
-	std::vector<uint64_t> temp(MAX_ENTITIES, 0);
-	auto result = device.getQueryPoolResults(queryPool, first_query, num_queries, 
-			data_size, temp.data(), stride, // wait locks up... with availability requires an extra integer?
-			vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::eWait | vk::QueryResultFlagBits::ePartial | vk::QueryResultFlagBits::eWithAvailability); //  vk::QueryResultFlagBits::ePartial |
+		std::vector<uint64_t> temp(MAX_ENTITIES, 0);
+		auto result = device.getQueryPoolResults(queryPool, first_query, num_queries, 
+				data_size, temp.data(), stride, // wait locks up... with availability requires an extra integer?
+				vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::eWait | vk::QueryResultFlagBits::ePartial | vk::QueryResultFlagBits::eWithAvailability); //  vk::QueryResultFlagBits::ePartial |
 
-	if (result == vk::Result::eSuccess) {
-		for (uint32_t i = 0; i < max_queried; ++i) {
-			if (temp[i] > 0) {
-				queryResults[i] = temp[i] - 1;
+		if (result == vk::Result::eSuccess) {
+			for (uint32_t i = 0; i < max_queried; ++i) {
+				if (temp[i] > 0) {
+					queryResults[i] = temp[i] - 1;
+				}
 			}
+			previousEntityToDrawIdx = entityToDrawIdx;
+			queryDownloaded = true;
 		}
-		previousEntityToDrawIdx = entityToDrawIdx;
-		queryDownloaded = true;
+		else {
+			std::cout<<"camera " << id << " " << vk::to_string(result)<<std::endl;
+		}
 	}
-	else {
-		std::cout<<"camera " << id << " " << vk::to_string(result)<<std::endl;
-	}
-
 }
 
 std::vector<uint64_t> & Camera::get_query_pool_results()
@@ -722,16 +724,32 @@ bool Camera::is_entity_visible(uint32_t entity_id)
 
 void Camera::begin_visibility_query(vk::CommandBuffer command_buffer, uint32_t entity_id, uint32_t draw_idx)
 {
-	queryRecorded = true;
-	queryDownloaded = false;
-	entityToDrawIdx[entity_id] = draw_idx;
-	command_buffer.beginQuery(queryPool, draw_idx, vk::QueryControlFlags());
+	if (!visibilityTestingPaused)
+	{
+		queryRecorded = true;
+		queryDownloaded = false;
+		entityToDrawIdx[entity_id] = draw_idx;
+		command_buffer.beginQuery(queryPool, draw_idx, vk::QueryControlFlags());
+	}
+}
+
+void Camera::pause_visibility_testing()
+{
+	visibilityTestingPaused = true;
+}
+
+void Camera::resume_visibility_testing()
+{
+	visibilityTestingPaused = false;
 }
 
 void Camera::end_visibility_query(vk::CommandBuffer command_buffer, uint32_t entity_id, uint32_t draw_idx)
 {
-	max_queried = std::max((uint64_t)draw_idx + 1, max_queried);
-	command_buffer.endQuery(queryPool, draw_idx);
+	if (!visibilityTestingPaused)
+	{
+		max_queried = std::max((uint64_t)draw_idx + 1, max_queried);
+		command_buffer.endQuery(queryPool, draw_idx);
+	}
 }
 
 // vk::Semaphore Camera::get_semaphore(uint32_t frame_idx) {
@@ -860,10 +878,10 @@ void Camera::CleanUp()
 
 
 /* Static Factory Implementations */
-Camera* Camera::Create(std::string name, bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers, bool use_depth_prepass)
+Camera* Camera::Create(std::string name, bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers, bool use_depth_prepass, bool use_multiview)
 {
 	auto camera = StaticFactory::Create(name, "Camera", lookupTable, cameras, MAX_CAMERAS);
-	camera->setup(cubemap, tex_width, tex_height, msaa_samples, layers, use_depth_prepass);
+	camera->setup(cubemap, tex_width, tex_height, msaa_samples, layers, use_depth_prepass, use_multiview);
 	return camera;
 }
 
@@ -949,13 +967,27 @@ bool Camera::should_record_depth_prepass()
 	return use_depth_prepass;
 }
 
-enum side { LEFT = 0, RIGHT = 1, TOP = 2, BOTTOM = 3, BACK = 4, FRONT = 5 };
+bool Camera::should_use_multiview()
+{
+	return use_multiview;
+}
+
+enum side { LEFT = 0, RIGHT = 1, TOP = 3, BOTTOM = 2, BACK = 4, FRONT = 5 };
 
 bool checkSphere(std::array<glm::vec4, 6> &planes, glm::vec3 pos, float radius)
 {
+	// The point is the center of
+	// the radius.  So, the point might be outside of the frustum, but it doesn't
+	// mean that the rest of the sphere is.  It could be half and half.  So instead of
+	// checking if it's less than 0, we need to add on the radius to that.  Say the
+	// equation produced -2, which means the center of the sphere is the distance of
+	// 2 behind the plane.  Well, what if the radius was 5?  The sphere is still inside,
+	// so we would say, if(-2 < -5) then we are outside.  In that case it's false,
+	// so we are inside of the frustum, but a distance of 3.  This is reflected below.
+
 	for (auto i = 0; i < planes.size(); i++)
 	{
-		if ((planes[i].x * pos.x) + (planes[i].y * pos.y) + (planes[i].z * pos.z) + planes[i].w <= -radius)
+		if ((planes[i].x * pos.x) + (planes[i].y * pos.y) + (planes[i].z * pos.z) + planes[i].w < -radius)
 		{
 			return false;
 		}
@@ -963,113 +995,127 @@ bool checkSphere(std::array<glm::vec4, 6> &planes, glm::vec3 pos, float radius)
 	return true;
 }
 
-std::vector<std::pair<float, Entity*>> Camera::get_visible_entities(uint32_t camera_entity_id)
+std::vector<std::vector<std::pair<float, Entity*>>> Camera::get_visible_entities(uint32_t camera_entity_id)
 {
-	std::vector<Entity*> visible_entities;
+	if (!visibilityTestingPaused) {
+		std::vector<std::vector<Entity*>> visible_entities;
 
-	Entity* entities = Entity::GetFront();
-	auto camera_entity = Entity::Get(camera_entity_id);
-	if (!camera_entity) return {};
-	if (camera_entity->get_transform() == -1) return {};
-	auto cam_transform = Transform::Get(camera_entity->get_transform());
-	if (!cam_transform) return {};
-
-	glm::vec3 cam_pos = cam_transform->get_position();
-
-	std::vector<std::array<glm::vec4, 6>> planes;
-
-	/* Get projection planes for frustum/sphere intersection */
-	for (uint32_t view_idx = 0; view_idx < usedViews; ++view_idx) {
-		auto matrix = camera_struct.multiviews[view_idx].proj * camera_struct.multiviews[view_idx].view * cam_transform->parent_to_local_matrix();
-
-		planes.push_back(std::array<glm::vec4, 6>());
-
-		planes[view_idx][LEFT].x = matrix[0].w + matrix[0].x;
-		planes[view_idx][LEFT].y = matrix[1].w + matrix[1].x;
-		planes[view_idx][LEFT].z = matrix[2].w + matrix[2].x;
-		planes[view_idx][LEFT].w = matrix[3].w + matrix[3].x;
-
-		planes[view_idx][RIGHT].x = matrix[0].w - matrix[0].x;
-		planes[view_idx][RIGHT].y = matrix[1].w - matrix[1].x;
-		planes[view_idx][RIGHT].z = matrix[2].w - matrix[2].x;
-		planes[view_idx][RIGHT].w = matrix[3].w - matrix[3].x;
-
-		planes[view_idx][TOP].x = matrix[0].w - matrix[0].y;
-		planes[view_idx][TOP].y = matrix[1].w - matrix[1].y;
-		planes[view_idx][TOP].z = matrix[2].w - matrix[2].y;
-		planes[view_idx][TOP].w = matrix[3].w - matrix[3].y;
-
-		planes[view_idx][BOTTOM].x = matrix[0].w + matrix[0].y;
-		planes[view_idx][BOTTOM].y = matrix[1].w + matrix[1].y;
-		planes[view_idx][BOTTOM].z = matrix[2].w + matrix[2].y;
-		planes[view_idx][BOTTOM].w = matrix[3].w + matrix[3].y;
-
-		planes[view_idx][BACK].x = matrix[0].w + matrix[0].z;
-		planes[view_idx][BACK].y = matrix[1].w + matrix[1].z;
-		planes[view_idx][BACK].z = matrix[2].w + matrix[2].z;
-		planes[view_idx][BACK].w = matrix[3].w + matrix[3].z;
-
-		planes[view_idx][FRONT].x = matrix[0].w - matrix[0].z;
-		planes[view_idx][FRONT].y = matrix[1].w - matrix[1].z;
-		planes[view_idx][FRONT].z = matrix[2].w - matrix[2].z;
-		planes[view_idx][FRONT].w = matrix[3].w - matrix[3].z;
-
-		for (auto i = 0; i < planes.size(); i++)
-		{
-			float length = sqrtf(planes[view_idx][i].x * planes[view_idx][i].x + planes[view_idx][i].y * planes[view_idx][i].y + planes[view_idx][i].z * planes[view_idx][i].z);
-			planes[view_idx][i] /= length;
-		}
-	}
-
-	/* Test each entities bounding sphere against the frustum */
-	for (uint32_t i = 0; i < Entity::GetCount(); ++i) 
-	{
-		if (i == camera_entity_id) continue;
-		
-		if (!entities[i].is_initialized()) continue;
-		auto mesh_id = entities[i].get_mesh();
-		auto transform_id = entities[i].get_transform();
-		if ((mesh_id == -1) || (transform_id == -1)) continue;
-
-		auto mesh = Mesh::Get(mesh_id);
-		auto transform = Transform::Get(transform_id);
-		if ((!mesh) || (!transform)) continue;
-
-		auto centroid = mesh->get_centroid();
-		auto radius = mesh->get_bounding_sphere_radius();
-
-		auto scale = transform->get_scale();
-		float max_scale = std::max( std::max(scale.x, scale.y), scale.z);
-
-		auto w_centroid =  transform->local_to_parent_matrix() * glm::vec4(centroid.x, centroid.y, centroid.z, 1.0);
-		auto w_radius = radius * max_scale; 
-
-		bool entity_seen = false;
+		Entity* entities = Entity::GetFront();
+		auto camera_entity = Entity::Get(camera_entity_id);
+		if (!camera_entity) return {};
+		if (camera_entity->get_transform() == -1) return {};
+		auto cam_transform = Transform::Get(camera_entity->get_transform());
+		if (!cam_transform) return {};
+		glm::vec3 cam_pos = cam_transform->get_position();
+	
+		/* Test each entities bounding sphere against the frustum */
 		for (uint32_t view_idx = 0; view_idx < usedViews; ++view_idx) {
-			entity_seen |= checkSphere(planes[view_idx], w_centroid, w_radius * 2.0f);
+			visible_entities.push_back(std::vector<Entity*>());
+
+			for (uint32_t i = 0; i < Entity::GetCount(); ++i) 
+			{
+				if (i == camera_entity_id) continue;
+				
+				if (!entities[i].is_initialized()) continue;
+				auto mesh_id = entities[i].get_mesh();
+				auto transform_id = entities[i].get_transform();
+				if ((mesh_id == -1) || (transform_id == -1)) continue;
+
+				auto mesh = Mesh::Get(mesh_id);
+				auto transform = Transform::Get(transform_id);
+				if ((!mesh) || (!transform)) continue;
+
+				std::array<glm::vec4, 6> planes;
+
+				/* Get projection planes for frustum/sphere intersection */
+				auto matrix = camera_struct.multiviews[view_idx].proj * camera_struct.multiviews[view_idx].view * 
+					cam_transform->parent_to_local_rotation() * cam_transform->parent_to_local_translation() * transform->local_to_parent_matrix();
+
+				planes[LEFT].x = matrix[0].w + matrix[0].x;
+				planes[LEFT].y = matrix[1].w + matrix[1].x;
+				planes[LEFT].z = matrix[2].w + matrix[2].x;
+				planes[LEFT].w = matrix[3].w + matrix[3].x;
+
+				planes[RIGHT].x = matrix[0].w - matrix[0].x;
+				planes[RIGHT].y = matrix[1].w - matrix[1].x;
+				planes[RIGHT].z = matrix[2].w - matrix[2].x;
+				planes[RIGHT].w = matrix[3].w - matrix[3].x;
+
+				planes[TOP].x = matrix[0].w - matrix[0].y;
+				planes[TOP].y = matrix[1].w - matrix[1].y;
+				planes[TOP].z = matrix[2].w - matrix[2].y;
+				planes[TOP].w = matrix[3].w - matrix[3].y;
+
+				planes[BOTTOM].x = matrix[0].w + matrix[0].y;
+				planes[BOTTOM].y = matrix[1].w + matrix[1].y;
+				planes[BOTTOM].z = matrix[2].w + matrix[2].y;
+				planes[BOTTOM].w = matrix[3].w + matrix[3].y;
+
+				planes[BACK].x = matrix[0].w + matrix[0].z;
+				planes[BACK].y = matrix[1].w + matrix[1].z;
+				planes[BACK].z = matrix[2].w + matrix[2].z;
+				planes[BACK].w = matrix[3].w + matrix[3].z;
+
+				planes[FRONT].x = matrix[0].w - matrix[0].z;
+				planes[FRONT].y = matrix[1].w - matrix[1].z;
+				planes[FRONT].z = matrix[2].w - matrix[2].z;
+				planes[FRONT].w = matrix[3].w - matrix[3].z;
+
+				for (auto i = 0; i < planes.size(); i++)
+				{
+					float length = sqrtf(planes[i].x * planes[i].x + planes[i].y * planes[i].y + planes[i].z * planes[i].z);
+					planes[i] /= length;
+				}
+
+				auto centroid = mesh->get_centroid();
+				auto radius = mesh->get_bounding_sphere_radius();
+
+				bool entity_seen = false;
+				
+				entity_seen |= checkSphere(planes, centroid, radius);
+
+				if (entity_seen) visible_entities[view_idx].push_back(&entities[i]);
+			}
 		}
 
-		if (entity_seen) visible_entities.push_back(&entities[i]);
+		/* If we're using multiview, there's only one renderpass, so we merge all frustum test results together. */
+		if (use_multiview) {
+			std::set<Entity*> merged_entities;
+			for (uint32_t idx = 0; idx < visible_entities.size(); ++idx) {
+				for (uint32_t e_id = 0; e_id < visible_entities[idx].size(); ++e_id) {
+					merged_entities.insert(visible_entities[idx][e_id]);
+				}
+			}
+			visible_entities.clear();
+			visible_entities.push_back(std::vector<Entity*>());
+			visible_entities[0].insert(visible_entities[0].end(), merged_entities.begin(), merged_entities.end());
+		}
+
+		/* Sort by depth */
+		std::vector<std::vector<std::pair<float, Entity*>>> sorted_visible_entities;
+		for (uint32_t idx = 0; idx < visible_entities.size(); ++idx) {
+			sorted_visible_entities.push_back(std::vector<std::pair<float, Entity*>>());
+			for (uint32_t i = 0; i < visible_entities[idx].size(); ++i) 
+			{
+				auto transform_id = visible_entities[idx][i]->get_transform();
+				auto mesh_id = visible_entities[idx][i]->get_mesh();
+
+				auto transform = Transform::Get(transform_id);
+				auto mesh = Mesh::Get(mesh_id);
+
+				auto centroid = mesh->get_centroid();
+				auto w_centroid =  glm::vec3(transform->local_to_parent_matrix() * glm::vec4(centroid.x, centroid.y, centroid.z, 1.0));
+
+				sorted_visible_entities[idx].push_back(std::pair<float, Entity*>(glm::distance(cam_pos, w_centroid), visible_entities[idx][i]));
+			}
+
+			std::sort(sorted_visible_entities[idx].begin(), sorted_visible_entities[idx].end(), std::less<std::pair<float, Entity*>>());	
+		}
+		frustum_culling_results = sorted_visible_entities;
+		return sorted_visible_entities;
 	}
-
-	/* Sort by depth */
-	std::vector<std::pair<float, Entity*>> sorted_visible_entities;
-
-	for (uint32_t i = 0; i < visible_entities.size(); ++i) 
-	{
-		auto transform_id = visible_entities[i]->get_transform();
-		auto mesh_id = visible_entities[i]->get_mesh();
-
-		auto transform = Transform::Get(transform_id);
-		auto mesh = Mesh::Get(mesh_id);
-
-		auto centroid = mesh->get_centroid();
-		auto w_centroid =  glm::vec3(transform->local_to_parent_matrix() * glm::vec4(centroid.x, centroid.y, centroid.z, 1.0));
-
-		sorted_visible_entities.push_back(std::pair<float, Entity*>(glm::distance(cam_pos, w_centroid), visible_entities[i]));
+	else {
+		return frustum_culling_results;
 	}
-
-	std::sort(sorted_visible_entities.begin(), sorted_visible_entities.end(), std::less<std::pair<float, Entity*>>());	
-
-	return sorted_visible_entities;
+	
 }

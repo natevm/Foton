@@ -47,12 +47,12 @@ class Transform : public StaticFactory
 
     mat4 localToParentTransform = mat4(1);
     mat4 localToParentRotation = mat4(1);
-    mat4 localToParentPosition = mat4(1);
+    mat4 localToParentTranslation = mat4(1);
     mat4 localToParentScale = mat4(1);
 
     mat4 parentToLocalTransform = mat4(1);
     mat4 parentToLocalRotation = mat4(1);
-    mat4 parentToLocalPosition = mat4(1);
+    mat4 parentToLocalTranslation = mat4(1);
     mat4 parentToLocalScale = mat4(1);
 
     mat4 localToParentMatrix = mat4(1);
@@ -201,8 +201,8 @@ class Transform : public StaticFactory
         parentToLocalRotation = glm::inverse(localToParentRotation);
 
         position = newPosition;
-        localToParentPosition = glm::translate(glm::mat4(1.0), position);
-        parentToLocalPosition = glm::translate(glm::mat4(1.0), -position);
+        localToParentTranslation = glm::translate(glm::mat4(1.0), position);
+        parentToLocalTranslation = glm::translate(glm::mat4(1.0), -position);
 
         update_matrix();
     }
@@ -219,8 +219,8 @@ class Transform : public StaticFactory
         parentToLocalRotation = glm::inverse(localToParentRotation);
 
         position = newPosition;
-        localToParentPosition = glm::translate(glm::mat4(1.0), position);
-        parentToLocalPosition = glm::translate(glm::mat4(1.0), -position);
+        localToParentTranslation = glm::translate(glm::mat4(1.0), position);
+        parentToLocalTranslation = glm::translate(glm::mat4(1.0), -position);
 
         update_matrix();
     }
@@ -326,8 +326,8 @@ class Transform : public StaticFactory
 
     void update_position()
     {
-        localToParentPosition = glm::translate(glm::mat4(1.0), position);
-        parentToLocalPosition = glm::translate(glm::mat4(1.0), -position);
+        localToParentTranslation = glm::translate(glm::mat4(1.0), position);
+        parentToLocalTranslation = glm::translate(glm::mat4(1.0), -position);
         update_matrix();
     }
 
@@ -379,8 +379,8 @@ class Transform : public StaticFactory
     void update_matrix()
     {
 
-        localToParentMatrix = (localToParentTransform * localToParentPosition * localToParentRotation * localToParentScale);
-        parentToLocalMatrix = (parentToLocalScale * parentToLocalRotation * parentToLocalPosition * parentToLocalTransform);
+        localToParentMatrix = (localToParentTransform * localToParentTranslation * localToParentRotation * localToParentScale);
+        parentToLocalMatrix = (parentToLocalScale * parentToLocalRotation * parentToLocalTranslation * parentToLocalTransform);
 
         right = glm::vec3(localToParentMatrix[0]);
         forward = glm::vec3(localToParentMatrix[1]);
@@ -398,9 +398,9 @@ class Transform : public StaticFactory
         return /*(interpolation >= 1.0 ) ?*/ localToParentMatrix /*: glm::interpolate(glm::mat4(1.0), localToParentMatrix, interpolation)*/;
     }
 
-    glm::mat4 local_to_parent_position()
+    glm::mat4 local_to_parent_translation()
     {
-        return localToParentPosition;
+        return localToParentTranslation;
     }
 
     glm::mat4 local_to_parent_scale()
@@ -413,9 +413,9 @@ class Transform : public StaticFactory
         return localToParentRotation;
     }
 
-    glm::mat4 parent_to_local_position()
+    glm::mat4 parent_to_local_translation()
     {
-        return parentToLocalPosition;
+        return parentToLocalTranslation;
     }
 
     glm::mat4 parent_to_local_scale()

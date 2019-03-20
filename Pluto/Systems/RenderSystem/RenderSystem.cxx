@@ -216,8 +216,8 @@ void RenderSystem::record_cameras()
                 
 
                 cameras[cam_id].begin_depth_prepass(command_buffer, rp_idx);
-                for (uint32_t i = 0; i < visible_entities.size(); ++i) {
-                    auto target_id = visible_entities[i].second->get_id();
+                for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i) {
+                    auto target_id = visible_entities[rp_idx][i].second->get_id();
 
                     // if (cameras[cam_id].is_entity_visible(target_id) {
                     /* This is a problem, since a single entity may be drawn multiple times on devices
@@ -228,7 +228,8 @@ void RenderSystem::record_cameras()
                     push_constants.target_id = target_id;
                     push_constants.camera_id = entity_id;
                     push_constants.viewIndex = rp_idx;
-                    Material::DrawEntity(command_buffer, rp, *visible_entities[i].second, push_constants, RenderMode::FRAGMENTDEPTH);
+                    push_constants.use_multiview = cameras[cam_id].should_use_multiview();
+                    Material::DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].second, push_constants, RenderMode::FRAGMENTDEPTH);
 
                     cameras[cam_id].end_visibility_query(command_buffer, target_id, i);
                     // }
@@ -252,27 +253,29 @@ void RenderSystem::record_cameras()
                 Material::BindDescriptorSets(command_buffer, rp);
                 
                 cameras[cam_id].begin_renderpass(command_buffer, rp_idx);
-                for (uint32_t i = 0; i < visible_entities.size(); ++i) {
-                    auto target_id = visible_entities[i].second->get_id();
+                for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i) {
+                    auto target_id = visible_entities[rp_idx][i].second->get_id();
 
                     if (cameras[cam_id].is_entity_visible(target_id) || (!cameras[cam_id].should_record_depth_prepass())) {
                         push_constants.target_id = target_id;
                         push_constants.camera_id = entity_id;
                         push_constants.viewIndex = rp_idx;
-                        Material::DrawEntity(command_buffer, rp, *visible_entities[i].second, push_constants, cameras[cam_id].get_rendermode_override());
+                        push_constants.use_multiview = cameras[cam_id].should_use_multiview();
+                        Material::DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].second, push_constants, cameras[cam_id].get_rendermode_override());
                     }
                 }
                 
                 /* Draw transparent objects last */
-                for (uint32_t i = 0; i < visible_entities.size(); ++i)
+                for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i)
                 {
-                    auto target_id = visible_entities[i].second->get_id();
+                    auto target_id = visible_entities[rp_idx][i].second->get_id();
 
                     if (cameras[cam_id].is_entity_visible(target_id) || (!cameras[cam_id].should_record_depth_prepass())) {
                         push_constants.target_id = target_id;
                         push_constants.camera_id = entity_id;
                         push_constants.viewIndex = rp_idx;
-                        Material::DrawVolume(command_buffer, rp, *visible_entities[i].second, push_constants, cameras[cam_id].get_rendermode_override());
+                        push_constants.use_multiview = cameras[cam_id].should_use_multiview();
+                        Material::DrawVolume(command_buffer, rp, *visible_entities[rp_idx][i].second, push_constants, cameras[cam_id].get_rendermode_override());
                     }
                 }
                 cameras[cam_id].end_renderpass(command_buffer, rp_idx);

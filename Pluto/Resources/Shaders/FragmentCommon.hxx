@@ -1080,7 +1080,7 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
     vec2 uv = vec2(roughness, sqrt(1.0 - ndotv));
     uv = uv*LUT_SCALE + LUT_BIAS;
     vec4 t1 = texture(sampler2D(texture_2Ds[push.consts.ltc_mat_lut_id], samplers[0]), uv);
-    t1.w = max(t1.w, .01); // Causes numerical precision issues if too small
+    // t1.w = max(t1.w, .05); // Causes numerical precision issues if too small
     vec4 t2 = texture(sampler2D(texture_2Ds[push.consts.ltc_amp_lut_id], samplers[0]), uv);
     mat3 m_inv = mat3(
         vec3(t1.x, 0, t1.y),
