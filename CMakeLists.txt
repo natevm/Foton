@@ -110,6 +110,16 @@ if(BUILD_SPACEMOUSE)
     include_directories(SYSTEM ${SPACEMOUSE_INCLUDE_DIR})
 endif(BUILD_SPACEMOUSE)
 
+# google test
+option(BUILD_TESTS "Include the regression and unit tests target" ON)
+if(BUILD_TESTS)
+    add_subdirectory(external/googletest)
+    enable_testing()
+    include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+endif(BUILD_TESTS)
+
+
 # add libraries to a list for linking
 set (
     LIBRARIES
