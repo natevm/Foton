@@ -265,10 +265,9 @@ install(DIRECTORY ${PROJECT_SOURCE_DIR}/Pluto/Resources DESTINATION ${CMAKE_INST
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Tests                                                           │
 # └──────────────────────────────────────────────────────────────────┘
+if(BUILD_TESTS)
 file(GLOB TEST_SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/Tests/*.cxx)
-message(WARN ${TEST_SRC_FILES})
 add_executable(runUnitTests ${TEST_SRC_FILES})
-target_link_libraries(runUnitTests gtest gtest_main)
-target_link_libraries(runUnitTests ${LIBRARIES} PlutoLib)
-
-add_test( runUnitTests runUnitTests )
+target_link_libraries(runUnitTests ${LIBRARIES} PlutoLib gtest_main)
+add_test(NAME runUnitTests COMMAND example)
+endif(BUILD_TESTS)

@@ -10,6 +10,3 @@
 [submodule "external/generator"]
 	path = external/generator
 	url = https://github.com/n8vm/generator.git
-[submodule "external/googletest"]
-	path = external/googletest
-	url = https://github.com/google/googletest.git
