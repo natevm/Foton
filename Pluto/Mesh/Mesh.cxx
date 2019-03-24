@@ -115,15 +115,15 @@ std::string Mesh::to_string() {
 	output += "{\n";
 	output += "\ttype: \"Mesh\",\n";
 	output += "\tname: \"" + name + "\",\n";
-	output += "\tnum_points: \"" + std::to_string(points.size()) + "\",\n";
+	output += "\tnum_positions: \"" + std::to_string(positions.size()) + "\",\n";
 	output += "\tnum_indices: \"" + std::to_string(indices.size()) + "\",\n";
 	output += "}";
 	return output;
 }
 
 
-std::vector<glm::vec3> Mesh::get_points() {
-	return points;
+std::vector<glm::vec3> Mesh::get_positions() {
+	return positions;
 }
 
 std::vector<glm::vec4> Mesh::get_colors() {
@@ -182,19 +182,19 @@ void Mesh::compute_metadata()
 	glm::vec3 s(0.0);
 	mesh_struct.bbmin = glm::vec3(0.0f);
 	mesh_struct.bbmax = glm::vec3(0.0f);
-	for (int i = 0; i < points.size(); i += 1)
+	for (int i = 0; i < positions.size(); i += 1)
 	{
-		s += points[i];
-		mesh_struct.bbmin = glm::min(points[i], mesh_struct.bbmin);
-		mesh_struct.bbmax = glm::max(points[i], mesh_struct.bbmax);
+		s += positions[i];
+		mesh_struct.bbmin = glm::min(positions[i], mesh_struct.bbmin);
+		mesh_struct.bbmax = glm::max(positions[i], mesh_struct.bbmax);
 	}
-	s /= points.size();
+	s /= positions.size();
 	mesh_struct.centroid = s;
 
 	mesh_struct.bounding_sphere_radius = 0.0;
-	for (int i = 0; i < points.size(); i += 1) {
+	for (int i = 0; i < positions.size(); i += 1) {
 		mesh_struct.bounding_sphere_radius = std::max(mesh_struct.bounding_sphere_radius, 
-			glm::distance(points[i], mesh_struct.centroid));
+			glm::distance(positions[i], mesh_struct.centroid));
 	}
 }
 
@@ -436,7 +436,7 @@ void Mesh::load_obj(std::string objPath, bool allow_edits, bool submit_immediate
 		}
 	}
 
-	/* Eliminate duplicate points */
+	/* Eliminate duplicate positions */
 	std::unordered_map<Vertex, uint32_t> uniqueVertexMap = {};
 	std::vector<Vertex> uniqueVertices;
 	for (int i = 0; i < vertices.size(); ++i)
@@ -457,7 +457,7 @@ void Mesh::load_obj(std::string objPath, bool allow_edits, bool submit_immediate
 			uint32_t i2 = indices[f + 1];
 			uint32_t i3 = indices[f + 2];
 
-			// p1, p2 and p3 are the points in the face (f)
+			// p1, p2 and p3 are the positions in the face (f)
 			auto &v1 = uniqueVertices[i1];
 			auto &v2 = uniqueVertices[i2];
 			auto &v3 = uniqueVertices[i3];
@@ -466,8 +466,8 @@ void Mesh::load_obj(std::string objPath, bool allow_edits, bool submit_immediate
 			// both components are "normalized" against a common point chosen as the base
 			glm::vec3 n = glm::cross((v2.point - v1.point), (v3.point - v1.point));    // p1 is the 'base' here
 
-			// get the angle between the two other points for each point;
-			// the starting point will be the 'base' and the two adjacent points will be normalized against it
+			// get the angle between the two other positions for each point;
+			// the starting point will be the 'base' and the two adjacent positions will be normalized against it
 			auto a1 = glm::angle(glm::normalize(v2.point - v1.point), glm::normalize(v3.point - v1.point));    // p1 is the 'base' here
 			auto a2 = glm::angle(glm::normalize(v3.point - v2.point), glm::normalize(v1.point - v2.point));    // p2 is the 'base' here
 			auto a3 = glm::angle(glm::normalize(v1.point - v3.point), glm::normalize(v2.point - v3.point));    // p3 is the 'base' here
@@ -504,7 +504,7 @@ void Mesh::load_obj(std::string objPath, bool allow_edits, bool submit_immediate
 	for (int i = 0; i < uniqueVertices.size(); ++i)
 	{
 		Vertex v = uniqueVertices[i];
-		points.push_back(v.point);
+		positions.push_back(v.point);
 		colors.push_back(v.color);
 		normals.push_back(v.normal);
 		texcoords.push_back(v.texcoord);
@@ -535,7 +535,7 @@ void Mesh::load_stl(std::string stlPath, bool allow_edits, bool submit_immediate
 
 	std::vector<Vertex> vertices;
 
-	/* STLs only have points and face normals, so generate colors and UVs */
+	/* STLs only have positions and face normals, so generate colors and UVs */
 	for (uint32_t i = 0; i < p.size() / 3; ++i) {
 		Vertex vertex = Vertex();
 		vertex.point = {
@@ -551,7 +551,7 @@ void Mesh::load_stl(std::string stlPath, bool allow_edits, bool submit_immediate
 		vertices.push_back(vertex);
 	}
 
-	/* Eliminate duplicate points */
+	/* Eliminate duplicate positions */
 	std::unordered_map<Vertex, uint32_t> uniqueVertexMap = {};
 	std::vector<Vertex> uniqueVertices;
 	for (int i = 0; i < vertices.size(); ++i)
@@ -569,7 +569,7 @@ void Mesh::load_stl(std::string stlPath, bool allow_edits, bool submit_immediate
 	for (int i = 0; i < uniqueVertices.size(); ++i)
 	{
 		Vertex v = uniqueVertices[i];
-		points.push_back(v.point);
+		positions.push_back(v.point);
 		colors.push_back(v.color);
 		normals.push_back(v.normal);
 		texcoords.push_back(v.texcoord);
@@ -671,7 +671,7 @@ void Mesh::load_glb(std::string glbPath, bool allow_edits, bool submit_immediate
 		}
 	}
 
-	/* Eliminate duplicate points */
+	/* Eliminate duplicate positions */
 	std::unordered_map<Vertex, uint32_t> uniqueVertexMap = {};
 	std::vector<Vertex> uniqueVertices;
 	for (int i = 0; i < vertices.size(); ++i)
@@ -689,7 +689,7 @@ void Mesh::load_glb(std::string glbPath, bool allow_edits, bool submit_immediate
 	for (int i = 0; i < uniqueVertices.size(); ++i)
 	{
 		Vertex v = uniqueVertices[i];
-		points.push_back(v.point);
+		positions.push_back(v.point);
 		colors.push_back(v.color);
 		normals.push_back(v.normal);
 		texcoords.push_back(v.texcoord);
@@ -705,7 +705,7 @@ void Mesh::load_glb(std::string glbPath, bool allow_edits, bool submit_immediate
 }
 
 void Mesh::load_raw(
-	std::vector<glm::vec3> &points_, 
+	std::vector<glm::vec3> &positions_, 
 	std::vector<glm::vec3> &normals_, 
 	std::vector<glm::vec4> &colors_, 
 	std::vector<glm::vec2> &texcoords_, 
@@ -719,48 +719,48 @@ void Mesh::load_raw(
 	bool reading_texcoords = texcoords_.size() > 0;
 	bool reading_indices = indices_.size() > 0;
 
-	if (points_.size() == 0)
-		throw std::runtime_error( std::string("Error, no points supplied. "));
+	if (positions_.size() == 0)
+		throw std::runtime_error( std::string("Error, no positions supplied. "));
 
-	if ((!reading_indices) && ((points_.size() % 3) != 0))
-		throw std::runtime_error( std::string("Error: No indices provided, and length of points is not a multiple of 3."));
+	if ((!reading_indices) && ((positions_.size() % 3) != 0))
+		throw std::runtime_error( std::string("Error: No indices provided, and length of positions is not a multiple of 3."));
 
 	if ((reading_indices) && ((indices_.size() % 3) != 0))
 		throw std::runtime_error( std::string("Error: Length of indices is not a multiple of 3."));
 	
-	if (reading_normals && (normals_.size() != points_.size()))
-		throw std::runtime_error( std::string("Error, length mismatch. Total normals: " + std::to_string(normals_.size()) + " does not equal total points: " + std::to_string(points_.size())));
+	if (reading_normals && (normals_.size() != positions_.size()))
+		throw std::runtime_error( std::string("Error, length mismatch. Total normals: " + std::to_string(normals_.size()) + " does not equal total positions: " + std::to_string(positions_.size())));
 
-	if (reading_colors && (colors_.size() != points_.size()))
-		throw std::runtime_error( std::string("Error, length mismatch. Total colors: " + std::to_string(colors_.size()) + " does not equal total points: " + std::to_string(points_.size())));
+	if (reading_colors && (colors_.size() != positions_.size()))
+		throw std::runtime_error( std::string("Error, length mismatch. Total colors: " + std::to_string(colors_.size()) + " does not equal total positions: " + std::to_string(positions_.size())));
 		
-	if (reading_texcoords && (texcoords_.size() != points_.size()))
-		throw std::runtime_error( std::string("Error, length mismatch. Total texcoords: " + std::to_string(texcoords_.size()) + " does not equal total points: " + std::to_string(points_.size())));
+	if (reading_texcoords && (texcoords_.size() != positions_.size()))
+		throw std::runtime_error( std::string("Error, length mismatch. Total texcoords: " + std::to_string(texcoords_.size()) + " does not equal total positions: " + std::to_string(positions_.size())));
 	
 	if (reading_indices) {
 		for (uint32_t i = 0; i < indices_.size(); ++i) {
-			if (indices_[i] >= points_.size())
-				throw std::runtime_error( std::string("Error, index out of bounds. Index " + std::to_string(i) + " is greater than total points: " + std::to_string(points_.size())));
+			if (indices_[i] >= positions_.size())
+				throw std::runtime_error( std::string("Error, index out of bounds. Index " + std::to_string(i) + " is greater than total positions: " + std::to_string(positions_.size())));
 		}
 	}
 		
 	std::vector<Vertex> vertices;
 
 	/* For each vertex */
-	for (int i = 0; i < points_.size(); ++ i) {
+	for (int i = 0; i < positions_.size(); ++ i) {
 		Vertex vertex = Vertex();
-		vertex.point = points_[i];
+		vertex.point = positions_[i];
 		if (reading_normals) vertex.normal = normals_[i];
 		if (reading_colors) vertex.color = colors_[i];
 		if (reading_texcoords) vertex.texcoord = texcoords_[i];        
 		vertices.push_back(vertex);
 	}
 
-	/* Eliminate duplicate points */
+	/* Eliminate duplicate positions */
 	std::unordered_map<Vertex, uint32_t> uniqueVertexMap = {};
 	std::vector<Vertex> uniqueVertices;
 
-	/* Don't bin points as unique when editing, since it's unexpected for a user to lose points */
+	/* Don't bin positions as unique when editing, since it's unexpected for a user to lose positions */
 	if (allow_edits && !reading_indices) {
 		uniqueVertices = vertices;
 		for (int i = 0; i < vertices.size(); ++i) {
@@ -789,7 +789,7 @@ void Mesh::load_raw(
 	for (int i = 0; i < uniqueVertices.size(); ++i)
 	{
 		Vertex v = uniqueVertices[i];
-		points.push_back(v.point);
+		positions.push_back(v.point);
 		colors.push_back(v.color);
 		normals.push_back(v.normal);
 		texcoords.push_back(v.texcoord);
@@ -815,8 +815,8 @@ void Mesh::edit_position(uint32_t index, glm::vec3 new_position)
 		throw std::runtime_error("Error: editing this component is not allowed. \
 			Edits can be enabled during creation.");
 	
-	if (index >= this->points.size())
-		throw std::runtime_error("Error: index out of bounds. Max index is " + std::to_string(this->points.size() - 1));
+	if (index >= this->positions.size())
+		throw std::runtime_error("Error: index out of bounds. Max index is " + std::to_string(this->positions.size() - 1));
 	
 	void *data = device.mapMemory(pointBufferMemory, (index * sizeof(glm::vec3)), sizeof(glm::vec3), vk::MemoryMapFlags());
 	memcpy(data, &new_position, sizeof(glm::vec3));
@@ -834,11 +834,11 @@ void Mesh::edit_positions(uint32_t index, std::vector<glm::vec3> new_positions)
 		throw std::runtime_error("Error: editing this component is not allowed. \
 			Edits can be enabled during creation.");
 	
-	if (index >= this->points.size())
-		throw std::runtime_error("Error: index out of bounds. Max index is " + std::to_string(this->points.size() - 1));
+	if (index >= this->positions.size())
+		throw std::runtime_error("Error: index out of bounds. Max index is " + std::to_string(this->positions.size() - 1));
 	
-	if ((index + new_positions.size()) > this->points.size())
-		throw std::runtime_error("Error: too many positions for given index, out of bounds. Max index is " + std::to_string(this->points.size() - 1));
+	if ((index + new_positions.size()) > this->positions.size())
+		throw std::runtime_error("Error: too many positions for given index, out of bounds. Max index is " + std::to_string(this->positions.size() - 1));
 	
 	void *data = device.mapMemory(pointBufferMemory, (index * sizeof(glm::vec3)), sizeof(glm::vec3) * new_positions.size(), vk::MemoryMapFlags());
 	memcpy(data, new_positions.data(), sizeof(glm::vec3) * new_positions.size());
@@ -1150,7 +1150,7 @@ void Mesh::build_low_level_bvh(bool submit_immediately)
 		vk::GeometryTrianglesNV tris;
 		tris.vertexData = this->pointBuffer;
 		tris.vertexOffset = 0;
-		tris.vertexCount = (uint32_t) this->points.size();
+		tris.vertexCount = (uint32_t) this->positions.size();
 		tris.vertexStride = sizeof(glm::vec3);
 		tris.vertexFormat = vk::Format::eR32G32B32A32Sfloat;
 		tris.indexData = this->indexBuffer;
@@ -1543,27 +1543,27 @@ Mesh* Mesh::CreateTube(std::string name, bool allow_edits, bool submit_immediate
 	return mesh;
 }
 
-Mesh* Mesh::CreateTubeFromPolyline(std::string name, std::vector<glm::vec3> points, float radius, uint32_t segments, bool allow_edits, bool submit_immediately)
+Mesh* Mesh::CreateTubeFromPolyline(std::string name, std::vector<glm::vec3> positions, float radius, uint32_t segments, bool allow_edits, bool submit_immediately)
 {
 	std::lock_guard<std::mutex> lock(creation_mutex);
-	if (points.size() <= 1)
-		throw std::runtime_error("Error: points must be greater than 1!");
+	if (positions.size() <= 1)
+		throw std::runtime_error("Error: positions must be greater than 1!");
 	
 	using namespace generator;
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	
 	ParametricPath parametricPath {
-		[points](double t) {
-			// t is 1.0 / points.size() - 1 and goes from 0 to 1.0
-			float t_scaled = (float)t * (((float)points.size()) - 1.0f);
+		[positions](double t) {
+			// t is 1.0 / positions.size() - 1 and goes from 0 to 1.0
+			float t_scaled = (float)t * (((float)positions.size()) - 1.0f);
 			uint32_t p1_idx = (uint32_t) floor(t_scaled);
 			uint32_t p2_idx = p1_idx + 1;
 
 			float t_segment = t_scaled - floor(t_scaled);
 
-			glm::vec3 p1 = points[p1_idx];
-			glm::vec3 p2 = points[p2_idx];
+			glm::vec3 p1 = positions[p1_idx];
+			glm::vec3 p2 = positions[p2_idx];
 
 			PathVertex vertex;
 			
@@ -1582,7 +1582,7 @@ Mesh* Mesh::CreateTubeFromPolyline(std::string name, std::vector<glm::vec3> poin
 
 			return vertex;
 		},
-		((int32_t) points.size() - 1) // number of segments
+		((int32_t) positions.size() - 1) // number of segments
 	} ;
 	CircleShape circle_shape(radius, segments);
 	ExtrudeMesh extrude_mesh(circle_shape, parametricPath);
@@ -1590,27 +1590,27 @@ Mesh* Mesh::CreateTubeFromPolyline(std::string name, std::vector<glm::vec3> poin
 	return mesh;
 }
 
-Mesh* Mesh::CreateRoundedRectangleTubeFromPolyline(std::string name, std::vector<glm::vec3> points, float radius, float size_x, float size_y, bool allow_edits, bool submit_immediately)
+Mesh* Mesh::CreateRoundedRectangleTubeFromPolyline(std::string name, std::vector<glm::vec3> positions, float radius, float size_x, float size_y, bool allow_edits, bool submit_immediately)
 {
 	std::lock_guard<std::mutex> lock(creation_mutex);
-	if (points.size() <= 1)
-		throw std::runtime_error("Error: points must be greater than 1!");
+	if (positions.size() <= 1)
+		throw std::runtime_error("Error: positions must be greater than 1!");
 	
 	using namespace generator;
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	
 	ParametricPath parametricPath {
-		[points](double t) {
-			// t is 1.0 / points.size() - 1 and goes from 0 to 1.0
-			float t_scaled = (float)t * ((float)(points.size()) - 1.0f);
+		[positions](double t) {
+			// t is 1.0 / positions.size() - 1 and goes from 0 to 1.0
+			float t_scaled = (float)t * ((float)(positions.size()) - 1.0f);
 			uint32_t p1_idx = (uint32_t) floor(t_scaled);
 			uint32_t p2_idx = p1_idx + 1;
 
 			float t_segment = t_scaled - floor(t_scaled);
 
-			glm::vec3 p1 = points[p1_idx];
-			glm::vec3 p2 = points[p2_idx];
+			glm::vec3 p1 = positions[p1_idx];
+			glm::vec3 p2 = positions[p2_idx];
 
 			PathVertex vertex;
 			
@@ -1629,7 +1629,7 @@ Mesh* Mesh::CreateRoundedRectangleTubeFromPolyline(std::string name, std::vector
 
 			return vertex;
 		},
-		((int32_t) points.size() - 1) // number of segments
+		((int32_t) positions.size() - 1) // number of segments
 	} ;
 	RoundedRectangleShape rounded_rectangle_shape(radius, {size_x, size_y}, 4, {1, 1});
 	ExtrudeMesh extrude_mesh(rounded_rectangle_shape, parametricPath);
@@ -1637,27 +1637,27 @@ Mesh* Mesh::CreateRoundedRectangleTubeFromPolyline(std::string name, std::vector
 	return mesh;
 }
 
-Mesh* Mesh::CreateRectangleTubeFromPolyline(std::string name, std::vector<glm::vec3> points, float size_x, float size_y, bool allow_edits, bool submit_immediately)
+Mesh* Mesh::CreateRectangleTubeFromPolyline(std::string name, std::vector<glm::vec3> positions, float size_x, float size_y, bool allow_edits, bool submit_immediately)
 {
 	std::lock_guard<std::mutex> lock(creation_mutex);
-	if (points.size() <= 1)
-		throw std::runtime_error("Error: points must be greater than 1!");
+	if (positions.size() <= 1)
+		throw std::runtime_error("Error: positions must be greater than 1!");
 	
 	using namespace generator;
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
 	
 	ParametricPath parametricPath {
-		[points](double t) {
-			// t is 1.0 / points.size() - 1 and goes from 0 to 1.0
-			float t_scaled = (float)t * ((float)(points.size()) - 1.0f);
+		[positions](double t) {
+			// t is 1.0 / positions.size() - 1 and goes from 0 to 1.0
+			float t_scaled = (float)t * ((float)(positions.size()) - 1.0f);
 			uint32_t p1_idx = (uint32_t) floor(t_scaled);
 			uint32_t p2_idx = p1_idx + 1;
 
 			float t_segment = t_scaled - floor(t_scaled);
 
-			glm::vec3 p1 = points[p1_idx];
-			glm::vec3 p2 = points[p2_idx];
+			glm::vec3 p1 = positions[p1_idx];
+			glm::vec3 p2 = positions[p2_idx];
 
 			PathVertex vertex;
 			
@@ -1676,7 +1676,7 @@ Mesh* Mesh::CreateRectangleTubeFromPolyline(std::string name, std::vector<glm::v
 
 			return vertex;
 		},
-		((int32_t) points.size() - 1) // number of segments
+		((int32_t) positions.size() - 1) // number of segments
 	} ;
 	RectangleShape rectangle_shape({size_x, size_y}, {1, 1});
 	ExtrudeMesh extrude_mesh(rectangle_shape, parametricPath);
@@ -1711,7 +1711,7 @@ Mesh* Mesh::CreateFromGLB(std::string name, std::string glbPath, bool allow_edit
 
 Mesh* Mesh::CreateFromRaw (
 	std::string name,
-	std::vector<glm::vec3> points, 
+	std::vector<glm::vec3> positions, 
 	std::vector<glm::vec3> normals, 
 	std::vector<glm::vec4> colors, 
 	std::vector<glm::vec2> texcoords, 
@@ -1721,7 +1721,7 @@ Mesh* Mesh::CreateFromRaw (
 {
 	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
-	mesh->load_raw(points, normals, colors, texcoords, indices, allow_edits, submit_immediately);
+	mesh->load_raw(positions, normals, colors, texcoords, indices, allow_edits, submit_immediately);
 	return mesh;
 }
 
@@ -1775,7 +1775,7 @@ void Mesh::createPointBuffer(bool allow_edits, bool submit_immediately)
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
 
-	vk::DeviceSize bufferSize = points.size() * sizeof(glm::vec3);
+	vk::DeviceSize bufferSize = positions.size() * sizeof(glm::vec3);
 	vk::Buffer stagingBuffer;
 	vk::DeviceMemory stagingBufferMemory;
 	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, stagingBuffer, stagingBufferMemory);
@@ -1784,7 +1784,7 @@ void Mesh::createPointBuffer(bool allow_edits, bool submit_immediately)
 	void *data = device.mapMemory(stagingBufferMemory, 0, bufferSize,  vk::MemoryMapFlags());
 
 	/* Copy over our vertex data, then unmap */
-	memcpy(data, points.data(), (size_t)bufferSize);
+	memcpy(data, positions.data(), (size_t)bufferSize);
 	device.unmapMemory(stagingBufferMemory);
 
 	vk::MemoryPropertyFlags memoryProperties;

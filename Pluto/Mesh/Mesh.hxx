@@ -92,13 +92,13 @@ class Mesh : public StaticFactory
 		static Mesh* CreateTube(std::string name, bool allow_edits = false, bool submit_immediately = false);
 
 		/* Creates a mesh component from a procedural tube (uncapped) generated from a polyline */
-		static Mesh* CreateTubeFromPolyline(std::string name, std::vector<glm::vec3> points, float radius = 1.0, uint32_t segments = 16, bool allow_edits = false, bool submit_immediately = false);
+		static Mesh* CreateTubeFromPolyline(std::string name, std::vector<glm::vec3> positions, float radius = 1.0, uint32_t segments = 16, bool allow_edits = false, bool submit_immediately = false);
 
 		/* Creates a mesh component from a procedural rounded rectangle tube (uncapped) generated from a polyline */
-		static Mesh* CreateRoundedRectangleTubeFromPolyline(std::string name, std::vector<glm::vec3> points, float radius = 1.0, float size_x = .75, float size_y = .75, bool allow_edits = false, bool submit_immediately = false);
+		static Mesh* CreateRoundedRectangleTubeFromPolyline(std::string name, std::vector<glm::vec3> positions, float radius = 1.0, float size_x = .75, float size_y = .75, bool allow_edits = false, bool submit_immediately = false);
 
 		/* Creates a mesh component from a procedural rectangle tube (uncapped) generated from a polyline */
-		static Mesh* CreateRectangleTubeFromPolyline(std::string name, std::vector<glm::vec3> points, float size_x = 1.0, float size_y = 1.0, bool allow_edits = false, bool submit_immediately = false);
+		static Mesh* CreateRectangleTubeFromPolyline(std::string name, std::vector<glm::vec3> positions, float size_x = 1.0, float size_y = 1.0, bool allow_edits = false, bool submit_immediately = false);
 
 		/* Creates a mesh component from an OBJ file (ignores .mtl files) */
 		static Mesh* CreateFromOBJ(std::string name, std::string objPath, bool allow_edits = false, bool submit_immediately = false);
@@ -109,13 +109,13 @@ class Mesh : public StaticFactory
 		/* Creates a mesh component from a GLB file (material properties are ignored) */
 		static Mesh* CreateFromGLB(std::string name, std::string glbPath, bool allow_edits = false, bool submit_immediately = false);
 
-		/* Creates a mesh component from a set of points, optional normals, optional colors, optional texture coordinates, 
-			and optional indices. If anything other than points is supplied (eg normals), that list must be the same length
+		/* Creates a mesh component from a set of positions, optional normals, optional colors, optional texture coordinates, 
+			and optional indices. If anything other than positions is supplied (eg normals), that list must be the same length
 			as the point list. If indicies are supplied, indices must be a multiple of 3 (triangles). Otherwise, all other
 			supplied per vertex data must be a multiple of 3 in length. */
 		static Mesh* CreateFromRaw(
 			std::string name,
-			std::vector<glm::vec3> points, 
+			std::vector<glm::vec3> positions, 
 			std::vector<glm::vec3> normals = {}, 
 			std::vector<glm::vec4> colors = {}, 
 			std::vector<glm::vec2> texcoords = {}, 
@@ -168,7 +168,7 @@ class Mesh : public StaticFactory
 		std::string to_string();
 		
 		/* If editing is enabled, returns a list of per vertex positions */
-		std::vector<glm::vec3> get_points();;
+		std::vector<glm::vec3> get_positions();;
 
 		/* If editing is enabled, returns a list of per vertex colors */
 		std::vector<glm::vec4> get_colors();
@@ -296,7 +296,7 @@ class Mesh : public StaticFactory
 		static vk::DeviceMemory instanceBufferMemory;
 
 		/* Lists of per vertex data. These might not match GPU memory if editing is disabled. */
-		std::vector<glm::vec3> points;
+		std::vector<glm::vec3> positions;
 		std::vector<glm::vec3> normals;
 		std::vector<glm::vec4> colors;
 		std::vector<glm::vec2> texcoords;
@@ -388,7 +388,7 @@ class Mesh : public StaticFactory
 
 		/* Copies per vertex data to the GPU */
 		void load_raw (
-			std::vector<glm::vec3> &points, 
+			std::vector<glm::vec3> &positions, 
 			std::vector<glm::vec3> &normals, 
 			std::vector<glm::vec4> &colors, 
 			std::vector<glm::vec2> &texcoords,
@@ -406,7 +406,7 @@ class Mesh : public StaticFactory
 			auto genVerts = mesh.vertices();
 			while (!genVerts.done()) {
 				auto vertex = genVerts.generate();
-				points.push_back(vertex.position);
+				positions.push_back(vertex.position);
 				normals.push_back(vertex.normal);
 				texcoords.push_back(vertex.texCoord);
 				colors.push_back(glm::vec4(0.0, 0.0, 0.0, 0.0));
