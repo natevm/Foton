@@ -67,6 +67,9 @@ class Material : public StaticFactory
         /* Initializes all vulkan descriptor resources, as well as the Mesh factory. */
         static void Initialize();
 
+        /* TODO: Explain this */
+        static bool IsInitialized();
+
         /* Transfers all material components to an SSBO */
         static void UploadSSBO(vk::CommandBuffer command_buffer);
 
@@ -153,6 +156,9 @@ class Material : public StaticFactory
     private:
         /* TODO */
 		static std::mutex creation_mutex;
+
+        /* TODO */
+	    static bool Initialized;
     
         /*  A list of the material components, allocated statically */
         static Material materials[MAX_MATERIALS];

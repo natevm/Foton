@@ -3,15 +3,21 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <functional>
+
+
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtx/quaternion.hpp>
+
 
 extern bool Initialized;
 
 class Entity;
 
 namespace Pluto {
+
+    void StartSystems(bool use_python = false, std::function<void()> callback = std::function<void()>());
 
     void Initialize(
         bool useGLFW = true, 
@@ -27,6 +33,10 @@ namespace Pluto {
             "vertexPipelineStoresAndAtomics", 
             "fragmentStoresAndAtomics"}
     );
+
+    void WaitForStartupCallback();
+
+    void StopSystems();
 
     void CleanUp();
 

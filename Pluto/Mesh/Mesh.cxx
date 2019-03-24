@@ -48,6 +48,7 @@ vk::DeviceMemory Mesh::topASMemory;
 vk::Buffer Mesh::instanceBuffer;
 vk::DeviceMemory Mesh::instanceBufferMemory;
 std::mutex Mesh::creation_mutex;
+bool Mesh::Initialized = false;
 
 class Vertex
 {
@@ -248,7 +249,16 @@ void Mesh::cleanup()
 	device.freeMemory(texCoordBufferMemory);
 }
 
+void Mesh::CleanUp()
+{
+	if (!IsInitialized()) return;
+	std::cout<<"TODO: Cleanup mesh!"<<std::endl;
+	Initialized = false;
+}
+
 void Mesh::Initialize() {
+	if (IsInitialized()) return;
+
 	CreateBox("BoundingBox");
 
 	auto vulkan = Libraries::Vulkan::Get();
@@ -297,6 +307,13 @@ void Mesh::Initialize() {
         SSBOMemory = device.allocateMemory(allocInfo);
         device.bindBufferMemory(SSBO, SSBOMemory, 0);
     }
+
+	Initialized = true;
+}
+
+bool Mesh::IsInitialized()
+{
+    return Initialized;
 }
 
 void Mesh::UploadSSBO(vk::CommandBuffer command_buffer)

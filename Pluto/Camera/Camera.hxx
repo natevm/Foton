@@ -46,6 +46,9 @@ class Camera : public StaticFactory
 	/* Initializes the Camera factory. Loads any default components. */
 	static void Initialize();
 
+	/* TODO: Explain this */
+	static bool IsInitialized();
+
 	/* Transfers all camera components to an SSBO */
 	static void UploadSSBO(vk::CommandBuffer command_buffer);
 
@@ -213,6 +216,9 @@ class Camera : public StaticFactory
   private:
   	/* TODO */
 	static std::mutex creation_mutex;
+
+	/* TODO */
+	static bool Initialized;
 	
 	/* Determines whether this camera should use a depth prepass to reduce fragment complexity at the cost of 
 	vertex shader complexity */

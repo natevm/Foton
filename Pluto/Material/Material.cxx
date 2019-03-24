@@ -30,6 +30,7 @@ std::vector<vk::VertexInputAttributeDescription> Material::vertexInputAttributeD
 vk::DescriptorSet Material::componentDescriptorSet;
 vk::DescriptorSet Material::textureDescriptorSet;
 std::mutex Material::creation_mutex;
+bool Material::Initialized = false;
 
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::uniformColor;
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::blinn;
@@ -706,6 +707,8 @@ void Material::SetupRaytracingShaderBindingTable(vk::RenderPass renderpass)
 
 void Material::Initialize()
 {
+    if (IsInitialized()) return;
+
     Material::CreateRasterDescriptorSetLayouts();
     Material::CreateRaytracingDescriptorSetLayouts();
     Material::CreateDescriptorPools();
@@ -714,6 +717,13 @@ void Material::Initialize()
     Material::CreateSSBO();
     Material::UpdateRasterDescriptorSets();
     Material::UpdateRaytracingDescriptorSets();
+
+    Initialized = true;
+}
+
+bool Material::IsInitialized()
+{
+    return Initialized;
 }
 
 void Material::CreateRasterDescriptorSetLayouts()
@@ -1447,6 +1457,8 @@ uint32_t Material::GetSSBOSize()
 
 void Material::CleanUp()
 {
+    if (!IsInitialized()) return;
+
     auto vulkan = Libraries::Vulkan::Get();
     if (!vulkan->is_initialized())
         throw std::runtime_error( std::string("Vulkan library is not initialized"));
@@ -1462,6 +1474,8 @@ void Material::CleanUp()
 
     device.destroyDescriptorSetLayout(textureDescriptorSetLayout);
     device.destroyDescriptorPool(textureDescriptorPool);
+
+    Initialized = false;
 }	
 
 /* Static Factory Implementations */

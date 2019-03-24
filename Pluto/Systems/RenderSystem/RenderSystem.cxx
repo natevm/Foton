@@ -867,6 +867,7 @@ bool RenderSystem::start()
 
 bool RenderSystem::stop()
 {
+    
     if (!initialized)
         return false;
     if (!running)

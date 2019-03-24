@@ -898,9 +898,14 @@ bool Vulkan::end_one_time_graphics_command(vk::CommandBuffer command_buffer, std
     vk::Fence one_time_graphics_command_fence = device.createFence(fenceInfo);
 
     std::future<void> fut = enqueue_graphics_commands({command_buffer}, {},{}, {}, one_time_graphics_command_fence, hint, queue_idx);
-    fut.wait();
+    auto future_status = fut.wait_for(std::chrono::seconds(10));
 
-    auto result = device.waitForFences(one_time_graphics_command_fence, true, 10000000000);
+    if (future_status != std::future_status::ready) {
+        std::cout<<"Queue processing timeout: " << hint << std::endl; 
+        return false;
+    }
+
+    auto result = device.waitForFences(one_time_graphics_command_fence, true, 100000000);
     if (result != vk::Result::eSuccess) {
         std::cout<<"Fence timeout: " << hint << std::endl; 
     }
@@ -1073,8 +1078,8 @@ bool Vulkan::submit_present_commands() {
 
 bool Vulkan::flush_queues()
 {
-    presentQueues[0].waitIdle();
-    graphicsQueues[0].waitIdle();
+    for (auto &queue : graphicsQueues) queue.waitIdle();
+    for (auto &queue : presentQueues) queue.waitIdle();
     return true;
 }
 

@@ -12,6 +12,7 @@ vk::Buffer Light::stagingSSBO;
 vk::DeviceMemory Light::stagingSSBOMemory;
 std::vector<Camera*> Light::shadowCameras;
 std::mutex Light::creation_mutex;
+bool Light::Initialized = false;
 
 Light::Light()
 {
@@ -159,6 +160,8 @@ std::string Light::to_string() {
 /* SSBO logic */
 void Light::Initialize()
 {
+    if (IsInitialized()) return;
+
     auto vulkan = Libraries::Vulkan::Get();
     if (!vulkan->is_initialized())
         throw std::runtime_error( std::string("Vulkan library is not initialized"));
@@ -208,6 +211,13 @@ void Light::Initialize()
         SSBOMemory = device.allocateMemory(allocInfo);
         device.bindBufferMemory(SSBO, SSBOMemory, 0);
     }
+
+    Initialized = true;
+}
+
+bool Light::IsInitialized()
+{
+    return Initialized;
 }
 
 void Light::CreateShadowCameras()
@@ -280,6 +290,8 @@ uint32_t Light::GetSSBOSize()
 
 void Light::CleanUp()
 {
+    if (!IsInitialized()) return;
+
     auto vulkan = Libraries::Vulkan::Get();
     if (!vulkan->is_initialized())
         throw std::runtime_error( std::string("Vulkan library is not initialized"));
@@ -292,6 +304,8 @@ void Light::CleanUp()
 
     device.destroyBuffer(stagingSSBO);
     device.freeMemory(stagingSSBOMemory);
+
+    Initialized = false;
 }	
 
 /* Static Factory Implementations */

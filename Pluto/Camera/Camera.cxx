@@ -17,6 +17,7 @@ vk::DeviceMemory Camera::SSBOMemory;
 vk::Buffer Camera::stagingSSBO;
 vk::DeviceMemory Camera::stagingSSBOMemory;
 std::mutex Camera::creation_mutex;
+bool Camera::Initialized = false;
 int32_t Camera::minRenderOrder = 0;
 int32_t Camera::maxRenderOrder = 0;
 
@@ -775,6 +776,8 @@ void Camera::set_clear_depth(float depth) {
 /* SSBO Logic */
 void Camera::Initialize()
 {
+	if (IsInitialized()) return;
+
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
 	auto physical_device = vulkan->get_physical_device();
@@ -816,6 +819,13 @@ void Camera::Initialize()
 		SSBOMemory = device.allocateMemory(allocInfo);
 		device.bindBufferMemory(SSBO, SSBOMemory, 0);
 	}
+
+	Initialized = true;
+}
+
+bool Camera::IsInitialized()
+{
+    return Initialized;
 }
 
 void Camera::UploadSSBO(vk::CommandBuffer command_buffer)
@@ -863,6 +873,8 @@ uint32_t Camera::GetSSBOSize()
 
 void Camera::CleanUp()
 {
+	if (!IsInitialized()) return;
+
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
 	device.destroyBuffer(SSBO);
@@ -874,6 +886,8 @@ void Camera::CleanUp()
 	for (uint32_t i = 0; i < GetCount(); ++i) {
 		cameras[i].cleanup();
 	}
+
+	Initialized = false;
 }	
 
 

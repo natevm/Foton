@@ -23,34 +23,8 @@ using namespace std;
 int main(int argc, char** argv)
 {
     Options::ProcessArgs(argc, argv);
-    
-    auto glfw = Libraries::GLFW::Get();
-    auto vulkan = Libraries::Vulkan::Get();
+    Pluto::StartSystems(true);
+    Pluto::StopSystems();
 
-    auto python_system = Systems::PythonSystem::Get();
-    auto event_system = Systems::EventSystem::Get();
-    auto render_system = Systems::RenderSystem::Get();
-
-    python_system->initialize();
-    event_system->initialize();
-    render_system->initialize();
-    
-    python_system->start();
-    render_system->start();
-
-    //Initialize();
-
-    event_system->start();
-
-    render_system->stop();
-    python_system->stop();
-    event_system->stop();
-
-    /* event system currently stopped by Python thread */
-    Pluto::CleanUp();
-    
-    std::cout<<"Shutting down Pluto"<<std::endl;
-    
-    Py_Finalize();
     return 0;
 }

@@ -29,6 +29,9 @@ private:
 	/* Static fields */
 	/* TODO */
 	static std::mutex creation_mutex;
+	/* TODO */
+	static bool Initialized;
+	
 	static Entity entities[MAX_ENTITIES];
 	static EntityStruct* pinnedMemory;
     static std::map<std::string, uint32_t> lookupTable;
@@ -51,6 +54,7 @@ public:
 	static void Delete(uint32_t id);
 	
     static void Initialize();
+	static bool IsInitialized();
     static void UploadSSBO(vk::CommandBuffer command_buffer);
     static vk::Buffer GetSSBO();
 	static uint32_t GetSSBOSize();

@@ -143,6 +143,12 @@ class Mesh : public StaticFactory
 		/* Initializes static resources */
 		static void Initialize();
 
+		/* TODO: Explain this */
+		static bool IsInitialized();
+
+		/* TODO: Explain this */
+		static void CleanUp();
+
 		/* Transfers all mesh components to an SSBO */
         static void UploadSSBO(vk::CommandBuffer command_buffer);
 
@@ -253,6 +259,9 @@ class Mesh : public StaticFactory
 	private:
 		/* TODO */
 		static std::mutex creation_mutex;
+		
+		/* TODO */
+		static bool Initialized;
 		
 		/* A list of the mesh components, allocated statically */
 		static Mesh meshes[MAX_MESHES];

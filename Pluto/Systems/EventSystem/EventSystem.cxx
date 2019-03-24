@@ -240,7 +240,9 @@ namespace Systems
         if (glfw) glfw->post_empty_event();
         running = false;
 
-        exitSignal.set_value();
+        // exitSignal.set_value();
+
+        initialized = false;
         
         return true;
     }

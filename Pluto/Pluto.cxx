@@ -33,6 +33,42 @@ bool Initialized = false;
 
 namespace Pluto {
 
+    std::thread callback_thread;
+    void StartSystems(bool use_python, std::function<void()> callback)
+    {
+        auto glfw = Libraries::GLFW::Get();
+        auto vulkan = Libraries::Vulkan::Get();
+
+        auto python_system = Systems::PythonSystem::Get();
+        auto event_system = Systems::EventSystem::Get();
+        auto render_system = Systems::RenderSystem::Get();
+
+        if (use_python) {
+            python_system->initialize();
+        }
+        event_system->initialize();
+        render_system->initialize();
+        
+        if (use_python) {
+            python_system->start();
+        }
+        render_system->start();
+
+        //Initialize();
+        if (callback)
+        {
+            if (callback_thread.joinable()) callback_thread.join();
+            callback_thread = std::thread(callback);
+        }
+
+        event_system->start();
+    }
+
+    void WaitForStartupCallback()
+    {
+        if (callback_thread.joinable()) callback_thread.join();
+    }
+
     void Initialize(
         bool useGLFW,
         bool useOpenVR,
@@ -41,15 +77,23 @@ namespace Pluto {
         std::set<std::string> device_extensions,
         std::set<std::string> device_features
     ) {
-        if (Initialized) 
-            throw std::runtime_error("Error: Pluto already initialized");
-        Initialized = true;
+        if (Initialized) throw std::runtime_error("Error: Pluto already initialized");
 
         auto glfw = Libraries::GLFW::Get();
+        // if (useGLFW && !glfw->is_initialized()) throw std::runtime_error("Error: GLFW was not initialized");
+
         auto vulkan = Libraries::Vulkan::Get();
+        // if (!vulkan->is_initialized()) throw std::runtime_error("Error: Vulkan was not initialized");
         
         auto event_system = Systems::EventSystem::Get();
+        // if (!event_system->running) throw std::runtime_error("Error: Event system is not running");
+
         auto render_system = Systems::RenderSystem::Get();
+        // if (!render_system->running) throw std::runtime_error("Error: Event system is not running");
+        
+        while (!event_system->running) ;
+
+        Initialized = true;
 
         event_system->use_openvr(useOpenVR);
         render_system->use_openvr(useOpenVR);
@@ -68,7 +112,6 @@ namespace Pluto {
         Texture::Initialize();
         Mesh::Initialize();
         Material::Initialize();
-
         Light::CreateShadowCameras();
 
         auto skybox = Entity::Create("Skybox");
@@ -93,22 +136,36 @@ namespace Pluto {
         if (useGLFW) event_system->destroy_window("TEMP");
     }
 
-    void CleanUp()
+    void StopSystems()
     {
-        Initialized = false;
-
         auto glfw = Libraries::GLFW::Get();
         auto vulkan = Libraries::Vulkan::Get();
-        auto openvr = Libraries::Vulkan::Get();
 
-        if (vulkan->is_initialized())
-        {
-            Material::CleanUp();
-            Transform::CleanUp();
-            Light::CleanUp();
-            Camera::CleanUp();
-            Entity::CleanUp();
-        }
+        auto python_system = Systems::PythonSystem::Get();
+        auto event_system = Systems::EventSystem::Get();
+        auto render_system = Systems::RenderSystem::Get();
+
+        render_system->stop();
+        python_system->stop();
+        event_system->stop();
+
+
+        /* All systems must be stopped before we can cleanup (Causes DeviceLost otherwise) */
+        Pluto::CleanUp();
+        
+        std::cout<<"Shutting down Pluto"<<std::endl;
+        
+        Py_Finalize();
+    }
+
+    void CleanUp()
+    {
+        Mesh::CleanUp();
+        Material::CleanUp();
+        Transform::CleanUp();
+        Light::CleanUp();
+        Camera::CleanUp();
+        Entity::CleanUp();
     }
 
     std::vector<Entity*> ImportOBJ(std::string filepath, std::string mtl_base_dir, glm::vec3 position, glm::vec3 scale, glm::quat rotation)

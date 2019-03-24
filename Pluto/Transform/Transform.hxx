@@ -62,6 +62,7 @@ class Transform : public StaticFactory
 
     /* TODO */
 	static std::mutex creation_mutex;
+    static bool Initialized;
 
     static Transform transforms[MAX_TRANSFORMS];
     static TransformStruct* pinnedMemory;
@@ -81,6 +82,7 @@ class Transform : public StaticFactory
     static void Delete(uint32_t id);
 
     static void Initialize();
+    static bool IsInitialized();
     static void UploadSSBO(vk::CommandBuffer cmmand_buffer);
     static vk::Buffer GetSSBO();
     static uint32_t GetSSBOSize();

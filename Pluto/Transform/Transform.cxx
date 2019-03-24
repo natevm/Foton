@@ -8,9 +8,12 @@ vk::Buffer Transform::SSBO;
 vk::DeviceMemory Transform::stagingSSBOMemory;
 vk::DeviceMemory Transform::SSBOMemory;
 std::mutex Transform::creation_mutex;
+bool Transform::Initialized = false;
 
 void Transform::Initialize()
 {
+    if (IsInitialized()) return;
+
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
     auto physical_device = vulkan->get_physical_device();
@@ -53,6 +56,13 @@ void Transform::Initialize()
         device.bindBufferMemory(SSBO, SSBOMemory, 0);
     }
 
+    Initialized = true;
+
+}
+
+bool Transform::IsInitialized()
+{
+    return Initialized;
 }
 
 void Transform::UploadSSBO(vk::CommandBuffer command_buffer) 
@@ -110,6 +120,7 @@ uint32_t Transform::GetSSBOSize()
 
 void Transform::CleanUp() 
 {
+    if (!IsInitialized()) return;
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
     device.destroyBuffer(SSBO);
@@ -117,6 +128,8 @@ void Transform::CleanUp()
 
     device.destroyBuffer(stagingSSBO);
     device.freeMemory(stagingSSBOMemory);
+
+    Initialized = false;
 }
 
 
