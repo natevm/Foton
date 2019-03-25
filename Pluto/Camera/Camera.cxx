@@ -1175,6 +1175,8 @@ void Camera::wait_for_render_complete()
 	// Wait until main() sends data
 	auto m = render_complete_mutex.get();
     std::unique_lock<std::mutex> lk(*m);
+	render_ready = false;
     cv->wait(lk, [this]{return render_ready;});
+	render_ready = false;
 	lk.unlock();
 }
