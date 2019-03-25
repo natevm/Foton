@@ -887,6 +887,11 @@ void Camera::CleanUp()
 		cameras[i].cleanup();
 	}
 
+	SSBO = vk::Buffer();
+    SSBOMemory = vk::DeviceMemory();
+    stagingSSBO = vk::Buffer();
+    stagingSSBOMemory = vk::DeviceMemory();
+
 	Initialized = false;
 }	
 
@@ -939,22 +944,27 @@ std::vector<Camera *> Camera::GetCamerasByOrder(uint32_t order)
 
 void Camera::cleanup()
 {
+	if (!initialized) return;
+	
 	auto vulkan = Vulkan::Get();
 	auto device = vulkan->get_device();
 
 	if (command_buffer)
 	{
 		device.freeCommandBuffers(vulkan->get_command_pool(), {command_buffer});
+		command_buffer = vk::CommandBuffer();
 	}
     if (renderpasses.size() > 0) {
         for(auto renderpass : renderpasses) {
             device.destroyRenderPass(renderpass);
         }
+		renderpasses.clear();
     }
 	if (depthPrepasses.size() > 0) {
         for(auto renderpass : depthPrepasses) {
             device.destroyRenderPass(renderpass);
         }
+		depthPrepasses.clear();
     }
 
 	uint32_t max_frames_in_flight = 2;
@@ -964,7 +974,10 @@ void Camera::cleanup()
 
 	if (queryPool != vk::QueryPool()) {
 		device.destroyQueryPool(queryPool);
+		queryPool = vk::QueryPool();
 	}
+
+	initialized = false;
 }
 
 void Camera::force_render_mode(RenderMode rendermode)

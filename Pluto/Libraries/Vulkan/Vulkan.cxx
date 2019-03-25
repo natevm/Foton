@@ -1088,7 +1088,7 @@ uint32_t Vulkan::get_thread_id() {
     if (thread_id == -1) {
         std::lock_guard<std::mutex> lock(thread_id_mutex);
         thread_id = registered_threads;
-        std::cout<<"Designating " << std::hex << thread_id << " to thread id " << std::this_thread::get_id() << std::endl;
+        // std::cout<<"Designating " << std::hex << thread_id << " to thread id " << std::this_thread::get_id() << std::endl;
         registered_threads++;
     }
     return thread_id;

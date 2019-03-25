@@ -1459,6 +1459,11 @@ void Material::CleanUp()
 {
     if (!IsInitialized()) return;
 
+    for (auto &material : materials) 
+    {
+        material.initialized = false;
+    }
+
     auto vulkan = Libraries::Vulkan::Get();
     if (!vulkan->is_initialized())
         throw std::runtime_error( std::string("Vulkan library is not initialized"));
@@ -1469,11 +1474,24 @@ void Material::CleanUp()
     device.destroyBuffer(SSBO);
     device.freeMemory(SSBOMemory);
 
+    device.destroyBuffer(stagingSSBO);
+    device.freeMemory(stagingSSBOMemory);
+
     device.destroyDescriptorSetLayout(componentDescriptorSetLayout);
     device.destroyDescriptorPool(componentDescriptorPool);
 
     device.destroyDescriptorSetLayout(textureDescriptorSetLayout);
     device.destroyDescriptorPool(textureDescriptorPool);
+
+    SSBO = vk::Buffer();
+    SSBOMemory = vk::DeviceMemory();
+    stagingSSBO = vk::Buffer();
+    stagingSSBOMemory = vk::DeviceMemory();
+
+    componentDescriptorSetLayout = vk::DescriptorSetLayout();
+    componentDescriptorPool = vk::DescriptorPool();
+    textureDescriptorSetLayout = vk::DescriptorSetLayout();
+    textureDescriptorPool = vk::DescriptorPool();
 
     Initialized = false;
 }	

@@ -20,7 +20,7 @@ class Camera : public StaticFactory
   public:
 	/* Creates a camera, which can be used to record the scene. Can be used to render to several texture layers for use in cubemap rendering/VR renderpasses. 
 		Note, "layers" parameter is ignored if cubemap is enabled. */
-	static Camera *Create(std::string name, bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1, uint32_t layers = 1, bool use_depth_prepass = true, bool use_multiview = false);
+	static Camera *Create(std::string name, bool cubemap = false, uint32_t tex_width = 512, uint32_t tex_height = 512, uint32_t msaa_samples = 1, uint32_t layers = 1, bool use_depth_prepass = true, bool use_multiview = false);
 
 	/* Retrieves a camera component by name. */
 	static Camera *Get(std::string name);

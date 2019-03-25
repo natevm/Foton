@@ -252,7 +252,32 @@ void Mesh::cleanup()
 void Mesh::CleanUp()
 {
 	if (!IsInitialized()) return;
-	std::cout<<"TODO: Cleanup mesh!"<<std::endl;
+
+	auto vulkan = Libraries::Vulkan::Get();
+    if (!vulkan->is_initialized())
+        throw std::runtime_error( std::string("Vulkan library is not initialized"));
+    auto device = vulkan->get_device();
+    if (device == vk::Device())
+        throw std::runtime_error( std::string("Invalid vulkan device"));
+
+	for (auto &mesh : meshes) {
+		if (mesh.initialized) {
+			mesh.cleanup();
+			Mesh::Delete(mesh.id);
+		}
+	}
+
+	device.destroyBuffer(SSBO);
+    device.freeMemory(SSBOMemory);
+
+    device.destroyBuffer(stagingSSBO);
+    device.freeMemory(stagingSSBOMemory);
+
+	SSBO = vk::Buffer();
+    SSBOMemory = vk::DeviceMemory();
+    stagingSSBO = vk::Buffer();
+    stagingSSBOMemory = vk::DeviceMemory();
+
 	Initialized = false;
 }
 

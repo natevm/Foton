@@ -266,8 +266,19 @@ install(DIRECTORY ${PROJECT_SOURCE_DIR}/Pluto/Resources DESTINATION ${CMAKE_INST
 # │  Tests                                                           │
 # └──────────────────────────────────────────────────────────────────┘
 if(BUILD_TESTS)
-file(GLOB TEST_SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/Tests/*.cxx)
-add_executable(runUnitTests ${TEST_SRC_FILES})
-target_link_libraries(runUnitTests ${LIBRARIES} PlutoLib gtest_main)
-add_test(NAME runUnitTests COMMAND example)
+
+    file(GLOB TEST_SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/Tests/*.cxx)
+    add_executable(runUnitTests ${TEST_SRC_FILES})
+    target_link_libraries(runUnitTests ${LIBRARIES} PlutoLib gtest_main)
+    add_test(NAME runUnitTests COMMAND example)
+
+    if (WIN32) 
+    install(FILES ${CMAKE_BINARY_DIR}/bin/runUnitTests.exe DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
+    install(FILES ${CMAKE_BINARY_DIR}/bin/runUnitTests.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto OPTIONAL)
+    elseif(APPLE)
+    install(FILES ${CMAKE_BINARY_DIR}/lib/runUnitTests DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
+    else()
+    install(FILES ${CMAKE_BINARY_DIR}/lib/runUnitTests.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
+    endif()
+
 endif(BUILD_TESTS)

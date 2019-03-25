@@ -177,6 +177,8 @@ void RenderSystem::record_cameras()
         auto cam_id = entities[entity_id].get_camera();
         if (cam_id < 0) continue;
 
+        if (!cameras[cam_id].is_initialized()) continue;
+
         /* Camera needs a texture */
         Texture * texture = cameras[cam_id].get_texture();
         if (!texture) continue;
@@ -726,6 +728,7 @@ void RenderSystem::release_vulkan_resources()
 
     /* Release vulkan resources */
     device.freeCommandBuffers(vulkan->get_command_pool(), {main_command_buffer});
+    main_command_buffer = vk::CommandBuffer();
     // device.destroyFence(main_fence);
     // for (auto &semaphore : main_command_buffer_semaphores)
     //     device.destroySemaphore(semaphore);

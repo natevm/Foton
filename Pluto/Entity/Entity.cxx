@@ -316,6 +316,11 @@ void Entity::CleanUp()
 {
     if (!IsInitialized()) return;
 
+    for (auto &entity : entities) 
+    {
+        entity.initialized = false;
+    }
+
     auto vulkan = Libraries::Vulkan::Get();
     if (!vulkan->is_initialized())
         throw std::runtime_error( std::string("Vulkan library is not initialized"));
@@ -328,6 +333,11 @@ void Entity::CleanUp()
 
     device.destroyBuffer(stagingSSBO);
     device.freeMemory(stagingSSBOMemory);
+
+    SSBO = vk::Buffer();
+    SSBOMemory = vk::DeviceMemory();
+    stagingSSBO = vk::Buffer();
+    stagingSSBOMemory = vk::DeviceMemory();
 
     Initialized = false;
 }	

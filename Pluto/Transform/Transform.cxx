@@ -121,6 +121,12 @@ uint32_t Transform::GetSSBOSize()
 void Transform::CleanUp() 
 {
     if (!IsInitialized()) return;
+
+    for (auto &transform : transforms) 
+    {
+        transform.initialized = false;
+    }
+
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
     device.destroyBuffer(SSBO);
@@ -128,6 +134,11 @@ void Transform::CleanUp()
 
     device.destroyBuffer(stagingSSBO);
     device.freeMemory(stagingSSBOMemory);
+
+    SSBO = vk::Buffer();
+    SSBOMemory = vk::DeviceMemory();
+    stagingSSBO = vk::Buffer();
+    stagingSSBOMemory = vk::DeviceMemory();
 
     Initialized = false;
 }

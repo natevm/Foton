@@ -99,6 +99,16 @@ int ProcessArgs(int argc, char **argv)
 }
 
 std::string GetResourcePath() {
+    if (ResourcePath.size() == 0) {
+        int dirname_length;
+        int length = wai_getExecutablePath(NULL, 0, NULL);
+        std::string executable_path(length, '\0');
+        wai_getExecutablePath(executable_path.data(), length, &dirname_length);
+
+        executable_path = executable_path.substr(0, dirname_length);
+        ResourcePath = executable_path + "/Resources"; 
+    }
+
     return ResourcePath;
 }
 

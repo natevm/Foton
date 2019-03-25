@@ -155,11 +155,15 @@ namespace Pluto {
         
         std::cout<<"Shutting down Pluto"<<std::endl;
         
+        
         Py_Finalize();
     }
 
     void CleanUp()
     {
+        /* Note: CleanUp is safe to call more than once */
+        Initialized = false;
+
         Mesh::CleanUp();
         Material::CleanUp();
         Transform::CleanUp();

@@ -616,9 +616,11 @@ void Texture::CleanUp()
 {
     if (!IsInitialized()) return;
 
-    for (int i = 0; i < MAX_TEXTURES; ++i)
+    for (int i = 0; i < MAX_TEXTURES; ++i) {
         textures[i].cleanup();
-
+        textures[i].initialized = false;
+    }
+    
     auto vulkan = Libraries::Vulkan::Get();
     if (!vulkan->is_initialized())
         throw std::runtime_error( std::string("Vulkan library is not initialized"));
@@ -637,6 +639,11 @@ void Texture::CleanUp()
 
     device.destroyBuffer(stagingSSBO);
     device.freeMemory(stagingSSBOMemory);
+
+    SSBO = vk::Buffer();
+    SSBOMemory = vk::DeviceMemory();
+    stagingSSBO = vk::Buffer();
+    stagingSSBOMemory = vk::DeviceMemory();
 }
 
 std::vector<vk::ImageView> Texture::GetImageViews(vk::ImageViewType view_type) 
