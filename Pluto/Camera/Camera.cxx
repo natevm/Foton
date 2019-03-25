@@ -890,14 +890,18 @@ void Camera::CleanUp()
 
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
-	device.destroyBuffer(SSBO);
-    device.freeMemory(SSBOMemory);
 
-	device.destroyBuffer(stagingSSBO);
-    device.freeMemory(stagingSSBOMemory);
+	if (SSBO != vk::Buffer()) device.destroyBuffer(SSBO);
+    if (SSBOMemory != vk::DeviceMemory()) device.freeMemory(SSBOMemory);
 
-	for (uint32_t i = 0; i < GetCount(); ++i) {
-		cameras[i].cleanup();
+	if (stagingSSBO != vk::Buffer()) device.destroyBuffer(stagingSSBO);
+    if (stagingSSBOMemory != vk::DeviceMemory()) device.freeMemory(stagingSSBOMemory);
+
+	for (auto &camera : cameras) {
+		if (camera.initialized) {
+			camera.cleanup();
+			Camera::Delete(camera.id);
+		}
 	}
 
 	SSBO = vk::Buffer();
@@ -989,8 +993,6 @@ void Camera::cleanup()
 		device.destroyQueryPool(queryPool);
 		queryPool = vk::QueryPool();
 	}
-
-	initialized = false;
 }
 
 void Camera::force_render_mode(RenderMode rendermode)

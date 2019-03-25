@@ -26,7 +26,7 @@ TEST(save_image, test_compare_image)
             auto rs = Systems::RenderSystem::Get();
 
             /* An asynchronous thread requests systems to stop */
-            Pluto::Initialize();
+            Pluto::Initialize(true, false, {"VK_LAYER_LUNARG_standard_validation"});
             
             /* Make a camera */
             auto cam_entity    = Entity::Create("cam_entity");

@@ -1459,10 +1459,11 @@ void Material::CleanUp()
 {
     if (!IsInitialized()) return;
 
-    for (auto &material : materials) 
-    {
-        material.initialized = false;
-    }
+    for (auto &material : materials) {
+		if (material.initialized) {
+			Material::Delete(material.id);
+		}
+	}
 
     auto vulkan = Libraries::Vulkan::Get();
     if (!vulkan->is_initialized())
