@@ -712,6 +712,37 @@ void RenderSystem::enqueue_render_commands() {
     }
 }
 
+void RenderSystem::mark_cameras_as_render_complete()
+{
+    /* Render all cameras */
+    auto entities = Entity::GetFront();
+    auto cameras = Camera::GetFront();
+    for (uint32_t entity_id = 0; entity_id < Entity::GetCount(); ++entity_id) {
+        /* Entity must be initialized */
+        if (!entities[entity_id].is_initialized()) continue;
+
+        /* Entity needs a camera */
+        auto cam_id = entities[entity_id].get_camera();
+        if (cam_id < 0) continue;
+
+        if (!cameras[cam_id].is_initialized()) continue;
+
+        /* Camera needs a texture */
+        Texture * texture = cameras[cam_id].get_texture();
+        if (!texture) continue;
+
+        /* If entity is a shadow camera (TODO: REFACTOR THIS...) */
+        if (entities[entity_id].get_light() != -1) {
+            /* Skip shadowmaps which shouldn't cast shadows */
+            auto light = Light::Get(entities[entity_id].get_light());
+            if (!light->should_cast_shadows()) continue;
+        }
+
+        cameras[cam_id].mark_render_as_complete();
+    }
+
+}
+
 void RenderSystem::release_vulkan_resources() 
 {
     auto vulkan = Vulkan::Get();
@@ -827,6 +858,8 @@ bool RenderSystem::start()
                     /* Cleanup fences. */
                     // for (auto &fence : final_fences) device.destroyFence(fence);
                 }
+
+                mark_cameras_as_render_complete();
 
 
                 /* 4. Optional: Wait on render complete. Present a frame. */

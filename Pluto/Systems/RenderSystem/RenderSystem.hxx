@@ -98,6 +98,7 @@ namespace Systems
             void record_blit_textures();
             void enqueue_render_commands();
             void download_visibility_queries();
+            void mark_cameras_as_render_complete();
 
             void stream_frames();
             void update_openvr_transforms();

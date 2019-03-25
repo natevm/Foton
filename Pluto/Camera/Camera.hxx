@@ -6,6 +6,7 @@
 
 #include <vulkan/vulkan.hpp>
 #include <mutex>
+#include <condition_variable>
 
 #include "Pluto/Tools/StaticFactory.hxx"
 #include "Pluto/Camera/CameraStruct.hxx"
@@ -212,6 +213,9 @@ class Camera : public StaticFactory
 	/* TODO: */
 	void resume_visibility_testing();
 
+	void mark_render_as_complete();
+
+	void wait_for_render_complete();
 
   private:
   	/* TODO */
@@ -303,6 +307,10 @@ class Camera : public StaticFactory
 	/* An integer representation of the number of MSAA samples to take when rendering. Must be a power of 2.
 		if 1, it's inferred that a resolve texture is not required.  */
 	uint32_t msaa_samples = 1;
+
+	bool render_ready = false;
+	std::shared_ptr<std::mutex> render_complete_mutex;
+	std::shared_ptr<std::condition_variable> cv;
 
 	/* A list of the camera components, allocated statically */
 	static Camera cameras[MAX_CAMERAS];

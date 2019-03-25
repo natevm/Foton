@@ -364,6 +364,9 @@ Camera::Camera(std::string name, uint32_t id) {
 	this->name = name;
 	this->id = id;
 	this->renderModeOverride = RenderMode::NONE;
+
+	this->render_complete_mutex = std::make_shared<std::mutex>();
+	this->cv = std::make_shared<std::condition_variable>();
 }
 
 // glm::mat4 MakeInfReversedZOrthoRH(float left, float right, float bottom, float top, float zNear)
@@ -500,6 +503,12 @@ void Camera::begin_renderpass(vk::CommandBuffer command_buffer, uint32_t index)
     if(index >= renderpasses.size())
         throw std::runtime_error( std::string("Error: renderpass index out of bounds"));
 
+	if (!use_depth_prepass) {
+		auto m = render_complete_mutex.get();
+		std::lock_guard<std::mutex> lk(*m);
+		render_ready = false;
+	}
+
 	renderTexture->make_renderable(command_buffer);
 	
 	vk::RenderPassBeginInfo rpInfo;
@@ -568,6 +577,10 @@ void Camera::begin_depth_prepass(vk::CommandBuffer command_buffer, uint32_t inde
     if(index >= depthPrepasses.size())
         throw std::runtime_error( std::string("Error: renderpass index out of bounds"));
 
+	auto m = render_complete_mutex.get();
+	std::lock_guard<std::mutex> lk(*m);
+	render_ready = false;
+	
 	renderTexture->make_renderable(command_buffer);
 
 	vk::RenderPassBeginInfo rpInfo;
@@ -945,7 +958,7 @@ std::vector<Camera *> Camera::GetCamerasByOrder(uint32_t order)
 void Camera::cleanup()
 {
 	if (!initialized) return;
-	
+
 	auto vulkan = Vulkan::Get();
 	auto device = vulkan->get_device();
 
@@ -1145,4 +1158,23 @@ std::vector<std::vector<std::pair<float, Entity*>>> Camera::get_visible_entities
 		return frustum_culling_results;
 	}
 	
+}
+
+void Camera::mark_render_as_complete()
+{
+	{
+		auto m = render_complete_mutex.get();
+		std::lock_guard<std::mutex> lk(*m);
+		render_ready = true;
+	}
+	cv->notify_one();
+}
+
+void Camera::wait_for_render_complete()
+{
+	// Wait until main() sends data
+	auto m = render_complete_mutex.get();
+    std::unique_lock<std::mutex> lk(*m);
+    cv->wait(lk, [this]{return render_ready;});
+	lk.unlock();
 }

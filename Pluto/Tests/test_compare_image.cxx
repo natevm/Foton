@@ -33,12 +33,12 @@ TEST(save_image, test_compare_image)
             cam_entity->set_transform(cam_transform);
 
             /* The camera will automatically start to asynchronously render. */
-            // rs->flush_cameras(); // How should this work?
+            cam_camera->wait_for_render_complete();
 
             auto cam_texture = cam_camera->get_texture();
             auto framebuffer = cam_texture->download_color_data(512, 512, 1);
 
-            std::vector<uint16_t> c_framebuffer(framebuffer.size());
+            std::vector<uint8_t> c_framebuffer(framebuffer.size());
             for (uint32_t i = 0; i < framebuffer.size(); i++) {
                 c_framebuffer[i] = (uint8_t)(framebuffer[i] * 255);
             }
