@@ -9,6 +9,9 @@
 
 #include <algorithm>
 
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_DEPTH_ZERO_TO_ONE
+
 Camera Camera::cameras[MAX_CAMERAS];
 CameraStruct* Camera::pinnedMemory;
 std::map<std::string, uint32_t> Camera::lookupTable;
@@ -400,7 +403,8 @@ glm::mat4 MakeInfReversedZProjRH(float fovY_radians, float aspectWbyH, float zNe
 
 glm::mat4 MakeProjRH(float fovY_radians, float aspectWbyH, float zNear)
 {
-	return glm::perspectiveFov(fovY_radians, aspectWbyH, 1.0f, zNear, 1000.0f);
+	auto proj = glm::perspectiveFov(fovY_radians, aspectWbyH, 1.0f, zNear, 10000.0f);
+	return proj;
 }
 
 void Camera::set_perspective_projection(float fov_in_radians, float width, float height, float near_pos, uint32_t multiview)
@@ -409,8 +413,10 @@ void Camera::set_perspective_projection(float fov_in_radians, float width, float
 	camera_struct.multiviews[multiview].near_pos = near_pos;
 	#ifndef DISABLE_REVERSE_Z
 	camera_struct.multiviews[multiview].proj = MakeInfReversedZProjRH(fov_in_radians, width / height, near_pos);
+	set_clear_depth(0.0);
 	#else
 	camera_struct.multiviews[multiview].proj = MakeProjRH(fov_in_radians, width / height, near_pos);
+	set_clear_depth(1.0);
 	#endif
 	camera_struct.multiviews[multiview].projinv = glm::inverse(camera_struct.multiviews[multiview].proj);
 };

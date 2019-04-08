@@ -10,6 +10,9 @@
 
 #ifndef GLSL
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_DEPTH_ZERO_TO_ONE
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_RIGHT_HANDED
 #include <glm/glm.hpp>
 using namespace glm;
 #endif
