@@ -403,7 +403,7 @@ glm::mat4 MakeInfReversedZProjRH(float fovY_radians, float aspectWbyH, float zNe
 
 glm::mat4 MakeProjRH(float fovY_radians, float aspectWbyH, float zNear)
 {
-	auto proj = glm::perspectiveFov(fovY_radians, aspectWbyH, 1.0f, zNear, 10000.0f);
+	auto proj = glm::perspectiveFov(fovY_radians, aspectWbyH, 1.0f, zNear, 1000.0f);
 	return proj;
 }
 

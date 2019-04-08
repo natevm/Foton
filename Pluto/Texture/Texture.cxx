@@ -1513,8 +1513,8 @@ bool Texture::get_supported_depth_format(vk::PhysicalDevice physicalDevice, vk::
     std::vector<vk::Format> depthFormats = {
         vk::Format::eD32SfloatS8Uint,
         vk::Format::eD32Sfloat,
-        vk::Format::eD16UnormS8Uint,
         vk::Format::eD24UnormS8Uint,
+        vk::Format::eD16UnormS8Uint,
         vk::Format::eD16Unorm};
 
     for (auto &format : depthFormats)

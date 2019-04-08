@@ -1348,7 +1348,7 @@ Mesh* Mesh::CreateBox(std::string name, bool allow_edits, bool submit_immediatel
 	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
-	generator::BoxMesh gen_mesh{};
+	generator::BoxMesh gen_mesh{{1, 1, 1}, {1, 1, 1}};
 	mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
 	return mesh;
 }
@@ -1448,7 +1448,7 @@ Mesh* Mesh::CreatePlane(std::string name, bool allow_edits, bool submit_immediat
 	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
-	generator::PlaneMesh gen_mesh{};
+	generator::PlaneMesh gen_mesh{{1, 1}, {1, 1}};
 	mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
 	return mesh;
 }

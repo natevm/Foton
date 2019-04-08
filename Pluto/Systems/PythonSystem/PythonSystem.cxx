@@ -6,7 +6,7 @@
 
 #include <string>
 #include <sstream>
-#include <algorithm>
+#include <algorithm>s
 #include <iterator>
 #include <stdio.h>
 
