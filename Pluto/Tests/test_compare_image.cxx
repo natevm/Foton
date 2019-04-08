@@ -1,8 +1,11 @@
 #include <iostream>
 #include <thread>
 #include <future>
+#include <experimental/filesystem>
 
 #include "gtest/gtest.h"
+
+#include "Pluto/Tools/version.h"
 
 #include "Pluto/Pluto.hxx"
 #include "Pluto/Entity/Entity.hxx"
@@ -14,6 +17,8 @@
 
 #include "stb_image_write.h"
 
+namespace fs = std::experimental::filesystem;
+
 TEST(save_image, test_compare_image)
 {
     auto func = []() {
@@ -21,7 +26,7 @@ TEST(save_image, test_compare_image)
             auto rs = Systems::RenderSystem::Get();
 
             /* An asynchronous thread requests systems to stop */
-            Pluto::Initialize();
+            Pluto::Initialize(true, false, {"VK_LAYER_LUNARG_standard_validation"});
             
             /* Make a camera */
             auto cam_entity    = Entity::Create("cam_entity");
@@ -43,8 +48,35 @@ TEST(save_image, test_compare_image)
                 c_framebuffer[i] = (uint8_t)(framebuffer[i] * 255);
             }
 
-            stbi_write_png("test_red_image.png", 512, 512, 4, c_framebuffer.data(), 512 * 4);
+            auto path = fs::path(std::string(CODE_VERSION) + std::string("/save_image"));
+            fs::create_directories(path);
 
+            auto red_path = (path / fs::path("/test_red_image.png")).u8string();
+            auto green_path = (path / fs::path("/test_green_image.png")).u8string();
+            auto blue_path = (path / fs::path("/test_blue_image.png")).u8string();
+            
+            stbi_write_png(red_path.c_str(), 512, 512, 4, c_framebuffer.data(), 512 * 4);
+
+            cam_camera->set_clear_color(0.0, 1.0, 0.0, 1.0);
+            cam_camera->wait_for_render_complete();
+
+
+            framebuffer = cam_texture->download_color_data(512, 512, 1);
+            for (uint32_t i = 0; i < framebuffer.size(); i++) {
+                c_framebuffer[i] = (uint8_t)(framebuffer[i] * 255);
+            }
+
+            stbi_write_png(green_path.c_str(), 512, 512, 4, c_framebuffer.data(), 512 * 4);
+
+            cam_camera->set_clear_color(0.0, 0.0, 1.0, 1.0);
+            cam_camera->wait_for_render_complete();
+
+            framebuffer = cam_texture->download_color_data(512, 512, 1);
+            for (uint32_t i = 0; i < framebuffer.size(); i++) {
+                c_framebuffer[i] = (uint8_t)(framebuffer[i] * 255);
+            }
+
+            stbi_write_png(blue_path.c_str(), 512, 512, 4, c_framebuffer.data(), 512 * 4);
 
             Pluto::StopSystems();
         }

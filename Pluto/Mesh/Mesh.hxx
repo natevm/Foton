@@ -232,6 +232,9 @@ class Mesh : public StaticFactory
 		/* If mesh editing is enabled, replaces the set of normals starting at the given index with a new set of normals */
 		void edit_normals(uint32_t index, std::vector<glm::vec3> new_normals);
 
+		/* TODO: EXPLAIN THIS */
+		void compute_smooth_normals(bool upload = true);
+
 		/* If mesh editing is enabled, replaces the vertex color at the given index with a new vertex color */
 		void edit_vertex_color(uint32_t index, glm::vec4 new_color);
 

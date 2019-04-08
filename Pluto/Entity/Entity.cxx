@@ -316,10 +316,11 @@ void Entity::CleanUp()
 {
     if (!IsInitialized()) return;
 
-    for (auto &entity : entities) 
-    {
-        entity.initialized = false;
-    }
+    for (auto &entity : entities) {
+		if (entity.initialized) {
+			Entity::Delete(entity.id);
+		}
+	}
 
     auto vulkan = Libraries::Vulkan::Get();
     if (!vulkan->is_initialized())

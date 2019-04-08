@@ -122,10 +122,11 @@ void Transform::CleanUp()
 {
     if (!IsInitialized()) return;
 
-    for (auto &transform : transforms) 
-    {
-        transform.initialized = false;
-    }
+    for (auto &transform : transforms) {
+		if (transform.initialized) {
+			Transform::Delete(transform.id);
+		}
+	}
 
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();

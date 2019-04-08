@@ -616,10 +616,12 @@ void Texture::CleanUp()
 {
     if (!IsInitialized()) return;
 
-    for (int i = 0; i < MAX_TEXTURES; ++i) {
-        textures[i].cleanup();
-        textures[i].initialized = false;
-    }
+    for (auto &texture : textures) {
+		if (texture.initialized) {
+			texture.cleanup();
+			Texture::Delete(texture.id);
+		}
+	}
     
     auto vulkan = Libraries::Vulkan::Get();
     if (!vulkan->is_initialized())

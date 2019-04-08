@@ -28,7 +28,7 @@ TEST(default_initialize, initialization)
     auto func = []() {
         try {
             /* An asynchronous thread requests systems to stop */
-            Pluto::Initialize();
+            Pluto::Initialize(true, false, {"VK_LAYER_LUNARG_standard_validation"});
             Pluto::StopSystems();
         }
         catch (std::runtime_error &e) {
