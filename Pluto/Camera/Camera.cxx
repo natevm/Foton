@@ -1,4 +1,4 @@
-#pragma optimize("", off)
+// #pragma optimize("", off)
 
 #include "./Camera.hxx"
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
@@ -396,14 +396,22 @@ glm::mat4 MakeInfReversedZProjRH(float fovY_radians, float aspectWbyH, float zNe
                   0.0f,    f,  0.0f,  0.0f,
                   0.0f, 0.0f,  0.0f, -1.0f,
                   0.0f, 0.0f, zNear,  0.0f);
-	// return glm::perspectiveFovRH_ZO(fovY_radians, aspectWbyH, 1.0f, zNear, 1000.0f);
+}
+
+glm::mat4 MakeProjRH(float fovY_radians, float aspectWbyH, float zNear)
+{
+	return glm::perspectiveFov(fovY_radians, aspectWbyH, 1.0f, zNear, 1000.0f);
 }
 
 void Camera::set_perspective_projection(float fov_in_radians, float width, float height, float near_pos, uint32_t multiview)
 {
 	check_multiview_index(multiview);
 	camera_struct.multiviews[multiview].near_pos = near_pos;
+	#ifndef DISABLE_REVERSE_Z
 	camera_struct.multiviews[multiview].proj = MakeInfReversedZProjRH(fov_in_radians, width / height, near_pos);
+	#else
+	camera_struct.multiviews[multiview].proj = MakeProjRH(fov_in_radians, width / height, near_pos);
+	#endif
 	camera_struct.multiviews[multiview].projinv = glm::inverse(camera_struct.multiviews[multiview].proj);
 };
 

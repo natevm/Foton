@@ -188,6 +188,14 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 
     auto sampleFlag = vulkan->highest(vulkan->min(vulkan->get_closest_sample_count_flag(sampleCount), vulkan->get_msaa_sample_flags()));
 
+    #ifndef DISABLE_REVERSE_Z
+    auto depthCompareOp = vk::CompareOp::eGreater;
+    auto depthCompareOpEqual = vk::CompareOp::eGreaterOrEqual;
+    #else
+    auto depthCompareOp = vk::CompareOp::eLess;
+    auto depthCompareOpEqual = vk::CompareOp::eLessOrEqual;
+    #endif
+
     /* RASTER GRAPHICS PIPELINES */
 
     /* ------ UNIFORM COLOR  ------ */
@@ -302,7 +310,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         if (use_depth_prepass) {
             pbr[renderpass].pipelineParameters.depthStencil.depthTestEnable = true;
             pbr[renderpass].pipelineParameters.depthStencil.depthWriteEnable = false; // not VK_TRUE since we have a depth prepass
-            pbr[renderpass].pipelineParameters.depthStencil.depthCompareOp = vk::CompareOp::eGreaterOrEqual;
+            pbr[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
         }
 		// depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL; //not VK_COMPARE_OP_LESS since we have a depth prepass;
         
@@ -470,7 +478,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         if (use_depth_prepass) {
             depth[renderpass].pipelineParameters.depthStencil.depthTestEnable = true;
             depth[renderpass].pipelineParameters.depthStencil.depthWriteEnable = false; // not VK_TRUE since we have a depth prepass
-            depth[renderpass].pipelineParameters.depthStencil.depthCompareOp = vk::CompareOp::eGreaterOrEqual;
+            depth[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
         }
 
         CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
@@ -547,7 +555,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         fragmentdepth[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
 
         fragmentdepth[renderpass].pipelineParameters.depthStencil.depthWriteEnable = true;
-        fragmentdepth[renderpass].pipelineParameters.depthStencil.depthCompareOp = vk::CompareOp::eGreaterOrEqual;
+        fragmentdepth[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
         fragmentdepth[renderpass].pipelineParameters.rasterizer.cullMode = vk::CullModeFlagBits::eNone;
 
         CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
@@ -594,7 +602,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         if (use_depth_prepass) {
             shadowmap[renderpass].pipelineParameters.depthStencil.depthTestEnable = true;
             shadowmap[renderpass].pipelineParameters.depthStencil.depthWriteEnable = false; // not VK_TRUE since we have a depth prepass
-            shadowmap[renderpass].pipelineParameters.depthStencil.depthCompareOp = vk::CompareOp::eGreaterOrEqual;
+            shadowmap[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
         }
 
         CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
@@ -642,7 +650,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         if (use_depth_prepass) {
             fragmentposition[renderpass].pipelineParameters.depthStencil.depthTestEnable = true;
             fragmentposition[renderpass].pipelineParameters.depthStencil.depthWriteEnable = false; // not VK_TRUE since we have a depth prepass
-            fragmentposition[renderpass].pipelineParameters.depthStencil.depthCompareOp = vk::CompareOp::eGreaterOrEqual;
+            fragmentposition[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
         }
 
         CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
