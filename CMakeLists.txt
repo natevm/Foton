@@ -116,7 +116,7 @@ set_property(TARGET generator PROPERTY FOLDER "external/generator")
 find_package(SWIG 3.0.8 REQUIRED)
 include(${SWIG_USE_FILE})
 cmake_policy(SET CMP0078 NEW)
-cmake_policy(SET CMP0086 NEW)
+# cmake_policy(SET CMP0086 NEW) # Doesn't work on all cmake versions.
 
 # vulkan
 find_package(Vulkan 1.1.97 REQUIRED)
