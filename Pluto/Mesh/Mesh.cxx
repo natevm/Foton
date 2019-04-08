@@ -476,52 +476,7 @@ void Mesh::load_obj(std::string objPath, bool allow_edits, bool submit_immediate
 	}
 
 	if (!has_normals) {
-		for (uint32_t f = 0; f < indices.size(); f += 3)
-		{
-			uint32_t i1 = indices[f + 0];
-			uint32_t i2 = indices[f + 1];
-			uint32_t i3 = indices[f + 2];
-
-			// p1, p2 and p3 are the positions in the face (f)
-			auto &v1 = uniqueVertices[i1];
-			auto &v2 = uniqueVertices[i2];
-			auto &v3 = uniqueVertices[i3];
-
-			// calculate facet normal of the triangle  using cross product;
-			// both components are "normalized" against a common point chosen as the base
-			glm::vec3 n = glm::cross((v2.point - v1.point), (v3.point - v1.point));    // p1 is the 'base' here
-
-			// get the angle between the two other positions for each point;
-			// the starting point will be the 'base' and the two adjacent positions will be normalized against it
-			auto a1 = glm::angle(glm::normalize(v2.point - v1.point), glm::normalize(v3.point - v1.point));    // p1 is the 'base' here
-			auto a2 = glm::angle(glm::normalize(v3.point - v2.point), glm::normalize(v1.point - v2.point));    // p2 is the 'base' here
-			auto a3 = glm::angle(glm::normalize(v1.point - v3.point), glm::normalize(v2.point - v3.point));    // p3 is the 'base' here
-
-			// normalize the initial facet normals if you want to ignore surface area
-			// if (!area_weighting)
-			// {
-			//    n = glm::normalize(n);
-			// }
-
-			// store the weighted normal in an structured array
-			v1.wnormals.push_back(n * a1);
-			v2.wnormals.push_back(n * a2);
-			v3.wnormals.push_back(n * a3);
-		}
-		for (uint32_t v = 0; v < uniqueVertices.size(); v++)
-		{
-			glm::vec3 N = glm::vec3(0.0);
-
-			// run through the normals in each vertex's array and interpolate them
-			// vertex(v) here fetches the data of the vertex at index 'v'
-			for (uint32_t n = 0; n < uniqueVertices[v].wnormals.size(); n++)
-			{
-				N += uniqueVertices[v].wnormals[n];
-			}
-
-			// normalize the final normal
-			uniqueVertices[v].normal = glm::normalize(glm::vec3(N.x, N.y, N.z));
-		}
+		compute_smooth_normals(false);
 	}
 
 
@@ -843,6 +798,9 @@ void Mesh::edit_position(uint32_t index, glm::vec3 new_position)
 	if (index >= this->positions.size())
 		throw std::runtime_error("Error: index out of bounds. Max index is " + std::to_string(this->positions.size() - 1));
 	
+	positions[index] = new_position;
+	compute_metadata();
+
 	void *data = device.mapMemory(pointBufferMemory, (index * sizeof(glm::vec3)), sizeof(glm::vec3), vk::MemoryMapFlags());
 	memcpy(data, &new_position, sizeof(glm::vec3));
 	device.unmapMemory(pointBufferMemory);
@@ -865,6 +823,9 @@ void Mesh::edit_positions(uint32_t index, std::vector<glm::vec3> new_positions)
 	if ((index + new_positions.size()) > this->positions.size())
 		throw std::runtime_error("Error: too many positions for given index, out of bounds. Max index is " + std::to_string(this->positions.size() - 1));
 	
+	memcpy(&positions[index], new_positions.data(), new_positions.size() * sizeof(glm::vec3));
+	compute_metadata();
+
 	void *data = device.mapMemory(pointBufferMemory, (index * sizeof(glm::vec3)), sizeof(glm::vec3) * new_positions.size(), vk::MemoryMapFlags());
 	memcpy(data, new_positions.data(), sizeof(glm::vec3) * new_positions.size());
 	device.unmapMemory(pointBufferMemory);
@@ -909,6 +870,62 @@ void Mesh::edit_normals(uint32_t index, std::vector<glm::vec3> new_normals)
 	void *data = device.mapMemory(normalBufferMemory, (index * sizeof(glm::vec3)), sizeof(glm::vec3) * new_normals.size(), vk::MemoryMapFlags());
 	memcpy(data, new_normals.data(), sizeof(glm::vec3) * new_normals.size());
 	device.unmapMemory(normalBufferMemory);
+}
+
+void Mesh::compute_smooth_normals(bool upload)
+{
+	std::vector<std::vector<glm::vec3>> w_normals(positions.size());
+
+	for (uint32_t f = 0; f < indices.size(); f += 3)
+	{
+		uint32_t i1 = indices[f + 0];
+		uint32_t i2 = indices[f + 1];
+		uint32_t i3 = indices[f + 2];
+
+		// p1, p2 and p3 are the positions in the face (f)
+		auto &p1 = positions[i1];
+		auto &p2 = positions[i2];
+		auto &p3 = positions[i3];
+
+		// calculate facet normal of the triangle  using cross product;
+		// both components are "normalized" against a common point chosen as the base
+		glm::vec3 n = glm::cross((p2 - p1), (p3 - p1));    // p1 is the 'base' here
+
+		// get the angle between the two other positions for each point;
+		// the starting point will be the 'base' and the two adjacent positions will be normalized against it
+		auto a1 = glm::angle(glm::normalize(p2 - p1), glm::normalize(p3 - p1));    // p1 is the 'base' here
+		auto a2 = glm::angle(glm::normalize(p3 - p2), glm::normalize(p1 - p2));    // p2 is the 'base' here
+		auto a3 = glm::angle(glm::normalize(p1 - p3), glm::normalize(p2 - p3));    // p3 is the 'base' here
+
+		// normalize the initial facet normals if you want to ignore surface area
+		// if (!area_weighting)
+		// {
+		//    n = glm::normalize(n);
+		// }
+
+		// store the weighted normal in an structured array
+		w_normals[i1].push_back(n * a1);
+		w_normals[i2].push_back(n * a2);
+		w_normals[i3].push_back(n * a3);
+	}
+	for (uint32_t v = 0; v < w_normals.size(); v++)
+	{
+		glm::vec3 N = glm::vec3(0.0);
+
+		// run through the normals in each vertex's array and interpolate them
+		// vertex(v) here fetches the data of the vertex at index 'v'
+		for (uint32_t n = 0; n < w_normals[v].size(); n++)
+		{
+			N += w_normals[v][n];
+		}
+
+		// normalize the final normal
+		normals[v] = glm::normalize(glm::vec3(N.x, N.y, N.z));
+	}
+
+	if (upload) {
+		edit_normals(0, normals);
+	}
 }
 
 void Mesh::edit_vertex_color(uint32_t index, glm::vec4 new_color)

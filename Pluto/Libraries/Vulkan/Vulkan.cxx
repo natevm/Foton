@@ -905,7 +905,7 @@ bool Vulkan::end_one_time_graphics_command(vk::CommandBuffer command_buffer, std
         return false;
     }
 
-    auto result = device.waitForFences(one_time_graphics_command_fence, true, 100000000);
+    auto result = device.waitForFences(one_time_graphics_command_fence, true, 1000000000);
     if (result != vk::Result::eSuccess) {
         std::cout<<"Fence timeout: " << hint << std::endl; 
     }
