@@ -5,9 +5,9 @@ cmake_minimum_required (VERSION 3.13)
 project(Pluto)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
-set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}")
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-set(CMAKE_MACOSX_RPATH 1)
+# set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}")
+# set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+# set(CMAKE_MACOSX_RPATH 1)
 
 # Use c++17
 set(CMAKE_CXX_STANDARD 17)
@@ -53,6 +53,7 @@ endforeach( OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES )
 set(GLFW_BUILD_EXAMPLES OFF CACHE STRING "" FORCE)
 set(GLFW_BUILD_TESTS    OFF CACHE STRING "" FORCE)
 set(GLFW_INSTALL        OFF CACHE STRING "" FORCE)
+# set(GLFW_VULKAN_STATIC  ON CACHE STRING "" FORCE)
 add_subdirectory(external/glfw)
 include_directories(SYSTEM external/glfw/include)
 set_property(TARGET glfw PROPERTY FOLDER "external/GLFW3" )
@@ -76,6 +77,10 @@ include(${SWIG_USE_FILE})
 
 # vulkan
 find_package(Vulkan 1.1.97 REQUIRED)
+get_filename_component(VULKAN_RESOLVED_LIBRARY ${Vulkan_LIBRARY} REALPATH)
+if(APPLE)
+set(VULKAN_LIBRARY ${VULKAN_RESOLVED_LIBRARY})
+endif(APPLE)
 include_directories(${Vulkan_INCLUDE_DIRS})
 
 # zeromq
@@ -160,7 +165,7 @@ set (
     generator
 )
 
-message(WARN ${Vulkan_LIBRARY})
+# message(WARN ${Vulkan_LIBRARY})
 
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Options                                                         │

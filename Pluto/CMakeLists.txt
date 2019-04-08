@@ -52,6 +52,9 @@ set (HDR
     ${Transform_HDR}
 )
 
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRC} ${HDR})
+
+
 # Global defines
 add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 
@@ -67,10 +70,14 @@ if (DISABLE_MULTIVIEW)
 add_definitions(-DDISABLE_MULTIVIEW)
 endif(DISABLE_MULTIVIEW)
 
-# RPATH for *NIX distros
-set(RPATHS "${CMAKE_INSTALL_PREFIX};${CMAKE_INSTALL_PREFIX}/Pluto;${CMAKE_INSTALL_PREFIX}/Pluto/Systems;${CMAKE_INSTALL_PREFIX}/Pluto/Libraries;")
-set(CMAKE_INSTALL_RPATH ${INSTALL_RPATH})
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+# Default RPATH settings for *NIX distros
+set(RPATHS "${CMAKE_INSTALL_PREFIX};${CMAKE_INSTALL_PREFIX}/Pluto;")
+set(CMAKE_INSTALL_RPATH "${RPATHS}")
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
+set(CMAKE_INSTALL_NAME_DIR "${RPATHS}")
+# set(CMAKE_SKIP_BUILD_RPATH FALSE)
+SET(CMAKE_INSTALL_NAME_DIR @executable_path)
+SET(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
 
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Pluto Library                                                   │
@@ -79,15 +86,7 @@ add_library(PlutoLib SHARED ${SRC} ${HDR})
 target_link_libraries(PlutoLib PUBLIC glfw ${LIBRARIES})
 set_target_properties(PlutoLib PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS true)
 #target_compile_definitions(PlutoLib PRIVATE ZMQ_BUILD_DRAFT_API=1)
-set_target_properties(PlutoLib PROPERTIES INSTALL_RPATH "${RPATHS}")
-set_target_properties(PlutoLib PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
-if(APPLE)
-set_target_properties(PlutoLib PROPERTIES MACOSX_RPATH TRUE)
-endif(APPLE)
 install(TARGETS PlutoLib DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
-
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRC} ${HDR})
-
 
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Pluto Engine Executable                                         │
@@ -99,11 +98,6 @@ set_target_properties(PlutoEngine PROPERTIES OUTPUT_NAME "pluto")
 target_link_libraries(PlutoEngine PUBLIC PlutoLib ${LIBRARIES} )
 target_include_directories(PlutoEngine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 #target_compile_definitions(PlutoEngine PRIVATE ZMQ_BUILD_DRAFT_API=1)
-set_target_properties(PlutoEngine PROPERTIES INSTALL_RPATH "${RPATHS}")
-set_target_properties(PlutoEngine PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
-if(APPLE)
-set_target_properties(PlutoEngine PROPERTIES MACOSX_RPATH TRUE)
-endif(APPLE)
 install(TARGETS PlutoEngine
     DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto
 )
@@ -119,17 +113,12 @@ swig_add_library(Pluto TYPE SHARED LANGUAGE python OUTPUT_DIR ${CMAKE_BINARY_DIR
 if (WIN32) 
 set_property(TARGET Pluto PROPERTY SWIG_GENERATED_COMPILE_OPTIONS -bigobj)
 endif()
-set_target_properties(Pluto PROPERTIES INSTALL_RPATH "${RPATHS}")
-set_target_properties(Pluto PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
 if (BUILD_OPENVR)
 set_property(TARGET Pluto PROPERTY SWIG_COMPILE_DEFINITIONS BUILD_OPENVR)
 endif(BUILD_OPENVR)
 if (BUILD_SPACEMOUSE)
 set_property(TARGET Pluto PROPERTY SWIG_COMPILE_DEFINITIONS BUILD_SPACEMOUSE)
 endif(BUILD_SPACEMOUSE)
-if(APPLE)
-set_target_properties(Pluto PROPERTIES MACOSX_RPATH TRUE)
-endif(APPLE)
 target_link_libraries(Pluto PUBLIC ${LIBRARIES} PlutoLib)
 
 set_property(TARGET
@@ -156,8 +145,6 @@ endif()
 set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/GLM/GLM.i PROPERTY CPLUSPLUS ON)
 set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/GLM/GLM.i PROPERTY USE_TARGET_INCLUDE_DIRECTORIES TRUE)
 swig_add_library(GLM TYPE SHARED LANGUAGE python OUTPUT_DIR ${CMAKE_BINARY_DIR}/SWIG/GLM SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/GLM/GLM.i)
-set_target_properties(GLM PROPERTIES INSTALL_RPATH "${RPATHS}")
-set_target_properties(GLM PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
 target_link_libraries(GLM PUBLIC ${LIBRARIES} PlutoLib)
 
 set_property(TARGET
@@ -261,12 +248,19 @@ install(FILES ${PROJECT_SOURCE_DIR}/README.md DESTINATION ${CMAKE_INSTALL_PREFIX
 
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/Pluto/Resources DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 
+# ┌──────────────────────────────────────────────────────────────────┐
+# │  Install Other Dynamic Libraries                                 │
+# └──────────────────────────────────────────────────────────────────┘
+if(APPLE)
+    ADD_CUSTOM_TARGET(link_target ALL
+                  COMMAND ${CMAKE_COMMAND} -E create_symlink ${VULKAN_RESOLVED_LIBRARY} ${CMAKE_INSTALL_PREFIX}/Pluto/libvulkan.1.dylib)
+    install(FILES ${VULKAN_RESOLVED_LIBRARY} DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
+endif(APPLE)
 
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Tests                                                           │
 # └──────────────────────────────────────────────────────────────────┘
 if(BUILD_TESTS)
-
     file(GLOB TEST_SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/Tests/*.cxx)
     add_executable(runUnitTests ${TEST_SRC_FILES})
     target_link_libraries(runUnitTests ${LIBRARIES} PlutoLib gtest_main)
@@ -276,7 +270,7 @@ if(BUILD_TESTS)
     install(FILES ${CMAKE_BINARY_DIR}/bin/runUnitTests.exe DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
     install(FILES ${CMAKE_BINARY_DIR}/bin/runUnitTests.pdb DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto OPTIONAL)
     elseif(APPLE)
-    install(FILES ${CMAKE_BINARY_DIR}/lib/runUnitTests DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
+    install(FILES ${CMAKE_BINARY_DIR}/bin/runUnitTests DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
     else()
     install(FILES ${CMAKE_BINARY_DIR}/lib/runUnitTests.so DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
     endif()
