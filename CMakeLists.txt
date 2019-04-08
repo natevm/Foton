@@ -33,12 +33,15 @@ option(BUILD_OPENVR "Build with OpenVR support" OFF)
 option(BUILD_SPACEMOUSE "Build with SpaceMouse support" OFF)
 option(BUILD_TESTS "Include the regression and unit tests target" OFF)
 
-set(platformSupportsMultiview OFF)
+set(platformDisablesMultiview OFF)
+set(platformDisablesReverseZProjection OFF)
 if(APPLE)
-    set(platformSupportsMultiview ON)
+    set(platformDisablesMultiview ON)
+    set(platformDisablesReverseZProjection ON)
 endif(APPLE)
 
-option(DISABLE_MULTIVIEW "Force multiview support off (not currently supported on macOS)" ${platformSupportsMultiview})
+option(DISABLE_MULTIVIEW "Force multiview support off (not currently supported on macOS)" ${platformDisablesMultiview})
+option(DISABLE_REVERSE_Z "Force disabling reverse z projection (causes artifacts on macOS)" ${platformDisablesReverseZProjection})
 
 
 
@@ -49,6 +52,10 @@ option(DISABLE_MULTIVIEW "Force multiview support off (not currently supported o
 if (DISABLE_MULTIVIEW)
     add_definitions(-DDISABLE_MULTIVIEW)
 endif(DISABLE_MULTIVIEW)
+
+if (DISABLE_REVERSE_Z)
+    add_definitions(-DDISABLE_REVERSE_Z)
+endif(DISABLE_REVERSE_Z)
 
 if (BUILD_OPENVR)
     add_definitions(-DBUILD_OPENVR)

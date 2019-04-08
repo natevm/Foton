@@ -60,7 +60,11 @@ struct PipelineParameters {
 		/* Default Depth and Stencil Testing */
 		depthStencil.depthTestEnable = true;
 		depthStencil.depthWriteEnable = true;
+		#ifndef DISABLE_REVERSE_Z
 		depthStencil.depthCompareOp = vk::CompareOp::eGreater;
+		#else
+		depthStencil.depthCompareOp = vk::CompareOp::eLess;
+		#endif
 		depthStencil.depthBoundsTestEnable = false;
 		depthStencil.minDepthBounds = 0.0f; // Optional
 		depthStencil.maxDepthBounds = 1.0f; // Optional
