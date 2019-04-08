@@ -43,6 +43,7 @@ std::map<vk::RenderPass, Material::RasterPipelineResources> Material::volume;
 
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::shadowmap;
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::fragmentdepth;
+std::map<vk::RenderPass, Material::RasterPipelineResources> Material::fragmentposition;
 
 std::map<vk::RenderPass, Material::RaytracingPipelineResources> Material::rttest;
 
@@ -558,6 +559,8 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         device.destroyShaderModule(vertShaderModule);
     }
 
+    /* ------ SHADOWMAP  ------ */
+
     {
         shadowmap[renderpass] = RasterPipelineResources();
 
@@ -599,6 +602,54 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
             shadowmap[renderpass].pipelineParameters, 
             renderpass, 0, 
             shadowmap[renderpass].pipeline, shadowmap[renderpass].pipelineLayout);
+
+        device.destroyShaderModule(fragShaderModule);
+        device.destroyShaderModule(vertShaderModule);
+    }
+
+    /* ------ FRAGMENT POSITION  ------ */
+
+    {
+        fragmentposition[renderpass] = RasterPipelineResources();
+
+        std::string ResourcePath = Options::GetResourcePath();
+        auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/FragmentPosition/vert.spv"));
+        auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/FragmentPosition/frag.spv"));
+
+        /* Create shader modules */
+        auto vertShaderModule = CreateShaderModule(vertShaderCode);
+        auto fragShaderModule = CreateShaderModule(fragShaderCode);
+
+        /* Info for shader stages */
+        vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
+        vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
+        vertShaderStageInfo.module = vertShaderModule;
+        vertShaderStageInfo.pName = "main";
+
+        vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
+        fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
+        fragShaderStageInfo.module = fragShaderModule;
+        fragShaderStageInfo.pName = "main";
+
+        std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
+        
+        /* Account for possibly multiple samples */
+        fragmentposition[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
+        fragmentposition[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
+        fragmentposition[renderpass].pipelineParameters.rasterizer.cullMode = vk::CullModeFlagBits::eNone;
+
+        /* Because we use a depth prepass */
+        if (use_depth_prepass) {
+            fragmentposition[renderpass].pipelineParameters.depthStencil.depthTestEnable = true;
+            fragmentposition[renderpass].pipelineParameters.depthStencil.depthWriteEnable = false; // not VK_TRUE since we have a depth prepass
+            fragmentposition[renderpass].pipelineParameters.depthStencil.depthCompareOp = vk::CompareOp::eGreaterOrEqual;
+        }
+
+        CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+            { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
+            fragmentposition[renderpass].pipelineParameters, 
+            renderpass, 0, 
+            fragmentposition[renderpass].pipeline, fragmentposition[renderpass].pipelineLayout);
 
         device.destroyShaderModule(fragShaderModule);
         device.destroyShaderModule(vertShaderModule);
@@ -1309,6 +1360,14 @@ void Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &ren
             currentRenderpass = render_pass;
         }
     }
+    else if (rendermode == FRAGMENTPOSITION) {
+        command_buffer.pushConstants(fragmentposition[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+        if ((currentlyBoundRenderMode != FRAGMENTPOSITION) || (currentRenderpass != render_pass)) {
+            command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, fragmentposition[render_pass].pipeline);
+            currentlyBoundRenderMode = FRAGMENTPOSITION;
+            currentRenderpass = render_pass;
+        }
+    }
     else if (rendermode == SHADOWMAP) {
         command_buffer.pushConstants(shadowmap[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
         if ((currentlyBoundRenderMode != SHADOWMAP) || (currentRenderpass != render_pass)) {
@@ -1620,6 +1679,10 @@ void Material::show_blinn() {
 
 void Material::show_depth() {
     renderMode = DEPTH;
+}
+
+void Material::show_position() {
+    renderMode = FRAGMENTPOSITION;
 }
 
 void Material::show_volume() {

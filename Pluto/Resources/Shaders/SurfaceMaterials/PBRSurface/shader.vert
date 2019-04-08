@@ -1,6 +1,7 @@
 #version 450
-#include "Pluto/Resources/Shaders/ShaderCommon.hxx"
-#include "Pluto/Resources/Shaders/VertexCommon.hxx"
+#include "Pluto/Resources/Shaders/Descriptors.hxx"
+#include "Pluto/Resources/Shaders/Attributes.hxx"
+#include "Pluto/Resources/Shaders/VertexVaryings.hxx"
 
 void main() {
     EntityStruct target_entity = ebo.entities[push.consts.target_id];
@@ -20,6 +21,8 @@ void main() {
     int viewIndex = (push.consts.use_multiview == 0) ? push.consts.viewIndex : gl_ViewIndex;
     #endif
     w_cameraPos = vec3(camera.multiviews[viewIndex].viewinv[3]) + vec3(camera_transform.localToWorld[3]);
+
+    w_cameraDir = normalize(w_cameraPos - point.xyz);
 
     fragTexCoord = texcoord;
     

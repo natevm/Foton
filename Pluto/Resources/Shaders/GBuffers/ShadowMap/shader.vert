@@ -1,18 +1,9 @@
 #version 450
-#include "Pluto/Resources/Shaders/ShaderCommon.hxx"
-
-layout(location = 0) in vec3 point;
-layout(location = 1) in vec4 color;
-layout(location = 2) in vec3 normal;
-layout(location = 3) in vec2 texcoord;
+#include "Pluto/Resources/Shaders/Descriptors.hxx"
+#include "Pluto/Resources/Shaders/Attributes.hxx"
 
 layout(location = 0) out vec3 w_position;
 layout(location = 1) out vec3 c_position;
-
-out gl_PerVertex {
-    vec4 gl_Position;
-    float gl_PointSize;
-};
 
 void main() {
     gl_Position = vec4(0.0, 0.0, 0.0, 1.0);

@@ -32,7 +32,21 @@ class Texture;
 class Camera;
 
 /* An enumeration used to select a pipeline type for use when drawing a given entity. */
-enum RenderMode : uint32_t { BLINN, PBR, NORMAL, TEXCOORD, SKYBOX, BASECOLOR, DEPTH, VOLUME, SHADOWMAP, FRAGMENTDEPTH, HIDDEN, NONE };
+enum RenderMode : uint32_t { 
+    BLINN, 
+    PBR, 
+    NORMAL, 
+    TEXCOORD, 
+    SKYBOX, 
+    BASECOLOR, 
+    DEPTH, 
+    VOLUME, 
+    SHADOWMAP, 
+    FRAGMENTDEPTH, 
+    FRAGMENTPOSITION, 
+    HIDDEN, 
+    NONE 
+};
 
 class Material : public StaticFactory
 {
@@ -117,6 +131,7 @@ class Material : public StaticFactory
         void show_texcoords();
         void show_blinn();
         void show_depth();
+        void show_position();
         void show_environment();
         void show_volume();
 
@@ -238,6 +253,7 @@ class Material : public StaticFactory
         static std::map<vk::RenderPass, RasterPipelineResources> volume;
         static std::map<vk::RenderPass, RasterPipelineResources> shadowmap;
         static std::map<vk::RenderPass, RasterPipelineResources> fragmentdepth;
+        static std::map<vk::RenderPass, RasterPipelineResources> fragmentposition;
 
         static std::map<vk::RenderPass, RaytracingPipelineResources> rttest;
 

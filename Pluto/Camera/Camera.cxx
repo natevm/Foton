@@ -396,6 +396,7 @@ glm::mat4 MakeInfReversedZProjRH(float fovY_radians, float aspectWbyH, float zNe
                   0.0f,    f,  0.0f,  0.0f,
                   0.0f, 0.0f,  0.0f, -1.0f,
                   0.0f, 0.0f, zNear,  0.0f);
+	// return glm::perspectiveFovRH_ZO(fovY_radians, aspectWbyH, 1.0f, zNear, 1000.0f);
 }
 
 void Camera::set_perspective_projection(float fov_in_radians, float width, float height, float near_pos, uint32_t multiview)

@@ -1,11 +1,3 @@
-/* Inputs */
-layout(location = 0) in vec3 w_normal;
-layout(location = 1) in vec3 w_position;
-layout(location = 2) in vec2 fragTexCoord;
-layout(location = 3) in vec3 w_cameraPos;
-layout(location = 4) in vec4 vert_color;
-layout(location = 5) in vec3 m_position;
-
 /* Outputs */
 layout(location = 0) out vec4 outColor;
 
@@ -1073,11 +1065,11 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
     if ((push.consts.ltc_amp_lut_id < 0) || (push.consts.ltc_amp_lut_id >= MAX_TEXTURES)) return vec3(0.0);
 
     vec3 finalColor = vec3(0.0);
-    float dotNV = clamp(dot(w_normal, w_view), 0.0, 1.0);
+    float dotNV = dot(w_normal, w_view); // clamp(, 0.0, 1.0);
 
     /* Get inverse linear cosine transform for area lights */
     float ndotv = saturate(dotNV);
-    vec2 uv = vec2(roughness, sqrt(1.0 - ndotv));
+    vec2 uv = vec2(roughness, sqrt(1.0 - ndotv));    
     uv = uv*LUT_SCALE + LUT_BIAS;
     vec4 t1 = texture(sampler2D(texture_2Ds[push.consts.ltc_mat_lut_id], samplers[0]), uv);
     // t1.w = max(t1.w, .05); // Causes numerical precision issues if too small

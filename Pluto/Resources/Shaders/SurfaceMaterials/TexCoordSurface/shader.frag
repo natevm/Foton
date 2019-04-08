@@ -1,5 +1,5 @@
 #version 450
-#include "Pluto/Resources/Shaders/ShaderCommon.hxx"
+#include "Pluto/Resources/Shaders/Descriptors.hxx"
 
 layout(location = 0) in vec4 fragColor;
 
