@@ -1,12 +1,5 @@
 message("Adding subdirectory: PlutoEngine")
 
-# Weird swig thing...
-cmake_policy(SET CMP0078 NEW)
-
-if(APPLE)
-set(CMAKE_SHARED_LIBRARY_SUFFIX ".so")
-endif(APPLE)
-
 # Add all subdirectories
 add_subdirectory(Camera)
 add_subdirectory(Entity)
@@ -54,50 +47,22 @@ set (HDR
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRC} ${HDR})
 
-
-# Global defines
-add_definitions(-D_CRT_SECURE_NO_WARNINGS)
-
-if (BUILD_OPENVR)
-add_definitions(-DBUILD_OPENVR)
-endif(BUILD_OPENVR)
-
-if (BUILD_SPACEMOUSE)
-add_definitions(-DBUILD_SPACEMOUSE)
-endif(BUILD_SPACEMOUSE)
-
-if (DISABLE_MULTIVIEW)
-add_definitions(-DDISABLE_MULTIVIEW)
-endif(DISABLE_MULTIVIEW)
-
-# Default RPATH settings for *NIX distros
-set(RPATHS "${CMAKE_INSTALL_PREFIX};${CMAKE_INSTALL_PREFIX}/Pluto;")
-set(CMAKE_INSTALL_RPATH "${RPATHS}")
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
-set(CMAKE_INSTALL_NAME_DIR "${RPATHS}")
-# set(CMAKE_SKIP_BUILD_RPATH FALSE)
-SET(CMAKE_INSTALL_NAME_DIR @executable_path)
-SET(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
-
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Pluto Library                                                   │
 # └──────────────────────────────────────────────────────────────────┘
 add_library(PlutoLib SHARED ${SRC} ${HDR})
 target_link_libraries(PlutoLib PUBLIC glfw ${LIBRARIES})
 set_target_properties(PlutoLib PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS true)
-#target_compile_definitions(PlutoLib PRIVATE ZMQ_BUILD_DRAFT_API=1)
 install(TARGETS PlutoLib DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Pluto Engine Executable                                         │
 # └──────────────────────────────────────────────────────────────────┘
-
 add_executable(PlutoEngine ${CMAKE_CURRENT_SOURCE_DIR}/main.cxx)
 set_target_properties(PlutoEngine PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Pluto")
 set_target_properties(PlutoEngine PROPERTIES OUTPUT_NAME "pluto")
 target_link_libraries(PlutoEngine PUBLIC PlutoLib ${LIBRARIES} )
 target_include_directories(PlutoEngine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-#target_compile_definitions(PlutoEngine PRIVATE ZMQ_BUILD_DRAFT_API=1)
 install(TARGETS PlutoEngine
     DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto
 )
@@ -249,12 +214,15 @@ install(FILES ${PROJECT_SOURCE_DIR}/README.md DESTINATION ${CMAKE_INSTALL_PREFIX
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/Pluto/Resources DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 
 # ┌──────────────────────────────────────────────────────────────────┐
-# │  Install Other Dynamic Libraries                                 │
+# │  Install Other Dynamic Libraries and miscelaneous items          │
 # └──────────────────────────────────────────────────────────────────┘
 if(APPLE)
     ADD_CUSTOM_TARGET(link_target ALL
                   COMMAND ${CMAKE_COMMAND} -E create_symlink ${VULKAN_RESOLVED_LIBRARY} ${CMAKE_INSTALL_PREFIX}/Pluto/libvulkan.1.dylib)
     install(FILES ${VULKAN_RESOLVED_LIBRARY} DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
+
+    # Install vulkan icd and validation layers
+    install(DIRECTORY $ENV{VULKAN_SDK}/etc DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 endif(APPLE)
 
 # ┌──────────────────────────────────────────────────────────────────┐

@@ -5,14 +5,12 @@ cmake_minimum_required (VERSION 3.13)
 project(Pluto)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
-# set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}")
-# set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-# set(CMAKE_MACOSX_RPATH 1)
 
 # Use c++17
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
+
 if(MSVC)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -29,8 +27,36 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # ┌──────────────────────────────────────────────────────────────────┐
+# │  Options                                                         │
+# └──────────────────────────────────────────────────────────────────┘
+option(BUILD_OPENVR "Build with OpenVR support" OFF)
+option(BUILD_SPACEMOUSE "Build with SpaceMouse support" OFF)
+option(BUILD_TESTS "Include the regression and unit tests target" OFF)
+
+set(platformSupportsMultiview OFF)
+if(APPLE)
+    set(platformSupportsMultiview ON)
+endif(APPLE)
+
+option(DISABLE_MULTIVIEW "Force multiview support off (not currently supported on macOS)" ${platformSupportsMultiview})
+
+
+
+# ┌──────────────────────────────────────────────────────────────────┐
 # │  Definitions                                                     │
 # └──────────────────────────────────────────────────────────────────┘
+
+if (DISABLE_MULTIVIEW)
+    add_definitions(-DDISABLE_MULTIVIEW)
+endif(DISABLE_MULTIVIEW)
+
+if (BUILD_OPENVR)
+    add_definitions(-DBUILD_OPENVR)
+endif(BUILD_OPENVR)
+
+if (BUILD_SPACEMOUSE)
+    add_definitions(-DBUILD_SPACEMOUSE)
+endif(BUILD_SPACEMOUSE)
 
 # Force binaries to go to build folder, not subfolders
 set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin )
@@ -43,6 +69,21 @@ foreach( OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES} )
     set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_BINARY_DIR}/lib )
 endforeach( OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES )
 
+# For MSVC
+add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+
+if(APPLE)
+set(CMAKE_SHARED_LIBRARY_SUFFIX ".so")
+endif(APPLE)
+
+# Default RPATH settings for *NIX distros
+set(RPATHS "${CMAKE_INSTALL_PREFIX};${CMAKE_INSTALL_PREFIX}/Pluto;")
+set(CMAKE_INSTALL_RPATH "${RPATHS}")
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
+set(CMAKE_INSTALL_NAME_DIR "${RPATHS}")
+# set(CMAKE_SKIP_BUILD_RPATH FALSE)
+SET(CMAKE_INSTALL_NAME_DIR @executable_path)
+SET(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
 
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  External Dependencies                                           │
@@ -74,14 +115,16 @@ set_property(TARGET generator PROPERTY FOLDER "external/generator")
 # swig
 find_package(SWIG 3.0.8 REQUIRED)
 include(${SWIG_USE_FILE})
+cmake_policy(SET CMP0078 NEW)
+cmake_policy(SET CMP0086 NEW)
 
 # vulkan
 find_package(Vulkan 1.1.97 REQUIRED)
 get_filename_component(VULKAN_RESOLVED_LIBRARY ${Vulkan_LIBRARY} REALPATH)
 if(APPLE)
-set(VULKAN_LIBRARY ${VULKAN_RESOLVED_LIBRARY})
 endif(APPLE)
 include_directories(${Vulkan_INCLUDE_DIRS})
+message(WARN $ENV{VULKAN_SDK})
 
 # zeromq
 find_package(ZMQ QUIET)
@@ -99,7 +142,6 @@ include_directories(SYSTEM ${Python3_INCLUDE_DIRS})
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/tiny)
 
 # openvr
-option(BUILD_OPENVR "Build with OpenVR support" OFF)
 if(BUILD_OPENVR)
     set(SpaceMouse_Libs "${CMAKE_CURRENT_SOURCE_DIR}/external/openvr")
     find_package(OpenVRSDK REQUIRED)
@@ -108,7 +150,6 @@ endif(BUILD_OPENVR)
 
 # spacemouse
 # Todo: make a cmake file for this
-option(BUILD_SPACEMOUSE "Build with SpaceMouse support" OFF)
 if(BUILD_SPACEMOUSE)
     set(SPACEMOUSE_LIBRARIES "${CMAKE_CURRENT_SOURCE_DIR}/external/spacemouse/Lib/x64/siapp.lib")
     set(SPACEMOUSE_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/spacemouse/Inc")
@@ -116,7 +157,6 @@ if(BUILD_SPACEMOUSE)
 endif(BUILD_SPACEMOUSE)
 
 # google test
-option(BUILD_TESTS "Include the regression and unit tests target" ON)
 if(BUILD_TESTS)
 
     # Download and unpack googletest at configure time
@@ -164,19 +204,6 @@ set (
     ${SPACEMOUSE_LIBRARIES}
     generator
 )
-
-# message(WARN ${Vulkan_LIBRARY})
-
-# ┌──────────────────────────────────────────────────────────────────┐
-# │  Options                                                         │
-# └──────────────────────────────────────────────────────────────────┘
-
-set(platformSupportsMultiview OFF)
-if(APPLE)
-    set(platformSupportsMultiview ON)
-endif(APPLE)
-
-option(DISABLE_MULTIVIEW "Force multiview support off (not currently supported on macOS)" ${platformSupportsMultiview})
 
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Add source files                                                │

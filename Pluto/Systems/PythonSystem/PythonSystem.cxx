@@ -91,6 +91,13 @@ bool PythonSystem::start()
             PyRun_SimpleString(std::string(std::string("sys.path.insert(0, r\"") + executable_path + std::string("\")")).c_str());
             PyRun_SimpleString(std::string(std::string("sys.path.insert(0, os.path.join(r\"") + executable_path + std::string("\", \"..\" ))")).c_str());
             
+            #ifdef __APPLE__
+            PyRun_SimpleString(std::string(std::string("os.environ[\"VK_ICD_FILENAMES\"] = os.path.join(r\"") + executable_path + 
+                std::string("\", \"etc\", \"vulkan\", \"icd.d\", \"MoltenVK_icd.json\" )")).c_str());
+            PyRun_SimpleString(std::string(std::string("os.environ[\"VK_LAYER_PATH\"] = os.path.join(r\"") + executable_path + 
+                std::string("\", \"etc\", \"vulkan\", \"explicit_layer.d\")")).c_str());
+            #endif
+            
             // PyRun_SimpleString(std::string(std::string("if importlib.util.find_spec('Pluto') == None:\n\tprint('Sorry, the Pluto package isnt on the python path. ") +
             //     std::string("In order to use the python bindings to Pluto, please make sure to either run pluto.exe in the same directory as the Pluto package, ") +
             //     std::string("or add the directory containing the Pluto package to your system path.') ")).c_str());
@@ -111,8 +118,12 @@ bool PythonSystem::start()
             PyRun_SimpleString(std::string(std::string("sys.path.insert(0, r\"") + executable_path + std::string("\")")).c_str());
             PyRun_SimpleString(std::string(std::string("sys.path.insert(0, os.path.join(r\"") + executable_path + std::string("\", \"..\" ))")).c_str());
             
+            #ifdef __APPLE__
             PyRun_SimpleString(std::string(std::string("os.environ[\"VK_ICD_FILENAMES\"] = os.path.join(r\"") + executable_path + 
                 std::string("\", \"etc\", \"vulkan\", \"icd.d\", \"MoltenVK_icd.json\" )")).c_str());
+            PyRun_SimpleString(std::string(std::string("os.environ[\"VK_LAYER_PATH\"] = os.path.join(r\"") + executable_path + 
+                std::string("\", \"etc\", \"vulkan\", \"explicit_layer.d\")")).c_str());
+            #endif
 
             // export VK_ICD_FILENAMES=/usr/local/vulkansdk-macos-1.1.97.0/macOS/etc/vulkan/icd.d/MoltenVK_icd.json
 
