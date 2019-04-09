@@ -220,11 +220,11 @@ install(DIRECTORY ${PROJECT_SOURCE_DIR}/Pluto/Resources DESTINATION ${CMAKE_INST
 # │  Install Other Dynamic Libraries and miscelaneous items          │
 # └──────────────────────────────────────────────────────────────────┘
 if(APPLE)
-    ADD_CUSTOM_TARGET(link_target ALL
-                  COMMAND ${CMAKE_COMMAND} -E create_symlink ${VULKAN_RESOLVED_LIBRARY} ${CMAKE_INSTALL_PREFIX}/Pluto/libvulkan.1.dylib)
-    install(FILES ${VULKAN_RESOLVED_LIBRARY} DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
+    # Install MoltenVK libraries
+    install(DIRECTORY $ENV{VULKAN_SDK}/lib DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 
     # Install vulkan icd and validation layers
+    install(DIRECTORY $ENV{VULKAN_SDK}/etc DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
     install(DIRECTORY $ENV{VULKAN_SDK}/etc DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
 endif(APPLE)
 
