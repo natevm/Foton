@@ -129,9 +129,11 @@ cmake_policy(SET CMP0078 NEW)
 find_package(Vulkan 1.1.97 REQUIRED)
 get_filename_component(VULKAN_RESOLVED_LIBRARY ${Vulkan_LIBRARY} REALPATH)
 if(APPLE)
+if(NOT DEFINED ENV{VULKAN_SDK})
+    message(ERROR "Error: VULKAN_SDK environment variable must be set!")
+endif()
 endif(APPLE)
 include_directories(${Vulkan_INCLUDE_DIRS})
-message(WARN $ENV{VULKAN_SDK})
 
 # zeromq
 find_package(ZMQ QUIET)

@@ -40,6 +40,7 @@ matrix:
         - mv download vulkan.tar.gz
         - tar -xzf vulkan.tar.gz
         - export PATH=$PATH:"$(pwd)/vulkansdk-macos-1.1.97.0/macOS/bin"
+        - export VULKAN_SDK="$(pwd)/vulkansdk-macos-1.1.97.0/macOS/"
         - cmake -DCMAKE_BUILD_TYPE=Release -DVulkan_INCLUDE_DIR:PATH=$(pwd)/vulkansdk-macos-1.1.97.0/macOS/include/ -DVulkan_LIBRARY:FILEPATH=$(pwd)/vulkansdk-macos-1.1.97.0/macOS/lib/libvulkan.dylib ../ ../
         - cmake --build . --target install --config Release
     - os: windows
