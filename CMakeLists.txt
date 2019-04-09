@@ -146,7 +146,7 @@ set_property(TARGET generator PROPERTY FOLDER "external/generator")
 find_package(SWIG 3.0.8)
 if (UNIX AND NOT APPLE)
   if (NOT SWIG_FOUND)
-    message(FATAL_ERROR "SWIG 3 is missing!"
+    message(FATAL_ERROR "SWIG 3 is missing! "
       "You probably dont have swig 3 installed on your system. It is possible to recover "
       "by running \"sudo apt install swig\" (or equivalent on your unix distro)")
   endif()  
@@ -157,13 +157,28 @@ cmake_policy(SET CMP0078 NEW)
 
 # vulkan
 find_package(Vulkan 1.1.97 REQUIRED)
-get_filename_component(VULKAN_RESOLVED_LIBRARY ${Vulkan_LIBRARY} REALPATH)
 if(APPLE)
 if(NOT DEFINED ENV{VULKAN_SDK})
     message(ERROR "Error: VULKAN_SDK environment variable must be set!")
 endif()
 endif(APPLE)
 include_directories(${Vulkan_INCLUDE_DIRS})
+
+# glslc compiler
+if (UNIX AND NOT APPLE)
+  find_program(GLSLC glslc)
+  if (NOT DEFINED GLSLC) 
+    message(FATAL_ERROR "the glslc compiler is missing! "
+        "You probably dont have glslc on your system path. It is possible to recover "
+        "by running \n \"wget -qO - http://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -\""
+        "\n \"sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.1.97-bionic.list http://packages.lunarg.com/vulkan/1.1.97/lunarg-vulkan-1.1.97-bionic.list\""
+        "\n \"sudo apt update\""
+        "\n \"sudo apt install lunarg-vulkan-sdk shaderc\""
+        "\n\n OR alternatively download the vulkan sdk tarball from https://vulkan.lunarg.com/sdk/home#linux and add glslc to your system path."
+        )
+  endif()
+endif()
+
 
 # zeromq
 find_package(ZMQ QUIET)
