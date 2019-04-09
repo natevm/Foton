@@ -98,6 +98,19 @@ SET(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
 
 # glfw
 #    note: on linux, xorg-dev might be required
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/glfw/CMakeLists.txt")
+  message(FATAL_ERROR "The GLFW submodule directory is empty! "
+    "You probably did not clone the project with --recursive. It is possible to recover "
+    "by running \"git submodule update --init --recursive\"")
+endif()
+if (UNIX AND NOT APPLE)
+  find_package(X11 REQUIRED)
+  if (NOT X11_Xrandr_FOUND OR NOT X11_Xinerama_FOUND OR NOT X11_Xkb_FOUND OR NOT X11_Xcursor_FOUND)
+    message(FATAL_ERROR "Some X11 development libraries are missing! "
+      "You probably dont have xorg-dev installed on your system. It is possible to recover "
+      "by running \"sudo apt install xorg-dev\" (or equivalent on your unix distro)")
+  endif()  
+endif()
 set(GLFW_BUILD_EXAMPLES OFF CACHE STRING "" FORCE)
 set(GLFW_BUILD_TESTS    OFF CACHE STRING "" FORCE)
 set(GLFW_INSTALL        OFF CACHE STRING "" FORCE)
@@ -107,10 +120,20 @@ include_directories(SYSTEM external/glfw/include)
 set_property(TARGET glfw PROPERTY FOLDER "external/GLFW3" )
 
 # use GLI
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/gli/CMakeLists.txt")
+  message(FATAL_ERROR "The GLI submodule directory is empty! "
+    "You probably did not clone the project with --recursive. It is possible to recover "
+    "by running \"git submodule update --init --recursive\"")
+endif()
 find_package(GLI REQUIRED)
 include_directories(SYSTEM ${GLI_INCLUDE_DIR})
 
 # use GLM
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/glm/CMakeLists.txt")
+  message(FATAL_ERROR "The GLM submodule directory is empty! "
+    "You probably did not clone the project with --recursive. It is possible to recover "
+    "by running \"git submodule update --init --recursive\"")
+endif()
 find_package(GLM 0.9.7 REQUIRED)
 include_directories(SYSTEM ${GLM_INCLUDE_DIR})
 
@@ -120,7 +143,14 @@ include_directories(SYSTEM external/generator/include)
 set_property(TARGET generator PROPERTY FOLDER "external/generator")
 
 # swig
-find_package(SWIG 3.0.8 REQUIRED)
+find_package(SWIG 3.0.8)
+if (UNIX AND NOT APPLE)
+  if (NOT SWIG_FOUND)
+    message(FATAL_ERROR "SWIG 3 is missing!"
+      "You probably dont have swig 3 installed on your system. It is possible to recover "
+      "by running \"sudo apt install swig\" (or equivalent on your unix distro)")
+  endif()  
+endif()
 include(${SWIG_USE_FILE})
 cmake_policy(SET CMP0078 NEW)
 # cmake_policy(SET CMP0086 NEW) # Doesn't work on all cmake versions.
@@ -145,6 +175,13 @@ endif(${ZMQ_FOUND})
 
 # python
 find_package(Python3 3.6 COMPONENTS Interpreter Development REQUIRED)
+if (UNIX AND NOT APPLE)
+  if (NOT Python3_FOUND)
+    message(FATAL_ERROR "Python 3 development libraries missing!"
+      "You probably dont have python 3.6 or later development libraries installed on your system. It is possible to recover "
+      "by running \"sudo apt install python3-dev\" (or equivalent on your unix distro)")
+  endif()  
+endif()
 include_directories(SYSTEM ${Python3_INCLUDE_DIRS})
 
 # tiny
