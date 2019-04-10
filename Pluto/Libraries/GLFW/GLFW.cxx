@@ -227,6 +227,8 @@ namespace Libraries {
             throw std::runtime_error( std::string("Error: window does not exist, cannot destroy window."));
         auto window = Windows()[key];
 
+        glfwDestroyWindow(window.ptr);
+
         if (window.swapchain) {
             device.destroySwapchainKHR(window.swapchain);
         }
@@ -236,7 +238,6 @@ namespace Libraries {
             Texture::Delete(window.textures[j]->get_id());
         }
 
-        glfwDestroyWindow(window.ptr);
         Windows().erase(key);
         return true;
     }
@@ -291,9 +292,7 @@ namespace Libraries {
             throw std::runtime_error( std::string("Error: Uninitialized, cannot poll events."));
 
         if (should_close()) return false;
-
-        glfwPollEvents();
-
+ 
         for (auto &i : Windows()) {
             if (glfwWindowShouldClose(i.second.ptr)) {
                 destroy_window(i.first);
@@ -301,6 +300,7 @@ namespace Libraries {
                 break;
             }
         }
+        glfwPollEvents();
         
         return true;
     }

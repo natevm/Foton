@@ -63,7 +63,7 @@ void Prefabs::Update()
     using namespace Libraries;
     auto g = GLFW::Get();
 
-    if (camera_prefab.initialized) {
+    if (camera_prefab.initialized && (g->does_window_exist("prefab_window"))) {
         if (!last_cursor_pos_initialized) {
             last_cursor_pos = g->get_cursor_pos("prefab_window");
             last_cursor_pos_initialized = true;
