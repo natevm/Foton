@@ -31,8 +31,8 @@ struct PushConsts
     int32_t specular_environment_id;
     int32_t viewIndex;
     int32_t light_entity_ids [MAX_LIGHTS];
-    int32_t use_multiview;
-    int32_t ph2;
+    int32_t flags;
+    int32_t ph1;
     
     float sky_transition;
     float gamma;

@@ -31,3 +31,13 @@ layout(set = 1, binding = 4) uniform texture3D texture_3Ds[MAX_TEXTURES];
 layout(std430, push_constant) uniform PushConstants {
     PushConsts consts;
 } push;
+
+bool is_multiview_enabled()
+{
+    return ((push.consts.flags & (1 << 0)) == 0);
+}
+
+bool is_reverse_z_enabled()
+{
+    return ((push.consts.flags & (1 << 1)) == 0);
+}

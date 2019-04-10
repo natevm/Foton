@@ -191,6 +191,9 @@ foreach(shader_file ${SHADERS_SRC})
     if(${DISABLE_MULTIVIEW})
         set(extra_flags ${extra_flags} -DDISABLE_MULTIVIEW)
     endif(${DISABLE_MULTIVIEW})
+    if(${DISABLE_REVERSE_Z})
+        set(extra_flags ${extra_flags} -DDISABLE_REVERSE_Z)
+    endif(${DISABLE_REVERSE_Z})
     add_custom_command(
         OUTPUT ${spv_file}_ # force file to regen every time
         COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} ${extra_flags} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${shader_file} -o ${spv_file}
