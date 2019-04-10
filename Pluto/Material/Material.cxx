@@ -30,6 +30,7 @@ std::vector<vk::VertexInputAttributeDescription> Material::vertexInputAttributeD
 vk::DescriptorSet Material::componentDescriptorSet;
 vk::DescriptorSet Material::textureDescriptorSet;
 std::mutex Material::creation_mutex;
+bool Material::Initialized = false;
 
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::uniformColor;
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::blinn;
@@ -42,6 +43,7 @@ std::map<vk::RenderPass, Material::RasterPipelineResources> Material::volume;
 
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::shadowmap;
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::fragmentdepth;
+std::map<vk::RenderPass, Material::RasterPipelineResources> Material::fragmentposition;
 
 std::map<vk::RenderPass, Material::RaytracingPipelineResources> Material::rttest;
 
@@ -186,6 +188,14 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 
     auto sampleFlag = vulkan->highest(vulkan->min(vulkan->get_closest_sample_count_flag(sampleCount), vulkan->get_msaa_sample_flags()));
 
+    #ifndef DISABLE_REVERSE_Z
+    auto depthCompareOp = vk::CompareOp::eGreater;
+    auto depthCompareOpEqual = vk::CompareOp::eGreaterOrEqual;
+    #else
+    auto depthCompareOp = vk::CompareOp::eLess;
+    auto depthCompareOpEqual = vk::CompareOp::eLessOrEqual;
+    #endif
+
     /* RASTER GRAPHICS PIPELINES */
 
     /* ------ UNIFORM COLOR  ------ */
@@ -300,7 +310,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         if (use_depth_prepass) {
             pbr[renderpass].pipelineParameters.depthStencil.depthTestEnable = true;
             pbr[renderpass].pipelineParameters.depthStencil.depthWriteEnable = false; // not VK_TRUE since we have a depth prepass
-            pbr[renderpass].pipelineParameters.depthStencil.depthCompareOp = vk::CompareOp::eGreaterOrEqual;
+            pbr[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
         }
 		// depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL; //not VK_COMPARE_OP_LESS since we have a depth prepass;
         
@@ -468,7 +478,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         if (use_depth_prepass) {
             depth[renderpass].pipelineParameters.depthStencil.depthTestEnable = true;
             depth[renderpass].pipelineParameters.depthStencil.depthWriteEnable = false; // not VK_TRUE since we have a depth prepass
-            depth[renderpass].pipelineParameters.depthStencil.depthCompareOp = vk::CompareOp::eGreaterOrEqual;
+            depth[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
         }
 
         CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
@@ -545,7 +555,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         fragmentdepth[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
 
         fragmentdepth[renderpass].pipelineParameters.depthStencil.depthWriteEnable = true;
-        fragmentdepth[renderpass].pipelineParameters.depthStencil.depthCompareOp = vk::CompareOp::eGreaterOrEqual;
+        fragmentdepth[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
         fragmentdepth[renderpass].pipelineParameters.rasterizer.cullMode = vk::CullModeFlagBits::eNone;
 
         CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
@@ -556,6 +566,8 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 
         device.destroyShaderModule(vertShaderModule);
     }
+
+    /* ------ SHADOWMAP  ------ */
 
     {
         shadowmap[renderpass] = RasterPipelineResources();
@@ -590,7 +602,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
         if (use_depth_prepass) {
             shadowmap[renderpass].pipelineParameters.depthStencil.depthTestEnable = true;
             shadowmap[renderpass].pipelineParameters.depthStencil.depthWriteEnable = false; // not VK_TRUE since we have a depth prepass
-            shadowmap[renderpass].pipelineParameters.depthStencil.depthCompareOp = vk::CompareOp::eGreaterOrEqual;
+            shadowmap[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
         }
 
         CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
@@ -598,6 +610,54 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
             shadowmap[renderpass].pipelineParameters, 
             renderpass, 0, 
             shadowmap[renderpass].pipeline, shadowmap[renderpass].pipelineLayout);
+
+        device.destroyShaderModule(fragShaderModule);
+        device.destroyShaderModule(vertShaderModule);
+    }
+
+    /* ------ FRAGMENT POSITION  ------ */
+
+    {
+        fragmentposition[renderpass] = RasterPipelineResources();
+
+        std::string ResourcePath = Options::GetResourcePath();
+        auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/FragmentPosition/vert.spv"));
+        auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/FragmentPosition/frag.spv"));
+
+        /* Create shader modules */
+        auto vertShaderModule = CreateShaderModule(vertShaderCode);
+        auto fragShaderModule = CreateShaderModule(fragShaderCode);
+
+        /* Info for shader stages */
+        vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
+        vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
+        vertShaderStageInfo.module = vertShaderModule;
+        vertShaderStageInfo.pName = "main";
+
+        vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
+        fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
+        fragShaderStageInfo.module = fragShaderModule;
+        fragShaderStageInfo.pName = "main";
+
+        std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
+        
+        /* Account for possibly multiple samples */
+        fragmentposition[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
+        fragmentposition[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
+        fragmentposition[renderpass].pipelineParameters.rasterizer.cullMode = vk::CullModeFlagBits::eNone;
+
+        /* Because we use a depth prepass */
+        if (use_depth_prepass) {
+            fragmentposition[renderpass].pipelineParameters.depthStencil.depthTestEnable = true;
+            fragmentposition[renderpass].pipelineParameters.depthStencil.depthWriteEnable = false; // not VK_TRUE since we have a depth prepass
+            fragmentposition[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
+        }
+
+        CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+            { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
+            fragmentposition[renderpass].pipelineParameters, 
+            renderpass, 0, 
+            fragmentposition[renderpass].pipeline, fragmentposition[renderpass].pipelineLayout);
 
         device.destroyShaderModule(fragShaderModule);
         device.destroyShaderModule(vertShaderModule);
@@ -706,6 +766,8 @@ void Material::SetupRaytracingShaderBindingTable(vk::RenderPass renderpass)
 
 void Material::Initialize()
 {
+    if (IsInitialized()) return;
+
     Material::CreateRasterDescriptorSetLayouts();
     Material::CreateRaytracingDescriptorSetLayouts();
     Material::CreateDescriptorPools();
@@ -714,6 +776,13 @@ void Material::Initialize()
     Material::CreateSSBO();
     Material::UpdateRasterDescriptorSets();
     Material::UpdateRaytracingDescriptorSets();
+
+    Initialized = true;
+}
+
+bool Material::IsInitialized()
+{
+    return Initialized;
 }
 
 void Material::CreateRasterDescriptorSetLayouts()
@@ -1299,6 +1368,14 @@ void Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &ren
             currentRenderpass = render_pass;
         }
     }
+    else if (rendermode == FRAGMENTPOSITION) {
+        command_buffer.pushConstants(fragmentposition[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+        if ((currentlyBoundRenderMode != FRAGMENTPOSITION) || (currentRenderpass != render_pass)) {
+            command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, fragmentposition[render_pass].pipeline);
+            currentlyBoundRenderMode = FRAGMENTPOSITION;
+            currentRenderpass = render_pass;
+        }
+    }
     else if (rendermode == SHADOWMAP) {
         command_buffer.pushConstants(shadowmap[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
         if ((currentlyBoundRenderMode != SHADOWMAP) || (currentRenderpass != render_pass)) {
@@ -1447,6 +1524,14 @@ uint32_t Material::GetSSBOSize()
 
 void Material::CleanUp()
 {
+    if (!IsInitialized()) return;
+
+    for (auto &material : materials) {
+		if (material.initialized) {
+			Material::Delete(material.id);
+		}
+	}
+
     auto vulkan = Libraries::Vulkan::Get();
     if (!vulkan->is_initialized())
         throw std::runtime_error( std::string("Vulkan library is not initialized"));
@@ -1457,11 +1542,26 @@ void Material::CleanUp()
     device.destroyBuffer(SSBO);
     device.freeMemory(SSBOMemory);
 
+    device.destroyBuffer(stagingSSBO);
+    device.freeMemory(stagingSSBOMemory);
+
     device.destroyDescriptorSetLayout(componentDescriptorSetLayout);
     device.destroyDescriptorPool(componentDescriptorPool);
 
     device.destroyDescriptorSetLayout(textureDescriptorSetLayout);
     device.destroyDescriptorPool(textureDescriptorPool);
+
+    SSBO = vk::Buffer();
+    SSBOMemory = vk::DeviceMemory();
+    stagingSSBO = vk::Buffer();
+    stagingSSBOMemory = vk::DeviceMemory();
+
+    componentDescriptorSetLayout = vk::DescriptorSetLayout();
+    componentDescriptorPool = vk::DescriptorPool();
+    textureDescriptorSetLayout = vk::DescriptorSetLayout();
+    textureDescriptorPool = vk::DescriptorPool();
+
+    Initialized = false;
 }	
 
 /* Static Factory Implementations */
@@ -1587,6 +1687,10 @@ void Material::show_blinn() {
 
 void Material::show_depth() {
     renderMode = DEPTH;
+}
+
+void Material::show_position() {
+    renderMode = FRAGMENTPOSITION;
 }
 
 void Material::show_volume() {

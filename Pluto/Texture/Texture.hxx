@@ -76,6 +76,9 @@ class Texture : public StaticFactory
 		/* Initializes the Mesh factory. Loads default meshes. */
 		static void Initialize();
 
+		/* TODO */
+		static bool IsInitialized();
+
 		/* Transfers all texture components to an SSBO */
         static void UploadSSBO(vk::CommandBuffer command_buffer);
 
@@ -175,6 +178,9 @@ class Texture : public StaticFactory
 	private:
 		/* TODO */
 		static std::mutex creation_mutex;
+		
+		/* TODO */
+		static bool Initialized;
 
 		/* The list of texture components, allocated statically */
 		static Texture textures[MAX_TEXTURES];

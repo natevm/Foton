@@ -25,7 +25,7 @@ CameraPrefab Prefabs::CreateArcBallCamera(uint32_t width, uint32_t height, float
     camera_prefab.entity->set_transform(camera_prefab.transform);
     
     camera_prefab.camera->set_view(glm::lookAt(glm::vec3(0.0f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.0f, 0.0f, 1.0f)));
-    camera_prefab.camera->set_perspective_projection(fov, width, height, .1);
+    camera_prefab.camera->set_perspective_projection(fov, width, height, 2.);
     camera_prefab.target = target;
 
     camera_prefab.initialized = true;

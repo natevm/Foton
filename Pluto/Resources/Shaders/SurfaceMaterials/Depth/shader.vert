@@ -1,18 +1,9 @@
 #version 450
-#include "Pluto/Resources/Shaders/ShaderCommon.hxx"
-
-layout(location = 0) in vec3 point;
-layout(location = 1) in vec4 color;
-layout(location = 2) in vec3 normal;
-layout(location = 3) in vec2 texcoord;
+#include "Pluto/Resources/Shaders/Descriptors.hxx"
+#include "Pluto/Resources/Shaders/Attributes.hxx"
 
 layout(location = 0) out vec3 w_position;
 layout(location = 1) out vec3 c_position;
-
-out gl_PerVertex {
-    vec4 gl_Position;
-    float gl_PointSize;
-};
 
 void main() {
     EntityStruct target_entity = ebo.entities[push.consts.target_id];
@@ -29,7 +20,7 @@ void main() {
     #ifdef DISABLE_MULTIVIEW
     int viewIndex = push.consts.viewIndex;
     #else
-    int viewIndex = gl_ViewIndex;
+    int viewIndex = (push.consts.use_multiview == 0) ? push.consts.viewIndex : gl_ViewIndex;
     #endif
     gl_Position = camera.multiviews[viewIndex].viewproj * camera_transform.worldToLocalRotation * camera_transform.worldToLocalTranslation * vec4(w_position, 1.0);
 }

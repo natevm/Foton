@@ -1,12 +1,9 @@
 #pragma once
 
-#ifndef GLM_ENABLE_EXPERIMENTAL
 #define GLM_ENABLE_EXPERIMENTAL
-#endif
-
-#ifndef GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#endif
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_RIGHT_HANDED
 
 #include <glm/glm.hpp>
 #include <glm/common.hpp>
@@ -32,7 +29,21 @@ class Texture;
 class Camera;
 
 /* An enumeration used to select a pipeline type for use when drawing a given entity. */
-enum RenderMode : uint32_t { BLINN, PBR, NORMAL, TEXCOORD, SKYBOX, BASECOLOR, DEPTH, VOLUME, SHADOWMAP, FRAGMENTDEPTH, HIDDEN, NONE };
+enum RenderMode : uint32_t { 
+    BLINN, 
+    PBR, 
+    NORMAL, 
+    TEXCOORD, 
+    SKYBOX, 
+    BASECOLOR, 
+    DEPTH, 
+    VOLUME, 
+    SHADOWMAP, 
+    FRAGMENTDEPTH, 
+    FRAGMENTPOSITION, 
+    HIDDEN, 
+    NONE 
+};
 
 class Material : public StaticFactory
 {
@@ -66,6 +77,9 @@ class Material : public StaticFactory
 
         /* Initializes all vulkan descriptor resources, as well as the Mesh factory. */
         static void Initialize();
+
+        /* TODO: Explain this */
+        static bool IsInitialized();
 
         /* Transfers all material components to an SSBO */
         static void UploadSSBO(vk::CommandBuffer command_buffer);
@@ -114,6 +128,7 @@ class Material : public StaticFactory
         void show_texcoords();
         void show_blinn();
         void show_depth();
+        void show_position();
         void show_environment();
         void show_volume();
 
@@ -153,6 +168,9 @@ class Material : public StaticFactory
     private:
         /* TODO */
 		static std::mutex creation_mutex;
+
+        /* TODO */
+	    static bool Initialized;
     
         /*  A list of the material components, allocated statically */
         static Material materials[MAX_MATERIALS];
@@ -232,6 +250,7 @@ class Material : public StaticFactory
         static std::map<vk::RenderPass, RasterPipelineResources> volume;
         static std::map<vk::RenderPass, RasterPipelineResources> shadowmap;
         static std::map<vk::RenderPass, RasterPipelineResources> fragmentdepth;
+        static std::map<vk::RenderPass, RasterPipelineResources> fragmentposition;
 
         static std::map<vk::RenderPass, RaytracingPipelineResources> rttest;
 

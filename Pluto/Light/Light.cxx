@@ -12,6 +12,7 @@ vk::Buffer Light::stagingSSBO;
 vk::DeviceMemory Light::stagingSSBOMemory;
 std::vector<Camera*> Light::shadowCameras;
 std::mutex Light::creation_mutex;
+bool Light::Initialized = false;
 
 Light::Light()
 {
@@ -159,6 +160,8 @@ std::string Light::to_string() {
 /* SSBO logic */
 void Light::Initialize()
 {
+    if (IsInitialized()) return;
+
     auto vulkan = Libraries::Vulkan::Get();
     if (!vulkan->is_initialized())
         throw std::runtime_error( std::string("Vulkan library is not initialized"));
@@ -208,6 +211,13 @@ void Light::Initialize()
         SSBOMemory = device.allocateMemory(allocInfo);
         device.bindBufferMemory(SSBO, SSBOMemory, 0);
     }
+
+    Initialized = true;
+}
+
+bool Light::IsInitialized()
+{
+    return Initialized;
 }
 
 void Light::CreateShadowCameras()
@@ -215,7 +225,7 @@ void Light::CreateShadowCameras()
     // Right, Left, Up, Down, Far, Near
     /* Create shadow map textures */
     for (uint32_t i = 0; i < MAX_LIGHTS; ++i) {
-        auto cam = Camera::Create("ShadowCam_" + std::to_string(i), true, 256, 256, 1, 6, false);
+        auto cam = Camera::Create("ShadowCam_" + std::to_string(i), true, 1024, 1024, 1, 6, false, false);
         cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 0);
         cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 1);
         cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 2);
@@ -224,10 +234,10 @@ void Light::CreateShadowCameras()
         cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 5);
         cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 1,  0,  0), glm::vec3(0.0, 0.0, 1.0)), 0);
         cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3(-1,  0,  0), glm::vec3(0.0, 0.0, 1.0)), 1);
-        cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0,  0,  -1), glm::vec3(0.0, 1.0, 0.0)), 2);
-        cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0, 0,  1), glm::vec3(0.0, -1.0, 0.0)), 3);
-        cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0,  1,  0), glm::vec3(0.0, 0.0, 1.0)), 4);
-        cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0,  -1,  0), glm::vec3(0.0, 0.0, 1.0)), 5);
+        cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0,  0,  1), glm::vec3(0.0, 1.0, 0.0)), 2);
+        cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0, 0,  -1), glm::vec3(0.0, -1.0, 0.0)), 3);
+        cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0,  -1,  0), glm::vec3(0.0, 0.0, 1.0)), 4);
+        cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0,  1,  0), glm::vec3(0.0, 0.0, 1.0)), 5);
         cam->set_render_order(-1);
         cam->force_render_mode(RenderMode::SHADOWMAP);
         shadowCameras.push_back(cam);
@@ -280,6 +290,13 @@ uint32_t Light::GetSSBOSize()
 
 void Light::CleanUp()
 {
+    if (!IsInitialized()) return;
+
+    for (auto &light : lights) 
+    {
+        light.initialized = false;
+    }
+
     auto vulkan = Libraries::Vulkan::Get();
     if (!vulkan->is_initialized())
         throw std::runtime_error( std::string("Vulkan library is not initialized"));
@@ -292,6 +309,13 @@ void Light::CleanUp()
 
     device.destroyBuffer(stagingSSBO);
     device.freeMemory(stagingSSBOMemory);
+
+    SSBO = vk::Buffer();
+    SSBOMemory = vk::DeviceMemory();
+    stagingSSBO = vk::Buffer();
+    stagingSSBOMemory = vk::DeviceMemory();
+
+    Initialized = false;
 }	
 
 /* Static Factory Implementations */

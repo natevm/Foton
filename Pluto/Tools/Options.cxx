@@ -23,6 +23,8 @@ bool isIPyKernel = false;
 bool isMainModuleSet = false;
 std::string ip = "";
 
+int requestedDevice = -1;
+
 #define $(flag) (strcmp(argv[i], flag) == 0)
 bool ProcessArg(int &i, char **argv)
 {
@@ -49,6 +51,12 @@ bool ProcessArg(int &i, char **argv)
         ip = std::string(argv[i]);
         ++i;
         std::cout<<"Activating client mode. " <<std::endl;
+    }
+    else if $("-device") {
+        ++i;
+        requestedDevice = std::stoi(argv[i], nullptr, 10);
+        ++i;
+        std::cout<<"Requesting device "<< requestedDevice <<std::endl;
     }
 
     return i != orig_i;
@@ -91,6 +99,16 @@ int ProcessArgs(int argc, char **argv)
 }
 
 std::string GetResourcePath() {
+    if (ResourcePath.size() == 0) {
+        int dirname_length;
+        int length = wai_getExecutablePath(NULL, 0, NULL);
+        std::string executable_path(length, '\0');
+        wai_getExecutablePath(executable_path.data(), length, &dirname_length);
+
+        executable_path = executable_path.substr(0, dirname_length);
+        ResourcePath = executable_path + "/Resources"; 
+    }
+
     return ResourcePath;
 }
 
@@ -124,6 +142,10 @@ std::string GetConnectionFile()
     return ConnectionFile;
 }
 
+int GetRequestedDevice()
+{
+    return requestedDevice;
+}
 
 std::string GetIP() {
     return ip;

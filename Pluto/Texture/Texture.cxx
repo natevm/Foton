@@ -21,6 +21,7 @@ vk::DeviceMemory Texture::SSBOMemory;
 vk::Buffer Texture::stagingSSBO;
 vk::DeviceMemory Texture::stagingSSBOMemory;
 std::mutex Texture::creation_mutex;
+bool Texture::Initialized = false;
 
 Texture::Texture()
 {
@@ -483,6 +484,8 @@ void Texture::record_blit_to(vk::CommandBuffer command_buffer, Texture * other, 
 // TODO
 void Texture::Initialize()
 {
+    if (IsInitialized()) return;
+
     // Create the default texture here
     std::string resource_path = Options::GetResourcePath();
     CreateFromKTX("BRDF", resource_path + "/Defaults/brdf-lut.ktx");
@@ -555,6 +558,13 @@ void Texture::Initialize()
     sInfo.maxLod = 12.0;
     sInfo.borderColor = vk::BorderColor::eFloatTransparentBlack;
     samplers[0] = device.createSampler(sInfo);
+
+    Initialized = true;
+}
+
+bool Texture::IsInitialized()
+{
+    return Initialized;
 }
 
 
@@ -604,9 +614,15 @@ uint32_t Texture::GetSSBOSize()
 
 void Texture::CleanUp()
 {
-    for (int i = 0; i < MAX_TEXTURES; ++i)
-        textures[i].cleanup();
+    if (!IsInitialized()) return;
 
+    for (auto &texture : textures) {
+		if (texture.initialized) {
+			texture.cleanup();
+			Texture::Delete(texture.id);
+		}
+	}
+    
     auto vulkan = Libraries::Vulkan::Get();
     if (!vulkan->is_initialized())
         throw std::runtime_error( std::string("Vulkan library is not initialized"));
@@ -625,6 +641,11 @@ void Texture::CleanUp()
 
     device.destroyBuffer(stagingSSBO);
     device.freeMemory(stagingSSBOMemory);
+
+    SSBO = vk::Buffer();
+    SSBOMemory = vk::DeviceMemory();
+    stagingSSBO = vk::Buffer();
+    stagingSSBOMemory = vk::DeviceMemory();
 }
 
 std::vector<vk::ImageView> Texture::GetImageViews(vk::ImageViewType view_type) 
@@ -1492,8 +1513,8 @@ bool Texture::get_supported_depth_format(vk::PhysicalDevice physicalDevice, vk::
     std::vector<vk::Format> depthFormats = {
         vk::Format::eD32SfloatS8Uint,
         vk::Format::eD32Sfloat,
-        vk::Format::eD16UnormS8Uint,
         vk::Format::eD24UnormS8Uint,
+        vk::Format::eD16UnormS8Uint,
         vk::Format::eD16Unorm};
 
     for (auto &format : depthFormats)

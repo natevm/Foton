@@ -14,6 +14,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include "Pluto/Tools/Options.hxx"
 #include "Vulkan.hxx"
 #include "../GLFW/GLFW.hxx"
 #if BUILD_OPENVR
@@ -339,8 +340,16 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
     {
         /* Check and see if any physical devices are suitable, since not all cards are equal */
         physicalDevice = vk::PhysicalDevice();
+        uint32_t device_idx = 0;
+        int requestedDevice = Options::GetRequestedDevice();
         for (const auto &device : devices)
         {
+            /* Allow a custom GPU to be selected */
+            if ((requestedDevice != -1) && (device_idx != requestedDevice)) {
+                device_idx++;
+                continue;
+            }
+
             swapChainAdequate = extensionsSupported = queuesFound = false;
             deviceProperties = device.getProperties();
             auto supportedFeatures = device.getFeatures();
@@ -421,13 +430,13 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
     }
 #endif
     
-    cout << "\tChoosing device " << std::string(deviceProperties.deviceName) << endl;
-
     if (!physicalDevice)
     {
         throw std::runtime_error("Failed to find a GPU which meets demands!" );
         return false;
     }
+
+    cout << "\tChoosing device " << std::string(deviceProperties.deviceName) << endl;
 
     /* If we're using raytracing, query raytracing properties */
     if (rayTracingEnabled) {
@@ -889,9 +898,14 @@ bool Vulkan::end_one_time_graphics_command(vk::CommandBuffer command_buffer, std
     vk::Fence one_time_graphics_command_fence = device.createFence(fenceInfo);
 
     std::future<void> fut = enqueue_graphics_commands({command_buffer}, {},{}, {}, one_time_graphics_command_fence, hint, queue_idx);
-    fut.wait();
+    auto future_status = fut.wait_for(std::chrono::seconds(10));
 
-    auto result = device.waitForFences(one_time_graphics_command_fence, true, 10000000000);
+    if (future_status != std::future_status::ready) {
+        std::cout<<"Queue processing timeout: " << hint << std::endl; 
+        return false;
+    }
+
+    auto result = device.waitForFences(one_time_graphics_command_fence, true, 1000000000);
     if (result != vk::Result::eSuccess) {
         std::cout<<"Fence timeout: " << hint << std::endl; 
     }
@@ -1064,8 +1078,8 @@ bool Vulkan::submit_present_commands() {
 
 bool Vulkan::flush_queues()
 {
-    presentQueues[0].waitIdle();
-    graphicsQueues[0].waitIdle();
+    for (auto &queue : graphicsQueues) queue.waitIdle();
+    for (auto &queue : presentQueues) queue.waitIdle();
     return true;
 }
 
@@ -1074,7 +1088,7 @@ uint32_t Vulkan::get_thread_id() {
     if (thread_id == -1) {
         std::lock_guard<std::mutex> lock(thread_id_mutex);
         thread_id = registered_threads;
-        std::cout<<"Designating " << std::hex << thread_id << " to thread id " << std::this_thread::get_id() << std::endl;
+        // std::cout<<"Designating " << std::hex << thread_id << " to thread id " << std::this_thread::get_id() << std::endl;
         registered_threads++;
     }
     return thread_id;

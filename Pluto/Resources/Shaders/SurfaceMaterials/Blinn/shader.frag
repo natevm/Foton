@@ -1,5 +1,6 @@
 #version 450
-#include "Pluto/Resources/Shaders/ShaderCommon.hxx"
+#include "Pluto/Resources/Shaders/Descriptors.hxx"
+#include "Pluto/Resources/Shaders/FragmentVaryings.hxx"
 #include "Pluto/Resources/Shaders/FragmentCommon.hxx"
 
 void main() {

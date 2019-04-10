@@ -91,6 +91,15 @@ bool RenderSystem::initialize()
     for(int i = 0; i < MAX_LIGHTS; i++) push_constants.light_entity_ids[i] = -1;
     push_constants.viewIndex = -1;
 
+    push_constants.flags = 0;
+    
+    #ifdef DISABLE_MULTIVIEW
+    push_constants.flags |= (1 << 0);
+    #endif
+
+    #ifdef DISABLE_REVERSE_Z
+    push_constants.flags |= ( 1<< 1 );
+    #endif
 
     initialized = true;
     return true;
@@ -177,6 +186,8 @@ void RenderSystem::record_cameras()
         auto cam_id = entities[entity_id].get_camera();
         if (cam_id < 0) continue;
 
+        if (!cameras[cam_id].is_initialized()) continue;
+
         /* Camera needs a texture */
         Texture * texture = cameras[cam_id].get_texture();
         if (!texture) continue;
@@ -216,8 +227,8 @@ void RenderSystem::record_cameras()
                 
 
                 cameras[cam_id].begin_depth_prepass(command_buffer, rp_idx);
-                for (uint32_t i = 0; i < visible_entities.size(); ++i) {
-                    auto target_id = visible_entities[i].second->get_id();
+                for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i) {
+                    auto target_id = visible_entities[rp_idx][i].second->get_id();
 
                     // if (cameras[cam_id].is_entity_visible(target_id) {
                     /* This is a problem, since a single entity may be drawn multiple times on devices
@@ -228,7 +239,7 @@ void RenderSystem::record_cameras()
                     push_constants.target_id = target_id;
                     push_constants.camera_id = entity_id;
                     push_constants.viewIndex = rp_idx;
-                    Material::DrawEntity(command_buffer, rp, *visible_entities[i].second, push_constants, RenderMode::FRAGMENTDEPTH);
+                    Material::DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].second, push_constants, RenderMode::FRAGMENTDEPTH);
 
                     cameras[cam_id].end_visibility_query(command_buffer, target_id, i);
                     // }
@@ -252,27 +263,27 @@ void RenderSystem::record_cameras()
                 Material::BindDescriptorSets(command_buffer, rp);
                 
                 cameras[cam_id].begin_renderpass(command_buffer, rp_idx);
-                for (uint32_t i = 0; i < visible_entities.size(); ++i) {
-                    auto target_id = visible_entities[i].second->get_id();
+                for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i) {
+                    auto target_id = visible_entities[rp_idx][i].second->get_id();
 
                     if (cameras[cam_id].is_entity_visible(target_id) || (!cameras[cam_id].should_record_depth_prepass())) {
                         push_constants.target_id = target_id;
                         push_constants.camera_id = entity_id;
                         push_constants.viewIndex = rp_idx;
-                        Material::DrawEntity(command_buffer, rp, *visible_entities[i].second, push_constants, cameras[cam_id].get_rendermode_override());
+                        Material::DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].second, push_constants, cameras[cam_id].get_rendermode_override());
                     }
                 }
                 
                 /* Draw transparent objects last */
-                for (uint32_t i = 0; i < visible_entities.size(); ++i)
+                for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i)
                 {
-                    auto target_id = visible_entities[i].second->get_id();
+                    auto target_id = visible_entities[rp_idx][i].second->get_id();
 
                     if (cameras[cam_id].is_entity_visible(target_id) || (!cameras[cam_id].should_record_depth_prepass())) {
                         push_constants.target_id = target_id;
                         push_constants.camera_id = entity_id;
                         push_constants.viewIndex = rp_idx;
-                        Material::DrawVolume(command_buffer, rp, *visible_entities[i].second, push_constants, cameras[cam_id].get_rendermode_override());
+                        Material::DrawVolume(command_buffer, rp, *visible_entities[rp_idx][i].second, push_constants, cameras[cam_id].get_rendermode_override());
                     }
                 }
                 cameras[cam_id].end_renderpass(command_buffer, rp_idx);
@@ -707,6 +718,37 @@ void RenderSystem::enqueue_render_commands() {
     }
 }
 
+void RenderSystem::mark_cameras_as_render_complete()
+{
+    /* Render all cameras */
+    auto entities = Entity::GetFront();
+    auto cameras = Camera::GetFront();
+    for (uint32_t entity_id = 0; entity_id < Entity::GetCount(); ++entity_id) {
+        /* Entity must be initialized */
+        if (!entities[entity_id].is_initialized()) continue;
+
+        /* Entity needs a camera */
+        auto cam_id = entities[entity_id].get_camera();
+        if (cam_id < 0) continue;
+
+        if (!cameras[cam_id].is_initialized()) continue;
+
+        /* Camera needs a texture */
+        Texture * texture = cameras[cam_id].get_texture();
+        if (!texture) continue;
+
+        /* If entity is a shadow camera (TODO: REFACTOR THIS...) */
+        if (entities[entity_id].get_light() != -1) {
+            /* Skip shadowmaps which shouldn't cast shadows */
+            auto light = Light::Get(entities[entity_id].get_light());
+            if (!light->should_cast_shadows()) continue;
+        }
+
+        cameras[cam_id].mark_render_as_complete();
+    }
+
+}
+
 void RenderSystem::release_vulkan_resources() 
 {
     auto vulkan = Vulkan::Get();
@@ -723,6 +765,7 @@ void RenderSystem::release_vulkan_resources()
 
     /* Release vulkan resources */
     device.freeCommandBuffers(vulkan->get_command_pool(), {main_command_buffer});
+    main_command_buffer = vk::CommandBuffer();
     // device.destroyFence(main_fence);
     // for (auto &semaphore : main_command_buffer_semaphores)
     //     device.destroySemaphore(semaphore);
@@ -822,6 +865,8 @@ bool RenderSystem::start()
                     // for (auto &fence : final_fences) device.destroyFence(fence);
                 }
 
+                mark_cameras_as_render_complete();
+
 
                 /* 4. Optional: Wait on render complete. Present a frame. */
                 stream_frames();
@@ -864,6 +909,7 @@ bool RenderSystem::start()
 
 bool RenderSystem::stop()
 {
+    
     if (!initialized)
         return false;
     if (!running)

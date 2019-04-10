@@ -18,6 +18,7 @@ namespace Options
     std::string GetIP();
     bool IsIPyKernel();
     bool IsMainModuleSet();
+    int GetRequestedDevice();
 
 
 }; // namespace Options

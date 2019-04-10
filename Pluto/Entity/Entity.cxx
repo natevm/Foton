@@ -13,6 +13,7 @@ std::map<std::string, uint32_t> Entity::windowToEntity;
 std::map<uint32_t, std::string> Entity::entityToWindow;
 uint32_t Entity::entityToVR = -1;
 std::mutex Entity::creation_mutex;
+bool Entity::Initialized = false;
 
 Entity::Entity() {
     this->initialized = false;
@@ -213,6 +214,8 @@ void Entity::removeChild(uint32_t object) {
 /* SSBO logic */
 void Entity::Initialize()
 {
+    if (IsInitialized()) return;
+
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
     auto physical_device = vulkan->get_physical_device();
@@ -255,6 +258,13 @@ void Entity::Initialize()
         device.bindBufferMemory(SSBO, SSBOMemory, 0);
     }
 
+    Initialized = true;
+
+}
+
+bool Entity::IsInitialized()
+{
+    return Initialized;
 }
 
 void Entity::UploadSSBO(vk::CommandBuffer command_buffer)
@@ -304,6 +314,14 @@ uint32_t Entity::GetSSBOSize()
 
 void Entity::CleanUp()
 {
+    if (!IsInitialized()) return;
+
+    for (auto &entity : entities) {
+		if (entity.initialized) {
+			Entity::Delete(entity.id);
+		}
+	}
+
     auto vulkan = Libraries::Vulkan::Get();
     if (!vulkan->is_initialized())
         throw std::runtime_error( std::string("Vulkan library is not initialized"));
@@ -316,6 +334,13 @@ void Entity::CleanUp()
 
     device.destroyBuffer(stagingSSBO);
     device.freeMemory(stagingSSBOMemory);
+
+    SSBO = vk::Buffer();
+    SSBOMemory = vk::DeviceMemory();
+    stagingSSBO = vk::Buffer();
+    stagingSSBOMemory = vk::DeviceMemory();
+
+    Initialized = false;
 }	
 
 /* Static Factory Implementations */

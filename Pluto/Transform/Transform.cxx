@@ -8,9 +8,12 @@ vk::Buffer Transform::SSBO;
 vk::DeviceMemory Transform::stagingSSBOMemory;
 vk::DeviceMemory Transform::SSBOMemory;
 std::mutex Transform::creation_mutex;
+bool Transform::Initialized = false;
 
 void Transform::Initialize()
 {
+    if (IsInitialized()) return;
+
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
     auto physical_device = vulkan->get_physical_device();
@@ -53,6 +56,13 @@ void Transform::Initialize()
         device.bindBufferMemory(SSBO, SSBOMemory, 0);
     }
 
+    Initialized = true;
+
+}
+
+bool Transform::IsInitialized()
+{
+    return Initialized;
 }
 
 void Transform::UploadSSBO(vk::CommandBuffer command_buffer) 
@@ -79,8 +89,8 @@ void Transform::UploadSSBO(vk::CommandBuffer command_buffer)
         transformObjects[i].localToWorld = transforms[i].local_to_parent_matrix();
         transformObjects[i].worldToLocalRotation = transforms[i].parent_to_local_rotation();
         transformObjects[i].localToWorldRotation = transforms[i].local_to_parent_rotation();
-        transformObjects[i].worldToLocalTranslation = transforms[i].parent_to_local_position();
-        transformObjects[i].localToWorldTranslation = transforms[i].local_to_parent_position();
+        transformObjects[i].worldToLocalTranslation = transforms[i].parent_to_local_translation();
+        transformObjects[i].localToWorldTranslation = transforms[i].local_to_parent_translation();
         transformObjects[i].worldToLocalScale = transforms[i].parent_to_local_scale();
         transformObjects[i].localToWorldScale = transforms[i].local_to_parent_scale();
     };
@@ -110,6 +120,14 @@ uint32_t Transform::GetSSBOSize()
 
 void Transform::CleanUp() 
 {
+    if (!IsInitialized()) return;
+
+    for (auto &transform : transforms) {
+		if (transform.initialized) {
+			Transform::Delete(transform.id);
+		}
+	}
+
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
     device.destroyBuffer(SSBO);
@@ -117,6 +135,13 @@ void Transform::CleanUp()
 
     device.destroyBuffer(stagingSSBO);
     device.freeMemory(stagingSSBOMemory);
+
+    SSBO = vk::Buffer();
+    SSBOMemory = vk::DeviceMemory();
+    stagingSSBO = vk::Buffer();
+    stagingSSBOMemory = vk::DeviceMemory();
+
+    Initialized = false;
 }
 
 

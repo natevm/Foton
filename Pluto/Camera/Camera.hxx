@@ -6,6 +6,7 @@
 
 #include <vulkan/vulkan.hpp>
 #include <mutex>
+#include <condition_variable>
 
 #include "Pluto/Tools/StaticFactory.hxx"
 #include "Pluto/Camera/CameraStruct.hxx"
@@ -20,7 +21,7 @@ class Camera : public StaticFactory
   public:
 	/* Creates a camera, which can be used to record the scene. Can be used to render to several texture layers for use in cubemap rendering/VR renderpasses. 
 		Note, "layers" parameter is ignored if cubemap is enabled. */
-	static Camera *Create(std::string name, bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1, uint32_t layers = 1, bool use_depth_prepass = true);
+	static Camera *Create(std::string name, bool cubemap = false, uint32_t tex_width = 512, uint32_t tex_height = 512, uint32_t msaa_samples = 1, uint32_t layers = 1, bool use_depth_prepass = true, bool use_multiview = false);
 
 	/* Retrieves a camera component by name. */
 	static Camera *Get(std::string name);
@@ -45,6 +46,9 @@ class Camera : public StaticFactory
 
 	/* Initializes the Camera factory. Loads any default components. */
 	static void Initialize();
+
+	/* TODO: Explain this */
+	static bool IsInitialized();
 
 	/* Transfers all camera components to an SSBO */
 	static void UploadSSBO(vk::CommandBuffer command_buffer);
@@ -192,7 +196,10 @@ class Camera : public StaticFactory
 	bool should_record_depth_prepass();
 
 	/* TODO: Explain this */
-	std::vector<std::pair<float, Entity*>> get_visible_entities(uint32_t camera_entity_id);
+	bool should_use_multiview();
+
+	/* TODO: Explain this */
+	std::vector<std::vector<std::pair<float, Entity*>>> get_visible_entities(uint32_t camera_entity_id);
 
 	/* Creates a vulkan commandbuffer handle used to record the renderpass. */
 	void create_command_buffers();
@@ -200,13 +207,29 @@ class Camera : public StaticFactory
 	/* TODO: */
 	bool needs_command_buffers();
 
+	/* TODO: */
+	void pause_visibility_testing();
+	
+	/* TODO: */
+	void resume_visibility_testing();
+
+	void mark_render_as_complete();
+
+	void wait_for_render_complete();
+
   private:
   	/* TODO */
 	static std::mutex creation_mutex;
+
+	/* TODO */
+	static bool Initialized;
 	
 	/* Determines whether this camera should use a depth prepass to reduce fragment complexity at the cost of 
 	vertex shader complexity */
 	bool use_depth_prepass;
+
+	/* TODO */
+	bool use_multiview;
 
 	/* Marks the total number of multiviews being used by the current camera. */
 	uint32_t usedViews = 1;
@@ -235,6 +258,8 @@ class Camera : public StaticFactory
 
 	bool queryDownloaded = true;
 
+	bool visibilityTestingPaused = false;
+
 	uint64_t max_queried = 0;
 
 	std::map<uint32_t, uint32_t> previousEntityToDrawIdx;
@@ -243,6 +268,8 @@ class Camera : public StaticFactory
 
 	/* TODO: Explain this */
 	std::vector<uint64_t> queryResults;
+
+	std::vector<std::vector<std::pair<float, Entity*>>> frustum_culling_results;
 
 	/* The vulkan depth prpass renderpass handles, used to begin and end depth prepasses for the given camera. */
 	std::vector<vk::RenderPass> depthPrepasses;
@@ -281,6 +308,10 @@ class Camera : public StaticFactory
 		if 1, it's inferred that a resolve texture is not required.  */
 	uint32_t msaa_samples = 1;
 
+	bool render_ready = false;
+	std::shared_ptr<std::mutex> render_complete_mutex;
+	std::shared_ptr<std::condition_variable> cv;
+
 	/* A list of the camera components, allocated statically */
 	static Camera cameras[MAX_CAMERAS];
 	
@@ -305,7 +336,7 @@ class Camera : public StaticFactory
 	RenderMode renderModeOverride;
 
 	/* Allocates (and possibly frees existing) textures, renderpass, and framebuffer required for rendering. */
-	void setup(bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1, uint32_t layers = 1, bool use_depth_prepass = true);
+	void setup(bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1, uint32_t layers = 1, bool use_depth_prepass = true, bool use_multiview = false);
 
 	/* Creates a vulkan renderpass handle which will be used when recording from the current camera component. */
 	void create_render_passes(uint32_t layers = 1, uint32_t sample_count = 1);

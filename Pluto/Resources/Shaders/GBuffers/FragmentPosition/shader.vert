@@ -1,7 +1,8 @@
 #version 450
 #include "Pluto/Resources/Shaders/Descriptors.hxx"
 #include "Pluto/Resources/Shaders/Attributes.hxx"
-#include "Pluto/Resources/Shaders/VertexVaryings.hxx"
+
+layout(location=0) out vec4 w_position;
 
 void main() {
     EntityStruct target_entity = ebo.entities[push.consts.target_id];
@@ -10,7 +11,6 @@ void main() {
     TransformStruct camera_transform = tbo.transforms[camera_entity.transform_id];
     TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
 
-    vec4 w_position;
     // if (push.consts.show_bounding_box > 0) {
     //     w_position = push.consts.bounding_box_local_to_world * vec4(point.xyz, 1.0); 
     // }
@@ -23,16 +23,9 @@ void main() {
     #else
     int viewIndex = (push.consts.use_multiview == 0) ? push.consts.viewIndex : gl_ViewIndex;
     #endif
-    fragTexCoord = texcoord;
     gl_Position = camera.multiviews[viewIndex].viewproj * 
         camera_transform.worldToLocalRotation * 
         camera_transform.worldToLocalTranslation * 
         w_position;
-    
-    /* Epsilon offset to account for depth precision errors values */
-    #ifndef DISABLE_REVERSE_Z
     gl_Position -= vec4(0.0, 0.0, .0001, 0.0);
-    #else
-    gl_Position += vec4(0.0, 0.0, .0001, 0.0);
-    #endif
 }

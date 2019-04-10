@@ -11,6 +11,11 @@ class Camera;
 class Light : public StaticFactory
 {
     private:
+        
+        /* TODO */
+		static std::mutex creation_mutex;
+        static bool Initialized;
+
         /* Factory fields */
         static Light lights[MAX_LIGHTS];
         static LightStruct* pinnedMemory;
@@ -38,11 +43,13 @@ class Light : public StaticFactory
         static void Delete(uint32_t id);
     
         static void Initialize();
+        static bool IsInitialized();
         static void CreateShadowCameras();
         static void UploadSSBO(vk::CommandBuffer command_buffer);
         static vk::Buffer GetSSBO();
         static uint32_t GetSSBOSize();
         static void CleanUp();
+
 
         /* Instance functions */
 
