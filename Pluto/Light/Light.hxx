@@ -25,8 +25,6 @@ class Light : public StaticFactory
         static vk::Buffer stagingSSBO;
         static vk::DeviceMemory stagingSSBOMemory;
         static std::vector<Camera*> shadowCameras;
-        /* TODO */
-		static std::mutex creation_mutex;
         
         /* Instance fields*/
         LightStruct light_struct;

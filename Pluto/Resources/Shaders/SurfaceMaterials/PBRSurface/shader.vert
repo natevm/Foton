@@ -18,7 +18,7 @@ void main() {
     #ifdef DISABLE_MULTIVIEW
     int viewIndex = push.consts.viewIndex;
     #else
-    int viewIndex = (push.consts.use_multiview == 0) ? push.consts.viewIndex : gl_ViewIndex;
+    int viewIndex = (is_multiview_enabled() == false) ? push.consts.viewIndex : gl_ViewIndex;
     #endif
     w_cameraPos = vec3(camera.multiviews[viewIndex].viewinv[3]) + vec3(camera_transform.localToWorld[3]);
 

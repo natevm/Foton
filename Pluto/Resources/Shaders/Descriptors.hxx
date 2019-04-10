@@ -34,10 +34,10 @@ layout(std430, push_constant) uniform PushConstants {
 
 bool is_multiview_enabled()
 {
-    return ((push.consts.flags & (1 << 0)) == 0);
+    return ((push.consts.flags & (1 << 0)) != 0);
 }
 
 bool is_reverse_z_enabled()
 {
-    return ((push.consts.flags & (1 << 1)) == 0);
+    return ((push.consts.flags & (1 << 1)) != 0);
 }
