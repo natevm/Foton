@@ -89,14 +89,14 @@ bool SpaceMouse::connect_to_window(std::string window)
 	to be used by this function */
 	if ((devHdl = SiOpenEx(L"3DxTest", SI_ANY_DEVICE, SI_NO_MASK, SI_EVENT, &oData)) == NULL)
 	{
-		std::cout<<"SpaceMouse error, cannot retrieve device handle."<<std::endl;
+		// std::cout<<"SpaceMouse error, cannot retrieve device handle."<<std::endl;
 		return false;
 	}
 	else
 	{
 		SiDeviceName devName;
 		SiGetDeviceName(devHdl, &devName);
-		std::cout<<"Device found: name " << devName.name <<std::endl;
+		// std::cout<<"Device found: name " << devName.name <<std::endl;
 		
 		
 		return true;

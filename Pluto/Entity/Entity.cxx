@@ -9,9 +9,6 @@ vk::Buffer Entity::SSBO;
 vk::DeviceMemory Entity::SSBOMemory;
 vk::Buffer Entity::stagingSSBO;
 vk::DeviceMemory Entity::stagingSSBOMemory;
-std::map<std::string, uint32_t> Entity::windowToEntity;
-std::map<uint32_t, std::string> Entity::entityToWindow;
-uint32_t Entity::entityToVR = -1;
 std::mutex Entity::creation_mutex;
 bool Entity::Initialized = false;
 
@@ -171,30 +168,6 @@ void Entity::clear_mesh()
 int32_t Entity::get_mesh() 
 {
     return this->entity_struct.mesh_id;
-}
-
-int32_t Entity::GetEntityFromWindow(std::string key)
-{
-    auto it = windowToEntity.find(key);
-    bool doesConnectionExist = (it != windowToEntity.end());
-
-    if (!doesConnectionExist) 
-        return -1;
-    
-    return (int32_t) windowToEntity[key];
-}
-
-int32_t Entity::GetEntityForVR()
-{
-    return entityToVR;
-}
-
-void Entity::connect_to_vr()
-{
-    if (!initialized) 
-        throw std::runtime_error( std::string("Entity not initialized"));
-    
-    entityToVR = this->id;
 }
 
 void Entity::setParent(uint32_t parent) {

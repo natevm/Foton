@@ -22,7 +22,7 @@ void main() {
     #endif
     w_cameraPos = vec3(camera.multiviews[viewIndex].viewinv[3]) + vec3(camera_transform.localToWorld[3]);
 
-    w_cameraDir = normalize(w_cameraPos - point.xyz);
+    w_cameraDir = normalize(w_cameraPos - w_position);
 
     fragTexCoord = texcoord;
     

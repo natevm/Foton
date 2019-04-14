@@ -3,12 +3,15 @@
 #include <openvr.h>
 #include "glm/gtc/matrix_transform.hpp"
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
+#include "Pluto/Transform/Transform.hxx"
 #include "Pluto/Texture/Texture.hxx"
 #include "Pluto/Mesh/Mesh.hxx"
+#include "Pluto/Camera/Camera.hxx"
 #include "Pluto/Tools/Options.hxx"
 
 #include <algorithm>
 #include <cctype>
+#include <string>
 
 namespace Libraries
 {
@@ -833,6 +836,67 @@ int32_t OpenVR::get_vive_controller_roughness_texture(std::string name)
 	if (component)
 		return component->get_id();
 	return -1;
+}
+
+void OpenVR::connect_camera(Camera *camera)
+{
+	if (initialized == false)
+		throw std::runtime_error( std::string("Error: Uninitialized, cannot connect camera to VR."));
+	if (!camera) throw std::runtime_error("Error: camera was null!");
+	if (camera->get_max_views() != 2) 
+		throw std::runtime_error(
+			std::string("Error: camera needs exactly two views, but has ") 
+			+ std::to_string(camera->get_max_views())
+		);
+	
+	connected_camera = camera;
+}
+
+void OpenVR::connect_camera_transform(Transform *camera_transform)
+{
+	if (initialized == false)
+		throw std::runtime_error( std::string("Error: Uninitialized, cannot connect transform to VR."));
+	if (!camera_transform) throw std::runtime_error("Error: transform was null!");
+	
+	connected_camera_transform = camera_transform;
+}
+
+void OpenVR::connect_left_hand_transform(Transform *left_hand_transform)
+{
+	if (initialized == false)
+		throw std::runtime_error( std::string("Error: Uninitialized, cannot connect transform to VR."));
+	if (!left_hand_transform) throw std::runtime_error("Error: transform was null!");
+	
+	connected_left_hand_transform = left_hand_transform;
+}
+
+void OpenVR::connect_right_hand_transform(Transform *right_hand_transform)
+{
+	if (initialized == false)
+		throw std::runtime_error( std::string("Error: Uninitialized, cannot connect transform to VR."));
+	if (!right_hand_transform) throw std::runtime_error("Error: transform was null!");
+	
+	connected_right_hand_transform = right_hand_transform;
+}
+
+Camera* OpenVR::get_connected_camera()
+{
+	return connected_camera;
+}
+
+Transform* OpenVR::get_connected_camera_transform()
+{
+	return connected_camera_transform;
+}
+
+Transform* OpenVR::get_connected_left_hand_transform()
+{
+	return connected_left_hand_transform;
+}
+
+Transform* OpenVR::get_connected_right_hand_transform()
+{
+	return connected_right_hand_transform;
 }
 
 } // namespace Libraries

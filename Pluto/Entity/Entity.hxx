@@ -42,7 +42,6 @@ private:
 
 	static std::map<std::string, uint32_t> windowToEntity;
 	static std::map<uint32_t, std::string> entityToWindow;
-	static uint32_t entityToVR;
 
 public:
 	static Entity* Create(std::string name);
@@ -65,12 +64,6 @@ public:
 	Entity(std::string name, uint32_t id);
 
 	std::string to_string();
-
-	void connect_to_vr();
-
-	static int32_t GetEntityFromWindow(std::string key);
-
-	static int32_t GetEntityForVR();
 
 	void set_transform(int32_t transform_id);
 

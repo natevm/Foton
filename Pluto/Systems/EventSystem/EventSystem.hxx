@@ -8,6 +8,7 @@
 
 class Camera;
 class Texture;
+class Transform;
 
 namespace Systems 
 {
@@ -22,6 +23,10 @@ namespace Systems
             void destroy_window(string key);
             void resize_window(string key, uint32_t width, uint32_t height);
             void connect_camera_to_window(string key, Camera* camera, uint32_t layer_idx = 0);
+            void connect_camera_to_vr(Camera* camera);
+            void connect_camera_transform_to_vr(Transform* camera_transform);
+            void connect_left_hand_transform_to_vr(Transform* left_hand_transform);
+            void connect_right_hand_transform_to_vr(Transform* right_hand_transform);
             void connect_texture_to_window(string key, Texture* texture, uint32_t layer_idx = 0);
             void set_window_pos(string key, uint32_t x, uint32_t y);
             void set_window_visibility(string key, bool visible);

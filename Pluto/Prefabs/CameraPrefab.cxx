@@ -18,7 +18,7 @@ CameraPrefab::CameraPrefab(std::string mode, uint32_t width, uint32_t height, fl
 {
     auto es = Systems::EventSystem::Get();
     es->create_window("prefab_window", width, height);
-    camera = Camera::Create("prefab_camera", false, width, height, msaa_samples, 1, enable_depth_prepass);
+    camera = Camera::Create("prefab_camera", width, height, msaa_samples, 1, enable_depth_prepass);
     transform = Transform::Create("prefab_camera");
     entity = Entity::Create("prefab_camera");
     entity->set_camera(camera);

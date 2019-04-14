@@ -20,8 +20,8 @@ class Camera : public StaticFactory
 {
   public:
 	/* Creates a camera, which can be used to record the scene. Can be used to render to several texture layers for use in cubemap rendering/VR renderpasses. 
-		Note, "layers" parameter is ignored if cubemap is enabled. */
-	static Camera *Create(std::string name, bool cubemap = false, uint32_t tex_width = 512, uint32_t tex_height = 512, uint32_t msaa_samples = 1, uint32_t layers = 1, bool use_depth_prepass = true, bool use_multiview = false);
+	Note, for VR, max_views must be 2, and for a cubemap, max_views must be 6. */
+	static Camera *Create(std::string name, uint32_t width = 512, uint32_t height = 512, uint32_t msaa_samples = 1, uint32_t max_views = 1, bool use_depth_prepass = true, bool use_multiview = false);
 
 	/* Retrieves a camera component by name. */
 	static Camera *Get(std::string name);
@@ -99,6 +99,9 @@ class Camera : public StaticFactory
 	/* Returns the texture component being rendered to. 
 		Otherwise, returns None/nullptr. */
 	Texture *get_texture();
+
+	/* TODO: Explain this */
+	uint32_t get_max_views();
 
 	/* Returns a json string summarizing the camera. */
 	std::string to_string();
@@ -235,7 +238,7 @@ class Camera : public StaticFactory
 	uint32_t usedViews = 1;
 
 	/* Marks the maximum number of views this camera can support, which can be possibly less than MAX_MULTIVIEW. */
-	uint32_t maxMultiview = MAX_MULTIVIEW;
+	uint32_t maxViews = MAX_MULTIVIEW;
 
 	/* Marks when this camera should render during a frame. */
 	int32_t renderOrder = 0;
@@ -336,7 +339,7 @@ class Camera : public StaticFactory
 	RenderMode renderModeOverride;
 
 	/* Allocates (and possibly frees existing) textures, renderpass, and framebuffer required for rendering. */
-	void setup(bool cubemap = false, uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1, uint32_t layers = 1, bool use_depth_prepass = true, bool use_multiview = false);
+	void setup(uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1, uint32_t max_views = 1, bool use_depth_prepass = true, bool use_multiview = false);
 
 	/* Creates a vulkan renderpass handle which will be used when recording from the current camera component. */
 	void create_render_passes(uint32_t layers = 1, uint32_t sample_count = 1);

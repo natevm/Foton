@@ -1065,7 +1065,7 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
     if ((push.consts.ltc_amp_lut_id < 0) || (push.consts.ltc_amp_lut_id >= MAX_TEXTURES)) return vec3(0.0);
 
     vec3 finalColor = vec3(0.0);
-    float dotNV = dot(w_normal, w_view); // clamp(, 0.0, 1.0);
+    float dotNV = clamp(dot(w_normal, w_view), 0.0, 1.0);
 
     /* Get inverse linear cosine transform for area lights */
     float ndotv = saturate(dotNV);
@@ -1147,9 +1147,10 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
         
         shadow_term *= cone_term;
         
+        if (dotNL < 0.0) continue;
+        
         /* Point light */
         if (light.type == 0) {
-            if (dotNL < 0.0) continue;
             vec3 spec = (D * F * G / (4.0 * dotNL * dotNV + 0.001));
             float dist_squared = max(sqr(length(w_light_position - w_position)), 1.0);
             finalColor += shadow_term * (1.0 / dist_squared) * lcol * dotNL * (kD * albedo + spec);

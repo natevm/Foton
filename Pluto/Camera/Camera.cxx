@@ -26,7 +26,7 @@ int32_t Camera::maxRenderOrder = 0;
 
 using namespace Libraries;
 
-void Camera::setup(bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers, bool use_depth_prepass, bool use_multiview)
+void Camera::setup(uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t max_views, bool use_depth_prepass, bool use_multiview)
 {
 	if ((tex_width == 0) || (tex_height == 0)) {
 		throw std::runtime_error("Error: width and height of camera " + name + " texture must be greater than zero!");
@@ -39,29 +39,27 @@ void Camera::setup(bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32
 	#endif
 
 	this->use_depth_prepass = use_depth_prepass;
-	layers = (cubemap) ? 6 : layers;
-	if (layers > MAX_MULTIVIEW)
+	if (max_views > MAX_MULTIVIEW)
     {
 		throw std::runtime_error( std::string("Error: Camera component cannot render to more than " + std::to_string(MAX_MULTIVIEW) + " layers simultaneously."));
     }
 
-	maxMultiview = layers;
+	this->maxViews = max_views;
 	set_view(glm::mat4(1.0), 0);
 	// set_orthographic_projection(-1, 1, -1, 1, -1, 1);
 	this->msaa_samples = msaa_samples;
 	
-	if (cubemap)
-	{
+	if (max_views == 6) {
 		renderTexture = Texture::CreateCubemap(name, tex_width, tex_height, true, true);
+		// TODO: Enable MSAA for cubemaps
 	}
-	else
-	{
-		renderTexture = Texture::Create2D(name, tex_width, tex_height, true, true, msaa_samples, layers);
+	else {
+		renderTexture = Texture::Create2D(name, tex_width, tex_height, true, true, msaa_samples, max_views);
 		if (msaa_samples != 1)
-			resolveTexture = Texture::Create2D(name + "_resolve", tex_width, tex_height, true, true, 1, layers);
+			resolveTexture = Texture::Create2D(name + "_resolve", tex_width, tex_height, true, true, 1, max_views);
 	}
 
-	for (uint32_t i = 0; i < layers; ++i) {
+	for (uint32_t i = 0; i < max_views; ++i) {
 		camera_struct.multiviews[i].tex_id = (msaa_samples != 1) ? resolveTexture->get_id() : renderTexture->get_id();
 	}
 
@@ -69,8 +67,8 @@ void Camera::setup(bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32
 	// create_command_buffers();
 	// create_semaphores();
 	create_fences();
-	create_render_passes(layers, msaa_samples);
-	create_frame_buffers(layers);
+	create_render_passes(max_views, msaa_samples);
+	create_frame_buffers(max_views);
 	create_query_pool();
 	for(auto renderpass : renderpasses) {
 		Material::SetupGraphicsPipelines(renderpass, msaa_samples, use_depth_prepass);
@@ -352,9 +350,9 @@ void Camera::update_used_views(uint32_t multiview) {
 }
 
 void Camera::check_multiview_index(uint32_t multiview) {
-	if (multiview >= maxMultiview)
+	if (multiview >= maxViews)
     {
-		throw std::runtime_error( std::string("Error: multiview index is larger than " + std::to_string(maxMultiview) ));
+		throw std::runtime_error( std::string("Error: multiview index is larger than " + std::to_string(maxViews) ));
     }
 }
 
@@ -481,6 +479,12 @@ Texture* Camera::get_texture()
 {
 	if (msaa_samples == 1) return renderTexture;
 	else return resolveTexture;
+}
+
+/* TODO: Explain this */
+uint32_t Camera::get_max_views()
+{
+	return maxViews;
 }
 
 std::string Camera::to_string()
@@ -711,7 +715,7 @@ void Camera::download_query_pool_results()
 		std::vector<uint64_t> temp(MAX_ENTITIES, 0);
 		auto result = device.getQueryPoolResults(queryPool, first_query, num_queries, 
 				data_size, temp.data(), stride, // wait locks up... with availability requires an extra integer?
-				vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::eWait | vk::QueryResultFlagBits::ePartial | vk::QueryResultFlagBits::eWithAvailability); //  vk::QueryResultFlagBits::ePartial |
+				vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::ePartial | vk::QueryResultFlagBits::eWithAvailability); //  vk::QueryResultFlagBits::ePartial | //| vk::QueryResultFlagBits::eWait
 
 		if (result == vk::Result::eSuccess) {
 			for (uint32_t i = 0; i < max_queried; ++i) {
@@ -875,7 +879,7 @@ void Camera::UploadSSBO(vk::CommandBuffer command_buffer)
 		if (!cameras[i].is_initialized()) continue;
 		pinnedMemory[i] = cameras[i].camera_struct;
 
-		for (uint32_t j = 0; j < cameras[i].maxMultiview; ++j) {
+		for (uint32_t j = 0; j < cameras[i].maxViews; ++j) {
 			pinnedMemory[i].multiviews[j].viewinv = glm::inverse(pinnedMemory[i].multiviews[j].view);
 			pinnedMemory[i].multiviews[j].projinv = glm::inverse(pinnedMemory[i].multiviews[j].proj);
 			pinnedMemory[i].multiviews[j].viewproj = pinnedMemory[i].multiviews[j].proj * pinnedMemory[i].multiviews[j].view;
@@ -929,10 +933,10 @@ void Camera::CleanUp()
 
 
 /* Static Factory Implementations */
-Camera* Camera::Create(std::string name, bool cubemap, uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t layers, bool use_depth_prepass, bool use_multiview)
+Camera* Camera::Create(std::string name,uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t max_views, bool use_depth_prepass, bool use_multiview)
 {
 	auto camera = StaticFactory::Create(name, "Camera", lookupTable, cameras, MAX_CAMERAS);
-	camera->setup(cubemap, tex_width, tex_height, msaa_samples, layers, use_depth_prepass, use_multiview);
+	camera->setup(tex_width, tex_height, msaa_samples, max_views, use_depth_prepass, use_multiview);
 	return camera;
 }
 
@@ -1064,11 +1068,12 @@ std::vector<std::vector<std::pair<float, Entity*>>> Camera::get_visible_entities
 		auto cam_transform = Transform::Get(camera_entity->get_transform());
 		if (!cam_transform) return {};
 		glm::vec3 cam_pos = cam_transform->get_position();
+
+		for (uint32_t i = 0; i < get_max_views(); ++i)
+			visible_entities.push_back(std::vector<Entity*>());
 	
 		/* Test each entities bounding sphere against the frustum */
 		for (uint32_t view_idx = 0; view_idx < usedViews; ++view_idx) {
-			visible_entities.push_back(std::vector<Entity*>());
-
 			for (uint32_t i = 0; i < Entity::GetCount(); ++i) 
 			{
 				if (i == camera_entity_id) continue;

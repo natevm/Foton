@@ -312,8 +312,8 @@ void RenderSystem::record_cameras()
         /* Blit to OpenVR eyes. */
         #if BUILD_OPENVR
         if (using_openvr) {
-            if (entity_id == Entity::GetEntityForVR()) {
-                auto ovr = OpenVR::Get();
+            auto ovr = OpenVR::Get();
+            if ((&cameras[cam_id]) == ovr->get_connected_camera()) {
                 auto left_eye_texture = ovr->get_left_eye_texture();
                 auto right_eye_texture = ovr->get_right_eye_texture();
                 if (left_eye_texture)  texture->record_blit_to(command_buffer, left_eye_texture, 0);
@@ -353,6 +353,8 @@ void RenderSystem::record_blit_textures()
             main_command_buffer_presenting = true;
         }
     }
+
+    
     main_command_buffer.end();
 }
 
@@ -391,29 +393,40 @@ void RenderSystem::update_openvr_transforms()
     #if BUILD_OPENVR
     /* Set OpenVR transform data right before rendering */
     if (using_openvr) {
-        auto entity_id = Entity::GetEntityForVR();
+        auto ovr = OpenVR::Get();
+        ovr->wait_get_poses();
+
+        /* Set camera information */
+        auto camera = ovr->get_connected_camera();
         
-        /* If there's an entity connected to VR */
-        if (entity_id != -1) {
-            auto entity = Entity::Get(entity_id);
-            auto cam_id = entity->get_camera();
-            auto left = Transform::Get("VRLeftHand");
-            auto right = Transform::Get("VRRightHand");
-            auto ovr = OpenVR::Get();
+        if (camera) {
+            /* Move the camera to where the headset is. */
+            camera->set_view(ovr->get_left_view_matrix(), 0);
+            camera->set_custom_projection(ovr->get_left_projection_matrix(.1f), .1f, 0);
+            camera->set_view(ovr->get_right_view_matrix(), 1);
+            camera->set_custom_projection(ovr->get_right_projection_matrix(.1f), .1f, 1);
+        }
+        
 
-            /* If that entity has a camera */
-            if (cam_id != -1) {
-                Camera* current_camera = Camera::Get(cam_id);
+        /* Set transform information */
+        auto left_hand_transform = ovr->get_connected_left_hand_transform();
+        auto right_hand_transform = ovr->get_connected_right_hand_transform();
+        auto camera_transform = ovr->get_connected_camera_transform();
 
-                /* Wait get poses. Move the camera to where the headset is. */
-                ovr->wait_get_poses();
-                current_camera->set_view(ovr->get_left_view_matrix(), 0);
-                current_camera->set_custom_projection(ovr->get_left_projection_matrix(.1f), .1f, 0);
-                current_camera->set_view(ovr->get_right_view_matrix(), 1);
-                current_camera->set_custom_projection(ovr->get_right_projection_matrix(.1f), .1f, 1);
-            }
-            if (left) left->set_transform(ovr->get_left_controller_transform());
-            if (right) right->set_transform(ovr->get_right_controller_transform());
+        if (left_hand_transform)
+        {
+            left_hand_transform->set_transform(ovr->get_left_controller_transform());
+        }
+
+        if (right_hand_transform)
+        {
+            right_hand_transform->set_transform(ovr->get_right_controller_transform());
+        }
+
+        /* TODO... camera transform currently set via view... */
+        if (camera_transform)
+        {
+            
         }
     }
     #endif
@@ -425,89 +438,79 @@ void RenderSystem::present_openvr_frames()
     /* Ignore if openvr isn't in use. */
     if (!using_openvr) return;
 
-    /* TODO: see if the below checks are required for submitting textures to OpenVR... */
+    auto ovr = OpenVR::Get();
+    auto camera = ovr->get_connected_camera();
 
-    /* Get the entity connected to the headset */
-    auto entity_id = Entity::GetEntityForVR();
-    
-    /* Dont render anything if no entity is connected. */
-    if (entity_id == -1) return;
-
-    auto entity = Entity::Get(entity_id);
-    auto cam_id = entity->get_camera();
-
-    /* Dont render anything if the connected entity does not have a camera component attached. */
-    if (cam_id == -1) return;
-    Camera* current_camera = Camera::Get(cam_id);
+    /* Dont submit anything if no camera is connected to VR. */
+    if (!camera) return;
 
     /* Don't render anything if the camera component doesn't have a color texture. */
-    Texture * texture = current_camera->get_texture();
+    Texture * texture = camera->get_texture();
     if (texture == nullptr) return;
     
     /* Submit the left and right eye textures to OpenVR */
-    auto ovr = OpenVR::Get();
     ovr->submit_textures();
     #endif
 }
 
 void RenderSystem::stream_frames()
 {
-    /* Only stream frames if we're in server/client mode. */
-    if (! (Options::IsServer() || Options::IsClient())) return;
+    // /* Only stream frames if we're in server/client mode. */
+    // if (! (Options::IsServer() || Options::IsClient())) return;
 
-    /* For now, only stream the camera associated with the window named "Window" */
-    auto entity_id = Entity::GetEntityFromWindow("Window");
+    // /* For now, only stream the camera associated with the window named "Window" */
+    // auto entity_id = Entity::GetEntityFromWindow("Window");
     
-    /* Dont stream anything if no entity is connected to the window. */
-    if (entity_id == -1) return;
+    // /* Dont stream anything if no entity is connected to the window. */
+    // if (entity_id == -1) return;
 
-    auto entity = Entity::Get(entity_id);
-    auto cam_id = entity->get_camera();
+    // auto entity = Entity::Get(entity_id);
+    // auto cam_id = entity->get_camera();
 
-    /* Dont stream anything if the connected entity does not have a camera component attached. */
-    if (cam_id == -1) return;
-    Camera* current_camera = Camera::Get(cam_id);
+    // /* Dont stream anything if the connected entity does not have a camera component attached. */
+    // if (cam_id == -1) return;
+    // Camera* current_camera = Camera::Get(cam_id);
 
-    /* Don't stream anything if the camera component doesn't have a color texture. */
-    Texture * texture = current_camera->get_texture();
-    if (texture == nullptr) return;
+    // /* Don't stream anything if the camera component doesn't have a color texture. */
+    // Texture * texture = current_camera->get_texture();
+    // if (texture == nullptr) return;
     
-    Bucket bucket = {};
+    // Bucket bucket = {};
 
-    #if ZMQ_BUILD_DRAFT_API == 1
-    /* If we're the server, send the frame over UDP */
-    if (Options::IsServer())
-    {
-        std::vector<float> color_data = texture->download_color_data(16, 16, 1, true);
+    // #if ZMQ_BUILD_DRAFT_API == 1
+    // /* If we're the server, send the frame over UDP */
+    // if (Options::IsServer())
+    // {
+    //     std::vector<float> color_data = texture->download_color_data(16, 16, 1, true);
 
-        bucket.x = 0;
-        bucket.y = 0;
-        bucket.width = 16;
-        bucket.height = 16;
-        memcpy(bucket.data, color_data.data(), 16 * 16 * 4 * sizeof(float));
+    //     bucket.x = 0;
+    //     bucket.y = 0;
+    //     bucket.width = 16;
+    //     bucket.height = 16;
+    //     memcpy(bucket.data, color_data.data(), 16 * 16 * 4 * sizeof(float));
 
-        /* Set message group */
-        zmq_msg_t msg;
-        const char *text = "Hello";
-        int rc = zmq_msg_init_size(&msg, sizeof(Bucket));
-        assert(rc == 0);
-        memcpy(zmq_msg_data(&msg), &bucket, sizeof(Bucket));
-        zmq_msg_set_group(&msg, "PLUTO");
-        zmq_msg_send(&msg, RenderSystem::Get()->socket, ZMQ_DONTWAIT);
-    }
+    //     /* Set message group */
+    //     zmq_msg_t msg;
+    //     const char *text = "Hello";
+    //     int rc = zmq_msg_init_size(&msg, sizeof(Bucket));
+    //     assert(rc == 0);
+    //     memcpy(zmq_msg_data(&msg), &bucket, sizeof(Bucket));
+    //     zmq_msg_set_group(&msg, "PLUTO");
+    //     zmq_msg_send(&msg, RenderSystem::Get()->socket, ZMQ_DONTWAIT);
+    // }
 
-    /* Else we're the client, so upload the frame. */
-    /* TODO: make this work again. */
-    else {
-        //     for (int i = 0; i < 100; ++i)
-        //     {
-        //         int rc = zmq_recv(RenderSystem::Get()->socket, &bucket, sizeof(Bucket), ZMQ_NOBLOCK);
-        //     }
-        //     std::vector<float> color_data(16 * 16 * 4);
-        //     memcpy(color_data.data(), bucket.data, 16 * 16 * 4 * sizeof(float));
-        //     current_camera->get_texture()->upload_color_data(16, 16, 1, color_data, 0);
-    }
-    #endif
+    // /* Else we're the client, so upload the frame. */
+    // /* TODO: make this work again. */
+    // else {
+    //     //     for (int i = 0; i < 100; ++i)
+    //     //     {
+    //     //         int rc = zmq_recv(RenderSystem::Get()->socket, &bucket, sizeof(Bucket), ZMQ_NOBLOCK);
+    //     //     }
+    //     //     std::vector<float> color_data(16 * 16 * 4);
+    //     //     memcpy(color_data.data(), bucket.data, 16 * 16 * 4 * sizeof(float));
+    //     //     current_camera->get_texture()->upload_color_data(16, 16, 1, color_data, 0);
+    // }
+    // #endif
 }
 
 void RenderSystem::enqueue_render_commands() {
@@ -856,10 +859,10 @@ bool RenderSystem::start()
                 auto device = vulkan->get_device();
                 if (final_fences.size() > 0 )
                 {
-                    auto result = device.waitForFences(final_fences, true, 10000000000);
-                    if (result != vk::Result::eSuccess) {
-                        std::cout<<"Fence timeout in render loop!"<<std::endl;
-                    }
+                    // auto result = device.waitForFences(final_fences, true, 10000000000);
+                    // if (result != vk::Result::eSuccess) {
+                    //     std::cout<<"Fence timeout in render loop!"<<std::endl;
+                    // }
 
                     /* Cleanup fences. */
                     // for (auto &fence : final_fences) device.destroyFence(fence);

@@ -32,9 +32,17 @@ using namespace Systems;
 #include "Pluto/Entity/Entity.hxx"
 
 #include "Pluto/Prefabs/Prefabs.hxx"
+#include "Pluto/Prefabs/CameraPrefab.hxx"
 %}
 
+/* Note: kwargs does not work with c++ standard types, like vector. 
+
+    For now, we can use kwargs with only specific declarations
+*/
+
 %feature("autodoc","4");
+%feature("kwargs") Prefabs::CreateArcBallCamera;
+%feature("kwargs") Camera::Create;
 
 /* Required on windows... */
 %include <windows.i>
@@ -120,6 +128,7 @@ using namespace Systems;
 %include "Pluto/Entity/Entity.hxx"
 
 %include "Pluto/Prefabs/Prefabs.hxx"
+%include "Pluto/Prefabs/CameraPrefab.hxx"
 
 /* Representations */
 %extend Transform {

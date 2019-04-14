@@ -17,7 +17,9 @@
 #include "Pluto/Tools/Singleton.hxx"
 
 class Texture;
+class Transform;
 class Mesh;
+class Camera;
 
 namespace Libraries {
     using namespace std;
@@ -146,6 +148,22 @@ namespace Libraries {
 
             int32_t get_vive_controller_roughness_texture(std::string name);
 
+            void connect_camera(Camera *camera);
+
+            void connect_camera_transform(Transform *camera_transform);
+
+            void connect_left_hand_transform(Transform *left_hand_transform);
+
+            void connect_right_hand_transform(Transform *right_hand_transform);
+
+            Camera* get_connected_camera();
+
+            Transform* get_connected_camera_transform();
+
+            Transform* get_connected_left_hand_transform();
+
+            Transform* get_connected_right_hand_transform();
+
         private:
             OpenVR();
             ~OpenVR();
@@ -186,5 +204,13 @@ namespace Libraries {
 
             /* EXPLAIN THIS */
             glm::mat4 m44_to_mat4(const vr::HmdMatrix44_t &t);
+
+            Camera* connected_camera = nullptr;
+
+            Transform* connected_left_hand_transform = nullptr;
+
+            Transform* connected_right_hand_transform = nullptr;
+
+            Transform* connected_camera_transform = nullptr;
     };
 }
