@@ -11,6 +11,7 @@
 #include <stdexcept>
 
 CameraPrefab Prefabs::camera_prefab;
+VRRig Prefabs::vr_rig;
 
 Prefabs::Prefabs() { }
 Prefabs::~Prefabs() { }
@@ -20,10 +21,15 @@ CameraPrefab Prefabs::CreatePrefabCamera(std::string mode, uint32_t width, uint3
     return camera_prefab;
 }
 
-
+VRRig Prefabs::CreateVRRig(float resolution_quality, uint32_t msaa_samples, bool show_chaperone_window, bool enable_depth_prepass, bool enable_multiview)
+{
+    vr_rig = VRRig(resolution_quality, msaa_samples, show_chaperone_window, enable_depth_prepass, enable_multiview);
+    return vr_rig;
+}
 
 void Prefabs::Update()
 {
     if (camera_prefab.initialized) camera_prefab.update();
+    if (vr_rig.initialized) vr_rig.update();
 }
 

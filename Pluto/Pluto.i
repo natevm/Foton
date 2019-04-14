@@ -33,6 +33,7 @@ using namespace Systems;
 
 #include "Pluto/Prefabs/Prefabs.hxx"
 #include "Pluto/Prefabs/CameraPrefab.hxx"
+#include "Pluto/Prefabs/VRRig.hxx"
 %}
 
 /* Note: kwargs does not work with c++ standard types, like vector. 
@@ -129,6 +130,7 @@ using namespace Systems;
 
 %include "Pluto/Prefabs/Prefabs.hxx"
 %include "Pluto/Prefabs/CameraPrefab.hxx"
+%include "Pluto/Prefabs/VRRig.hxx"
 
 /* Representations */
 %extend Transform {
