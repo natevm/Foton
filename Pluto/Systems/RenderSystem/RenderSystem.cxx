@@ -239,6 +239,7 @@ void RenderSystem::record_cameras()
                     push_constants.target_id = target_id;
                     push_constants.camera_id = entity_id;
                     push_constants.viewIndex = rp_idx;
+                    push_constants.flags = (!cameras[cam_id].should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
                     Material::DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].second, push_constants, RenderMode::FRAGMENTDEPTH);
 
                     cameras[cam_id].end_visibility_query(command_buffer, target_id, i);
@@ -270,6 +271,7 @@ void RenderSystem::record_cameras()
                         push_constants.target_id = target_id;
                         push_constants.camera_id = entity_id;
                         push_constants.viewIndex = rp_idx;
+                        push_constants.flags = (!cameras[cam_id].should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
                         Material::DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].second, push_constants, cameras[cam_id].get_rendermode_override());
                     }
                 }
@@ -283,6 +285,7 @@ void RenderSystem::record_cameras()
                         push_constants.target_id = target_id;
                         push_constants.camera_id = entity_id;
                         push_constants.viewIndex = rp_idx;
+                        push_constants.flags = (!cameras[cam_id].should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
                         Material::DrawVolume(command_buffer, rp, *visible_entities[rp_idx][i].second, push_constants, cameras[cam_id].get_rendermode_override());
                     }
                 }

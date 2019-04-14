@@ -43,6 +43,7 @@ using namespace Systems;
 
 %feature("autodoc","4");
 %feature("kwargs") Prefabs::CreateArcBallCamera;
+%feature("kwargs") Prefabs::CreateVRRig;
 %feature("kwargs") Camera::Create;
 
 /* Required on windows... */
