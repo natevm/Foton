@@ -13,7 +13,7 @@ class Texture;
 class VRRig {
     public:
     VRRig();
-    VRRig(float resolution_quality, uint32_t msaa_samples, bool show_chaperone_window = true, bool enable_depth_prepass = true, bool enable_multiview = false);
+    VRRig(float resolution_quality, uint32_t msaa_samples, bool show_chaperone_window = true, bool enable_depth_prepass = true, bool enable_multiview = false, bool enable_visibility_mask = true);
 
     bool initialized = false;
     Entity* camera_entity = nullptr;

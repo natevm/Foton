@@ -57,7 +57,6 @@ void Transform::Initialize()
     }
 
     Initialized = true;
-
 }
 
 bool Transform::IsInitialized()

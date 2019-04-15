@@ -701,10 +701,10 @@ void Mesh::load_raw(
 		throw std::runtime_error( std::string("Error, no positions supplied. "));
 
 	if ((!reading_indices) && ((positions_.size() % 3) != 0))
-		throw std::runtime_error( std::string("Error: No indices provided, and length of positions is not a multiple of 3."));
+		throw std::runtime_error( std::string("Error: No indices provided, and length of positions (") + std::to_string(positions_.size()) + std::string(") is not a multiple of 3."));
 
 	if ((reading_indices) && ((indices_.size() % 3) != 0))
-		throw std::runtime_error( std::string("Error: Length of indices is not a multiple of 3."));
+		throw std::runtime_error( std::string("Error: Length of indices (") + std::to_string(indices.size()) + std::string(") is not a multiple of 3."));
 	
 	if (reading_normals && (normals_.size() != positions_.size()))
 		throw std::runtime_error( std::string("Error, length mismatch. Total normals: " + std::to_string(normals_.size()) + " does not equal total positions: " + std::to_string(positions_.size())));

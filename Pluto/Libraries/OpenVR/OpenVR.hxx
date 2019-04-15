@@ -20,6 +20,8 @@ class Texture;
 class Transform;
 class Mesh;
 class Camera;
+class Material;
+class Entity;
 
 namespace Libraries {
     using namespace std;
@@ -164,6 +166,17 @@ namespace Libraries {
 
             Transform* get_connected_right_hand_transform();
 
+            /* WARNING: can return null on some headsets . */
+            Mesh* get_left_eye_hidden_area_mesh();
+            Mesh* get_right_eye_hidden_area_mesh();
+            
+            Material* get_left_eye_hidden_area_material();
+            Material* get_right_eye_hidden_area_material();
+            Transform* get_left_eye_hidden_area_transform();
+            Transform* get_right_eye_hidden_area_transform();
+            Entity* get_left_eye_hidden_area_entity();
+            Entity* get_right_eye_hidden_area_entity();
+
         private:
             OpenVR();
             ~OpenVR();
@@ -212,5 +225,17 @@ namespace Libraries {
             Transform* connected_right_hand_transform = nullptr;
 
             Transform* connected_camera_transform = nullptr;
+
+            Mesh* left_eye_hidden_area_mesh = nullptr;
+            Mesh* right_eye_hidden_area_mesh = nullptr;
+
+            Material* left_eye_hidden_area_material = nullptr;
+            Material* right_eye_hidden_area_material = nullptr;
+
+            Transform* left_eye_hidden_area_transform = nullptr;
+            Transform* right_eye_hidden_area_transform = nullptr;
+
+            Entity* left_eye_hidden_area_entity = nullptr;
+            Entity* right_eye_hidden_area_entity = nullptr;
     };
 }

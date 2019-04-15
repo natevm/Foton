@@ -44,6 +44,7 @@ std::map<vk::RenderPass, Material::RasterPipelineResources> Material::volume;
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::shadowmap;
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::fragmentdepth;
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::fragmentposition;
+std::map<vk::RenderPass, Material::RasterPipelineResources> Material::vrmask;
 
 std::map<vk::RenderPass, Material::RaytracingPipelineResources> Material::rttest;
 
@@ -660,6 +661,41 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
             fragmentposition[renderpass].pipeline, fragmentposition[renderpass].pipelineLayout);
 
         device.destroyShaderModule(fragShaderModule);
+        device.destroyShaderModule(vertShaderModule);
+    }
+
+    /* ------ VR MASK ------ */
+    {
+        vrmask[renderpass] = RasterPipelineResources();
+
+        std::string ResourcePath = Options::GetResourcePath();
+        auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/VRMask/vert.spv"));
+
+        /* Create shader modules */
+        auto vertShaderModule = CreateShaderModule(vertShaderCode);
+
+        /* Info for shader stages */
+        vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
+        vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
+        vertShaderStageInfo.module = vertShaderModule;
+        vertShaderStageInfo.pName = "main";
+
+        std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo };
+        
+        /* Account for possibly multiple samples */
+        vrmask[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
+        vrmask[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
+
+        vrmask[renderpass].pipelineParameters.depthStencil.depthWriteEnable = true;
+        vrmask[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
+        vrmask[renderpass].pipelineParameters.rasterizer.cullMode = vk::CullModeFlagBits::eNone;
+
+        CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+            { componentDescriptorSetLayout, textureDescriptorSetLayout }, 
+            vrmask[renderpass].pipelineParameters, 
+            renderpass, 0, 
+            vrmask[renderpass].pipeline, vrmask[renderpass].pipelineLayout);
+
         device.destroyShaderModule(vertShaderModule);
     }
 
@@ -1384,6 +1420,14 @@ void Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &ren
             currentRenderpass = render_pass;
         }
     }
+    else if (rendermode == VRMASK) {
+        command_buffer.pushConstants(vrmask[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+        if ((currentlyBoundRenderMode != VRMASK) || (currentRenderpass != render_pass)) {
+            command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vrmask[render_pass].pipeline);
+            currentlyBoundRenderMode = VRMASK;
+            currentRenderpass = render_pass;
+        }
+    }
     
     command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
     command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
@@ -1687,6 +1731,14 @@ void Material::show_blinn() {
 
 void Material::show_depth() {
     renderMode = DEPTH;
+}
+
+void Material::show_fragment_depth() {
+    renderMode = FRAGMENTDEPTH;
+}
+
+void Material::show_vr_mask() {
+    renderMode = VRMASK;
 }
 
 void Material::show_position() {

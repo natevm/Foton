@@ -173,6 +173,8 @@ set(SHADERS_SRC
 
     ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/GBuffers/FragmentDepth/shader.vert
 
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/GBuffers/VRMask/shader.vert
+
     ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/GBuffers/FragmentPosition/shader.vert
     ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/GBuffers/FragmentPosition/shader.frag
 

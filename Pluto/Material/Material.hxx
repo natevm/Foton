@@ -41,6 +41,7 @@ enum RenderMode : uint32_t {
     SHADOWMAP, 
     FRAGMENTDEPTH, 
     FRAGMENTPOSITION, 
+    VRMASK, 
     HIDDEN, 
     NONE 
 };
@@ -127,6 +128,8 @@ class Material : public StaticFactory
         void show_base_color();
         void show_texcoords();
         void show_blinn();
+        void show_fragment_depth();
+        void show_vr_mask();
         void show_depth();
         void show_position();
         void show_environment();
@@ -251,6 +254,7 @@ class Material : public StaticFactory
         static std::map<vk::RenderPass, RasterPipelineResources> shadowmap;
         static std::map<vk::RenderPass, RasterPipelineResources> fragmentdepth;
         static std::map<vk::RenderPass, RasterPipelineResources> fragmentposition;
+        static std::map<vk::RenderPass, RasterPipelineResources> vrmask;
 
         static std::map<vk::RenderPass, RaytracingPipelineResources> rttest;
 

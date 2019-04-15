@@ -18,7 +18,7 @@
 
 VRRig::VRRig(){}
 
-VRRig::VRRig(float resolution_quality, uint32_t msaa_samples, bool show_chaperone_window, bool enable_depth_prepass, bool enable_multiview)
+VRRig::VRRig(float resolution_quality, uint32_t msaa_samples, bool show_chaperone_window, bool enable_depth_prepass, bool enable_multiview, bool enable_visibility_mask)
 {
     #ifdef BUILD_OPENVR
     auto es = Systems::EventSystem::Get();
@@ -74,6 +74,8 @@ VRRig::VRRig(float resolution_quality, uint32_t msaa_samples, bool show_chaperon
 
     es->connect_right_hand_transform_to_vr(right_controller_transform);
     es->connect_left_hand_transform_to_vr(left_controller_transform);
+
+    
 
     initialized = true;
 

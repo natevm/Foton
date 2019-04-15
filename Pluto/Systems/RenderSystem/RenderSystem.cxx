@@ -227,6 +227,27 @@ void RenderSystem::record_cameras()
                 
 
                 cameras[cam_id].begin_depth_prepass(command_buffer, rp_idx);
+
+                #ifdef BUILD_OPENVR
+                if (using_openvr)
+                {
+                    auto ovr = Libraries::OpenVR::Get();
+
+                    /* Render visibility masks */
+                    if ((&cameras[cam_id]) == ovr->get_connected_camera()) {
+                        Entity* mask_entity;
+                        if (rp_idx == 0) mask_entity = ovr->get_left_eye_hidden_area_entity();
+                        else mask_entity = ovr->get_right_eye_hidden_area_entity();
+                        // Push constants
+                        push_constants.target_id = mask_entity->get_id();
+                        push_constants.camera_id = entity_id;
+                        push_constants.viewIndex = rp_idx;
+                        push_constants.flags = (!cameras[cam_id].should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
+                        Material::DrawEntity(command_buffer, rp, *mask_entity, push_constants, RenderMode::VRMASK);
+                    }
+                }
+                #endif
+
                 for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i) {
                     auto target_id = visible_entities[rp_idx][i].second->get_id();
 
@@ -234,6 +255,16 @@ void RenderSystem::record_cameras()
                     /* This is a problem, since a single entity may be drawn multiple times on devices
                     not supporting multiview, (mac). Might need to increase query pool size to MAX_ENTITIES * renderpass count */
                     cameras[cam_id].begin_visibility_query(command_buffer, target_id, i);
+
+                    #if BUILD_OPENVR
+                    if (using_openvr) {
+                        auto ovr = Libraries::OpenVR::Get();
+                        if ((&cameras[cam_id]) == ovr->get_connected_camera()) {
+                            if ( ovr->get_left_eye_hidden_area_entity()->get_id() == target_id) continue;
+                            if ( ovr->get_right_eye_hidden_area_entity()->get_id() == target_id) continue;
+                        }
+                    }
+                    #endif
 
                     // Push constants
                     push_constants.target_id = target_id;
@@ -264,9 +295,30 @@ void RenderSystem::record_cameras()
                 Material::BindDescriptorSets(command_buffer, rp);
                 
                 cameras[cam_id].begin_renderpass(command_buffer, rp_idx);
+
+                /* Render visibility masks */
+                #ifdef BUILD_OPENVR
+                if (using_openvr && !(cameras[cam_id].should_record_depth_prepass()))
+                {
+                    auto ovr = Libraries::OpenVR::Get();
+
+                    if ((&cameras[cam_id]) == ovr->get_connected_camera()) {
+                        Entity* mask_entity;
+                        if (rp_idx == 0) mask_entity = ovr->get_left_eye_hidden_area_entity();
+                        else mask_entity = ovr->get_right_eye_hidden_area_entity();
+                        // Push constants
+                        push_constants.target_id = mask_entity->get_id();
+                        push_constants.camera_id = entity_id;
+                        push_constants.viewIndex = rp_idx;
+                        push_constants.flags = (!cameras[cam_id].should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
+                        Material::DrawEntity(command_buffer, rp, *mask_entity, push_constants, RenderMode::VRMASK);
+                    }
+                }
+                #endif
+
+                /* Render all objects */
                 for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i) {
                     auto target_id = visible_entities[rp_idx][i].second->get_id();
-
                     if (cameras[cam_id].is_entity_visible(target_id) || (!cameras[cam_id].should_record_depth_prepass())) {
                         push_constants.target_id = target_id;
                         push_constants.camera_id = entity_id;

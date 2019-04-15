@@ -21,9 +21,9 @@ CameraPrefab Prefabs::CreatePrefabCamera(std::string mode, uint32_t width, uint3
     return camera_prefab;
 }
 
-VRRig Prefabs::CreateVRRig(float resolution_quality, uint32_t msaa_samples, bool show_chaperone_window, bool enable_depth_prepass, bool enable_multiview)
+VRRig Prefabs::CreateVRRig(float resolution_quality, uint32_t msaa_samples, bool show_chaperone_window, bool enable_depth_prepass, bool enable_multiview, bool enable_visibility_mask)
 {
-    vr_rig = VRRig(resolution_quality, msaa_samples, show_chaperone_window, enable_depth_prepass, enable_multiview);
+    vr_rig = VRRig(resolution_quality, msaa_samples, show_chaperone_window, enable_depth_prepass, enable_multiview, enable_visibility_mask);
     return vr_rig;
 }
 

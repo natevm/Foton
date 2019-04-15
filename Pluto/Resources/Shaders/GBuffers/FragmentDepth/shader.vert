@@ -10,20 +10,13 @@ void main() {
     TransformStruct camera_transform = tbo.transforms[camera_entity.transform_id];
     TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
 
-    vec4 w_position;
-    // if (push.consts.show_bounding_box > 0) {
-    //     w_position = push.consts.bounding_box_local_to_world * vec4(point.xyz, 1.0); 
-    // }
-    // else {
-        w_position = target_transform.localToWorld * vec4(point.xyz, 1.0);
-    // }
+    vec4 w_position = target_transform.localToWorld * vec4(point.xyz, 1.0);
 
     #ifdef DISABLE_MULTIVIEW
     int viewIndex = push.consts.viewIndex;
     #else
     int viewIndex = (is_multiview_enabled() == false) ? push.consts.viewIndex : gl_ViewIndex;
     #endif
-    fragTexCoord = texcoord;
     gl_Position = camera.multiviews[viewIndex].viewproj * 
         camera_transform.worldToLocalRotation * 
         camera_transform.worldToLocalTranslation * 

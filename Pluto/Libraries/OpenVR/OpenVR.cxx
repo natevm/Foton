@@ -6,6 +6,8 @@
 #include "Pluto/Transform/Transform.hxx"
 #include "Pluto/Texture/Texture.hxx"
 #include "Pluto/Mesh/Mesh.hxx"
+#include "Pluto/Material/Material.hxx"
+#include "Pluto/Entity/Entity.hxx"
 #include "Pluto/Camera/Camera.hxx"
 #include "Pluto/Tools/Options.hxx"
 
@@ -897,6 +899,110 @@ Transform* OpenVR::get_connected_left_hand_transform()
 Transform* OpenVR::get_connected_right_hand_transform()
 {
 	return connected_right_hand_transform;
+}
+
+Mesh* OpenVR::get_left_eye_hidden_area_mesh()
+{
+	if (!system) throw std::runtime_error("Error: OpenVR not initialized");
+	if (left_eye_hidden_area_mesh != nullptr) return left_eye_hidden_area_mesh;
+
+	vr::HiddenAreaMesh_t hidden_area_mesh = system->GetHiddenAreaMesh(vr::Hmd_Eye::Eye_Left);
+	if (hidden_area_mesh.unTriangleCount == 0) return nullptr;
+
+	std::vector<glm::vec3> positions(hidden_area_mesh.unTriangleCount * 3);
+	for (uint32_t i = 0; i < hidden_area_mesh.unTriangleCount; ++i) {
+		positions[i * 3 + 0] = glm::vec3( hidden_area_mesh.pVertexData[i * 3 + 0].v[0] * 2.0 - 1.0, hidden_area_mesh.pVertexData[i * 3 + 0].v[1] * 2.0 - 1.0, 0.0);
+		positions[i * 3 + 1] = glm::vec3( hidden_area_mesh.pVertexData[i * 3 + 1].v[0] * 2.0 - 1.0, hidden_area_mesh.pVertexData[i * 3 + 1].v[1] * 2.0 - 1.0, 0.0);
+		positions[i * 3 + 2] = glm::vec3( hidden_area_mesh.pVertexData[i * 3 + 2].v[0] * 2.0 - 1.0, hidden_area_mesh.pVertexData[i * 3 + 2].v[1] * 2.0 - 1.0, 0.0);
+	}
+	left_eye_hidden_area_mesh = Mesh::CreateFromRaw("ovr_left_eye_hidden_area_mesh", positions);
+	return left_eye_hidden_area_mesh;
+}
+
+Mesh* OpenVR::get_right_eye_hidden_area_mesh()
+{
+	if (!system) throw std::runtime_error("Error: OpenVR not initialized");
+	if (right_eye_hidden_area_mesh != nullptr) return right_eye_hidden_area_mesh;
+
+	vr::HiddenAreaMesh_t hidden_area_mesh = system->GetHiddenAreaMesh(vr::Hmd_Eye::Eye_Right);
+	if (hidden_area_mesh.unTriangleCount == 0) return nullptr;
+
+	std::vector<glm::vec3> positions(hidden_area_mesh.unTriangleCount * 3);
+	for (uint32_t i = 0; i < hidden_area_mesh.unTriangleCount; ++i) {
+		positions[i * 3 + 0] = glm::vec3( hidden_area_mesh.pVertexData[i * 3 + 0].v[0] * 2.0 - 1.0, hidden_area_mesh.pVertexData[i * 3 + 0].v[1] * 2.0 - 1.0, 0.0);
+		positions[i * 3 + 1] = glm::vec3( hidden_area_mesh.pVertexData[i * 3 + 1].v[0] * 2.0 - 1.0, hidden_area_mesh.pVertexData[i * 3 + 1].v[1] * 2.0 - 1.0, 0.0);
+		positions[i * 3 + 2] = glm::vec3( hidden_area_mesh.pVertexData[i * 3 + 2].v[0] * 2.0 - 1.0, hidden_area_mesh.pVertexData[i * 3 + 2].v[1] * 2.0 - 1.0, 0.0);
+	}
+	right_eye_hidden_area_mesh = Mesh::CreateFromRaw("ovr_right_eye_hidden_area_mesh", positions);
+	return right_eye_hidden_area_mesh;
+}
+
+Material* OpenVR::get_left_eye_hidden_area_material()
+{
+	if (!system) throw std::runtime_error("Error: OpenVR not initialized");
+	if (left_eye_hidden_area_material != nullptr) return left_eye_hidden_area_material;
+	left_eye_hidden_area_material = Material::Create("ovr_left_eye_hidden_area_material");
+	left_eye_hidden_area_material->hide();
+	return left_eye_hidden_area_material;
+}
+
+Material* OpenVR::get_right_eye_hidden_area_material()
+{
+	if (!system) throw std::runtime_error("Error: OpenVR not initialized");
+	if (right_eye_hidden_area_material != nullptr) return right_eye_hidden_area_material;
+	right_eye_hidden_area_material = Material::Create("ovr_right_eye_hidden_area_material");
+	right_eye_hidden_area_material->hide();
+	return right_eye_hidden_area_material;
+}
+
+Transform* OpenVR::get_left_eye_hidden_area_transform()
+{
+	if (!system) throw std::runtime_error("Error: OpenVR not initialized");
+	if (left_eye_hidden_area_transform != nullptr) return left_eye_hidden_area_transform;
+	left_eye_hidden_area_transform = Transform::Create("ovr_left_eye_hidden_area_transform");
+	return left_eye_hidden_area_transform;
+}
+
+Transform* OpenVR::get_right_eye_hidden_area_transform()
+{
+	if (!system) throw std::runtime_error("Error: OpenVR not initialized");
+	if (right_eye_hidden_area_transform != nullptr) return right_eye_hidden_area_transform;
+	right_eye_hidden_area_transform = Transform::Create("ovr_right_eye_hidden_area_transform");
+	return right_eye_hidden_area_transform;
+}
+
+Entity* OpenVR::get_left_eye_hidden_area_entity()
+{
+	if (!system) throw std::runtime_error("Error: OpenVR not initialized");
+	if (left_eye_hidden_area_entity != nullptr) return left_eye_hidden_area_entity;
+	if (left_eye_hidden_area_mesh == nullptr) get_left_eye_hidden_area_mesh();
+	if (left_eye_hidden_area_material == nullptr) get_left_eye_hidden_area_material();
+	if (left_eye_hidden_area_transform == nullptr) get_left_eye_hidden_area_transform();
+
+	left_eye_hidden_area_entity = Entity::Create("ovr_left_eye_hidden_area_entity");
+	if (left_eye_hidden_area_mesh)
+		left_eye_hidden_area_entity->set_mesh(left_eye_hidden_area_mesh);
+	left_eye_hidden_area_entity->set_material(left_eye_hidden_area_material);
+	left_eye_hidden_area_entity->set_transform(left_eye_hidden_area_transform);
+
+	return left_eye_hidden_area_entity;
+}
+
+Entity* OpenVR::get_right_eye_hidden_area_entity()
+{
+	if (!system) throw std::runtime_error("Error: OpenVR not initialized");
+	if (right_eye_hidden_area_entity != nullptr) return right_eye_hidden_area_entity;
+	if (right_eye_hidden_area_mesh == nullptr) get_right_eye_hidden_area_mesh();
+	if (right_eye_hidden_area_material == nullptr) get_right_eye_hidden_area_material();
+	if (right_eye_hidden_area_transform == nullptr) get_right_eye_hidden_area_transform();
+
+	right_eye_hidden_area_entity = Entity::Create("ovr_right_eye_hidden_area_entity");
+	if (right_eye_hidden_area_mesh)
+		right_eye_hidden_area_entity->set_mesh(right_eye_hidden_area_mesh);
+	right_eye_hidden_area_entity->set_material(right_eye_hidden_area_material);
+	right_eye_hidden_area_entity->set_transform(right_eye_hidden_area_transform);
+
+	return right_eye_hidden_area_entity;
 }
 
 } // namespace Libraries

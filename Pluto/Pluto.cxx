@@ -129,8 +129,8 @@ namespace Pluto {
             auto ovr = Libraries::OpenVR::Get();
             ovr->create_eye_textures();
 
-            Transform::Create("VRLeftHand");
-            Transform::Create("VRRightHand");
+            ovr->get_left_eye_hidden_area_entity();
+            ovr->get_right_eye_hidden_area_entity();
         }
     #endif
         if (useGLFW) event_system->destroy_window("TEMP");
