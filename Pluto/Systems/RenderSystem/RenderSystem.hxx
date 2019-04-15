@@ -6,6 +6,7 @@
 
 #include "Pluto/Material/PushConstants.hxx"
 
+class Entity;
 class Texture;
 
 namespace Systems 
@@ -41,10 +42,12 @@ namespace Systems
             void set_sky_transition(float transition);
 
             void use_openvr(bool useOpenVR);
+            void use_openvr_hidden_area_masks(bool use_masks);
         private:
             PushConsts push_constants;            
 
             bool using_openvr = false;
+            bool using_vr_hidden_area_masks = true;
             void *zmq_context;
             
 
@@ -94,6 +97,9 @@ namespace Systems
 
             bool update_push_constants();
             void record_render_commands();
+            void record_final_renderpass(Entity &camera_entity, std::vector<std::vector<std::pair<float, Entity*>>> &visible_entities);
+            void record_depth_prepass(Entity &camera_entity, std::vector<std::vector<std::pair<float, Entity*>>> &visible_entities);
+            void record_blit_camera(Entity &camera_entity, std::map<std::string, std::pair<Camera *, uint32_t>> &window_to_cam);
             void record_cameras();
             void record_blit_textures();
             void enqueue_render_commands();

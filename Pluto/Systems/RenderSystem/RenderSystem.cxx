@@ -166,6 +166,191 @@ void RenderSystem::download_visibility_queries()
 
 uint32_t shadow_idx = 0;
 
+void RenderSystem::record_depth_prepass(Entity &camera_entity, std::vector<std::vector<std::pair<float, Entity*>>> &visible_entities)
+{
+    auto camera = Camera::Get(camera_entity.get_camera());
+    vk::CommandBuffer command_buffer = camera->get_command_buffer();
+
+    /* Record Z prepasses / Occlusion query  */
+    camera->reset_query_pool(command_buffer);
+
+    if ((!Options::IsClient()) && (camera->should_record_depth_prepass())) {
+        for(uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
+            Material::ResetBoundMaterial();
+            
+            /* Get the renderpass for the current camera */
+            vk::RenderPass rp = camera->get_depth_prepass(rp_idx);
+
+            /* Bind all descriptor sets to that renderpass.
+                Note that we're using a single bind. The same descriptors are shared across pipelines. */
+            Material::BindDescriptorSets(command_buffer, rp);
+            
+
+            camera->begin_depth_prepass(command_buffer, rp_idx);
+
+            #ifdef BUILD_OPENVR
+            if (using_openvr && using_vr_hidden_area_masks)
+            {
+                auto ovr = Libraries::OpenVR::Get();
+
+                /* Render visibility masks */
+                if (camera == ovr->get_connected_camera()) {
+                    Entity* mask_entity;
+                    if (rp_idx == 0) mask_entity = ovr->get_left_eye_hidden_area_entity();
+                    else mask_entity = ovr->get_right_eye_hidden_area_entity();
+                    // Push constants
+                    push_constants.target_id = mask_entity->get_id();
+                    push_constants.camera_id = camera_entity.get_id();
+                    push_constants.viewIndex = rp_idx;
+                    push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
+                    Material::DrawEntity(command_buffer, rp, *mask_entity, push_constants, RenderMode::VRMASK);
+                }
+            }
+            #endif
+
+            for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i) {
+                auto target_id = visible_entities[rp_idx][i].second->get_id();
+
+                // if (camera->is_entity_visible(target_id) {
+                /* This is a problem, since a single entity may be drawn multiple times on devices
+                not supporting multiview, (mac). Might need to increase query pool size to MAX_ENTITIES * renderpass count */
+                camera->begin_visibility_query(command_buffer, target_id, i);
+
+                #if BUILD_OPENVR
+                if (using_openvr) {
+                    auto ovr = Libraries::OpenVR::Get();
+                    if (camera == ovr->get_connected_camera()) {
+                        if ( ovr->get_left_eye_hidden_area_entity()->get_id() == target_id) continue;
+                        if ( ovr->get_right_eye_hidden_area_entity()->get_id() == target_id) continue;
+                    }
+                }
+                #endif
+
+                // Push constants
+                push_constants.target_id = target_id;
+                push_constants.camera_id = camera_entity.get_id();
+                push_constants.viewIndex = rp_idx;
+                push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
+                Material::DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].second, push_constants, RenderMode::FRAGMENTDEPTH);
+
+                camera->end_visibility_query(command_buffer, target_id, i);
+                // }
+
+            }
+            camera->end_depth_prepass(command_buffer, rp_idx);
+        }
+    }
+}
+
+void RenderSystem::record_final_renderpass(Entity &camera_entity, std::vector<std::vector<std::pair<float, Entity*>>> &visible_entities)
+{
+    auto camera = Camera::Get(camera_entity.get_camera());
+    vk::CommandBuffer command_buffer = camera->get_command_buffer();
+
+    if (!Options::IsClient()) {
+        /* If we're the client, we recieve color data from "stream_frames". Only render a scene if not the client. */
+        for(uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
+            Material::ResetBoundMaterial();
+
+            /* Get the renderpass for the current camera */
+            vk::RenderPass rp = camera->get_renderpass(rp_idx);
+
+            /* Bind all descriptor sets to that renderpass.
+                Note that we're using a single bind. The same descriptors are shared across pipelines. */
+            Material::BindDescriptorSets(command_buffer, rp);
+            
+            camera->begin_renderpass(command_buffer, rp_idx);
+
+            /* Render visibility masks */
+            #ifdef BUILD_OPENVR
+            if (using_openvr && using_vr_hidden_area_masks && !(camera->should_record_depth_prepass()))
+            {
+                auto ovr = Libraries::OpenVR::Get();
+
+                if (camera == ovr->get_connected_camera()) {
+                    Entity* mask_entity;
+                    if (rp_idx == 0) mask_entity = ovr->get_left_eye_hidden_area_entity();
+                    else mask_entity = ovr->get_right_eye_hidden_area_entity();
+                    // Push constants
+                    push_constants.target_id = mask_entity->get_id();
+                    push_constants.camera_id = camera_entity.get_id();
+                    push_constants.viewIndex = rp_idx;
+                    push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
+                    Material::DrawEntity(command_buffer, rp, *mask_entity, push_constants, RenderMode::VRMASK);
+                }
+            }
+            #endif
+
+            /* Render all objects */
+            for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i) {
+                auto target_id = visible_entities[rp_idx][i].second->get_id();
+                if (camera->is_entity_visible(target_id) || (!camera->should_record_depth_prepass())) {
+                    push_constants.target_id = target_id;
+                    push_constants.camera_id = camera_entity.get_id();
+                    push_constants.viewIndex = rp_idx;
+                    push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
+                    Material::DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].second, push_constants, camera->get_rendermode_override());
+                }
+            }
+            
+            /* Draw transparent objects last */
+            for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i)
+            {
+                auto target_id = visible_entities[rp_idx][i].second->get_id();
+
+                if (camera->is_entity_visible(target_id) || (!camera->should_record_depth_prepass())) {
+                    push_constants.target_id = target_id;
+                    push_constants.camera_id = camera_entity.get_id();
+                    push_constants.viewIndex = rp_idx;
+                    push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
+                    Material::DrawVolume(command_buffer, rp, *visible_entities[rp_idx][i].second, push_constants, camera->get_rendermode_override());
+                }
+            }
+            camera->end_renderpass(command_buffer, rp_idx);
+        }
+    }
+}
+
+void RenderSystem::record_blit_camera(Entity &camera_entity, std::map<std::string, std::pair<Camera *, uint32_t>> &window_to_cam)
+{
+    auto glfw = GLFW::Get();
+    auto camera = Camera::Get(camera_entity.get_camera());
+    vk::CommandBuffer command_buffer = camera->get_command_buffer();
+    Texture * texture = camera->get_texture();
+
+    /* Blit to GLFW windows */
+    for (auto w2c : window_to_cam) {
+        if ((w2c.second.first->get_id() == camera_entity.get_camera())) {
+            /* Window needs a swapchain */
+            auto swapchain = glfw->get_swapchain(w2c.first);
+            if (!swapchain) {
+                continue;
+            }
+
+            /* Need to be able to get swapchain/texture by key...*/
+            auto swapchain_texture = glfw->get_texture(w2c.first);
+
+            /* Record blit to swapchain */
+            if (swapchain_texture && swapchain_texture->is_initialized()) {
+                texture->record_blit_to(command_buffer, swapchain_texture, w2c.second.second);
+            }
+        }
+    }
+
+    /* Blit to OpenVR eyes. */
+    #if BUILD_OPENVR
+    if (using_openvr) {
+        auto ovr = OpenVR::Get();
+        if (camera == ovr->get_connected_camera()) {
+            auto left_eye_texture = ovr->get_left_eye_texture();
+            auto right_eye_texture = ovr->get_right_eye_texture();
+            if (left_eye_texture)  texture->record_blit_to(command_buffer, left_eye_texture, 0);
+            if (right_eye_texture) texture->record_blit_to(command_buffer, right_eye_texture, 1);
+        }
+    }
+    #endif
+}
+
 void RenderSystem::record_cameras()
 {
     auto vulkan = Vulkan::Get();
@@ -192,8 +377,6 @@ void RenderSystem::record_cameras()
         Texture * texture = cameras[cam_id].get_texture();
         if (!texture) continue;
 
-        bool skip = false;
-
         /* If entity is a shadow camera (TODO: REFACTOR THIS...) */
         if (entities[entity_id].get_light() != -1) {
             /* Skip shadowmaps which shouldn't cast shadows */
@@ -211,171 +394,11 @@ void RenderSystem::record_cameras()
 
         auto visible_entities = cameras[cam_id].get_visible_entities(entity_id);
 
-        /* Record Z prepasses / Occlusion query  */
-        cameras[cam_id].reset_query_pool(command_buffer);
+        record_depth_prepass(entities[entity_id], visible_entities);
 
-        if ((!skip) && (!Options::IsClient()) && (cameras[cam_id].should_record_depth_prepass())) {
-            for(uint32_t rp_idx = 0; rp_idx < cameras[cam_id].get_num_renderpasses(); rp_idx++) {
-                Material::ResetBoundMaterial();
-                
-                /* Get the renderpass for the current camera */
-                vk::RenderPass rp = cameras[cam_id].get_depth_prepass(rp_idx);
+        record_final_renderpass(entities[entity_id], visible_entities);
 
-                /* Bind all descriptor sets to that renderpass.
-                    Note that we're using a single bind. The same descriptors are shared across pipelines. */
-                Material::BindDescriptorSets(command_buffer, rp);
-                
-
-                cameras[cam_id].begin_depth_prepass(command_buffer, rp_idx);
-
-                #ifdef BUILD_OPENVR
-                if (using_openvr)
-                {
-                    auto ovr = Libraries::OpenVR::Get();
-
-                    /* Render visibility masks */
-                    if ((&cameras[cam_id]) == ovr->get_connected_camera()) {
-                        Entity* mask_entity;
-                        if (rp_idx == 0) mask_entity = ovr->get_left_eye_hidden_area_entity();
-                        else mask_entity = ovr->get_right_eye_hidden_area_entity();
-                        // Push constants
-                        push_constants.target_id = mask_entity->get_id();
-                        push_constants.camera_id = entity_id;
-                        push_constants.viewIndex = rp_idx;
-                        push_constants.flags = (!cameras[cam_id].should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
-                        Material::DrawEntity(command_buffer, rp, *mask_entity, push_constants, RenderMode::VRMASK);
-                    }
-                }
-                #endif
-
-                for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i) {
-                    auto target_id = visible_entities[rp_idx][i].second->get_id();
-
-                    // if (cameras[cam_id].is_entity_visible(target_id) {
-                    /* This is a problem, since a single entity may be drawn multiple times on devices
-                    not supporting multiview, (mac). Might need to increase query pool size to MAX_ENTITIES * renderpass count */
-                    cameras[cam_id].begin_visibility_query(command_buffer, target_id, i);
-
-                    #if BUILD_OPENVR
-                    if (using_openvr) {
-                        auto ovr = Libraries::OpenVR::Get();
-                        if ((&cameras[cam_id]) == ovr->get_connected_camera()) {
-                            if ( ovr->get_left_eye_hidden_area_entity()->get_id() == target_id) continue;
-                            if ( ovr->get_right_eye_hidden_area_entity()->get_id() == target_id) continue;
-                        }
-                    }
-                    #endif
-
-                    // Push constants
-                    push_constants.target_id = target_id;
-                    push_constants.camera_id = entity_id;
-                    push_constants.viewIndex = rp_idx;
-                    push_constants.flags = (!cameras[cam_id].should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
-                    Material::DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].second, push_constants, RenderMode::FRAGMENTDEPTH);
-
-                    cameras[cam_id].end_visibility_query(command_buffer, target_id, i);
-                    // }
-
-                }
-                cameras[cam_id].end_depth_prepass(command_buffer, rp_idx);
-            }
-        }
-
-        /* Record forward renderpasses */
-        if ((!skip) && (!Options::IsClient())) {
-            /* If we're the client, we recieve color data from "stream_frames". Only render a scene if not the client. */
-            for(uint32_t rp_idx = 0; rp_idx < cameras[cam_id].get_num_renderpasses(); rp_idx++) {
-                Material::ResetBoundMaterial();
-
-                /* Get the renderpass for the current camera */
-                vk::RenderPass rp = cameras[cam_id].get_renderpass(rp_idx);
-
-                /* Bind all descriptor sets to that renderpass.
-                    Note that we're using a single bind. The same descriptors are shared across pipelines. */
-                Material::BindDescriptorSets(command_buffer, rp);
-                
-                cameras[cam_id].begin_renderpass(command_buffer, rp_idx);
-
-                /* Render visibility masks */
-                #ifdef BUILD_OPENVR
-                if (using_openvr && !(cameras[cam_id].should_record_depth_prepass()))
-                {
-                    auto ovr = Libraries::OpenVR::Get();
-
-                    if ((&cameras[cam_id]) == ovr->get_connected_camera()) {
-                        Entity* mask_entity;
-                        if (rp_idx == 0) mask_entity = ovr->get_left_eye_hidden_area_entity();
-                        else mask_entity = ovr->get_right_eye_hidden_area_entity();
-                        // Push constants
-                        push_constants.target_id = mask_entity->get_id();
-                        push_constants.camera_id = entity_id;
-                        push_constants.viewIndex = rp_idx;
-                        push_constants.flags = (!cameras[cam_id].should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
-                        Material::DrawEntity(command_buffer, rp, *mask_entity, push_constants, RenderMode::VRMASK);
-                    }
-                }
-                #endif
-
-                /* Render all objects */
-                for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i) {
-                    auto target_id = visible_entities[rp_idx][i].second->get_id();
-                    if (cameras[cam_id].is_entity_visible(target_id) || (!cameras[cam_id].should_record_depth_prepass())) {
-                        push_constants.target_id = target_id;
-                        push_constants.camera_id = entity_id;
-                        push_constants.viewIndex = rp_idx;
-                        push_constants.flags = (!cameras[cam_id].should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
-                        Material::DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].second, push_constants, cameras[cam_id].get_rendermode_override());
-                    }
-                }
-                
-                /* Draw transparent objects last */
-                for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i)
-                {
-                    auto target_id = visible_entities[rp_idx][i].second->get_id();
-
-                    if (cameras[cam_id].is_entity_visible(target_id) || (!cameras[cam_id].should_record_depth_prepass())) {
-                        push_constants.target_id = target_id;
-                        push_constants.camera_id = entity_id;
-                        push_constants.viewIndex = rp_idx;
-                        push_constants.flags = (!cameras[cam_id].should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
-                        Material::DrawVolume(command_buffer, rp, *visible_entities[rp_idx][i].second, push_constants, cameras[cam_id].get_rendermode_override());
-                    }
-                }
-                cameras[cam_id].end_renderpass(command_buffer, rp_idx);
-            }
-        }
-
-        /* Blit to GLFW windows */
-        for (auto w2c : window_to_cam) {
-            if ((w2c.second.first->get_id() == cam_id)) {
-                /* Window needs a swapchain */
-                auto swapchain = glfw->get_swapchain(w2c.first);
-                if (!swapchain) {
-                    continue;
-                }
-
-                /* Need to be able to get swapchain/texture by key...*/
-                auto swapchain_texture = glfw->get_texture(w2c.first);
-
-                /* Record blit to swapchain */
-                if (swapchain_texture && swapchain_texture->is_initialized()) {
-                    texture->record_blit_to(command_buffer, swapchain_texture, w2c.second.second);
-                }
-            }
-        }
-    
-        /* Blit to OpenVR eyes. */
-        #if BUILD_OPENVR
-        if (using_openvr) {
-            auto ovr = OpenVR::Get();
-            if ((&cameras[cam_id]) == ovr->get_connected_camera()) {
-                auto left_eye_texture = ovr->get_left_eye_texture();
-                auto right_eye_texture = ovr->get_right_eye_texture();
-                if (left_eye_texture)  texture->record_blit_to(command_buffer, left_eye_texture, 0);
-                if (right_eye_texture) texture->record_blit_to(command_buffer, right_eye_texture, 1);
-            }
-        }
-        #endif
+        record_blit_camera(entities[entity_id], window_to_cam);
 
         /* End this recording. */
         command_buffer.end();
@@ -1005,5 +1028,6 @@ void RenderSystem::set_top_sky_color(float r, float g, float b) { set_top_sky_co
 void RenderSystem::set_bottom_sky_color(float r, float g, float b) { set_bottom_sky_color(glm::vec4(r, g, b, 1.0)); }
 void RenderSystem::set_sky_transition(float transition) { push_constants.sky_transition = transition; }
 void RenderSystem::use_openvr(bool useOpenVR) { this->using_openvr = useOpenVR; }
+void RenderSystem::use_openvr_hidden_area_masks(bool use_masks) {this->using_vr_hidden_area_masks = use_masks;};
 
 } // namespace Systems

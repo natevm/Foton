@@ -727,7 +727,7 @@ void Camera::download_query_pool_results()
 			queryDownloaded = true;
 		}
 		else {
-			std::cout<<"camera " << id << " " << vk::to_string(result)<<std::endl;
+			// std::cout<<"camera " << id << " " << vk::to_string(result)<<std::endl;
 		}
 	}
 }

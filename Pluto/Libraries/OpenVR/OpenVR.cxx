@@ -736,8 +736,8 @@ int32_t OpenVR::get_left_knuckles_roughness_texture(std::string name)
 	std::string ResourcePath = Options::GetResourcePath();
 	auto full_path = ResourcePath;
 	if (vk->is_ASTC_supported()) full_path += std::string("/Defaults/VRModels/valve_controller_knu_ev2_0_left/knucklesev2_0_rough_left_astc8x8.ktx");
-	else if (vk->is_ETC2_supported()) full_path += std::string("/Defaults/VRModels/valve_controller_knu_ev2_0_left/knucklesev2_0_rough_left_etc2.ktx");
 	else if (vk->is_BC_supported()) full_path += std::string("/Defaults/VRModels/valve_controller_knu_ev2_0_left/knucklesev2_0_rough_left_bc3.ktx");
+	else if (vk->is_ETC2_supported()) full_path += std::string("/Defaults/VRModels/valve_controller_knu_ev2_0_left/knucklesev2_0_rough_left_etc2.ktx");
 	else {
 		std::cout<<"OpenVR Error: no texture compression format supported! " << std::endl;
 		return -1;

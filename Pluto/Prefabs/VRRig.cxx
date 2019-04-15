@@ -6,6 +6,7 @@
 #include "Pluto/Transform/Transform.hxx"
 #include "Pluto/Texture/Texture.hxx"
 
+#include "Pluto/Systems/RenderSystem/RenderSystem.hxx"
 #include "Pluto/Systems/EventSystem/EventSystem.hxx"
 
 #include "Pluto/Libraries/GLFW/GLFW.hxx"
@@ -22,7 +23,10 @@ VRRig::VRRig(float resolution_quality, uint32_t msaa_samples, bool show_chaperon
 {
     #ifdef BUILD_OPENVR
     auto es = Systems::EventSystem::Get();
+    auto rs = Systems::RenderSystem::Get();
     auto ovr = Libraries::OpenVR::Get();
+
+    rs->use_openvr_hidden_area_masks(enable_visibility_mask);
 
     camera_entity = Entity::Create("vr_rig_entity");
     camera_transform = Transform::Create("vr_rig_camera_transform");
