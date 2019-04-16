@@ -346,8 +346,8 @@ namespace Libraries {
         auto psurf = VkSurfaceKHR(surface);
         glfwCreateWindowSurface((VkInstance)instance, Windows().at(key).ptr, NULL, &psurf);
 
-        Windows().at(key).surface = psurf;
-        return psurf;
+        Windows().at(key).surface = vk::SurfaceKHR(psurf);
+        return vk::SurfaceKHR(psurf);
     }
 
     std::shared_ptr<std::mutex> GLFW::get_mutex()

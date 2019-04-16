@@ -10,3 +10,6 @@
 [submodule "external/generator"]
 	path = external/generator
 	url = https://github.com/n8vm/generator.git
+[submodule "external/tetgen"]
+	path = external/tetgen
+	url = https://github.com/n8vm/tetgen.git
