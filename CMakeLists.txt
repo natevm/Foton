@@ -142,6 +142,16 @@ add_subdirectory(external/generator)
 include_directories(SYSTEM external/generator/include)
 set_property(TARGET generator PROPERTY FOLDER "external/generator")
 
+# TetGen 1.4.1 (MIT version)
+set(TETGEN_SRC 
+  ${CMAKE_CURRENT_SOURCE_DIR}/external/tetgen/tetgen.cxx
+  ${CMAKE_CURRENT_SOURCE_DIR}/external/tetgen/predicates.cxx
+)
+set(TETGEN_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/tetgen)
+include_directories(SYSTEM ${TETGEN_INCLUDE_DIR})
+add_definitions(-DTETLIBRARY)
+add_library(TetGen STATIC ${TETGEN_SRC})
+
 # swig
 find_package(SWIG 3.0.8)
 if (UNIX AND NOT APPLE)
@@ -189,7 +199,7 @@ else()
 endif(${ZMQ_FOUND})
 
 # python
-find_package(Python3 3.6 COMPONENTS Interpreter Development REQUIRED)
+find_package(Python3 3.6 COMPONENTS Development REQUIRED)
 if (UNIX AND NOT APPLE)
   if (NOT Python3_FOUND)
     message(FATAL_ERROR "Python 3 development libraries missing!"
@@ -219,7 +229,6 @@ endif(BUILD_SPACEMOUSE)
 
 # google test
 if(BUILD_TESTS)
-
     # Download and unpack googletest at configure time
     configure_file(CMakeLists.txt.in googletest-download/CMakeLists.txt)
     execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
@@ -264,6 +273,7 @@ set (
     ${OPENVR_SDK_LIBRARY}
     ${SPACEMOUSE_LIBRARIES}
     generator
+    TetGen
 )
 
 # ┌──────────────────────────────────────────────────────────────────┐
