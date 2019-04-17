@@ -65,7 +65,7 @@ Material::Material(std::string name, uint32_t id)
     material_struct.transmission = 0.0;
     material_struct.transmission_roughness = 0.0;
     material_struct.volume_texture_id = -1;
-    material_struct.ph5 = 0.0;
+    material_struct.ph5 = 0;
     material_struct.flags = 0;
     material_struct.base_color_texture_id = -1;
     material_struct.roughness_texture_id = -1;
