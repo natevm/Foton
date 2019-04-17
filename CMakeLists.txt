@@ -29,7 +29,7 @@ endif()
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Options                                                         │
 # └──────────────────────────────────────────────────────────────────┘
-option(BUILD_OPENVR "Build with OpenVR support" OFF)
+option(BUILD_OPENVR "Build with OpenVR support" ON)
 option(BUILD_SPACEMOUSE "Build with SpaceMouse support" OFF)
 option(BUILD_TESTS "Include the regression and unit tests target" OFF)
 
