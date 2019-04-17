@@ -13,3 +13,6 @@
 [submodule "external/tetgen"]
 	path = external/tetgen
 	url = https://github.com/n8vm/tetgen.git
+[submodule "external/openvr"]
+	path = external/openvr
+	url = https://github.com/n8vm/openvr.git
