@@ -58,7 +58,9 @@ if (DISABLE_REVERSE_Z)
 endif(DISABLE_REVERSE_Z)
 
 if (BUILD_OPENVR)
-    add_definitions(-DBUILD_OPENVR)
+    add_definitions(-DBUILD_OPENVR) 
+    add_definitions(-DOPENVR_BUILD_STATIC)
+    
 endif(BUILD_OPENVR)
 
 if (BUILD_SPACEMOUSE)
@@ -213,10 +215,14 @@ include_directories(SYSTEM ${Python3_INCLUDE_DIRS})
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/tiny)
 
 # openvr
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/openvr/CMakeLists.txt")
+  message(FATAL_ERROR "The OpenVR submodule directory is empty! "
+    "You probably did not clone the project with --recursive. It is possible to recover "
+    "by running \"git submodule update --init --recursive\"")
+endif()
 if(BUILD_OPENVR)
-    set(SpaceMouse_Libs "${CMAKE_CURRENT_SOURCE_DIR}/external/openvr")
-    find_package(OpenVRSDK REQUIRED)
-    include_directories(SYSTEM ${OPENVR_SDK_INCLUDE_DIR})
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/openvr)
+    include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/openvr/headers)
 endif(BUILD_OPENVR)
 
 # spacemouse
@@ -274,6 +280,7 @@ set (
     ${SPACEMOUSE_LIBRARIES}
     generator
     TetGen
+    openvr_api64
 )
 
 # ┌──────────────────────────────────────────────────────────────────┐
