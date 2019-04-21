@@ -196,6 +196,61 @@ void Mesh::compute_metadata()
 	}
 }
 
+void Mesh::compute_simulation_matrices(float mass_, float stiffness_, float step_size_)
+{
+	if (edges.empty() && !indices.empty())
+		generate_edges();
+
+	//number of vertices
+	int nN = positions.size();
+	//number of springs
+	int nM = edges.size();
+
+	// TODO: this model now also assumes zero initial velocities
+	// possibly the user can provide a list of velocities along with the vertices
+	velocities.resize(nN, glm::vec3(0, 0, 0));
+
+	// TODO: this model now assumes homogeneous stiffness,
+	// possibly the user can provide a list of stiffness along with the edges
+	// TODO: this model now also assumes homogeneous mass
+	// possilby the user can provide a list of mass values along with the vertices
+
+	mass = mass_;
+	stiffness = stiffness_;
+	step_size = step_size_;
+	damping_factor = 0.f; //user can set this using set_damping_factor
+
+	L.resize(nN, nN);
+	J.resize(nM, nN);
+	int counter = 0;
+	for (auto e : edges)
+	{
+		L.coeffRef(e.first, e.first) += 1;
+		L.coeffRef(e.second, e.second) += 1;
+		L.coeffRef(e.first, e.second) -= 1;
+		L.coeffRef(e.second, e.first) -= 1;
+		J.coeffRef(counter, e.first) += 1;
+		J.coeffRef(counter, e.second) -= 1;
+		counter++;
+	}
+
+	L.makeCompressed();
+	J.makeCompressed();
+
+	// allocate space for the mass matrix
+	M.resize(nN, nN);
+	precompute_mass_matrix();
+
+	// matrix for external force
+	G.resize(3, nN);
+
+	//allocate space for precomputed cholesky
+	precomputed_cholesky = std::make_shared< Eigen::SimplicialLLT<Eigen::SparseMatrix<float>>>();
+
+	//precompute cholesky decomposition
+	precompute_cholesky();
+}
+
 glm::vec3 Mesh::get_centroid()
 {
 	return mesh_struct.centroid;
@@ -688,6 +743,8 @@ void Mesh::load_raw(
 	std::vector<glm::vec4> &colors_, 
 	std::vector<glm::vec2> &texcoords_, 
 	std::vector<uint32_t> indices_,
+	std::vector<glm::ivec2>& edges_,
+	std::vector<float>& rest_lengths_,
 	bool allow_edits, bool submit_immediately
 )
 {
@@ -696,6 +753,8 @@ void Mesh::load_raw(
 	bool reading_colors = colors_.size() > 0;
 	bool reading_texcoords = texcoords_.size() > 0;
 	bool reading_indices = indices_.size() > 0;
+	bool reading_edges = edges_.size() > 0;
+	bool reading_rest_lengths = rest_lengths_.size() > 0;
 
 	if (positions_.size() == 0)
 		throw std::runtime_error( std::string("Error, no positions supplied. "));
@@ -721,6 +780,12 @@ void Mesh::load_raw(
 				throw std::runtime_error( std::string("Error, index out of bounds. Index " + std::to_string(i) + " is greater than total positions: " + std::to_string(positions_.size())));
 		}
 	}
+
+	if (!reading_edges && !reading_indices)
+		throw std::runtime_error(std::string("Error, indices must be provided to automatically generate edges"));
+
+	if (edges_.size() > rest_lengths_.size() && reading_rest_lengths)
+		throw std::runtime_error(std::string("Error, number of rest lengths provided (>0) is smaller than the number of edges."));
 		
 	std::vector<Vertex> vertices;
 
@@ -738,7 +803,8 @@ void Mesh::load_raw(
 	std::unordered_map<Vertex, uint32_t> uniqueVertexMap = {};
 	std::vector<Vertex> uniqueVertices;
 
-	/* Don't bin positions as unique when editing, since it's unexpected for a user to lose positions */
+	/* Don't bin positions as unique when editing, 
+	since it's unexpected for a user to lose positions */
 	if (allow_edits && !reading_indices) {
 		uniqueVertices = vertices;
 		for (int i = 0; i < vertices.size(); ++i) {
@@ -773,6 +839,22 @@ void Mesh::load_raw(
 		texcoords.push_back(v.texcoord);
 	}
 
+	// if edges (constraints) are not provided, generate them 
+	if (edges_.empty())
+	{
+		generate_edges();
+	}
+	else
+	{
+		for (auto e : edges_)
+		{
+			edges.push_back(std::make_pair(e.x, e.y));
+			rest_lengths.push_back(length(positions[e.x] - positions[e.y]));
+		}
+		rest_lengths = rest_lengths_;
+		rest_lengths.resize(edges.size()); //truncate
+	}
+
 	cleanup();
 	compute_metadata();
 	createPointBuffer(allow_edits, submit_immediately);
@@ -780,6 +862,55 @@ void Mesh::load_raw(
 	createIndexBuffer(allow_edits, submit_immediately);
 	createNormalBuffer(allow_edits, submit_immediately);
 	createTexCoordBuffer(allow_edits, submit_immediately);
+}
+
+void Mesh::generate_edges()
+{
+	edges.clear();
+	rest_lengths.clear();
+	std::set<std::pair<int, int>> unique_edges;
+	// WARNING: here I assume that indices are always a list of triangle indices
+	for (uint32_t i = 0; i < indices.size(); i += 3) {
+		float first = indices[i], second = indices[i + 1];
+		if (first > second) std::swap(first, second);
+		unique_edges.insert(std::make_pair(first, second));
+
+		first = indices[i], second = indices[i + 2];
+		if (first > second) std::swap(first, second);
+		unique_edges.insert(std::make_pair(first, second));
+
+		first = indices[i + 1], second = indices[i + 2];
+		if (first > second) std::swap(first, second);
+		unique_edges.insert(std::make_pair(first, second));
+	}
+
+	for (auto e : unique_edges)
+	{
+		edges.push_back(std::make_pair(e.first, e.second));
+		rest_lengths.push_back(length(positions[e.first] - positions[e.second]));
+	}
+}
+
+void Mesh::precompute_mass_matrix()
+{
+	int nN = (int)positions.size();
+	M.setIdentity();
+	float unitmass = mass / nN;
+	M *= unitmass;
+}
+
+void Mesh::precompute_cholesky()
+{
+	int nN = (int)positions.size();
+	float unitmass = mass / nN;
+
+	Eigen::SparseMatrix<float> A = stiffness * L;
+	for (int i = 0; i < nN; i++)
+	{
+		A.coeffRef(i, i) += 1.f / (step_size*step_size) * unitmass;
+	}
+
+	precomputed_cholesky->compute(A.transpose());
 }
 
 void Mesh::edit_position(uint32_t index, glm::vec3 new_position)
@@ -827,6 +958,43 @@ void Mesh::edit_positions(uint32_t index, std::vector<glm::vec3> new_positions)
 	void *data = device.mapMemory(pointBufferMemory, (index * sizeof(glm::vec3)), sizeof(glm::vec3) * new_positions.size(), vk::MemoryMapFlags());
 	memcpy(data, new_positions.data(), sizeof(glm::vec3) * new_positions.size());
 	device.unmapMemory(pointBufferMemory);
+}
+
+void Mesh::edit_velocity(uint32_t index, glm::vec3 new_velocity)
+{
+	auto vulkan = Libraries::Vulkan::Get();
+	if (!vulkan->is_initialized())
+		throw std::runtime_error("Error: Vulkan is not initialized");
+	auto device = vulkan->get_device();
+
+	if (!allowEdits)
+		throw std::runtime_error("Error: editing this component is not allowed. \
+			Edits can be enabled during creation.");
+
+	if (index >= this->velocities.size())
+		throw std::runtime_error("Error: index out of bounds. Max index is " + std::to_string(this->velocities.size() - 1));
+
+	velocities[index] = new_velocity;
+}
+
+void Mesh::edit_velocities(uint32_t index, std::vector<glm::vec3> new_velocities)
+{
+	auto vulkan = Libraries::Vulkan::Get();
+	if (!vulkan->is_initialized())
+		throw std::runtime_error("Error: Vulkan is not initialized");
+	auto device = vulkan->get_device();
+
+	if (!allowEdits)
+		throw std::runtime_error("Error: editing this component is not allowed. \
+			Edits can be enabled during creation.");
+
+	if (index >= this->velocities.size())
+		throw std::runtime_error("Error: index out of bounds. Max index is " + std::to_string(this->velocities.size() - 1));
+
+	if ((index + new_velocities.size()) > this->velocities.size())
+		throw std::runtime_error("Error: too many positions for given index, out of bounds. Max index is " + std::to_string(this->velocities.size() - 1));
+
+	memcpy(&velocities[index], new_velocities.data(), new_velocities.size() * sizeof(glm::vec3));
 }
 
 void Mesh::edit_normal(uint32_t index, glm::vec3 new_normal)
@@ -924,6 +1092,103 @@ void Mesh::compute_smooth_normals(bool upload)
 	if (upload) {
 		edit_normals(0, normals);
 	}
+}
+
+float Mesh::get_stiffness()
+{
+	return stiffness;
+}
+
+float Mesh::get_mass()
+{
+	return mass;
+}
+
+float Mesh::get_damping_factor()
+{
+	return damping_factor;
+}
+
+void Mesh::set_stiffness(float stiffness_)
+{
+	stiffness = stiffness_;
+	precompute_cholesky();
+}
+
+void Mesh::set_mass(float mass_)
+{
+	mass = mass_;
+	precompute_mass_matrix();
+	precompute_cholesky();
+}
+
+void Mesh::set_damping_factor(float damping_factor_)
+{
+	damping_factor = damping_factor_;
+}
+
+void Mesh::update(float time_step, uint32_t iterations, glm::vec3 f_ext)
+{
+	std::cout << "TODO: update the mesh" << std::endl;
+
+	int nN = (int)positions.size();
+
+	// update the precomputed cholesky when time step size changes
+	if (time_step != step_size)
+	{
+		step_size = time_step;
+		precompute_cholesky();
+	}
+
+	// compute the external force matrix
+	float unitmass = mass / nN;
+	G.colwise() = Eigen::Vector3f(f_ext.x, f_ext.y, f_ext.z);
+	G *= unitmass;
+
+	using namespace Eigen;
+	MatrixXf Y(3, nN);
+	for (int i = 0; i < nN; i++)
+		for (int j = 0; j < 3; j++)
+			Y(j, i) = positions[i][j] + velocities[i][j];
+
+	MatrixXf X(3, nN);
+	X = Y;
+
+	for (int iter = 0; iter < iterations; iter++)
+	{
+		int nM = (int)edges.size();
+		// compute D
+		MatrixXf D(3, nM);
+		for (int i = 0; i < nM; i++)
+		{
+			auto spr = edges[i];
+			Vector3f diff = X.col(spr.first) - X.col(spr.second);
+			D.col(i) = rest_lengths[i] * diff.normalized();
+		}
+
+		// compute X
+		MatrixXf b = D * (stiffness * J) + 1.f / (time_step*time_step) * Y * M + G;
+		X = precomputed_cholesky->solve(b.transpose()).transpose();
+	}
+
+	//update velocities and positions
+	for (int i = 0; i < nN; i++)
+		for (int j = 0; j < 3; j++)
+		{
+			velocities[i][j] = (float)(1 - damping_factor) * (X(j, i) - positions[i][j]);
+			positions[i][j] += velocities[i][j];
+		}
+
+	//upload new positions 
+	auto vulkan = Libraries::Vulkan::Get();
+	if (!vulkan->is_initialized())
+		throw std::runtime_error("Error: Vulkan is not initialized");
+	auto device = vulkan->get_device();
+	void *data = device.mapMemory(pointBufferMemory, 0, nN * sizeof(glm::vec3), vk::MemoryMapFlags());
+	memcpy(data, positions.data(), nN * sizeof(glm::vec3));
+	device.unmapMemory(pointBufferMemory);
+
+	compute_metadata();
 }
 
 void Mesh::edit_vertex_color(uint32_t index, glm::vec4 new_color)
@@ -1756,12 +2021,14 @@ Mesh* Mesh::CreateFromRaw (
 	std::vector<glm::vec4> colors, 
 	std::vector<glm::vec2> texcoords, 
 	std::vector<uint32_t> indices, 
+	std::vector<glm::ivec2> edges,
+	std::vector<float> rest_lengths,
 	bool allow_edits, 
 	bool submit_immediately)
 {
 	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
-	mesh->load_raw(positions, normals, colors, texcoords, indices, allow_edits, submit_immediately);
+	mesh->load_raw(positions, normals, colors, texcoords, indices, edges, rest_lengths, allow_edits, submit_immediately);
 	return mesh;
 }
 

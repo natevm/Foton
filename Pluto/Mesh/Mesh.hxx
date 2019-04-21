@@ -5,6 +5,8 @@
 #include <tiny_obj_loader.h>
 #include <map>
 #include <mutex>
+#include <Eigen/Dense>
+#include <Eigen/Sparse>
 
 #include "Pluto/Tools/Options.hxx"
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
@@ -120,6 +122,13 @@ class Mesh : public StaticFactory
 			std::vector<glm::vec4> colors = {}, 
 			std::vector<glm::vec2> texcoords = {}, 
 			std::vector<uint32_t> indices = {},
+			std::vector<glm::ivec2> edges = {},
+			// when not provding rest_lengths, edges will use the distance between the positions as the default rest lengths
+			// if providing rest_lengths, the size of rest_lengths must not be less than the size of edges
+			// if non empty rest_legnths are provided but no edges are provided, the rest_lenghts are ignored and
+			// the edges will be automatically generated using the triangles formed by the indices, default rest lengths
+			// will be used
+			std::vector<float> rest_lengths = {},
 			bool allow_edits = false, bool submit_immediately = false);
 
 		/* Retrieves a mesh component by name */
@@ -208,6 +217,9 @@ class Mesh : public StaticFactory
 			as well as min/max bounds and bounding sphere data. */
 		void compute_metadata();
 
+		/* Computes matrices for solving implicit Euler. Must call this before simulation. */
+		void compute_simulation_matrices(float mass = 100, float stiffness = 10000, float step_size = 0.001);
+
 		/* Returns the last computed centroid. */
 		glm::vec3 get_centroid();
 
@@ -226,6 +238,12 @@ class Mesh : public StaticFactory
 		/* If mesh editing is enabled, replaces the set of positions starting at the given index with a new set of positions */
 		void edit_positions(uint32_t index, std::vector<glm::vec3> new_positions);
 
+		/* If mesh editing is enabled, replaces the velocity at the given index with a new velocity */
+		void edit_velocity(uint32_t index, glm::vec3 new_velocity);
+
+		/* If mesh editing is enabled, replaces the set of velocities starting at the given index with a new set of velocities */
+		void edit_velocities(uint32_t index, std::vector<glm::vec3> new_velocities);
+
 		/* If mesh editing is enabled, replaces the normal at the given index with a new normal */
 		void edit_normal(uint32_t index, glm::vec3 new_normal);
 
@@ -234,6 +252,22 @@ class Mesh : public StaticFactory
 
 		/* TODO: EXPLAIN THIS */
 		void compute_smooth_normals(bool upload = true);
+
+		float get_stiffness();
+		
+		float get_mass();
+
+		float get_damping_factor();
+
+		void set_stiffness(float stiffness);
+
+		void set_mass(float mass);
+
+		void set_damping_factor(float damping_factor);
+
+		/* time_step: delta_t in numerical integration, iterations: number of iterations required in 
+		the projective dynamics solver, f_ext: an external field applied to every particle*/
+		void update(float time_step = 0.001, uint32_t iterations = 10, glm::vec3 f_ext = glm::vec3(0,0,-9.8));
 
 		/* If mesh editing is enabled, replaces the vertex color at the given index with a new vertex color */
 		void edit_vertex_color(uint32_t index, glm::vec4 new_color);
@@ -303,7 +337,19 @@ class Mesh : public StaticFactory
 		std::vector<glm::vec3> normals;
 		std::vector<glm::vec4> colors;
 		std::vector<glm::vec2> texcoords;
+		std::vector<glm::vec3> velocities;
+		std::vector<std::pair<uint32_t, uint32_t>> edges; // pairs of indices
+		std::vector<float> rest_lengths; // difference of initial positions of the two vertices in each edge
 		std::vector<uint32_t> indices;
+
+		//
+		Eigen::MatrixXf G; //gravity, hardcoded to (0,0,-9.8)
+		Eigen::SparseMatrix<float> L, J, M;
+		float mass; //using a hardcoded mass of 100 now
+		float stiffness; // using a hardcoded stiffness of 10000 now;
+		float step_size; // initialized to 0.001
+		float damping_factor; //initialized to 0;
+		std::shared_ptr<Eigen::SimplicialLLT<Eigen::SparseMatrix<float>>> precomputed_cholesky;
 
 		/* A handle to the attributes loaded from tiny obj */
 		tinyobj::attrib_t attrib;
@@ -396,9 +442,17 @@ class Mesh : public StaticFactory
 			std::vector<glm::vec4> &colors, 
 			std::vector<glm::vec2> &texcoords,
 			std::vector<uint32_t> indices,
+			std::vector<glm::ivec2>& edges,
+			std::vector<float>& rest_lengths,
 			bool allow_edits,
 			bool submit_immediately
 		);
+
+		void generate_edges();
+		/* need to call this whenever the mass changes*/
+		void precompute_mass_matrix();
+		/* need to call this whenever the step size or stiffness, or mass changes*/
+		void precompute_cholesky();
 		
 		/* Creates a procedural mesh from the given mesh generator, and copies per vertex to the GPU */
 		template <class Generator>
