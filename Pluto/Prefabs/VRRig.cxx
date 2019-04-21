@@ -10,10 +10,7 @@
 #include "Pluto/Systems/EventSystem/EventSystem.hxx"
 
 #include "Pluto/Libraries/GLFW/GLFW.hxx"
-
-#ifdef BUILD_OPENVR
 #include "Pluto/Libraries/OpenVR/OpenVR.hxx"
-#endif
 
 #include "Pluto/Libraries/GLFW/GLFW.hxx"
 
@@ -21,7 +18,6 @@ VRRig::VRRig(){}
 
 VRRig::VRRig(float resolution_quality, uint32_t msaa_samples, bool show_chaperone_window, bool enable_depth_prepass, bool enable_multiview, bool enable_visibility_mask)
 {
-    #ifdef BUILD_OPENVR
     auto es = Systems::EventSystem::Get();
     auto rs = Systems::RenderSystem::Get();
     auto ovr = Libraries::OpenVR::Get();
@@ -82,10 +78,6 @@ VRRig::VRRig(float resolution_quality, uint32_t msaa_samples, bool show_chaperon
     
 
     initialized = true;
-
-    #else
-    throw std::runtime_error("Error: Pluto was not built with OpenVR enabled");
-    #endif
 }
 
 void VRRig::update()

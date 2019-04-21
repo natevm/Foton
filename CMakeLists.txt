@@ -29,7 +29,7 @@ endif()
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Options                                                         │
 # └──────────────────────────────────────────────────────────────────┘
-option(BUILD_OPENVR "Build with OpenVR support" ON)
+# option(BUILD_OPENVR "Build with OpenVR support" ON)s
 option(BUILD_SPACEMOUSE "Build with SpaceMouse support" OFF)
 option(BUILD_TESTS "Include the regression and unit tests target" OFF)
 
@@ -57,11 +57,8 @@ if (DISABLE_REVERSE_Z)
     add_definitions(-DDISABLE_REVERSE_Z)
 endif(DISABLE_REVERSE_Z)
 
-if (BUILD_OPENVR)
-    add_definitions(-DBUILD_OPENVR) 
-    add_definitions(-DOPENVR_BUILD_STATIC)
-    
-endif(BUILD_OPENVR)
+add_definitions(-DBUILD_OPENVR) 
+add_definitions(-DOPENVR_BUILD_STATIC)
 
 if (BUILD_SPACEMOUSE)
     add_definitions(-DBUILD_SPACEMOUSE)
@@ -153,6 +150,7 @@ set(TETGEN_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/tetgen)
 include_directories(SYSTEM ${TETGEN_INCLUDE_DIR})
 add_definitions(-DTETLIBRARY)
 add_library(TetGen STATIC ${TETGEN_SRC})
+set_property(TARGET TetGen PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 # swig
 find_package(SWIG 3.0.8)
@@ -220,10 +218,8 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/openvr/CMakeLists.txt")
     "You probably did not clone the project with --recursive. It is possible to recover "
     "by running \"git submodule update --init --recursive\"")
 endif()
-if(BUILD_OPENVR)
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/openvr)
-    include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/openvr/headers)
-endif(BUILD_OPENVR)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/openvr)
+include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/openvr/headers)
 
 # bullet 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/bullet3)
@@ -284,12 +280,18 @@ set (
     ${SPACEMOUSE_LIBRARIES}
     generator
     TetGen
-    openvr_api64
     BulletSoftBody
     BulletDynamics
     BulletCollision
     LinearMath
 )
+
+# Name of OpenVR target seems to change...
+if (MSVC)
+set(LIBRARIES ${LIBRARIES} openvr_api64)
+else(MSVC)
+set(LIBRARIES ${LIBRARIES} openvr_api)
+endif(MSVC)
 
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Add source files                                                │

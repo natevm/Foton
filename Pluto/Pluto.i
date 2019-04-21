@@ -9,9 +9,7 @@ using namespace Pluto;
 /* Libraries */
 #include "Pluto/Libraries/GLFW/GLFW.hxx"
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
-#ifdef BUILD_OPENVR
 #include "Pluto/Libraries/OpenVR/OpenVR.hxx"
-#endif
 #ifdef BUILD_SPACEMOUSE
 #include "Pluto/Libraries/SpaceMouse/SpaceMouse.hxx"
 #endif
@@ -111,10 +109,7 @@ using namespace Systems;
 %import "Pluto/Libraries/GLM/GLM.i"
 %include "Pluto/Libraries/GLFW/GLFW.hxx";
 %include "Pluto/Libraries/Vulkan/Vulkan.hxx";
-
-#ifdef BUILD_OPENVR
 %include "Pluto/Libraries/OpenVR/OpenVR.hxx";
-#endif
 
 #ifdef BUILD_SPACEMOUSE
 %include "Pluto/Libraries/SpaceMouse/SpaceMouse.hxx";

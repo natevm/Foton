@@ -1,9 +1,7 @@
 #include "EventSystem.hxx"
 
 #include "Pluto/Prefabs/Prefabs.hxx"
-#if BUILD_OPENVR
 #include "Pluto/Libraries/OpenVR/OpenVR.hxx"
-#endif
 #if BUILD_SPACEMOUSE
 #include "Pluto/Libraries/SpaceMouse/SpaceMouse.hxx"
 #endif
@@ -72,14 +70,12 @@ namespace Systems
                     }
                 }
             }
-#if BUILD_OPENVR
             if (useOpenVR) {
                 auto OpenVR = OpenVR::Get();
                 if (OpenVR) {
                     OpenVR->poll_event();
                 }
             }
-#endif
 
 #if BUILD_SPACEMOUSE
             auto sm = SpaceMouse::Get();
@@ -172,50 +168,34 @@ namespace Systems
 
     void EventSystem::connect_camera_to_vr(Camera* camera)
     {
-        #if BUILD_OPENVR
         /* This function can be called directly. */
         using namespace Libraries;
         auto ovr = OpenVR::Get();
         ovr->connect_camera(camera);
-        #else
-        throw std::runtime_error("Error: Pluto was not built with OpenVR support enabled!");
-        #endif
     }
 
     void EventSystem::connect_camera_transform_to_vr(Transform* camera_transform)
     {
-        #if BUILD_OPENVR
         /* This function can be called directly. */
         using namespace Libraries;
         auto ovr = OpenVR::Get();
         ovr->connect_camera_transform(camera_transform);
-        #else
-        throw std::runtime_error("Error: Pluto was not built with OpenVR support enabled!");
-        #endif
     }
 
     void EventSystem::connect_left_hand_transform_to_vr(Transform* left_hand_transform)
     {
-        #if BUILD_OPENVR
         /* This function can be called directly. */
         using namespace Libraries;
         auto ovr = OpenVR::Get();
         ovr->connect_left_hand_transform(left_hand_transform);
-        #else
-        throw std::runtime_error("Error: Pluto was not built with OpenVR support enabled!");
-        #endif
     }
 
     void EventSystem::connect_right_hand_transform_to_vr(Transform* right_hand_transform)
     {
-        #if BUILD_OPENVR
         /* This function can be called directly. */
         using namespace Libraries;
         auto ovr = OpenVR::Get();
         ovr->connect_right_hand_transform(right_hand_transform);
-        #else
-        throw std::runtime_error("Error: Pluto was not built with OpenVR support enabled!");
-        #endif
     }
 
     void EventSystem::connect_texture_to_window(string key, Texture* texture, uint32_t layer_idx)
