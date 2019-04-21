@@ -1129,8 +1129,6 @@ void Mesh::set_damping_factor(float damping_factor_)
 
 void Mesh::update(float time_step, uint32_t iterations, glm::vec3 f_ext)
 {
-	std::cout << "TODO: update the mesh" << std::endl;
-
 	int nN = (int)positions.size();
 
 	// update the precomputed cholesky when time step size changes
