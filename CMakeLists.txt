@@ -285,7 +285,10 @@ set (
     generator
     TetGen
     openvr_api64
-
+    BulletSoftBody
+    BulletDynamics
+    BulletCollision
+    LinearMath
 )
 
 # ┌──────────────────────────────────────────────────────────────────┐

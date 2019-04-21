@@ -20,6 +20,7 @@ using namespace Libraries;
 /* Systems */
 #include "Pluto/Systems/RenderSystem/RenderSystem.hxx"
 #include "Pluto/Systems/EventSystem/EventSystem.hxx"
+#include "Pluto/Systems/PhysicsSystem/PhysicsSystem.hxx"
 using namespace Systems;
 
 /* Components */
@@ -87,6 +88,8 @@ using namespace Systems;
 %nodefaultdtor RenderSystem;
 %nodefaultctor EventSystem;
 %nodefaultdtor EventSystem;
+%nodefaultctor PhysicsSystem;
+%nodefaultdtor PhysicsSystem;
 
 %nodefaultctor Prefabs;
 %nodefaultdtor Prefabs;
@@ -120,6 +123,7 @@ using namespace Systems;
 %include "Pluto/Tools/System.hxx"
 %include "Pluto/Systems/RenderSystem/RenderSystem.hxx"
 %include "Pluto/Systems/EventSystem/EventSystem.hxx"
+%include "Pluto/Systems/PhysicsSystem/PhysicsSystem.hxx"
 
 %include "Pluto/Transform/Transform.hxx"
 %include "Pluto/Texture/Texture.hxx"
