@@ -19,6 +19,8 @@
 
 #include <glm/gtx/vector_angle.hpp>
 
+#include "tetgen.h"
+
 #include "./Mesh.hxx"
 
 #include "Pluto/Tools/Options.hxx"
@@ -249,6 +251,79 @@ void Mesh::compute_simulation_matrices(float mass_, float stiffness_, float step
 
 	//precompute cholesky decomposition
 	precompute_cholesky();
+}
+
+void Mesh::save_tetrahedralization(float quality_bound, float maximum_volume)
+{
+	try  {
+		/* NOTE, POSSIBLY LEAKING MEMORY */
+		tetgenio in, out;
+		tetgenio::facet *f;
+		tetgenio::polygon *p;
+		int i;
+
+		// All indices start from 1.
+		in.firstnumber = 1;
+
+		in.numberofpoints = this->positions.size();
+		in.pointlist = new REAL[in.numberofpoints * 3];
+		for (uint32_t i = 0; i < this->positions.size(); ++i) {
+			in.pointlist[i * 3 + 0] = this->positions[i].x;
+			in.pointlist[i * 3 + 1] = this->positions[i].y;
+			in.pointlist[i * 3 + 2] = this->positions[i].z;
+		}
+
+		in.numberoffacets = this->indices.size() / 3; 
+		in.facetlist = new tetgenio::facet[in.numberoffacets];
+		in.facetmarkerlist = new int[in.numberoffacets];
+
+		for (uint32_t i = 0; i < this->indices.size() / 3; ++i) {
+			f = &in.facetlist[i];
+			f->numberofpolygons = 1;
+			f->polygonlist = new tetgenio::polygon[f->numberofpolygons];
+			f->numberofholes = 0;
+			f->holelist = NULL;
+			p = &f->polygonlist[0];
+			p->numberofvertices = 3;
+			p->vertexlist = new int[p->numberofvertices];
+			// Note, tetgen indices start at one.
+			p->vertexlist[0] = indices[i * 3 + 0] + 1; 
+			p->vertexlist[1] = indices[i * 3 + 1] + 1; 
+			p->vertexlist[2] = indices[i * 3 + 2] + 1; 
+			in.facetmarkerlist[i] = 0; // ?
+		}
+
+		// // Set 'in.facetmarkerlist'
+
+		// in.facetmarkerlist[0] = -1;
+		// in.facetmarkerlist[2] = 0;
+		// in.facetmarkerlist[3] = 0;
+		// in.facetmarkerlist[4] = 0;
+		// in.facetmarkerlist[5] = 0;
+
+		// Output the PLC to files 'barin.node' and 'barin.poly'.
+		// in.save_nodes("barin");
+		// in.save_poly("barin");
+
+		// Tetrahedralize the PLC. Switches are chosen to read a PLC (p),
+		//   do quality mesh generation (q) with a specified quality bound
+		//   (1.414), and apply a maximum volume constraint (a0.1).
+
+		std::string flags = "pq";
+		flags += std::to_string(quality_bound);
+		flags += "a";
+		flags += std::to_string(maximum_volume);
+		::tetrahedralize((char*)flags.c_str(), &in, &out);
+
+		// // Output mesh to files 'barout.node', 'barout.ele' and 'barout.face'.
+		out.save_nodes((char*)this->name.c_str());
+		out.save_elements((char*)this->name.c_str());
+		// out.save_faces((char*)this->name.c_str());
+	}
+	catch (...)
+	{
+		throw std::runtime_error("Error: failed to tetrahedralize mesh");
+	}
 }
 
 glm::vec3 Mesh::get_centroid()
@@ -702,6 +777,86 @@ void Mesh::load_glb(std::string glbPath, bool allow_edits, bool submit_immediate
 				vertices.push_back(vertex);
 			}
 		}
+	}
+
+	/* Eliminate duplicate positions */
+	std::unordered_map<Vertex, uint32_t> uniqueVertexMap = {};
+	std::vector<Vertex> uniqueVertices;
+	for (int i = 0; i < vertices.size(); ++i)
+	{
+		Vertex vertex = vertices[i];
+		if (uniqueVertexMap.count(vertex) == 0)
+		{
+			uniqueVertexMap[vertex] = static_cast<uint32_t>(uniqueVertices.size());
+			uniqueVertices.push_back(vertex);
+		}
+		indices.push_back(uniqueVertexMap[vertex]);
+	}
+
+	/* Map vertices to buffers */
+	for (int i = 0; i < uniqueVertices.size(); ++i)
+	{
+		Vertex v = uniqueVertices[i];
+		positions.push_back(v.point);
+		colors.push_back(v.color);
+		normals.push_back(v.normal);
+		texcoords.push_back(v.texcoord);
+	}
+
+	cleanup();
+	compute_metadata();
+	createPointBuffer(allow_edits, submit_immediately);
+	createColorBuffer(allow_edits, submit_immediately);
+	createIndexBuffer(allow_edits, submit_immediately);
+	createNormalBuffer(allow_edits, submit_immediately);
+	createTexCoordBuffer(allow_edits, submit_immediately);
+}
+
+void Mesh::load_tetgen(std::string path, bool allow_edits, bool submit_immediately)
+{
+	struct stat st;
+	allowEdits = allow_edits;
+	
+	size_t lastindex = path.find_last_of("."); 
+	std::string rawname = path.substr(0, lastindex); 
+
+	std::string nodePath = rawname + ".node";
+	std::string elePath = rawname + ".node";
+	
+	if (stat(nodePath.c_str(), &st) != 0)
+		throw std::runtime_error(std::string("Error: " + nodePath + " does not exist"));
+
+	if (stat(elePath.c_str(), &st) != 0)
+		throw std::runtime_error(std::string("Error: " + elePath + " does not exist"));
+
+	// Somehow here, verify the node and ele files are in the same directory...
+	tetgenio in;
+
+	in.load_tetmesh((char*)rawname.c_str());
+
+	if (in.mesh_dim != 3) 
+		throw std::runtime_error(std::string("Error: Node dimension must be 3"));
+
+	if (in.numberoftetrahedra <= 0)
+		throw std::runtime_error(std::string("Error: number of tetrahedra must be more than 0"));
+
+	std::vector<Vertex> vertices;
+	for (uint32_t i = 0; i < (uint32_t)in.numberoftetrahedra; ++i) {
+		uint32_t i1 = in.tetrahedronlist[i * 4 + 0] - 1;
+		uint32_t i2 = in.tetrahedronlist[i * 4 + 1] - 1;
+		uint32_t i3 = in.tetrahedronlist[i * 4 + 2] - 1;
+		uint32_t i4 = in.tetrahedronlist[i * 4 + 3] - 1;
+
+		Vertex v1, v2, v3, v4;
+		v1.point = glm::vec3(in.pointlist[i1 * 3 + 0], in.pointlist[i1 * 3 + 1], in.pointlist[i1 * 3 + 2]);
+		v2.point = glm::vec3(in.pointlist[i2 * 3 + 0], in.pointlist[i2 * 3 + 1], in.pointlist[i2 * 3 + 2]);
+		v3.point = glm::vec3(in.pointlist[i3 * 3 + 0], in.pointlist[i3 * 3 + 1], in.pointlist[i3 * 3 + 2]);
+		v4.point = glm::vec3(in.pointlist[i4 * 3 + 0], in.pointlist[i4 * 3 + 1], in.pointlist[i4 * 3 + 2]);
+
+		vertices.push_back(v1); vertices.push_back(v4); vertices.push_back(v3);
+		vertices.push_back(v1); vertices.push_back(v2); vertices.push_back(v4);
+		vertices.push_back(v2); vertices.push_back(v3); vertices.push_back(v4);
+		vertices.push_back(v1); vertices.push_back(v3); vertices.push_back(v2);
 	}
 
 	/* Eliminate duplicate positions */
@@ -2009,6 +2164,14 @@ Mesh* Mesh::CreateFromGLB(std::string name, std::string glbPath, bool allow_edit
 	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	mesh->load_glb(glbPath, allow_edits, submit_immediately);
+	return mesh;
+}
+
+Mesh* Mesh::CreateFromTetgen(std::string name, std::string path, bool allow_edits, bool submit_immediately)
+{
+	std::lock_guard<std::mutex> lock(creation_mutex);
+	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
+	mesh->load_tetgen(path, allow_edits, submit_immediately);
 	return mesh;
 }
 

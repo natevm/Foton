@@ -8,6 +8,7 @@ void main() {
 	MaterialStruct material = mbo.materials[entity.material_id];
 
 	vec3 N = /*(material.hasNormalTexture == 1.0f) ? perturbNormal() :*/ normalize(w_normal);
+	if (!gl_FrontFacing) N *= -1.0;
 	vec3 V = normalize(w_cameraPos - w_position);
 	vec3 R = -normalize(reflect(V, N));	
 	float eta = 1.0 / material.ior; // air = 1.0 / material = ior

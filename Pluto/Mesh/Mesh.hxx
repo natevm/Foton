@@ -111,6 +111,9 @@ class Mesh : public StaticFactory
 		/* Creates a mesh component from a GLB file (material properties are ignored) */
 		static Mesh* CreateFromGLB(std::string name, std::string glbPath, bool allow_edits = false, bool submit_immediately = false);
 
+		/* Creates a mesh component from TetGen node/element files (Can be made using "Mesh::tetrahedrahedralize") */
+		static Mesh* CreateFromTetgen(std::string name, std::string path, bool allow_edits = false, bool submit_immediately = false);
+
 		/* Creates a mesh component from a set of positions, optional normals, optional colors, optional texture coordinates, 
 			and optional indices. If anything other than positions is supplied (eg normals), that list must be the same length
 			as the point list. If indicies are supplied, indices must be a multiple of 3 (triangles). Otherwise, all other
@@ -219,6 +222,9 @@ class Mesh : public StaticFactory
 
 		/* Computes matrices for solving implicit Euler. Must call this before simulation. */
 		void compute_simulation_matrices(float mass = 100, float stiffness = 10000, float step_size = 0.001);
+
+		/* TODO: Explain this */
+		void save_tetrahedralization(float quality_bound, float maximum_volume);
 
 		/* Returns the last computed centroid. */
 		glm::vec3 get_centroid();
@@ -434,6 +440,9 @@ class Mesh : public StaticFactory
 
 		/* Loads in a GLB mesh and copies per vertex data to the GPU */
 		void load_glb(std::string glbPath, bool allow_edits, bool submit_immediately);
+
+		/* TODO: Explain this */
+		void load_tetgen(std::string path, bool allow_edits, bool submit_immediately);
 
 		/* Copies per vertex data to the GPU */
 		void load_raw (
