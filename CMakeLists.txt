@@ -150,6 +150,7 @@ set(TETGEN_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/tetgen)
 include_directories(SYSTEM ${TETGEN_INCLUDE_DIR})
 add_definitions(-DTETLIBRARY)
 add_library(TetGen STATIC ${TETGEN_SRC})
+set_property(TARGET TetGen PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 # swig
 find_package(SWIG 3.0.8)
