@@ -17,9 +17,7 @@
 #include "Pluto/Tools/Options.hxx"
 #include "Pluto/Material/Material.hxx"
 
-#if BUILD_OPENVR
 #include "Pluto/Libraries/OpenVR/OpenVR.hxx"
-#endif
 
 using namespace Libraries;
 
@@ -188,7 +186,6 @@ void RenderSystem::record_depth_prepass(Entity &camera_entity, std::vector<std::
 
             camera->begin_depth_prepass(command_buffer, rp_idx);
 
-            #ifdef BUILD_OPENVR
             if (using_openvr && using_vr_hidden_area_masks)
             {
                 auto ovr = Libraries::OpenVR::Get();
@@ -206,7 +203,6 @@ void RenderSystem::record_depth_prepass(Entity &camera_entity, std::vector<std::
                     Material::DrawEntity(command_buffer, rp, *mask_entity, push_constants, RenderMode::VRMASK);
                 }
             }
-            #endif
 
             for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i) {
                 auto target_id = visible_entities[rp_idx][i].second->get_id();
@@ -216,7 +212,6 @@ void RenderSystem::record_depth_prepass(Entity &camera_entity, std::vector<std::
                 not supporting multiview, (mac). Might need to increase query pool size to MAX_ENTITIES * renderpass count */
                 camera->begin_visibility_query(command_buffer, target_id, i);
 
-                #if BUILD_OPENVR
                 if (using_openvr) {
                     auto ovr = Libraries::OpenVR::Get();
                     if (camera == ovr->get_connected_camera()) {
@@ -224,8 +219,7 @@ void RenderSystem::record_depth_prepass(Entity &camera_entity, std::vector<std::
                         if ( ovr->get_right_eye_hidden_area_entity()->get_id() == target_id) continue;
                     }
                 }
-                #endif
-
+                
                 // Push constants
                 push_constants.target_id = target_id;
                 push_constants.camera_id = camera_entity.get_id();
@@ -262,7 +256,6 @@ void RenderSystem::record_final_renderpass(Entity &camera_entity, std::vector<st
             camera->begin_renderpass(command_buffer, rp_idx);
 
             /* Render visibility masks */
-            #ifdef BUILD_OPENVR
             if (using_openvr && using_vr_hidden_area_masks && !(camera->should_record_depth_prepass()))
             {
                 auto ovr = Libraries::OpenVR::Get();
@@ -279,7 +272,6 @@ void RenderSystem::record_final_renderpass(Entity &camera_entity, std::vector<st
                     Material::DrawEntity(command_buffer, rp, *mask_entity, push_constants, RenderMode::VRMASK);
                 }
             }
-            #endif
 
             /* Render all objects */
             for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i) {
@@ -338,7 +330,6 @@ void RenderSystem::record_blit_camera(Entity &camera_entity, std::map<std::strin
     }
 
     /* Blit to OpenVR eyes. */
-    #if BUILD_OPENVR
     if (using_openvr) {
         auto ovr = OpenVR::Get();
         if (camera == ovr->get_connected_camera()) {
@@ -348,7 +339,6 @@ void RenderSystem::record_blit_camera(Entity &camera_entity, std::map<std::strin
             if (right_eye_texture) texture->record_blit_to(command_buffer, right_eye_texture, 1);
         }
     }
-    #endif
 }
 
 void RenderSystem::record_cameras()
@@ -468,7 +458,6 @@ void RenderSystem::record_render_commands()
 
 void RenderSystem::update_openvr_transforms()
 {
-    #if BUILD_OPENVR
     /* Set OpenVR transform data right before rendering */
     if (using_openvr) {
         auto ovr = OpenVR::Get();
@@ -507,12 +496,10 @@ void RenderSystem::update_openvr_transforms()
             
         }
     }
-    #endif
 }
 
 void RenderSystem::present_openvr_frames()
 {
-    #if BUILD_OPENVR
     /* Ignore if openvr isn't in use. */
     if (!using_openvr) return;
 
@@ -528,7 +515,6 @@ void RenderSystem::present_openvr_frames()
     
     /* Submit the left and right eye textures to OpenVR */
     ovr->submit_textures();
-    #endif
 }
 
 void RenderSystem::stream_frames()
