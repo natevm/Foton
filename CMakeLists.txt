@@ -225,6 +225,10 @@ if(BUILD_OPENVR)
     include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/openvr/headers)
 endif(BUILD_OPENVR)
 
+# bullet 
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/bullet3)
+include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/bullet3/src)
+
 # spacemouse
 # Todo: make a cmake file for this
 if(BUILD_SPACEMOUSE)
@@ -281,6 +285,7 @@ set (
     generator
     TetGen
     openvr_api64
+
 )
 
 # ┌──────────────────────────────────────────────────────────────────┐
