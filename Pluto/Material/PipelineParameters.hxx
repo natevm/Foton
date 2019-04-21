@@ -35,7 +35,7 @@ struct PipelineParameters {
 		rasterizer.rasterizerDiscardEnable = false; // if true, geometry never goes through rasterization, or to frame buffer
 		rasterizer.polygonMode = vk::PolygonMode::eFill; // could be line or point too. those require GPU features to be enabled.
 		rasterizer.lineWidth = 1.0f; // anything thicker than 1.0 requires wideLines GPU feature
-		rasterizer.cullMode = vk::CullModeFlagBits::eBack;
+		rasterizer.cullMode = vk::CullModeFlagBits::eNone;
 		rasterizer.frontFace = vk::FrontFace::eCounterClockwise;
 		rasterizer.depthBiasEnable = false;
 		rasterizer.depthBiasConstantFactor = 0.0f;
