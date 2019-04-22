@@ -17,6 +17,7 @@ bool Initialized = false;
 #include "Systems/EventSystem/EventSystem.hxx"
 #include "Systems/PythonSystem/PythonSystem.hxx"
 #include "Systems/RenderSystem/RenderSystem.hxx"
+#include "Systems/PhysicsSystem/PhysicsSystem.hxx"
 
 #include "Pluto/Camera/Camera.hxx"
 #include "Pluto/Texture/Texture.hxx"
@@ -40,17 +41,20 @@ namespace Pluto {
         auto python_system = Systems::PythonSystem::Get();
         auto event_system = Systems::EventSystem::Get();
         auto render_system = Systems::RenderSystem::Get();
+        auto physics_system = Systems::PhysicsSystem::Get();
 
         if (use_python) {
             python_system->initialize();
         }
         event_system->initialize();
         render_system->initialize();
+        physics_system->initialize();
         
         if (use_python) {
             python_system->start();
         }
         render_system->start();
+        physics_system->start();
 
         //Initialize();
         if (callback)
@@ -140,9 +144,11 @@ namespace Pluto {
         auto python_system = Systems::PythonSystem::Get();
         auto event_system = Systems::EventSystem::Get();
         auto render_system = Systems::RenderSystem::Get();
+        auto physics_system = Systems::PhysicsSystem::Get();
 
         render_system->stop();
         python_system->stop();
+        physics_system->stop();
         event_system->stop();
 
 
@@ -150,7 +156,6 @@ namespace Pluto {
         Pluto::CleanUp();
         
         std::cout<<"Shutting down Pluto"<<std::endl;
-        
         
         Py_Finalize();
     }

@@ -26,6 +26,8 @@ namespace Systems
             btBroadphaseInterface* overlappingPairCache;
             btSequentialImpulseConstraintSolver* solver;
             btDiscreteDynamicsWorld* dynamicsWorld;
+
+            btAlignedObjectArray<btCollisionShape*> collisionShapes;
             
             PhysicsSystem();
             ~PhysicsSystem();
