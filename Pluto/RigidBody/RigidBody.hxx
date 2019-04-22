@@ -6,12 +6,21 @@
 #define MAX_RIGIDBODIES 512
 #endif
 
+enum RigidBodyMode : uint32_t { 
+    STATIC,
+    DYNAMIC,
+    KINEMATIC
+};
+
 class RigidBody : public StaticFactory
 {
     public:
 
     /* Returns a json string summarizing the rigidbody */
     std::string to_string();
+
+    /* TODO */
+    static RigidBody *Create(std::string name);
 
     /* Retrieves a rigidbody component by name */
     static RigidBody *Get(std::string name);
@@ -45,8 +54,29 @@ class RigidBody : public StaticFactory
 
     /* Creates a rigidbody with the given name and id. */
     RigidBody(std::string name, uint32_t id);
+    
+    /* TODO */
+    void make_kinematic();
+    
+    /* TODO */
+    void make_dynamic();
+    
+    /* TODO */
+    void make_static();
+    
+    /* TODO */
+    bool is_kinematic();
+    
+    /* TODO */
+    bool is_dynamic();
+    
+    /* TODO */
+    bool is_static();
 
     private:
+    
+    RigidBodyMode mode;
+
     /* TODO */
     static std::mutex creation_mutex;
     

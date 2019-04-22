@@ -30,35 +30,35 @@ std::string Collider::to_string()
 
 Collider *CreateBox(std::string name) {
     std::lock_guard<std::mutex> lock(creation_mutex);
-	auto collider = StaticFactory::Create(name, "Collider", lookupTable, collider, MAX_COLLIDERS);
+	auto collider = StaticFactory::Create(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 	if (!collider) return nullptr;
 	return collider;
 }
 
 Collider *CreateSphere(std::string name) {
     std::lock_guard<std::mutex> lock(creation_mutex);
-	auto collider = StaticFactory::Create(name, "Collider", lookupTable, collider, MAX_COLLIDERS);
+	auto collider = StaticFactory::Create(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 	if (!collider) return nullptr;
 	return collider;
 }
 
 Collider *CreateCapsule(std::string name) {
     std::lock_guard<std::mutex> lock(creation_mutex);
-	auto collider = StaticFactory::Create(name, "Collider", lookupTable, collider, MAX_COLLIDERS);
+	auto collider = StaticFactory::Create(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 	if (!collider) return nullptr;
 	return collider;
 }
 
 Collider *CreateCylinder(std::string name) {
     std::lock_guard<std::mutex> lock(creation_mutex);
-	auto collider = StaticFactory::Create(name, "Collider", lookupTable, collider, MAX_COLLIDERS);
+	auto collider = StaticFactory::Create(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 	if (!collider) return nullptr;
 	return collider;
 }
 
 Collider *CreateCone(std::string name) {
     std::lock_guard<std::mutex> lock(creation_mutex);
-	auto collider = StaticFactory::Create(name, "Collider", lookupTable, collider, MAX_COLLIDERS);
+	auto collider = StaticFactory::Create(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 	if (!collider) return nullptr;
 	return collider;
 }

@@ -28,6 +28,13 @@ std::string RigidBody::to_string()
 
 }
 
+RigidBody *Create(std::string name) {
+    std::lock_guard<std::mutex> lock(creation_mutex);
+	auto rigidbody = StaticFactory::Create(name, "RigidBody", lookupTable, rigidbodies, MAX_RIGIDBODIES);
+	if (!rigidbody) return nullptr;
+	return rigidbody;
+}
+
 RigidBody *RigidBody::Get(std::string name) {
     return StaticFactory::Get(name, "RigidBody", lookupTable, rigidbodies, MAX_RIGIDBODIES);
 }
@@ -72,6 +79,36 @@ void RigidBody::CleanUp()
 			RigidBody::Delete(collider.id);
 		}
 	}
+}
+
+void RigidBody::make_kinematic()
+{
+    mode = KINEMATIC;
+}
+
+void RigidBody::make_dynamic()
+{
+    mode = DYNAMIC;
+}
+
+void RigidBody::make_static()
+{
+    mode = STATIC;
+}
+
+bool RigidBody::is_kinematic()
+{
+    return mode == KINEMATIC;
+}
+
+bool RigidBody::is_dynamic()
+{
+    return mode == DYNAMIC;
+}
+
+bool RigidBody::is_static()
+{
+    return mode == STATIC;
 }
 
 void RigidBody::cleanup()
