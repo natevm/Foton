@@ -11,6 +11,21 @@ class Collider : public StaticFactory
 {
     public:
 
+    //TODO
+    static Collider *CreateBox(std::string name);
+    
+    //TODO
+    static Collider *CreateSphere(std::string name);
+    
+    //TODO
+    static Collider *CreateCapsule(std::string name);
+    
+    //TODO
+    static Collider *CreateCylinder(std::string name);
+    
+    //TODO
+    static Collider *CreateCone(std::string name);
+    
     /* Returns a json string summarizing the collider */
     std::string to_string();
 
