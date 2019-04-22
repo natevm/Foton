@@ -22,6 +22,8 @@ using namespace Libraries;
 using namespace Systems;
 
 /* Components */
+#include "Pluto/Collider/Collider.hxx"
+#include "Pluto/RigidBody/RigidBody.hxx"
 #include "Pluto/Transform/Transform.hxx"
 #include "Pluto/Texture/Texture.hxx"
 #include "Pluto/Camera/Camera.hxx"
@@ -64,6 +66,8 @@ using namespace Systems;
 %shared_ptr(StaticFactory)
 %shared_ptr(Entity)
 %shared_ptr(Transform)
+%shared_ptr(RigidBody)
+%shared_ptr(Collider)
 %shared_ptr(Texture)
 %shared_ptr(Camera)
 %shared_ptr(Mesh)
@@ -122,6 +126,8 @@ using namespace Systems;
 
 %include "Pluto/Transform/Transform.hxx"
 %include "Pluto/Texture/Texture.hxx"
+%include "Pluto/Collider/Collider.hxx"
+%include "Pluto/RigidBody/RigidBody.hxx"
 %include "Pluto/Mesh/Mesh.hxx"
 %include "Pluto/Light/Light.hxx"
 %include "Pluto/Material/Material.hxx"
@@ -134,6 +140,16 @@ using namespace Systems;
 
 /* Representations */
 %extend Transform {
+    %feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
+    std::string __repr__() { return $self->to_string(); }
+}
+
+%extend RigidBody {
+    %feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
+    std::string __repr__() { return $self->to_string(); }
+}
+
+%extend Collider {
     %feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
     std::string __repr__() { return $self->to_string(); }
 }
@@ -174,6 +190,8 @@ using namespace Systems;
 %template(MeshVector) vector<Mesh*>;
 %template(CameraVector) vector<Camera*>;
 %template(TextureVector) vector<Texture*>;
+%template(ColliderVector) vector<Collider*>;
+%template(RigidBodyVector) vector<RigidBody*>;
 %template(LightVector) vector<Light*>;
 %template(MaterialVector) vector<Material*>;
 

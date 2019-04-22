@@ -159,6 +159,8 @@ namespace Systems
 
             // delete dispatcher
             delete dispatcher;
+
+            collisionShapes.clear();
         };
 
         exitSignal = promise<void>();
