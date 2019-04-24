@@ -225,6 +225,9 @@ include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/openvr/headers)
 # bullet 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/bullet3)
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/bullet3/src)
+set_property(TARGET LinearMath PROPERTY POSITION_INDEPENDENT_CODE ON)
+set_property(TARGET BulletDynamics PROPERTY POSITION_INDEPENDENT_CODE ON)
+set_property(TARGET BulletCollision PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 # spacemouse
 # Todo: make a cmake file for this
