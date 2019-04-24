@@ -138,13 +138,14 @@ find_package(GLM 0.9.7 REQUIRED)
 include_directories(SYSTEM ${GLM_INCLUDE_DIR})
 
 # use Eigen
-if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/eigen/Eigen/Eigen")
-  message(FATAL_ERROR "The Eigen submodule directory is empty! "
-    "You probably did not clone the project with --recursive. It is possible to recover "
-    "by running \"git submodule update --init --recursive\"")
-endif()
-find_package(EIGEN REQUIRED)
-include_directories(SYSTEM ${EIGEN_INCLUDE_DIR})
+# TODO: submodule in Eigen
+# if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/Eigen/Eigen")
+#   message(FATAL_ERROR "The Eigen submodule directory is empty! "
+#     "You probably did not clone the project with --recursive. It is possible to recover "
+#     "by running \"git submodule update --init --recursive\"")
+# endif()
+include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/Eigen)
+message(WARN ${EIGEN_INCLUDE_DIR})
 
 # geometry generator
 add_subdirectory(external/generator)
