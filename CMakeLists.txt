@@ -2,6 +2,7 @@
 # │  Projects Settings                                               │
 # └──────────────────────────────────────────────────────────────────┘
 cmake_minimum_required (VERSION 3.13)
+cmake_policy( VERSION 3.13...3.14 )
 project(Pluto)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
@@ -230,6 +231,9 @@ include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/openvr/headers)
 # bullet 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/bullet3)
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/bullet3/src)
+set_property(TARGET LinearMath PROPERTY POSITION_INDEPENDENT_CODE ON)
+set_property(TARGET BulletDynamics PROPERTY POSITION_INDEPENDENT_CODE ON)
+set_property(TARGET BulletCollision PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 # spacemouse
 # Todo: make a cmake file for this

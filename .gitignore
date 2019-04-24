@@ -8,3 +8,7 @@ __pycache__
 *.swp
 .DS_Store
 *.spv
+
+# Clion IDE
+.idea
+cmake-build-*
