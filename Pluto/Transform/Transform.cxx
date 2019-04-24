@@ -83,9 +83,11 @@ void Transform::UploadSSBO(vk::CommandBuffer command_buffer)
     for (int i = 0; i < MAX_TRANSFORMS; ++i) {
         if (!transforms[i].is_initialized()) continue;
 
+// get_local_to_world_matrix
+
         /* TODO: account for parent transforms */
-        transformObjects[i].worldToLocal = transforms[i].parent_to_local_matrix();
-        transformObjects[i].localToWorld = transforms[i].local_to_parent_matrix();
+        transformObjects[i].worldToLocal = transforms[i].world_to_local_matrix();
+        transformObjects[i].localToWorld = transforms[i].local_to_world_matrix();
         transformObjects[i].worldToLocalRotation = transforms[i].parent_to_local_rotation();
         transformObjects[i].localToWorldRotation = transforms[i].local_to_parent_rotation();
         transformObjects[i].worldToLocalTranslation = transforms[i].parent_to_local_translation();
@@ -172,4 +174,63 @@ Transform* Transform::GetFront() {
 
 uint32_t Transform::GetCount() {
     return MAX_TRANSFORMS;
+}
+
+void Transform::set_parent(uint32_t parent) {
+    if ((parent < 0) || (parent >= MAX_TRANSFORMS))
+        throw std::runtime_error(std::string("Error: parent must be between 0 and ") + std::to_string(MAX_TRANSFORMS));
+    
+    if (parent == this->get_id())
+        throw std::runtime_error(std::string("Error: a component cannot be the parent of itself"));
+
+    this->parent = parent;
+    transforms[parent].children.insert(this->id);
+}
+
+void Transform::add_child(uint32_t object) {
+    if ((object < 0) || (object >= MAX_TRANSFORMS))
+        throw std::runtime_error(std::string("Error: child must be between 0 and ") + std::to_string(MAX_TRANSFORMS));
+    
+    if (object == this->get_id())
+        throw std::runtime_error(std::string("Error: a component cannot be it's own child"));
+
+    children.insert(object);
+    transforms[object].parent = this->id;
+}
+
+void Transform::remove_child(uint32_t object) {
+    children.erase(object);
+}
+
+/* Ideally these would be cheaper. Dont use matrix inversion. Bake these as the transform changes. */
+glm::mat4 Transform::world_to_local_matrix() {
+    glm::mat4 parentMatrix = glm::mat4(1.0);
+    if (parent != -1) {
+        parentMatrix = transforms[parent].world_to_local_matrix();
+        return parent_to_local_matrix() * parentMatrix;
+    }
+    else return parent_to_local_matrix();
+}
+
+glm::mat4 Transform::local_to_world_matrix() {
+    return glm::inverse(world_to_local_matrix());
+}
+
+glm::quat Transform::get_local_rotation() {
+    glm::quat parentquat;
+    if (parent != -1) {
+        parentquat = transforms[parent].get_local_rotation();
+        return rotation * parentquat;
+    }
+    else return parentToLocalRotation;
+}
+
+glm::quat Transform::get_world_rotation() {
+    return glm::inverse(get_local_rotation());
+}
+
+glm::vec3 Transform::get_world_position() {
+    auto mat = local_to_world_matrix();
+    glm::vec4 p = mat[3];
+    return glm::vec3(p.x, p.y, p.z);
 }

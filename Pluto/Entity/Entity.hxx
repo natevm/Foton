@@ -20,8 +20,6 @@ class Entity : public StaticFactory {
 private:
 	/* If an entity isn't active, its callbacks arent called */
 	bool active = true;
-	int32_t parent = -1;
-	std::set<int32_t> children;
 
 	EntityStruct entity_struct;
 
@@ -114,23 +112,4 @@ public:
 	void clear_mesh();
 
 	int32_t get_mesh();
-
-	void setParent(uint32_t parent);
-
-	void addChild(uint32_t object);
-
-	void removeChild(uint32_t object);
-
-	// glm::mat4 getWorldToLocalMatrix() {
-	// 	glm::mat4 parentMatrix = glm::mat4(1.0);
-	// 	if (parent != nullptr) {
-	// 		parentMatrix = parent->getWorldToLocalMatrix();
-	// 		return transform->ParentToLocalMatrix() * parentMatrix;
-	// 	}
-	// 	else return transform->ParentToLocalMatrix();
-	// }
-
-	// glm::mat4 getLocalToWorldMatrix() {
-	// 	return glm::inverse(getWorldToLocalMatrix());
-	// }
 };

@@ -29,6 +29,10 @@ using namespace std;
 class Transform : public StaticFactory
 {
   private:
+    /* Scene graph information */
+    int32_t parent = -1;
+	std::set<int32_t> children;
+
     vec3 scale = vec3(1.0);
     vec3 position = vec3(0.0);
     quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
@@ -427,7 +431,20 @@ class Transform : public StaticFactory
         return parentToLocalRotation;
     }
 
-    // void set_test_interpolation(float value) {
-    //     interpolation = value;
-    // }
+    void set_parent(uint32_t parent);
+
+	void add_child(uint32_t object);
+
+	void remove_child(uint32_t object);
+
+    /* Ideally these would be cheaper. Dont use matrix inversion. Bake these as the transform changes. */
+    glm::mat4 world_to_local_matrix();
+
+	glm::mat4 local_to_world_matrix();
+
+    glm::quat get_local_rotation();
+
+	glm::quat get_world_rotation();
+
+    glm::vec3 get_world_position();
 };

@@ -77,8 +77,8 @@ namespace Systems
 
         btCollisionShape *shape = rigidBody.get_collider()->get_collision_shape();
 
-        glm::vec3 origin = transform.get_position();
-        glm::quat rotation = transform.get_rotation();
+        glm::vec3 origin = transform.get_world_position();
+        glm::quat rotation = transform.get_world_rotation();
 
         btTransform bullet_transform;
         bullet_transform.setOrigin(btVector3(origin[0], origin[1], origin[2]));
@@ -178,8 +178,8 @@ namespace Systems
         {
             btTransform worldTrans;
 
-            glm::vec3 position = transform.get_position();
-            glm::quat rotation = transform.get_rotation();
+            glm::vec3 position = transform.get_world_position();
+            glm::quat rotation = transform.get_world_rotation();
 
             worldTrans.setOrigin(btVector3(position.x, position.y, position.z));
             worldTrans.setRotation(btQuaternion(rotation.x, rotation.y, rotation.z, rotation.w));

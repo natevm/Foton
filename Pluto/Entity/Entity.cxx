@@ -203,20 +203,6 @@ int32_t Entity::get_mesh()
     return this->entity_struct.mesh_id;
 }
 
-void Entity::setParent(uint32_t parent) {
-    this->parent = parent;
-    entities[parent].children.insert(this->id);
-}
-
-void Entity::addChild(uint32_t object) {
-    children.insert(object);
-    entities[object].parent = this->id;
-}
-
-void Entity::removeChild(uint32_t object) {
-    children.erase(object);
-}
-
 /* SSBO logic */
 void Entity::Initialize()
 {
