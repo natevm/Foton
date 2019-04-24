@@ -56,10 +56,13 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRC} ${HDR})
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Pluto Library                                                   │
 # └──────────────────────────────────────────────────────────────────┘
-add_library(PlutoLib SHARED ${SRC} ${HDR})
+add_library(PlutoLib SHARED ${SRC} ${HDR} )
 target_link_libraries(PlutoLib PUBLIC glfw ${LIBRARIES})
 set_target_properties(PlutoLib PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS true)
-install(TARGETS PlutoLib DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto)
+install(TARGETS PlutoLib 
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/Pluto
+    RENAME "PlutoLib"
+)
 
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Pluto Engine Executable                                         │

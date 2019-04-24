@@ -4,6 +4,7 @@
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
 #include "Pluto/Texture/Texture.hxx"
 #include "Pluto/Material/Material.hxx"
+#include "Pluto/Mesh/Mesh.hxx"
 #include "Pluto/Entity/Entity.hxx"
 #include "Pluto/Transform/Transform.hxx"
 

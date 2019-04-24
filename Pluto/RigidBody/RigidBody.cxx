@@ -1,6 +1,7 @@
 #include "RigidBody.hxx"
+#include "Pluto/Collider/Collider.hxx"
 
-RigidBody::rigidbodies[MAX_RIGIDBODIES];
+RigidBody RigidBody::rigidbodies[MAX_RIGIDBODIES];
 std::map<std::string, uint32_t> RigidBody::lookupTable;
 std::mutex RigidBody::creation_mutex;
 bool RigidBody::Initialized = false;
@@ -12,9 +13,14 @@ RigidBody::RigidBody()
 
 RigidBody::RigidBody(std::string name, uint32_t id)
 {
-    initilized = true;
+    initialized = true;
     this->name = name;
     this->id = id;
+    this->collider = nullptr;
+
+    this->mass = 0.0;
+    this->friction = 1.0;
+    this->rolling_friction = 1.0;
 }
 
 std::string RigidBody::to_string()
@@ -23,12 +29,12 @@ std::string RigidBody::to_string()
     output += "{\n";
     output += "\ttype: \"RigidBody\",\n";
     output += "\tname: \"" + name + "\"\n";
-    output += "}"
+    output += "}";
     return output;
 
 }
 
-RigidBody *Create(std::string name) {
+RigidBody *RigidBody::Create(std::string name) {
     std::lock_guard<std::mutex> lock(creation_mutex);
 	auto rigidbody = StaticFactory::Create(name, "RigidBody", lookupTable, rigidbodies, MAX_RIGIDBODIES);
 	if (!rigidbody) return nullptr;
@@ -110,6 +116,79 @@ bool RigidBody::is_static()
 {
     return mode == STATIC;
 }
+
+void RigidBody::set_collider(Collider* collider)
+{
+    if (!collider) throw std::runtime_error("Error: collider was nullptr");
+    if (!collider->is_initialized()) throw std::runtime_error("Error: collider not initialized");
+
+    this->collider = collider;
+
+    update_local_inertia();
+}
+
+Collider* RigidBody::get_collider()
+{
+    return this->collider;
+}
+
+void RigidBody::set_mass(float mass)
+{
+    if (mass < 0.0) throw std::runtime_error("Error: mass must be greater than or equal to 0");
+
+    this->mass = (btScalar) mass;
+    update_local_inertia();
+}
+
+void RigidBody::set_friction(float friction)
+{
+    if (friction < 0.0) throw std::runtime_error("Error: friction must be greater than or equal to 0");
+    this->friction = friction;
+}
+
+float RigidBody::get_friction()
+{
+    return this->friction;
+}
+
+void RigidBody::set_rolling_friction(float friction)
+{
+    if (friction < 0.0) throw std::runtime_error("Error: friction must be greater than or equal to 0");
+    this->rolling_friction = friction;
+}
+
+float RigidBody::get_rolling_friction()
+{
+    return this->rolling_friction;
+}
+
+float RigidBody::get_mass()
+{
+    return (float) mass;
+}
+
+void RigidBody::update_local_inertia()
+{
+    if (!collider || mass <= 0.0) {
+        localInertia = glm::vec3(0.f, 0.f, 0.f);
+    }
+    else {
+        btCollisionShape *shape = collider->get_collision_shape();
+        btVector3 temp;
+        shape->calculateLocalInertia(mass, temp);
+        localInertia = glm::vec3(
+            (float) temp.getX(),
+            (float) temp.getY(),
+            (float) temp.getZ()
+        );
+    }
+}
+
+glm::vec3 RigidBody::get_local_inertia()
+{
+    return localInertia;
+}
+
 
 void RigidBody::cleanup()
 {

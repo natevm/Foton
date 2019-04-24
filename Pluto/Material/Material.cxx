@@ -4,6 +4,7 @@
 
 #include "Pluto/Entity/Entity.hxx"
 #include "Pluto/Transform/Transform.hxx"
+#include "Pluto/Mesh/Mesh.hxx"
 #include "Pluto/Camera/Camera.hxx"
 #include "Pluto/Light/Light.hxx"
 #include "Pluto/Texture/Texture.hxx"

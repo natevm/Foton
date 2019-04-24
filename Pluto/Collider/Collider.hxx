@@ -2,6 +2,14 @@
 
 #include "Pluto/Tools/StaticFactory.hxx"
 
+#include "btBulletDynamicsCommon.h"
+
+#include <iostream>
+#include <map>
+#include <vector>
+#include <thread>
+#include <mutex>
+
 #ifndef MAX_COLLIDERS
 #define MAX_COLLIDERS 512
 #endif
@@ -62,7 +70,17 @@ class Collider : public StaticFactory
     /* Creates a collider with the given name and id. */
     Collider(std::string name, uint32_t id);
 
+    /* TODO */
+    btCollisionShape* get_collision_shape();
+
+    void set_scale(float x, float y, float z);
+
+    void set_scale(float r);
+
     private:
+
+    std::shared_ptr<btCollisionShape> colliderShape;
+
     /* TODO */
     static std::mutex creation_mutex;
     
@@ -77,4 +95,4 @@ class Collider : public StaticFactory
 
     /* Frees the current collider's resources*/
 	void cleanup();
-}
+};

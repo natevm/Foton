@@ -1,6 +1,6 @@
 #include "Collider.hxx"
 
-Collider::colliders[MAX_COLLIDERS];
+Collider Collider::colliders[MAX_COLLIDERS];
 std::map<std::string, uint32_t> Collider::lookupTable;
 std::mutex Collider::creation_mutex;
 bool Collider::Initialized = false;
@@ -12,7 +12,7 @@ Collider::Collider()
 
 Collider::Collider(std::string name, uint32_t id)
 {
-    initilized = true;
+    initialized = true;
     this->name = name;
     this->id = id;
 }
@@ -23,40 +23,46 @@ std::string Collider::to_string()
     output += "{\n";
     output += "\ttype: \"Collider\",\n";
     output += "\tname: \"" + name + "\"\n";
-    output += "}"
+    output += "}";
     return output;
 
 }
 
-Collider *CreateBox(std::string name) {
+Collider *Collider::CreateBox(std::string name) {
+    std::lock_guard<std::mutex> lock(creation_mutex);
+	auto collider = StaticFactory::Create(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
+	if (!collider) return nullptr;
+
+    collider->colliderShape = std::make_shared<btBoxShape>(btVector3(btScalar(1.), btScalar(1.), btScalar(1.)));
+
+	return collider;
+}
+
+Collider *Collider::CreateSphere(std::string name) {
+    std::lock_guard<std::mutex> lock(creation_mutex);
+	auto collider = StaticFactory::Create(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
+	if (!collider) return nullptr;
+
+    collider->colliderShape = std::make_shared<btSphereShape>(btScalar(1.));
+
+	return collider;
+}
+
+Collider *Collider::CreateCapsule(std::string name) {
     std::lock_guard<std::mutex> lock(creation_mutex);
 	auto collider = StaticFactory::Create(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 	if (!collider) return nullptr;
 	return collider;
 }
 
-Collider *CreateSphere(std::string name) {
+Collider *Collider::CreateCylinder(std::string name) {
     std::lock_guard<std::mutex> lock(creation_mutex);
 	auto collider = StaticFactory::Create(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 	if (!collider) return nullptr;
 	return collider;
 }
 
-Collider *CreateCapsule(std::string name) {
-    std::lock_guard<std::mutex> lock(creation_mutex);
-	auto collider = StaticFactory::Create(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
-	if (!collider) return nullptr;
-	return collider;
-}
-
-Collider *CreateCylinder(std::string name) {
-    std::lock_guard<std::mutex> lock(creation_mutex);
-	auto collider = StaticFactory::Create(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
-	if (!collider) return nullptr;
-	return collider;
-}
-
-Collider *CreateCone(std::string name) {
+Collider *Collider::CreateCone(std::string name) {
     std::lock_guard<std::mutex> lock(creation_mutex);
 	auto collider = StaticFactory::Create(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 	if (!collider) return nullptr;
@@ -109,7 +115,22 @@ void Collider::CleanUp()
 	}
 }
 
+btCollisionShape* Collider::get_collision_shape()
+{
+    return colliderShape.get();
+}
+
+void Collider::set_scale(float x, float y, float z)
+{
+    colliderShape->setLocalScaling(btVector3(x, y, z));
+}
+
+void Collider::set_scale(float r)
+{
+    colliderShape->setLocalScaling(btVector3(r, r, r));
+}
+
 void Collider::cleanup()
 {
-    
+
 }

@@ -2,6 +2,14 @@
 
 #include "Pluto/Tools/StaticFactory.hxx"
 
+#include <iostream>
+#include <map>
+#include <vector>
+#include <thread>
+#include <mutex>
+
+#include <glm/glm.hpp>
+
 #ifndef MAX_RIGIDBODIES
 #define MAX_RIGIDBODIES 512
 #endif
@@ -11,6 +19,8 @@ enum RigidBodyMode : uint32_t {
     DYNAMIC,
     KINEMATIC
 };
+
+class Collider; 
 
 class RigidBody : public StaticFactory
 {
@@ -73,9 +83,39 @@ class RigidBody : public StaticFactory
     /* TODO */
     bool is_static();
 
-    private:
+    /* TODO */
+    void set_collider(Collider* collider);
+
+    /* TODO */
+    Collider* get_collider();
+
+    void set_mass(float mass);
+
+    float get_mass();
+
+    void set_friction(float friction);
+
+    float get_friction();
     
+    void set_rolling_friction(float friction);
+
+    float get_rolling_friction();
+
+    glm::vec3 get_local_inertia();
+
+    private:
+
     RigidBodyMode mode;
+
+    Collider* collider;
+
+    float mass; 
+
+    float friction;
+
+    float rolling_friction;
+
+    glm::vec3 localInertia;
 
     /* TODO */
     static std::mutex creation_mutex;
@@ -91,4 +131,7 @@ class RigidBody : public StaticFactory
 
     /* Frees the current rigidbody's resources*/
 	void cleanup();
-}
+
+    /* TODO */
+    void update_local_inertia();
+};

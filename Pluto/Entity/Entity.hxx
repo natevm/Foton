@@ -6,12 +6,14 @@
 
 #include "Pluto/Tools/StaticFactory.hxx"
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
-#include "Pluto/Camera/Camera.hxx"
-#include "Pluto/Transform/Transform.hxx"
-#include "Pluto/Material/Material.hxx"
-#include "Pluto/Light/Light.hxx"
-#include "Pluto/Mesh/Mesh.hxx"
 #include "Pluto/Entity/EntityStruct.hxx"
+
+class Camera;
+class Transform;
+class Material;
+class Light;
+class Mesh;
+class RigidBody;
 
 #include <string>
 class Entity : public StaticFactory {
@@ -64,6 +66,14 @@ public:
 	Entity(std::string name, uint32_t id);
 
 	std::string to_string();
+	
+	void set_rigid_body(int32_t rigid_body_id) ;
+	
+	void set_rigid_body(RigidBody* rigid_body) ;
+	
+	void clear_rigid_body();
+	
+	int32_t get_rigid_body();
 
 	void set_transform(int32_t transform_id);
 

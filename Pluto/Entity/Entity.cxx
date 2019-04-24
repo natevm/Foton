@@ -2,6 +2,13 @@
 
 #include "Pluto/Libraries/GLFW/GLFW.hxx"
 
+#include "Pluto/Camera/Camera.hxx"
+#include "Pluto/Transform/Transform.hxx"
+#include "Pluto/Material/Material.hxx"
+#include "Pluto/Light/Light.hxx"
+#include "Pluto/Mesh/Mesh.hxx"
+#include "Pluto/RigidBody/RigidBody.hxx"
+
 Entity Entity::entities[MAX_ENTITIES];
 EntityStruct* Entity::pinnedMemory;
 std::map<std::string, uint32_t> Entity::lookupTable;
@@ -20,6 +27,7 @@ Entity::Entity() {
     entity_struct.material_id = -1;
     entity_struct.light_id = -1;
     entity_struct.mesh_id = -1;
+    entity_struct.rigid_body_id = -1;
 }
 
 Entity::Entity(std::string name, uint32_t id) {
@@ -32,6 +40,7 @@ Entity::Entity(std::string name, uint32_t id) {
     entity_struct.material_id = -1;
     entity_struct.light_id = -1;
     entity_struct.mesh_id = -1;
+    entity_struct.rigid_body_id = -1;
 }
 
 std::string Entity::to_string()
@@ -48,6 +57,30 @@ std::string Entity::to_string()
     output += "\tmesh_id: " + std::to_string(entity_struct.mesh_id) + "\n";
     output += "}";
     return output;
+}
+
+void Entity::set_rigid_body(int32_t rigid_body_id) 
+{
+    if (rigid_body_id < -1) 
+        throw std::runtime_error( std::string("RigidBody id must be greater than or equal to -1"));
+    this->entity_struct.rigid_body_id = rigid_body_id;
+}
+
+void Entity::set_rigid_body(RigidBody* rigid_body) 
+{
+    if (!rigid_body) 
+        throw std::runtime_error( std::string("Invalid rigid body handle."));
+    this->entity_struct.rigid_body_id = rigid_body->get_id();
+}
+
+void Entity::clear_rigid_body()
+{
+    this->entity_struct.rigid_body_id = -1;
+}
+
+int32_t Entity::get_rigid_body() 
+{
+    return this->entity_struct.rigid_body_id;
 }
 
 void Entity::set_transform(int32_t transform_id) 

@@ -5,6 +5,7 @@
 #include "Pluto/Libraries/GLFW/GLFW.hxx"
 
 #include <queue>
+#include <map>
 
 #include "btBulletDynamicsCommon.h"
 
@@ -21,13 +22,19 @@ namespace Systems
             bool start();
             bool stop();
         private:
+            bool does_entity_have_physics(uint32_t entity_id);
+            bool should_entity_have_physics(uint32_t entity_id);
+            void add_physics_to_entity(uint32_t entity_id);
+            void remove_physics_from_entity(uint32_t entity_id);
+            void update_entity(uint32_t entity_id);
+
             btDefaultCollisionConfiguration* collisionConfiguration;
             btCollisionDispatcher* dispatcher;
             btBroadphaseInterface* overlappingPairCache;
             btSequentialImpulseConstraintSolver* solver;
             btDiscreteDynamicsWorld* dynamicsWorld;
 
-            btAlignedObjectArray<btCollisionShape*> collisionShapes;
+            std::map<uint32_t, btRigidBody*> rigidBodyMap;
             
             PhysicsSystem();
             ~PhysicsSystem();
