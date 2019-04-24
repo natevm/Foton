@@ -94,9 +94,10 @@ namespace Systems
         btRigidBody::btRigidBodyConstructionInfo rbInfo(bullet_mass, motionState, shape, bullet_local_inertia);
         btRigidBody* body = new btRigidBody(rbInfo);
 
-        body->setDamping(0.0, 0.0);
+        // body->setDamping(0.0, 0.0);
         body->setFriction(rigidBody.get_friction());
         body->setRollingFriction(rigidBody.get_rolling_friction());
+        body->setSpinningFriction(rigidBody.get_spinning_friction());
 
         rigidBodyMap[entity_id] = body;
 
@@ -310,7 +311,7 @@ namespace Systems
 
                 currentTime = glfwGetTime();
                 
-                dynamicsWorld->stepSimulation((currentTime - lastTime), 100);
+                dynamicsWorld->stepSimulation((currentTime - lastTime), 100, 1.0 / 120.f);
                 lastTime = currentTime;
 
                 /* Add or remove rigid bodies from the dynamic world */

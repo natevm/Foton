@@ -62,7 +62,7 @@ class Mesh : public StaticFactory
 		// static Mesh* CreateParametricMesh(std::string name, bool allow_edits = false, bool submit_immediately = false);
 
 		/* Creates a mesh component from a procedural box with rounded edges */
-		static Mesh* CreateRoundedBox(std::string name, bool allow_edits = false, bool submit_immediately = false);
+		static Mesh* CreateRoundedBox(std::string name, float radius = .25, glm::vec3 size = glm::vec3(.75f, .75f, .75f), int slices=4, glm::ivec3 segments=glm::ivec3(1, 1, 1), bool allow_edits = false, bool submit_immediately = false);
 
 		/* Creates a mesh component from a procedural sphere */
 		static Mesh* CreateSphere(std::string name, bool allow_edits = false, bool submit_immediately = false);

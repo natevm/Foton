@@ -1638,12 +1638,14 @@ Mesh* Mesh::CreateIcosphere(std::string name, bool allow_edits, bool submit_imme
 //     return mesh;
 // }
 
-Mesh* Mesh::CreateRoundedBox(std::string name, bool allow_edits, bool submit_immediately)
+Mesh* Mesh::CreateRoundedBox(std::string name, float radius, glm::vec3 size, int slices, glm::ivec3 segments, bool allow_edits, bool submit_immediately)
 {
 	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	if (!mesh) return nullptr;
-	generator::RoundedBoxMesh gen_mesh{};
+	generator::RoundedBoxMesh gen_mesh{
+		radius, size, slices, segments
+	};
 	mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
 	return mesh;
 }

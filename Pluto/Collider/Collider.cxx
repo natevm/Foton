@@ -129,6 +129,11 @@ void Collider::set_scale(float r)
 {
     colliderShape->setLocalScaling(btVector3(r, r, r));
 }
+    
+void Collider::set_collision_margin(float m)
+{
+    colliderShape->setMargin(m);
+}
 
 void Collider::cleanup()
 {

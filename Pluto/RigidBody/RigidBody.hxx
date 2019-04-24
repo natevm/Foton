@@ -101,6 +101,10 @@ class RigidBody : public StaticFactory
 
     float get_rolling_friction();
 
+    void set_spinning_friction(float friction);
+
+    float get_spinning_friction();
+
     glm::vec3 get_local_inertia();
 
     private:
@@ -114,6 +118,8 @@ class RigidBody : public StaticFactory
     float friction;
 
     float rolling_friction;
+
+    float spinning_friction;
 
     glm::vec3 localInertia;
 

@@ -76,6 +76,8 @@ class Collider : public StaticFactory
     void set_scale(float x, float y, float z);
 
     void set_scale(float r);
+    
+    void set_collision_margin(float m);
 
     private:
 

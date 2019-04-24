@@ -19,8 +19,9 @@ RigidBody::RigidBody(std::string name, uint32_t id)
     this->collider = nullptr;
 
     this->mass = 0.0;
-    this->friction = 1.0;
-    this->rolling_friction = 1.0;
+    this->friction = .5;
+    this->rolling_friction = .0;
+    this->spinning_friction = .0;
 }
 
 std::string RigidBody::to_string()
@@ -160,6 +161,17 @@ void RigidBody::set_rolling_friction(float friction)
 float RigidBody::get_rolling_friction()
 {
     return this->rolling_friction;
+}
+
+void RigidBody::set_spinning_friction(float friction)
+{
+    if (friction < 0.0) throw std::runtime_error("Error: friction must be greater than or equal to 0");
+    this->spinning_friction = friction;
+}
+
+float RigidBody::get_spinning_friction()
+{
+    return this->spinning_friction;
 }
 
 float RigidBody::get_mass()
