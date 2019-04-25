@@ -69,7 +69,8 @@ class StaticFactory {
         if (id < 0) 
             throw std::runtime_error(std::string("Error: max " + type + " limit reached."));
 
-        std::cout << "Adding " << type << " \"" << name << "\"" << std::endl;
+        // TODO: make this only output if verbose
+        // std::cout << "Adding " << type << " \"" << name << "\"" << std::endl;
         items[id] = T(name, id);
         lookupTable[name] = id;
         return &items[id];
