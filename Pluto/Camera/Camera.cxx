@@ -1092,7 +1092,7 @@ std::vector<std::vector<std::pair<float, Entity*>>> Camera::get_visible_entities
 
 				/* Get projection planes for frustum/sphere intersection */
 				auto matrix = camera_struct.multiviews[view_idx].proj * camera_struct.multiviews[view_idx].view * 
-					cam_transform->parent_to_local_rotation() * cam_transform->parent_to_local_translation() * transform->local_to_world_matrix();
+					cam_transform->get_parent_to_local_rotation_matrix() * cam_transform->get_parent_to_local_translation_matrix() * transform->get_local_to_world_matrix();
 
 				planes[LEFT].x = matrix[0].w + matrix[0].x;
 				planes[LEFT].y = matrix[1].w + matrix[1].x;
@@ -1167,7 +1167,7 @@ std::vector<std::vector<std::pair<float, Entity*>>> Camera::get_visible_entities
 				auto mesh = Mesh::Get(mesh_id);
 
 				auto centroid = mesh->get_centroid();
-				auto w_centroid =  glm::vec3(transform->local_to_world_matrix() * glm::vec4(centroid.x, centroid.y, centroid.z, 1.0));
+				auto w_centroid =  glm::vec3(transform->get_local_to_world_matrix() * glm::vec4(centroid.x, centroid.y, centroid.z, 1.0));
 
 				sorted_visible_entities[idx].push_back(std::pair<float, Entity*>(glm::distance(cam_pos, w_centroid), visible_entities[idx][i]));
 			}
