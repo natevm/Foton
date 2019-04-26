@@ -33,7 +33,7 @@ class Transform : public StaticFactory
     int32_t parent = -1;
 	std::set<int32_t> children;
 
-    /* Local / parent */
+    /* Local <=> Parent */
     vec3 scale = vec3(1.0);
     vec3 position = vec3(0.0);
     quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
@@ -55,17 +55,17 @@ class Transform : public StaticFactory
     mat4 localToParentMatrix = mat4(1);
     mat4 parentToLocalMatrix = mat4(1);
 
-    /* Local / World */
+    /* Local <=> World */
     mat4 localToWorldMatrix = mat4(1);
     mat4 worldToLocalMatrix = mat4(1);
 
-    // from local to world decomposition
+    // from local to world decomposition. 
+    // May only approximate the localToWorldMatrix
     glm::vec3 worldScale;
     glm::quat worldRotation;
     glm::vec3 worldTranslation;
     glm::vec3 worldSkew;
     glm::vec4 worldPerspective;
-
     
     // float interpolation = 1.0;
 
@@ -81,23 +81,26 @@ class Transform : public StaticFactory
     static vk::Buffer SSBO;
     static vk::DeviceMemory SSBOMemory;
 
-    /* TODO: Explain this */
+    /* Updates cached rotation values */
     void update_rotation();
 
-    /* TODO: Explain this */
+    /* Updates cached position values */
     void update_position();
 
-    /* TODO: Explain this */
+    /* Updates cached scale values */
     void update_scale();
 
-    /* TODO: Explain this */
+    /* Updates cached final local to parent matrix values */
     void update_matrix();
 
-    /* TODO: Explain this */
+    /* Updates cached final local to world matrix values */
     void update_world_matrix();
 
+    /* updates all childrens cached final local to world matrix values */
     void update_children();
     
+    /* traverses from the current transform up through its ancestors, 
+    computing a final world to local matrix */
     glm::mat4 compute_world_to_local_matrix();
 
   public:
@@ -309,31 +312,43 @@ class Transform : public StaticFactory
     /* Removes a child transform previously added to the current transform. */
 	void remove_child(uint32_t object);
 
-    /* Ideally these would be cheaper. Dont use matrix inversion. Bake these as the transform changes. */
+    /* Returns a matrix transforming this component from world space to its local space, taking all 
+    parent transforms into account. */
     glm::mat4 get_world_to_local_matrix();
 
-    /* TODO: Explain this */
+    /* Returns a matrix transforming this component from its local space to world space, taking all 
+    parent transforms into account. */
 	glm::mat4 get_local_to_world_matrix();
 
     /* Returns a (possibly approximate) rotation rotating the current transform from 
-        local space to world space */
+    local space to world space, taking all parent transforms into account */
 	glm::quat get_world_rotation();
 
-    /* Returns a translation moving the current transform from local space to world space */
+    /* Returns a (possibly approximate) translation moving the current transform from 
+    local space to world space, taking all parent transforms into account */
     glm::vec3 get_world_translation();
 
-    /**/
+    /* Returns a (possibly approximate) rotation matrix rotating the current transform from 
+    local space to world space, taking all parent transforms into account */
     glm::mat4 get_world_to_local_rotation_matrix();
 
+    /* Returns a (possibly approximate) rotation matrix rotating the current transform from 
+    world space to local space, taking all parent transforms into account */
     glm::mat4 get_local_to_world_rotation_matrix();
 
+    /* Returns a (possibly approximate) translation matrix translating the current transform from 
+    local space to world space, taking all parent transforms into account */
     glm::mat4 get_world_to_local_translation_matrix();
 
+    /* Returns a (possibly approximate) translation matrix rotating the current transform from 
+    world space to local space */
     glm::mat4 get_local_to_world_translation_matrix();
 
+    /* Returns a (possibly approximate) scale matrix scaling the current transform from 
+    local space to world space, taking all parent transforms into account */
     glm::mat4 get_world_to_local_scale_matrix();
 
+    /* Returns a (possibly approximate) scale matrix scaling the current transform from 
+    world space to local space, taking all parent transforms into account */
     glm::mat4 get_local_to_world_scale_matrix();
-
-    
 };
