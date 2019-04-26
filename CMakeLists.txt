@@ -169,8 +169,6 @@ if (UNIX AND NOT APPLE)
   endif()  
 endif()
 include(${SWIG_USE_FILE})
-cmake_policy(SET CMP0078 NEW)
-# cmake_policy(SET CMP0086 NEW) # Doesn't work on all cmake versions.
 
 # vulkan
 find_package(Vulkan 1.1.97 REQUIRED)
