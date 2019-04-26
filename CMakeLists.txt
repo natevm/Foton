@@ -145,7 +145,6 @@ include_directories(SYSTEM ${GLM_INCLUDE_DIR})
 #     "by running \"git submodule update --init --recursive\"")
 # endif()
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/Eigen)
-message(WARN ${EIGEN_INCLUDE_DIR})
 
 # geometry generator
 add_subdirectory(external/generator)

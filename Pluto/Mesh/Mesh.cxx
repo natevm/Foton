@@ -208,6 +208,8 @@ void Mesh::compute_simulation_matrices(float mass_, float stiffness_, float step
 	//number of springs
 	int nM = edges.size();
 
+	isTet = false;
+
 	// TODO: this model now also assumes zero initial velocities
 	// possibly the user can provide a list of velocities along with the vertices
 	velocities.resize(nN, glm::vec3(0, 0, 0));
@@ -233,6 +235,85 @@ void Mesh::compute_simulation_matrices(float mass_, float stiffness_, float step
 		L.coeffRef(e.second, e.first) -= 1;
 		J.coeffRef(counter, e.first) += 1;
 		J.coeffRef(counter, e.second) -= 1;
+		counter++;
+	}
+
+	L.makeCompressed();
+	J.makeCompressed();
+
+	// allocate space for the mass matrix
+	M.resize(nN, nN);
+	precompute_mass_matrix();
+
+	// matrix for external force
+	G.resize(3, nN);
+
+	//allocate space for precomputed cholesky
+	precomputed_cholesky = std::make_shared< Eigen::SimplicialLLT<Eigen::SparseMatrix<float>>>();
+
+	//precompute cholesky decomposition
+	precompute_cholesky();
+}
+
+void Mesh::compute_tet_simulation_matrices(float mass_, float stiffness_, float step_size_)
+{
+	//number of vertices
+	int nN = positions.size();
+	//number of tet edges
+	int nM = 3 * tets.size();
+
+	isTet = true;
+
+	Dms.resize(tets.size());
+	invDms.resize(tets.size());
+
+	// TODO: this model now also assumes zero initial velocities
+	// possibly the user can provide a list of velocities along with the vertices
+	velocities.resize(nN, glm::vec3(0, 0, 0));
+
+	// TODO: this model now assumes homogeneous stiffness,
+	// possibly the user can provide a list of stiffness along with the edges
+	// TODO: this model now also assumes homogeneous mass
+	// possilby the user can provide a list of mass values along with the vertices
+
+	mass = mass_;
+	stiffness = stiffness_;
+	step_size = step_size_;
+	damping_factor = 0.f; //user can set this using set_damping_factor
+
+	L.resize(nN, nN);
+	J.resize(nM, nN);
+
+	int counter = 0;
+	for (auto t : tets)
+	{
+		Eigen::Matrix3f Dm;
+
+		for (int i = 0; i < 3; i++)
+			Dm.col(i) = Eigen::Vector3f(positions[t.v[i + 1]][0] - positions[t.v[0]][0],
+				positions[t.v[i + 1]][1] - positions[t.v[0]][1],
+				positions[t.v[i + 1]][2] - positions[t.v[0]][2]);
+
+		Dms[counter] = Dm;
+		invDms[counter] = Dm.inverse();
+
+		L.coeffRef(t.v[0], t.v[0]) += 3;
+		L.coeffRef(t.v[0], t.v[1]) -= 1;
+		L.coeffRef(t.v[0], t.v[2]) -= 1;
+		L.coeffRef(t.v[0], t.v[3]) -= 1;
+		L.coeffRef(t.v[1], t.v[0]) -= 1;
+		L.coeffRef(t.v[2], t.v[0]) -= 1;
+		L.coeffRef(t.v[3], t.v[0]) -= 1;
+		L.coeffRef(t.v[1], t.v[1]) += 1;
+		L.coeffRef(t.v[2], t.v[2]) += 1;
+		L.coeffRef(t.v[3], t.v[3]) += 1;
+
+		J.coeffRef(3 * counter, t.v[1]) += 1;
+		J.coeffRef(3 * counter+1, t.v[2]) += 1;
+		J.coeffRef(3 * counter+2, t.v[3]) += 1;
+		J.coeffRef(3 * counter, t.v[0]) -= 1;
+		J.coeffRef(3 * counter+1, t.v[0]) -= 1;
+		J.coeffRef(3 * counter+2, t.v[0]) -= 1;
 		counter++;
 	}
 
@@ -873,6 +954,12 @@ void Mesh::load_tetgen(std::string path, bool allow_edits, bool submit_immediate
 		indices.push_back(uniqueVertexMap[vertex]);
 	}
 
+	// create tet list
+	for (int i = 0; i < indices.size(); i+=12)
+	{
+		tets.push_back(Tet(indices[i], indices[i+4], indices[i+2], indices[i+1]));
+	}
+
 	/* Map vertices to buffers */
 	for (int i = 0; i < uniqueVertices.size(); ++i)
 	{
@@ -1302,21 +1389,67 @@ void Mesh::update(float time_step, uint32_t iterations, glm::vec3 f_ext)
 	MatrixXf Y(3, nN);
 	for (int i = 0; i < nN; i++)
 		for (int j = 0; j < 3; j++)
+		{
+			if (j == 2 && positions[i][2] + velocities[i][2] < 0) //velocity reflection on ground (z = 0)
+			{
+				velocities[i][2] = -velocities[i][2];
+			}
 			Y(j, i) = positions[i][j] + velocities[i][j];
+		}
 
 	MatrixXf X(3, nN);
 	X = Y;
 
 	for (int iter = 0; iter < iterations; iter++)
 	{
-		int nM = (int)edges.size();
+		int nM = isTet ? (int)tets.size() : (int)edges.size();
+
 		// compute D
 		MatrixXf D(3, nM);
-		for (int i = 0; i < nM; i++)
+
+		// compute projected tet edges
+		if (isTet)
 		{
-			auto spr = edges[i];
-			Vector3f diff = X.col(spr.first) - X.col(spr.second);
-			D.col(i) = rest_lengths[i] * diff.normalized();
+			int numTets = nM / 3;
+			for (int i = 0; i < numTets; i++)
+			{
+				// compute deformation gradient F
+				auto t = tets[i];
+
+				Matrix3f Ds;
+				Ds.col(0) = X.col(t.v[1]) - X.col(t.v[0]);
+				Ds.col(1) = X.col(t.v[2]) - X.col(t.v[0]);
+				Ds.col(2) = X.col(t.v[3]) - X.col(t.v[0]);
+
+				Matrix3f F = Ds * invDms[i];
+
+				// compute SVD
+				JacobiSVD<MatrixXf> svd(F);
+				
+				// compute signed SVD
+				Matrix3f U = svd.matrixU();
+				Matrix3f VT = svd.matrixV().transpose();
+				Vector3f sigmas = svd.singularValues();
+
+				if (U.determinant() == -1.f) { sigmas[2] = -sigmas[2]; U.col(2) = -U.col(2); }
+				if (VT.determinant() == -1.f) { sigmas[2] = -sigmas[2]; VT.row(2) = -VT.row(2); }
+
+				// derive the rotation matrix				
+				Matrix3f R = U * VT;
+				Matrix3f Di = R * Dms[i];
+				D.col(3 * i) = Di.col(0);
+				D.col(3 * i + 1) = Di.col(1);
+				D.col(3 * i + 2) = Di.col(2);
+			}
+		}
+		else
+		{
+			for (int i = 0; i < nM; i++)
+			{
+				auto spr = edges[i];
+				Vector3f diff = X.col(spr.first) - X.col(spr.second);
+				D.col(i) = rest_lengths[i] * diff.normalized();
+			}
 		}
 
 		// compute X

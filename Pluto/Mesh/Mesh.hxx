@@ -223,6 +223,8 @@ class Mesh : public StaticFactory
 		/* Computes matrices for solving implicit Euler. Must call this before simulation. */
 		void compute_simulation_matrices(float mass = 100, float stiffness = 10000, float step_size = 0.001);
 
+		void compute_tet_simulation_matrices(float mass = 100, float stiffness = 10000, float step_size = 0.001);
+
 		/* TODO: Explain this */
 		void save_tetrahedralization(float quality_bound, float maximum_volume);
 
@@ -344,9 +346,24 @@ class Mesh : public StaticFactory
 		std::vector<glm::vec4> colors;
 		std::vector<glm::vec2> texcoords;
 		std::vector<glm::vec3> velocities;
+		std::vector<uint32_t> indices;
+
+		bool isTet = false;
+
+		// For mass spring system
 		std::vector<std::pair<uint32_t, uint32_t>> edges; // pairs of indices
 		std::vector<float> rest_lengths; // difference of initial positions of the two vertices in each edge
-		std::vector<uint32_t> indices;
+		
+		// For tetrahedra mesh
+		struct Tet
+		{
+			int v[4];
+			Tet(int v0, int v1, int v2, int v3) { v[0] = v0; v[1] = v1; v[2] = v2; v[3] = v3; }
+		};
+
+		std::vector<Tet> tets; 
+		std::vector<Eigen::Matrix3f> Dms;
+		std::vector<Eigen::Matrix3f> invDms;
 
 		//
 		Eigen::MatrixXf G; //gravity, hardcoded to (0,0,-9.8)
