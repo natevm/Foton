@@ -1402,7 +1402,7 @@ void Mesh::update(float time_step, uint32_t iterations, glm::vec3 f_ext)
 
 	for (int iter = 0; iter < iterations; iter++)
 	{
-		int nM = isTet ? (int)tets.size() : (int)edges.size();
+		int nM = isTet ? 3 * (int)tets.size() : (int)edges.size();
 
 		// compute D
 		MatrixXf D(3, nM);
@@ -1424,15 +1424,14 @@ void Mesh::update(float time_step, uint32_t iterations, glm::vec3 f_ext)
 				Matrix3f F = Ds * invDms[i];
 
 				// compute SVD
-				JacobiSVD<MatrixXf> svd(F);
+				JacobiSVD<Matrix3f> svd(F);
 				
 				// compute signed SVD
 				Matrix3f U = svd.matrixU();
 				Matrix3f VT = svd.matrixV().transpose();
-				Vector3f sigmas = svd.singularValues();
 
-				if (U.determinant() == -1.f) { sigmas[2] = -sigmas[2]; U.col(2) = -U.col(2); }
-				if (VT.determinant() == -1.f) { sigmas[2] = -sigmas[2]; VT.row(2) = -VT.row(2); }
+				if (U.determinant() == -1.f) { U.col(2) = -U.col(2); }
+				if (VT.determinant() == -1.f) { VT.row(2) = -VT.row(2); }
 
 				// derive the rotation matrix				
 				Matrix3f R = U * VT;
