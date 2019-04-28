@@ -13,12 +13,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 
 # Force 64 bit builds
-if(NOT "${CMAKE_GENERATOR}" MATCHES "(Win64|IA64)")
-  MESSAGE(FATAL_ERROR "Unsupported CMake Generator. Please switch to a 64 bit build")
-endif()
+
 
 if("${CMAKE_SIZEOF_VOID_P}" STREQUAL "4")
   MESSAGE(FATAL_ERROR "4 byte void pointer detected. Please switch to a 64 bit build")
+elseif(NOT "${CMAKE_GENERATOR}" MATCHES "(Win64|IA64)")
+  MESSAGE(FATAL_ERROR "Unsupported CMake Generator. Please switch to a 64 bit build")
 endif()
 
 if(MSVC)
