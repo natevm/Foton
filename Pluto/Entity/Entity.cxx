@@ -337,8 +337,13 @@ void Entity::CleanUp()
 
 /* Static Factory Implementations */
 Entity* Entity::Create(std::string name) {
-    std::lock_guard<std::mutex> lock(creation_mutex);
-    return StaticFactory::Create(name, "Entity", lookupTable, entities, MAX_ENTITIES);
+    try {
+        std::lock_guard<std::mutex> lock(creation_mutex);
+        return StaticFactory::Create(name, "Entity", lookupTable, entities, MAX_ENTITIES);
+    } catch (...) {
+		StaticFactory::DeleteIfExists(name, "Entity", lookupTable, entities, MAX_ENTITIES);
+		throw;
+	}
 }
 
 Entity* Entity::Get(std::string name) {

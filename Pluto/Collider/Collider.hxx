@@ -20,19 +20,19 @@ class Collider : public StaticFactory
     public:
 
     //TODO
-    static Collider *CreateBox(std::string name);
+    static Collider *CreateBox(std::string name, float size_x=1.0f, float size_y=1.0f, float size_z=1.0f);
     
     //TODO
-    static Collider *CreateSphere(std::string name);
+    static Collider *CreateSphere(std::string name, float radius=1.0f);
     
     //TODO
-    static Collider *CreateCapsule(std::string name);
+    static Collider *CreateCapsule(std::string name, float radius=1.0f, float height=1.0f);
     
     //TODO
-    static Collider *CreateCylinder(std::string name);
+    static Collider *CreateCylinder(std::string name, float radius=1.0f, float height=1.0f);
     
     //TODO
-    static Collider *CreateCone(std::string name);
+    static Collider *CreateCone(std::string name, float radius=1.0f, float height=1.0f);
     
     /* Returns a json string summarizing the collider */
     std::string to_string();

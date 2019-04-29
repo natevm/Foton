@@ -936,9 +936,15 @@ void Camera::CleanUp()
 /* Static Factory Implementations */
 Camera* Camera::Create(std::string name,uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t max_views, bool use_depth_prepass, bool use_multiview)
 {
-	auto camera = StaticFactory::Create(name, "Camera", lookupTable, cameras, MAX_CAMERAS);
-	camera->setup(tex_width, tex_height, msaa_samples, max_views, use_depth_prepass, use_multiview);
-	return camera;
+	try {
+		std::lock_guard<std::mutex> lock(creation_mutex);
+		auto camera = StaticFactory::Create(name, "Camera", lookupTable, cameras, MAX_CAMERAS);
+		camera->setup(tex_width, tex_height, msaa_samples, max_views, use_depth_prepass, use_multiview);
+		return camera;
+	} catch (...) {
+		StaticFactory::DeleteIfExists(name, "Camera", lookupTable, cameras, MAX_CAMERAS);
+		throw;
+	}
 }
 
 Camera* Camera::Get(std::string name) {

@@ -31,7 +31,7 @@ class Mesh : public StaticFactory
 		static Mesh* CreateCappedTube(std::string name, bool allow_edits = false, bool submit_immediately = false);
 		
 		/* Creates a mesh component from a procedural capsule */
-		static Mesh* CreateCapsule(std::string name, bool allow_edits = false, bool submit_immediately = false);
+		static Mesh* CreateCapsule(std::string name, float radius = 1.0, float size = 0.5, int slices = 32, int segments = 4, int rings = 8, float start = 0.0, float sweep = 6.28319, bool allow_edits = false, bool submit_immediately = false);
 		
 		/* Creates a mesh component from a procedural cone */
 		static Mesh* CreateCone(std::string name, bool allow_edits = false, bool submit_immediately = false);

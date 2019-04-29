@@ -1554,12 +1554,12 @@ Mesh* Mesh::CreateCappedTube(std::string name, bool allow_edits, bool submit_imm
 	}
 }
 
-Mesh* Mesh::CreateCapsule(std::string name, bool allow_edits, bool submit_immediately)
+Mesh* Mesh::CreateCapsule(std::string name, float radius, float size, int slices, int segments, int rings, float start, float sweep, bool allow_edits, bool submit_immediately)
 {
 	try {
 		std::lock_guard<std::mutex> lock(creation_mutex);
 		auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
-		generator::CapsuleMesh gen_mesh{};
+		generator::CapsuleMesh gen_mesh{radius, size, slices, segments, rings, start, sweep};
 		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
 		return mesh;
 	} catch (...) {
