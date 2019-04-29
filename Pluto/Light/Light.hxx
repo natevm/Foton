@@ -64,6 +64,8 @@ class Light : public StaticFactory
         bool should_cast_shadows();
         void set_cone_angle(float angle);
         void set_cone_softness(float softness);
+        void set_shadow_softness_samples(uint32_t samples);
+        void set_shadow_softness_radius(float radius);
 
         void use_point();
         void use_plane();
