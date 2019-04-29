@@ -24,6 +24,7 @@ class Collider;
 
 class RigidBody : public StaticFactory
 {
+    friend class StaticFactory;
     public:
 
     /* Returns a json string summarizing the rigidbody */
@@ -58,12 +59,6 @@ class RigidBody : public StaticFactory
 
     /* Releases resources */
 	static void CleanUp();
-
-    /* Creates an uninitialized rigidbody. Useful for preallocation. */
-    RigidBody();
-
-    /* Creates a rigidbody with the given name and id. */
-    RigidBody(std::string name, uint32_t id);
     
     /* TODO */
     void make_kinematic();
@@ -108,6 +103,12 @@ class RigidBody : public StaticFactory
     glm::vec3 get_local_inertia();
 
     private:
+
+    /* Creates an uninitialized rigidbody. Useful for preallocation. */
+    RigidBody();
+
+    /* Creates a rigidbody with the given name and id. */
+    RigidBody(std::string name, uint32_t id);
 
     RigidBodyMode mode;
 

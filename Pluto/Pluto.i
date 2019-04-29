@@ -43,9 +43,18 @@ using namespace Systems;
 */
 
 %feature("autodoc","4");
-%feature("kwargs") Prefabs::CreateArcBallCamera;
-%feature("kwargs") Prefabs::CreateVRRig;
-%feature("kwargs") Camera::Create;
+
+%feature("kwargs") Prefabs;
+%feature("kwargs") Camera;
+%feature("kwargs") Collider;
+%feature("kwargs") Entity;
+%feature("kwargs") Light;
+%feature("kwargs") Material;
+%feature("kwargs") Mesh;
+%feature("kwargs") Texture;
+%feature("kwargs") Transform;
+%feature("kwargs") RigidBody;
+
 
 /* Required on windows... */
 %include <windows.i>
@@ -95,6 +104,28 @@ using namespace Systems;
 
 %nodefaultctor Prefabs;
 %nodefaultdtor Prefabs;
+
+%nodefaultctor Prefabs;
+%nodefaultctor Camera;
+%nodefaultctor Collider;
+%nodefaultctor Entity;
+%nodefaultctor Light;
+%nodefaultctor Material;
+%nodefaultctor Mesh;
+%nodefaultctor Texture;
+%nodefaultctor Transform;
+%nodefaultctor RigidBody;
+
+%nodefaultdtor Prefabs;
+%nodefaultdtor Camera;
+%nodefaultdtor Collider;
+%nodefaultdtor Entity;
+%nodefaultdtor Light;
+%nodefaultdtor Material;
+%nodefaultdtor Mesh;
+%nodefaultdtor Texture;
+%nodefaultdtor Transform;
+%nodefaultdtor RigidBody;
 
 // Issue where swig tries to construct a std future from non-existant copy constructor...
 %ignore Libraries::Vulkan::enqueue_graphics_commands(std::vector<vk::CommandBuffer> commandBuffers, std::vector<vk::Semaphore> waitSemaphores, std::vector<vk::PipelineStageFlags> waitDstStageMasks, std::vector<vk::Semaphore> signalSemaphores, vk::Fence fence, std::string hint, uint32_t queue_idx);

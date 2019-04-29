@@ -18,6 +18,7 @@ enum RenderMode : uint32_t;
 
 class Camera : public StaticFactory
 {
+	friend class StaticFactory;
   public:
 	/* Creates a camera, which can be used to record the scene. Can be used to render to several texture layers for use in cubemap rendering/VR renderpasses. 
 	Note, for VR, max_views must be 2, and for a cubemap, max_views must be 6. */
@@ -61,12 +62,6 @@ class Camera : public StaticFactory
 
 	/* Releases vulkan resources */
 	static void CleanUp();
-
-	/* Creates an uninitialized camera. Useful for preallocation. */
-	Camera();
-
-	/* Creates a camera with the given name and id. */
-	Camera(std::string name, uint32_t id);
 
 	/* Constructs an orthographic projection for the given multiview. */
 	// bool set_orthographic_projection(float left, float right, float bottom, float top, float near_pos, uint32_t multiview = 0);
@@ -221,6 +216,12 @@ class Camera : public StaticFactory
 	void wait_for_render_complete();
 
   private:
+  	/* Creates an uninitialized camera. Useful for preallocation. */
+	Camera();
+
+	/* Creates a camera with the given name and id. */
+	Camera(std::string name, uint32_t id);
+
   	/* TODO */
 	static std::mutex creation_mutex;
 

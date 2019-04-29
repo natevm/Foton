@@ -48,6 +48,7 @@ enum RenderMode : uint32_t {
 
 class Material : public StaticFactory
 {
+    friend class StaticFactory;
     public:
         /* Creates a new material component */
         static Material* Create(std::string name);
@@ -113,12 +114,6 @@ class Material : public StaticFactory
         /* TODO... */
         static void ResetBoundMaterial();
 
-        /* Creates an uninitialized material. Useful for preallocation. */
-        Material();
-
-        /* Creates a material with the given name and id. */
-        Material(std::string name, uint32_t id);
-
         /* Returns a json string summarizing the material */
         std::string to_string();
 
@@ -169,6 +164,12 @@ class Material : public StaticFactory
 
 
     private:
+        /* Creates an uninitialized material. Useful for preallocation. */
+        Material();
+
+        /* Creates a material with the given name and id. */
+        Material(std::string name, uint32_t id);
+
         /* TODO */
 		static std::mutex creation_mutex;
 

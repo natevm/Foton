@@ -17,6 +17,7 @@
 
 class Collider : public StaticFactory
 {
+    friend class StaticFactory;
     public:
 
     //TODO
@@ -64,12 +65,6 @@ class Collider : public StaticFactory
     /* Releases resources */
 	static void CleanUp();
 
-    /* Creates an uninitialized collider. Useful for preallocation. */
-    Collider();
-
-    /* Creates a collider with the given name and id. */
-    Collider(std::string name, uint32_t id);
-
     /* TODO */
     btCollisionShape* get_collision_shape();
 
@@ -80,6 +75,12 @@ class Collider : public StaticFactory
     void set_collision_margin(float m);
 
     private:
+
+    /* Creates an uninitialized collider. Useful for preallocation. */
+    Collider();
+
+    /* Creates a collider with the given name and id. */
+    Collider(std::string name, uint32_t id);
 
     std::shared_ptr<btCollisionShape> colliderShape;
 

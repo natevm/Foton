@@ -10,8 +10,9 @@ class Camera;
 
 class Light : public StaticFactory
 {
+    friend class StaticFactory;
     private:
-        
+
         /* TODO */
 		static std::mutex creation_mutex;
         static bool Initialized;
@@ -28,6 +29,9 @@ class Light : public StaticFactory
         
         /* Instance fields*/
         LightStruct light_struct;
+
+        Light();
+        Light(std::string name, uint32_t id);
 
     public:
         
@@ -50,10 +54,6 @@ class Light : public StaticFactory
 
 
         /* Instance functions */
-
-        Light();
-
-        Light(std::string name, uint32_t id);
 
         void set_color(float r, float g, float b);
         void set_temperature(float kelvin);        

@@ -17,6 +17,7 @@ class RigidBody;
 
 #include <string>
 class Entity : public StaticFactory {
+	friend class StaticFactory;
 private:
 	/* If an entity isn't active, its callbacks arent called */
 	bool active = true;
@@ -43,6 +44,9 @@ private:
 	static std::map<std::string, uint32_t> windowToEntity;
 	static std::map<uint32_t, std::string> entityToWindow;
 
+	Entity();
+	Entity(std::string name, uint32_t id);
+
 public:
 	static Entity* Create(std::string name);
 	static Entity* CreateFromComponents(std::string name, 
@@ -66,10 +70,6 @@ public:
     static vk::Buffer GetSSBO();
 	static uint32_t GetSSBOSize();
     static void CleanUp();	
-
-	Entity();
-
-	Entity(std::string name, uint32_t id);
 
 	std::string to_string();
 	

@@ -28,6 +28,7 @@ using namespace std;
 
 class Transform : public StaticFactory
 {
+    friend class StaticFactory;
   private:
     /* Scene graph information */
     int32_t parent = -1;
@@ -103,6 +104,9 @@ class Transform : public StaticFactory
     computing a final world to local matrix */
     glm::mat4 compute_world_to_local_matrix();
 
+    Transform();
+    Transform(std::string name, uint32_t id);
+
   public:
     static Transform* Create(std::string name);
     static Transform* Get(std::string name);
@@ -119,8 +123,6 @@ class Transform : public StaticFactory
     static uint32_t GetSSBOSize();
     static void CleanUp();
 
-    Transform();
-    Transform(std::string name, uint32_t id);
     std::string to_string();
 
     /*

@@ -17,6 +17,7 @@ class Vertex;
 
 class Mesh : public StaticFactory
 {
+	friend class StaticFactory;
 	public:
 		/* Creates a mesh component from a procedural box */
 		static Mesh* CreateBox(std::string name, bool allow_edits = false, bool submit_immediately = false);
@@ -119,10 +120,10 @@ class Mesh : public StaticFactory
 		static Mesh* CreateFromRaw(
 			std::string name,
 			std::vector<glm::vec3> positions, 
-			std::vector<glm::vec3> normals = {}, 
-			std::vector<glm::vec4> colors = {}, 
-			std::vector<glm::vec2> texcoords = {}, 
-			std::vector<uint32_t> indices = {},
+			std::vector<glm::vec3> normals = std::vector<glm::vec3>(), 
+			std::vector<glm::vec4> colors = std::vector<glm::vec4>(), 
+			std::vector<glm::vec2> texcoords = std::vector<glm::vec2>(), 
+			std::vector<uint32_t> indices = std::vector<uint32_t>(),
 			bool allow_edits = false, bool submit_immediately = false);
 
 		/* Retrieves a mesh component by name */
@@ -160,12 +161,6 @@ class Mesh : public StaticFactory
 
         /* Returns the size in bytes of the current mesh SSBO */
         static uint32_t GetSSBOSize();
-
-		/* Creates an uninitialized mesh. Useful for preallocation. */
-		Mesh();
-
-		/* Creates a mesh with the given name and id. */
-		Mesh(std::string name, uint32_t id);
 
 		/* Returns a json string summarizing the mesh */
 		std::string to_string();
@@ -266,6 +261,12 @@ class Mesh : public StaticFactory
 		bool should_show_bounding_box();
 
 	private:
+		/* Creates an uninitialized mesh. Useful for preallocation. */
+		Mesh();
+
+		/* Creates a mesh with the given name and id. */
+		Mesh(std::string name, uint32_t id);
+
 		/* TODO */
 		static std::mutex creation_mutex;
 		
