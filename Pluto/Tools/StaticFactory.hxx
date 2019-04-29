@@ -113,6 +113,15 @@ class StaticFactory {
         lookupTable.erase(name);
     }
 
+    /* If it exists, removes an element with a lookup table indirection, removing from both items and the lookup table */
+    template<class T>
+    static void DeleteIfExists(std::string name, std::string type, std::map<std::string, uint32_t> &lookupTable, T* items, uint32_t maxItems)
+    {
+        if (!DoesItemExist(lookupTable, name)) return;
+        items[lookupTable[name]] = T();
+        lookupTable.erase(name);
+    }
+
     /* Removes an element by ID directly, removing from both items and the lookup table */
     template<class T>
     static void Delete(uint32_t id, std::string type, std::map<std::string, uint32_t> &lookupTable, T* items, uint32_t maxItems)
