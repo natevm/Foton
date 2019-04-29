@@ -45,6 +45,14 @@ private:
 
 public:
 	static Entity* Create(std::string name);
+	static Entity* CreateFromComponents(std::string name, 
+		Transform* transform = nullptr, 
+		Camera* camera = nullptr,
+		Material* material = nullptr,
+		Light* light = nullptr,
+		Mesh* mesh = nullptr,
+		RigidBody* rigid_body = nullptr
+	);
 	static Entity* Get(std::string name);
 	static Entity* Get(uint32_t id);
 	static Entity* GetFront();
@@ -73,6 +81,8 @@ public:
 	
 	int32_t get_rigid_body();
 
+	RigidBody* rigid_body();
+
 	void set_transform(int32_t transform_id);
 
 	void set_transform(Transform* transform);
@@ -80,6 +90,8 @@ public:
 	void clear_transform();
 
 	int32_t get_transform();
+
+	Transform* transform();
 
 	void set_camera(int32_t camera_id);
 
@@ -89,6 +101,8 @@ public:
 
 	int32_t get_camera();
 
+	Camera* camera();
+
 	void set_material(int32_t material_id);
 
 	void set_material(Material *material);
@@ -96,6 +110,8 @@ public:
 	void clear_material();
 
 	int32_t get_material();
+
+	Material* material();
 
 	void set_light(int32_t light_id);
 
@@ -105,6 +121,8 @@ public:
 
 	int32_t get_light();
 
+	Light* light();
+
 	void set_mesh(int32_t mesh_id);
 
 	void set_mesh(Mesh* mesh);
@@ -112,4 +130,6 @@ public:
 	void clear_mesh();
 
 	int32_t get_mesh();
+
+	Mesh* mesh();
 };
