@@ -12,6 +12,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include <functional>
+
 #define GLM_ENABLE_EXPERIMENTAL
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_FORCE_RADIANS
@@ -777,6 +779,45 @@ void Mesh::load_glb(std::string glbPath, bool allow_edits, bool submit_immediate
 	createTexCoordBuffer(allow_edits, submit_immediately);
 }
 
+struct Triangle {
+	uint32_t idx[3];
+
+	bool operator==(const Triangle &other) const
+	{ 
+		uint32_t s_idx1[3];
+		uint32_t s_idx2[3];
+
+		std::copy(std::begin(idx), std::end(idx), std::begin(s_idx1));
+		std::copy(std::begin(other.idx), std::end(other.idx), std::begin(s_idx2));
+
+		std::sort(std::begin(s_idx1), std::end(s_idx1));
+		std::sort(std::begin(s_idx2), std::end(s_idx2));
+
+		return (s_idx1[0] == s_idx2[0]
+			&& s_idx1[1] == s_idx2[1]
+			&& s_idx1[2] == s_idx2[2]);
+	}
+};
+
+namespace std {
+	template <>
+	struct hash<Triangle>
+	{
+		std::size_t operator()(const Triangle& t) const
+		{
+			using std::size_t;
+			using std::hash;
+			uint32_t s_idx[3];
+			std::copy(std::begin(t.idx), std::end(t.idx), &s_idx[0]);
+			std::sort(std::begin(s_idx), std::end(s_idx));
+			
+			return ((hash<uint32_t>()(s_idx[0])
+					^ (hash<uint32_t>()(s_idx[1]) << 1)) >> 1)
+					^ (hash<uint32_t>()(s_idx[2]) << 1);
+		}
+	};
+}
+
 void Mesh::load_tetgen(std::string path, bool allow_edits, bool submit_immediately)
 {
 	struct stat st;
@@ -830,6 +871,7 @@ void Mesh::load_tetgen(std::string path, bool allow_edits, bool submit_immediate
 	/* Eliminate duplicate positions */
 	std::unordered_map<Vertex, uint32_t> uniqueVertexMap = {};
 	std::vector<Vertex> uniqueVertices;
+	std::vector<uint32_t> all_triangle_indices;
 	for (int i = 0; i < tri_vertices.size(); ++i)
 	{
 		Vertex vertex = tri_vertices[i];
@@ -838,7 +880,30 @@ void Mesh::load_tetgen(std::string path, bool allow_edits, bool submit_immediate
 			uniqueVertexMap[vertex] = static_cast<uint32_t>(uniqueVertices.size());
 			uniqueVertices.push_back(vertex);
 		}
-		triangle_indices.push_back(uniqueVertexMap[vertex]);
+		all_triangle_indices.push_back(uniqueVertexMap[vertex]);
+	}
+
+	/* Only add outside triangles to triangle indices. 
+	We do this by removing all triangles which contain duplicates. */
+	std::unordered_map<Triangle, uint32_t> triangleCount = {};
+	for (int i = 0; i < all_triangle_indices.size(); i+=3)
+	{
+		Triangle t;
+		t.idx[0] = all_triangle_indices[i + 0];
+		t.idx[1] = all_triangle_indices[i + 1];
+		t.idx[2] = all_triangle_indices[i + 2];
+		if (triangleCount.find(t) != triangleCount.end())
+			triangleCount[t]++;
+		else
+			triangleCount[t] = 1;
+	}
+
+	for (auto &item : triangleCount) {
+		if (item.second == 1) {
+			triangle_indices.push_back(item.first.idx[0]);
+			triangle_indices.push_back(item.first.idx[1]);
+			triangle_indices.push_back(item.first.idx[2]);
+		}
 	}
 
 	/* Since tetrahedra vertices are the triangle indices, we can reuse the 
