@@ -1034,28 +1034,58 @@ const float gamma = 2.2;
 vec3 ToLinear(vec3 v) { return PowV3(v,     gamma); }
 vec3 ToSRGB(vec3 v)   { return PowV3(v, 1.0/gamma); }
 
+vec3 sampleOffsetDirections[20] = vec3[]
+(
+   vec3( 1,  1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1,  1,  1), 
+   vec3( 1,  1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1,  1, -1),
+   vec3( 1,  1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1,  1,  0),
+   vec3( 1,  0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1,  0, -1),
+   vec3( 0,  1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0,  1, -1)
+);   
+
 float get_shadow_contribution(EntityStruct light_entity, LightStruct light, vec3 w_light_position, vec3 w_position) 
 {
-    float bias = .1;
     CameraStruct light_camera = cbo.cameras[light_entity.camera_id];
     int tex_id = light_camera.multiviews[0].tex_id;
+
+    TextureStruct tex = txbo.textures[tex_id];
+    if ((tex.sampler_id < 0) || (tex.sampler_id >= MAX_TEXTURES)) return 1.0;
 
     TransformStruct light_transform = tbo.transforms[light_entity.transform_id];
     vec3 l_position = (light_transform.worldToLocalRotation * light_transform.worldToLocalTranslation * vec4(w_position, 1.0)).xyz;
     vec3 pos_dir = -normalize(l_position);
+    float l_dist = length(l_position);
     vec3 adjusted = vec3(pos_dir.x, -pos_dir.z, pos_dir.y);
 
-    TextureStruct tex = txbo.textures[tex_id];
-    float val = 1.0;
-    if (tex.sampler_id != -1) {
-        val = texture(
-            samplerCube(texture_cubes[tex_id], samplers[tex.sampler_id]), adjusted
+    float shadow = 0.0;
+    float bias = .1;
+    float samples = light.softnessSamples;
+    float viewDistance = l_dist;
+    float diskRadius = light.softnessRadius * clamp((1.0 / pow(l_dist + 1.0, 3.)), .002, .1);
+
+    for (int i = 0; i < samples; i++)
+    {
+        float closestDepth = texture(
+            samplerCube(texture_cubes[tex_id], samplers[tex.sampler_id]), 
+            adjusted + sampleOffsetDirections[i] * diskRadius
         ).r;
 
-        val = (val + bias < length(l_position)) ? 0.0 : 1.0;
+        shadow += 1.0f;
+        if((l_dist - closestDepth) > 0.15)
+          shadow -= min(1.0, pow((l_dist - closestDepth), .1));
     }
+    shadow /= float(samples);
 
-    return val;
+
+    // if (tex.sampler_id != -1) {
+    //     shadow = texture(
+    //         samplerCube(texture_cubes[tex_id], samplers[tex.sampler_id]), adjusted
+    //     ).r;
+
+    //     shadow = (shadow + bias < l_dist) ? 0.0 : 1.0;
+    // }
+
+    return shadow;
 }
 
 vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 albedo_mix, vec3 albedo, float metallic, float roughness)

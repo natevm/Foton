@@ -9,6 +9,7 @@
 #include "Systems/EventSystem/EventSystem.hxx"
 #include "Systems/PythonSystem/PythonSystem.hxx"
 #include "Systems/RenderSystem/RenderSystem.hxx"
+#include "Systems/PhysicsSystem/PhysicsSystem.hxx"
 
 #include "Pluto/Camera/Camera.hxx"
 #include "Pluto/Texture/Texture.hxx"

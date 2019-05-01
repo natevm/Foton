@@ -23,7 +23,9 @@ struct LightStruct {
 	vec4 color;
 	float intensity;
 	float coneAngle, coneSoftness;
-	float constantAttenuation, linearAttenuation, quadraticAttenuation;
+	float softnessRadius;
+	float ph3;
+	int softnessSamples;
 	int type; 
 	// 100 - double sided
 	// 010 - show end caps

@@ -69,7 +69,8 @@ class StaticFactory {
         if (id < 0) 
             throw std::runtime_error(std::string("Error: max " + type + " limit reached."));
 
-        std::cout << "Adding " << type << " \"" << name << "\"" << std::endl;
+        // TODO: make this only output if verbose
+        // std::cout << "Adding " << type << " \"" << name << "\"" << std::endl;
         items[id] = T(name, id);
         lookupTable[name] = id;
         return &items[id];
@@ -108,6 +109,15 @@ class StaticFactory {
         if (!DoesItemExist(lookupTable, name))
             throw std::runtime_error(std::string("Error: " + type + " \"" + name + "\" does not exist."));
 
+        items[lookupTable[name]] = T();
+        lookupTable.erase(name);
+    }
+
+    /* If it exists, removes an element with a lookup table indirection, removing from both items and the lookup table */
+    template<class T>
+    static void DeleteIfExists(std::string name, std::string type, std::map<std::string, uint32_t> &lookupTable, T* items, uint32_t maxItems)
+    {
+        if (!DoesItemExist(lookupTable, name)) return;
         items[lookupTable[name]] = T();
         lookupTable.erase(name);
     }

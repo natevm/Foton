@@ -12,6 +12,7 @@
 
 class Texture : public StaticFactory
 {
+	friend class StaticFactory;
 	public:
 		/* This is public so that external libraries can easily create 
 			textures while still conforming to the component interface */
@@ -103,12 +104,6 @@ class Texture : public StaticFactory
 		/* Releases vulkan resources */
 		static void CleanUp();
 
-		/* Creates an uninitialized texture. Useful for preallocation. */
-		Texture();
-
-		/* Creates a texture with the given name and id. */
-		Texture(std::string name, uint32_t id);
-
 		/* Accessors / Mutators */
 		vk::Format get_color_format();
 		vk::ImageLayout get_color_image_layout();
@@ -176,6 +171,12 @@ class Texture : public StaticFactory
 		void overrideDepthImageLayout(vk::ImageLayout layout);
 
 	private:
+		/* Creates an uninitialized texture. Useful for preallocation. */
+		Texture();
+
+		/* Creates a texture with the given name and id. */
+		Texture(std::string name, uint32_t id);
+
 		/* TODO */
 		static std::mutex creation_mutex;
 		

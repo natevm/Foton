@@ -19,6 +19,7 @@ class Vertex;
 
 class Mesh : public StaticFactory
 {
+	friend class StaticFactory;
 	public:
 		/* Creates a mesh component from a procedural box */
 		static Mesh* CreateBox(std::string name, bool allow_edits = false, bool submit_immediately = false);
@@ -33,7 +34,7 @@ class Mesh : public StaticFactory
 		static Mesh* CreateCappedTube(std::string name, bool allow_edits = false, bool submit_immediately = false);
 		
 		/* Creates a mesh component from a procedural capsule */
-		static Mesh* CreateCapsule(std::string name, bool allow_edits = false, bool submit_immediately = false);
+		static Mesh* CreateCapsule(std::string name, float radius = 1.0, float size = 0.5, int slices = 32, int segments = 4, int rings = 8, float start = 0.0, float sweep = 6.28319, bool allow_edits = false, bool submit_immediately = false);
 		
 		/* Creates a mesh component from a procedural cone */
 		static Mesh* CreateCone(std::string name, bool allow_edits = false, bool submit_immediately = false);
@@ -64,7 +65,7 @@ class Mesh : public StaticFactory
 		// static Mesh* CreateParametricMesh(std::string name, bool allow_edits = false, bool submit_immediately = false);
 
 		/* Creates a mesh component from a procedural box with rounded edges */
-		static Mesh* CreateRoundedBox(std::string name, bool allow_edits = false, bool submit_immediately = false);
+		static Mesh* CreateRoundedBox(std::string name, float radius = .25, glm::vec3 size = glm::vec3(.75f, .75f, .75f), int slices=4, glm::ivec3 segments=glm::ivec3(1, 1, 1), bool allow_edits = false, bool submit_immediately = false);
 
 		/* Creates a mesh component from a procedural sphere */
 		static Mesh* CreateSphere(std::string name, bool allow_edits = false, bool submit_immediately = false);
@@ -121,17 +122,17 @@ class Mesh : public StaticFactory
 		static Mesh* CreateFromRaw(
 			std::string name,
 			std::vector<glm::vec3> positions, 
-			std::vector<glm::vec3> normals = {}, 
-			std::vector<glm::vec4> colors = {}, 
-			std::vector<glm::vec2> texcoords = {}, 
-			std::vector<uint32_t> indices = {},
-			std::vector<glm::ivec2> edges = {},
+			std::vector<glm::vec3> normals = std::vector<glm::vec3>(), 
+			std::vector<glm::vec4> colors = std::vector<glm::vec4>(), 
+			std::vector<glm::vec2> texcoords = std::vector<glm::vec2>(), 
+			std::vector<uint32_t> indices = std::vector<uint32_t>(),
+			std::vector<glm::ivec2> edges = std::vector<glm::ivec2>(),
 			// when not provding rest_lengths, edges will use the distance between the positions as the default rest lengths
 			// if providing rest_lengths, the size of rest_lengths must not be less than the size of edges
 			// if non empty rest_legnths are provided but no edges are provided, the rest_lenghts are ignored and
 			// the edges will be automatically generated using the triangles formed by the indices, default rest lengths
 			// will be used
-			std::vector<float> rest_lengths = {},
+			std::vector<float> rest_lengths = std::vector<float>(),
 			bool allow_edits = false, bool submit_immediately = false);
 
 		/* Retrieves a mesh component by name */
@@ -169,12 +170,6 @@ class Mesh : public StaticFactory
 
         /* Returns the size in bytes of the current mesh SSBO */
         static uint32_t GetSSBOSize();
-
-		/* Creates an uninitialized mesh. Useful for preallocation. */
-		Mesh();
-
-		/* Creates a mesh with the given name and id. */
-		Mesh(std::string name, uint32_t id);
 
 		/* Returns a json string summarizing the mesh */
 		std::string to_string();
@@ -305,6 +300,12 @@ class Mesh : public StaticFactory
 		bool should_show_bounding_box();
 
 	private:
+		/* Creates an uninitialized mesh. Useful for preallocation. */
+		Mesh();
+
+		/* Creates a mesh with the given name and id. */
+		Mesh(std::string name, uint32_t id);
+
 		/* TODO */
 		static std::mutex creation_mutex;
 		

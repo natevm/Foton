@@ -18,9 +18,12 @@ using namespace Libraries;
 /* Systems */
 #include "Pluto/Systems/RenderSystem/RenderSystem.hxx"
 #include "Pluto/Systems/EventSystem/EventSystem.hxx"
+#include "Pluto/Systems/PhysicsSystem/PhysicsSystem.hxx"
 using namespace Systems;
 
 /* Components */
+#include "Pluto/Collider/Collider.hxx"
+#include "Pluto/RigidBody/RigidBody.hxx"
 #include "Pluto/Transform/Transform.hxx"
 #include "Pluto/Texture/Texture.hxx"
 #include "Pluto/Camera/Camera.hxx"
@@ -40,9 +43,18 @@ using namespace Systems;
 */
 
 %feature("autodoc","4");
-%feature("kwargs") Prefabs::CreateArcBallCamera;
-%feature("kwargs") Prefabs::CreateVRRig;
-%feature("kwargs") Camera::Create;
+
+%feature("kwargs") Prefabs;
+%feature("kwargs") Camera;
+%feature("kwargs") Collider;
+%feature("kwargs") Entity;
+%feature("kwargs") Light;
+%feature("kwargs") Material;
+%feature("kwargs") Mesh;
+%feature("kwargs") Texture;
+%feature("kwargs") Transform;
+%feature("kwargs") RigidBody;
+
 
 /* Required on windows... */
 %include <windows.i>
@@ -63,6 +75,8 @@ using namespace Systems;
 %shared_ptr(StaticFactory)
 %shared_ptr(Entity)
 %shared_ptr(Transform)
+%shared_ptr(RigidBody)
+%shared_ptr(Collider)
 %shared_ptr(Texture)
 %shared_ptr(Camera)
 %shared_ptr(Mesh)
@@ -85,9 +99,33 @@ using namespace Systems;
 %nodefaultdtor RenderSystem;
 %nodefaultctor EventSystem;
 %nodefaultdtor EventSystem;
+%nodefaultctor PhysicsSystem;
+%nodefaultdtor PhysicsSystem;
 
 %nodefaultctor Prefabs;
 %nodefaultdtor Prefabs;
+
+%nodefaultctor Prefabs;
+%nodefaultctor Camera;
+%nodefaultctor Collider;
+%nodefaultctor Entity;
+%nodefaultctor Light;
+%nodefaultctor Material;
+%nodefaultctor Mesh;
+%nodefaultctor Texture;
+%nodefaultctor Transform;
+%nodefaultctor RigidBody;
+
+%nodefaultdtor Prefabs;
+%nodefaultdtor Camera;
+%nodefaultdtor Collider;
+%nodefaultdtor Entity;
+%nodefaultdtor Light;
+%nodefaultdtor Material;
+%nodefaultdtor Mesh;
+%nodefaultdtor Texture;
+%nodefaultdtor Transform;
+%nodefaultdtor RigidBody;
 
 // Issue where swig tries to construct a std future from non-existant copy constructor...
 %ignore Libraries::Vulkan::enqueue_graphics_commands(std::vector<vk::CommandBuffer> commandBuffers, std::vector<vk::Semaphore> waitSemaphores, std::vector<vk::PipelineStageFlags> waitDstStageMasks, std::vector<vk::Semaphore> signalSemaphores, vk::Fence fence, std::string hint, uint32_t queue_idx);
@@ -115,9 +153,12 @@ using namespace Systems;
 %include "Pluto/Tools/System.hxx"
 %include "Pluto/Systems/RenderSystem/RenderSystem.hxx"
 %include "Pluto/Systems/EventSystem/EventSystem.hxx"
+%include "Pluto/Systems/PhysicsSystem/PhysicsSystem.hxx"
 
 %include "Pluto/Transform/Transform.hxx"
 %include "Pluto/Texture/Texture.hxx"
+%include "Pluto/Collider/Collider.hxx"
+%include "Pluto/RigidBody/RigidBody.hxx"
 %include "Pluto/Mesh/Mesh.hxx"
 %include "Pluto/Light/Light.hxx"
 %include "Pluto/Material/Material.hxx"
@@ -130,6 +171,16 @@ using namespace Systems;
 
 /* Representations */
 %extend Transform {
+    %feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
+    std::string __repr__() { return $self->to_string(); }
+}
+
+%extend RigidBody {
+    %feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
+    std::string __repr__() { return $self->to_string(); }
+}
+
+%extend Collider {
     %feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
     std::string __repr__() { return $self->to_string(); }
 }
@@ -170,6 +221,8 @@ using namespace Systems;
 %template(MeshVector) vector<Mesh*>;
 %template(CameraVector) vector<Camera*>;
 %template(TextureVector) vector<Texture*>;
+%template(ColliderVector) vector<Collider*>;
+%template(RigidBodyVector) vector<RigidBody*>;
 %template(LightVector) vector<Light*>;
 %template(MaterialVector) vector<Material*>;
 

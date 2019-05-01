@@ -16,3 +16,6 @@
 [submodule "external/openvr"]
 	path = external/openvr
 	url = https://github.com/n8vm/openvr.git
+[submodule "external/bullet3"]
+	path = external/bullet3
+	url = https://github.com/n8vm/bullet3.git

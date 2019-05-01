@@ -31,6 +31,18 @@ Light::Light(std::string name, uint32_t id)
     this->light_struct.color = glm::vec4(1.0, 1.0, 1.0, 1.0);
     this->light_struct.intensity = 1.0;
     this->light_struct.flags = 0;
+    this->light_struct.softnessSamples = 20;
+    this->light_struct.softnessRadius = 1.0;
+}
+
+void Light::set_shadow_softness_samples(uint32_t samples)
+{
+    light_struct.softnessSamples = std::min(std::max(samples, (uint32_t)1), (uint32_t)20);
+}
+
+void Light::set_shadow_softness_radius(float radius)
+{
+    light_struct.softnessRadius = std::max(radius, 0.0f);
 }
 
 void Light::set_color(float r, float g, float b)
@@ -225,7 +237,7 @@ void Light::CreateShadowCameras()
     // Right, Left, Up, Down, Far, Near
     /* Create shadow map textures */
     for (uint32_t i = 0; i < MAX_LIGHTS; ++i) {
-        auto cam = Camera::Create("ShadowCam_" + std::to_string(i), 1024, 1024, 1, 6, false, false);
+        auto cam = Camera::Create("ShadowCam_" + std::to_string(i), 512, 512, 1, 6, false, false);
         cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 0);
         cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 1);
         cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 2);
@@ -320,8 +332,13 @@ void Light::CleanUp()
 
 /* Static Factory Implementations */
 Light* Light::Create(std::string name) {
-    std::lock_guard<std::mutex> lock(creation_mutex);
-    return StaticFactory::Create(name, "Light", lookupTable, lights, MAX_LIGHTS);
+    try {
+        std::lock_guard<std::mutex> lock(creation_mutex);
+        return StaticFactory::Create(name, "Light", lookupTable, lights, MAX_LIGHTS);
+    } catch (...) {
+        StaticFactory::DeleteIfExists(name, "Light", lookupTable, lights, MAX_LIGHTS);
+        throw;
+    }
 }
 
 Light* Light::Get(std::string name) {

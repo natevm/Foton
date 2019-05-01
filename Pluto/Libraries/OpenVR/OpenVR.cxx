@@ -102,13 +102,13 @@ bool OpenVR::get_required_vulkan_device_extensions(vk::PhysicalDevice &physicalD
 	}
 
 	outDeviceExtensionList.clear();
-	uint32_t nBufferSize = VRCompositor()->GetVulkanDeviceExtensionsRequired(physicalDevice, nullptr, 0);
+	uint32_t nBufferSize = VRCompositor()->GetVulkanDeviceExtensionsRequired((VkPhysicalDevice_T*)physicalDevice, nullptr, 0);
 	if (nBufferSize > 0)
 	{
 		// Allocate memory for the space separated list and query for it
 		char *pExtensionStr = new char[nBufferSize];
 		pExtensionStr[0] = 0;
-		VRCompositor()->GetVulkanDeviceExtensionsRequired(physicalDevice, pExtensionStr, nBufferSize);
+		VRCompositor()->GetVulkanDeviceExtensionsRequired((VkPhysicalDevice_T*)physicalDevice, pExtensionStr, nBufferSize);
 
 		// Break up the space separated list into entries on the CUtlStringList
 		std::string curExtStr;

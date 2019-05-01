@@ -16,6 +16,9 @@
 #include "Pluto/Entity/Entity.hxx"
 #include "Pluto/Tools/Options.hxx"
 #include "Pluto/Material/Material.hxx"
+#include "Pluto/Light/Light.hxx"
+#include "Pluto/Mesh/Mesh.hxx"
+#include "Pluto/Transform/Transform.hxx"
 
 #include "Pluto/Libraries/OpenVR/OpenVR.hxx"
 
@@ -182,7 +185,6 @@ void RenderSystem::record_depth_prepass(Entity &camera_entity, std::vector<std::
             /* Bind all descriptor sets to that renderpass.
                 Note that we're using a single bind. The same descriptors are shared across pipelines. */
             Material::BindDescriptorSets(command_buffer, rp);
-            
 
             camera->begin_depth_prepass(command_buffer, rp_idx);
 

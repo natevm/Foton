@@ -15,4 +15,6 @@ struct EntityStruct {
 	int32_t material_id;
 	int32_t light_id;
 	int32_t mesh_id;
+	int32_t rigid_body_id;
+	int32_t ph1;
 };

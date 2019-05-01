@@ -12,15 +12,27 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 
+# Force 64 bit builds
+if("${CMAKE_SIZEOF_VOID_P}" STREQUAL "4")
+MESSAGE(FATAL_ERROR "4 byte void pointer detected. Please switch to a 64 bit build")
+endif()
+
+
 if(MSVC)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+add_definitions(-D_ENABLE_EXTENDED_ALIGNED_STORAGE)
 endif(MSVC)
 
 # Set the install prefix
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/install/" CACHE PATH "..." FORCE)
 endif()
+
+# clear postfixes
+set(CMAKE_DEBUG_POSTFIX "" CACHE STRING "" FORCE)
+set(CMAKE_RELWITHDEBINFO_POSTFIX "" CACHE STRING "" FORCE)
+set(CMAKE_MINSIZEREL_POSTFIX "" CACHE STRING "" FORCE)
 
 # Default to release build
 if(NOT CMAKE_BUILD_TYPE)
@@ -172,8 +184,6 @@ if (UNIX AND NOT APPLE)
   endif()  
 endif()
 include(${SWIG_USE_FILE})
-cmake_policy(SET CMP0078 NEW)
-# cmake_policy(SET CMP0086 NEW) # Doesn't work on all cmake versions.
 
 # vulkan
 find_package(Vulkan 1.1.97 REQUIRED)
@@ -231,6 +241,13 @@ endif()
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/openvr)
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/openvr/headers)
 
+# bullet 
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/bullet3)
+include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/bullet3/src)
+set_property(TARGET LinearMath PROPERTY POSITION_INDEPENDENT_CODE ON)
+set_property(TARGET BulletDynamics PROPERTY POSITION_INDEPENDENT_CODE ON)
+set_property(TARGET BulletCollision PROPERTY POSITION_INDEPENDENT_CODE ON)
+
 # spacemouse
 # Todo: make a cmake file for this
 if(BUILD_SPACEMOUSE)
@@ -286,6 +303,10 @@ set (
     ${SPACEMOUSE_LIBRARIES}
     generator
     TetGen
+    BulletSoftBody
+    BulletDynamics
+    BulletCollision
+    LinearMath
 )
 
 # Name of OpenVR target seems to change...

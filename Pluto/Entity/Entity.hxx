@@ -6,20 +6,21 @@
 
 #include "Pluto/Tools/StaticFactory.hxx"
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
-#include "Pluto/Camera/Camera.hxx"
-#include "Pluto/Transform/Transform.hxx"
-#include "Pluto/Material/Material.hxx"
-#include "Pluto/Light/Light.hxx"
-#include "Pluto/Mesh/Mesh.hxx"
 #include "Pluto/Entity/EntityStruct.hxx"
+
+class Camera;
+class Transform;
+class Material;
+class Light;
+class Mesh;
+class RigidBody;
 
 #include <string>
 class Entity : public StaticFactory {
+	friend class StaticFactory;
 private:
 	/* If an entity isn't active, its callbacks arent called */
 	bool active = true;
-	int32_t parent = -1;
-	std::set<int32_t> children;
 
 	EntityStruct entity_struct;
 
@@ -43,8 +44,19 @@ private:
 	static std::map<std::string, uint32_t> windowToEntity;
 	static std::map<uint32_t, std::string> entityToWindow;
 
+	Entity();
+	Entity(std::string name, uint32_t id);
+
 public:
 	static Entity* Create(std::string name);
+	static Entity* CreateFromComponents(std::string name, 
+		Transform* transform = nullptr, 
+		Camera* camera = nullptr,
+		Material* material = nullptr,
+		Light* light = nullptr,
+		Mesh* mesh = nullptr,
+		RigidBody* rigid_body = nullptr
+	);
 	static Entity* Get(std::string name);
 	static Entity* Get(uint32_t id);
 	static Entity* GetFront();
@@ -59,11 +71,17 @@ public:
 	static uint32_t GetSSBOSize();
     static void CleanUp();	
 
-	Entity();
-
-	Entity(std::string name, uint32_t id);
-
 	std::string to_string();
+	
+	void set_rigid_body(int32_t rigid_body_id) ;
+	
+	void set_rigid_body(RigidBody* rigid_body) ;
+	
+	void clear_rigid_body();
+	
+	int32_t get_rigid_body();
+
+	RigidBody* rigid_body();
 
 	void set_transform(int32_t transform_id);
 
@@ -73,6 +91,8 @@ public:
 
 	int32_t get_transform();
 
+	Transform* transform();
+
 	void set_camera(int32_t camera_id);
 
 	void set_camera(Camera *camera);
@@ -80,6 +100,8 @@ public:
 	void clear_camera();
 
 	int32_t get_camera();
+
+	Camera* camera();
 
 	void set_material(int32_t material_id);
 
@@ -89,6 +111,8 @@ public:
 
 	int32_t get_material();
 
+	Material* material();
+
 	void set_light(int32_t light_id);
 
 	void set_light(Light* light);
@@ -96,6 +120,8 @@ public:
 	void clear_light();
 
 	int32_t get_light();
+
+	Light* light();
 
 	void set_mesh(int32_t mesh_id);
 
@@ -105,22 +131,5 @@ public:
 
 	int32_t get_mesh();
 
-	void setParent(uint32_t parent);
-
-	void addChild(uint32_t object);
-
-	void removeChild(uint32_t object);
-
-	// glm::mat4 getWorldToLocalMatrix() {
-	// 	glm::mat4 parentMatrix = glm::mat4(1.0);
-	// 	if (parent != nullptr) {
-	// 		parentMatrix = parent->getWorldToLocalMatrix();
-	// 		return transform->ParentToLocalMatrix() * parentMatrix;
-	// 	}
-	// 	else return transform->ParentToLocalMatrix();
-	// }
-
-	// glm::mat4 getLocalToWorldMatrix() {
-	// 	return glm::inverse(getWorldToLocalMatrix());
-	// }
+	Mesh* mesh();
 };
