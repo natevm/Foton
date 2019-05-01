@@ -1431,8 +1431,8 @@ void Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &ren
 	}
 	
 	command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
-	command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
-	command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
+	command_buffer.bindIndexBuffer(m->get_triangle_index_buffer(), 0, vk::IndexType::eUint32);
+	command_buffer.drawIndexed(m->get_total_triangle_indices(), 1, 0, 0, 0);
 }
 
 void Material::DrawVolume(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants, RenderMode rendermode_override) //int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time)
@@ -1468,8 +1468,8 @@ void Material::DrawVolume(vk::CommandBuffer &command_buffer, vk::RenderPass &ren
 	}
 	
 	command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
-	command_buffer.bindIndexBuffer(m->get_index_buffer(), 0, vk::IndexType::eUint32);
-	command_buffer.drawIndexed(m->get_total_indices(), 1, 0, 0, 0);
+	command_buffer.bindIndexBuffer(m->get_triangle_index_buffer(), 0, vk::IndexType::eUint32);
+	command_buffer.drawIndexed(m->get_total_triangle_indices(), 1, 0, 0, 0);
 }
 
 void Material::CreateSSBO() 

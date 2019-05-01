@@ -116,7 +116,9 @@ std::string Mesh::to_string() {
 	output += "\ttype: \"Mesh\",\n";
 	output += "\tname: \"" + name + "\",\n";
 	output += "\tnum_positions: \"" + std::to_string(positions.size()) + "\",\n";
-	output += "\tnum_indices: \"" + std::to_string(indices.size()) + "\",\n";
+	output += "\tnum_edge_indices: \"" + std::to_string(edge_indices.size()) + "\",\n";
+	output += "\tnum_triangle_indices: \"" + std::to_string(triangle_indices.size()) + "\",\n";
+	output += "\tnum_tetrahedra_indices: \"" + std::to_string(tetrahedra_indices.size()) + "\",\n";
 	output += "}";
 	return output;
 }
@@ -138,8 +140,16 @@ std::vector<glm::vec2> Mesh::get_texcoords() {
 	return texcoords;
 }
 
-std::vector<uint32_t> Mesh::get_indices() {
-	return indices;
+std::vector<uint32_t> Mesh::get_edge_indices() {
+	return edge_indices;
+}
+
+std::vector<uint32_t> Mesh::get_triangle_indices() {
+	return triangle_indices;
+}
+
+std::vector<uint32_t> Mesh::get_tetrahedra_indices() {
+	return tetrahedra_indices;
 }
 
 vk::Buffer Mesh::get_point_buffer()
@@ -152,9 +162,9 @@ vk::Buffer Mesh::get_color_buffer()
 	return colorBuffer;
 }
 
-vk::Buffer Mesh::get_index_buffer()
+vk::Buffer Mesh::get_triangle_index_buffer()
 {
-	return indexBuffer;
+	return triangleIndexBuffer;
 }
 
 vk::Buffer Mesh::get_normal_buffer()
@@ -167,9 +177,19 @@ vk::Buffer Mesh::get_texcoord_buffer()
 	return texCoordBuffer;
 }
 
-uint32_t Mesh::get_total_indices()
+uint32_t Mesh::get_total_edge_indices()
 {
-	return (uint32_t)indices.size();
+	return (uint32_t)edge_indices.size();
+}
+
+uint32_t Mesh::get_total_triangle_indices()
+{
+	return (uint32_t)triangle_indices.size();
+}
+
+uint32_t Mesh::get_total_tetrahedra_indices()
+{
+	return (uint32_t)tetrahedra_indices.size();
 }
 
 uint32_t Mesh::get_index_bytes()
@@ -218,11 +238,11 @@ void Mesh::save_tetrahedralization(float quality_bound, float maximum_volume)
 			in.pointlist[i * 3 + 2] = this->positions[i].z;
 		}
 
-		in.numberoffacets = this->indices.size() / 3; 
+		in.numberoffacets = this->triangle_indices.size() / 3; 
 		in.facetlist = new tetgenio::facet[in.numberoffacets];
 		in.facetmarkerlist = new int[in.numberoffacets];
 
-		for (uint32_t i = 0; i < this->indices.size() / 3; ++i) {
+		for (uint32_t i = 0; i < this->triangle_indices.size() / 3; ++i) {
 			f = &in.facetlist[i];
 			f->numberofpolygons = 1;
 			f->polygonlist = new tetgenio::polygon[f->numberofpolygons];
@@ -232,9 +252,9 @@ void Mesh::save_tetrahedralization(float quality_bound, float maximum_volume)
 			p->numberofvertices = 3;
 			p->vertexlist = new int[p->numberofvertices];
 			// Note, tetgen indices start at one.
-			p->vertexlist[0] = indices[i * 3 + 0] + 1; 
-			p->vertexlist[1] = indices[i * 3 + 1] + 1; 
-			p->vertexlist[2] = indices[i * 3 + 2] + 1; 
+			p->vertexlist[0] = triangle_indices[i * 3 + 0] + 1; 
+			p->vertexlist[1] = triangle_indices[i * 3 + 1] + 1; 
+			p->vertexlist[2] = triangle_indices[i * 3 + 2] + 1; 
 			in.facetmarkerlist[i] = 0; // ?
 		}
 
@@ -302,8 +322,8 @@ void Mesh::cleanup()
 		throw std::runtime_error( std::string("Invalid vulkan device"));
 
 	/* Destroy index buffer */
-	device.destroyBuffer(indexBuffer);
-	device.freeMemory(indexBufferMemory);
+	device.destroyBuffer(triangleIndexBuffer);
+	device.freeMemory(triangleIndexBufferMemory);
 
 	/* Destroy vertex buffer */
 	device.destroyBuffer(pointBuffer);
@@ -545,7 +565,7 @@ void Mesh::load_obj(std::string objPath, bool allow_edits, bool submit_immediate
 			uniqueVertexMap[vertex] = static_cast<uint32_t>(uniqueVertices.size());
 			uniqueVertices.push_back(vertex);
 		}
-		indices.push_back(uniqueVertexMap[vertex]);
+		triangle_indices.push_back(uniqueVertexMap[vertex]);
 	}
 
 	if (!has_normals) {
@@ -567,7 +587,7 @@ void Mesh::load_obj(std::string objPath, bool allow_edits, bool submit_immediate
 	compute_metadata();
 	createPointBuffer(allow_edits, submit_immediately);
 	createColorBuffer(allow_edits, submit_immediately);
-	createIndexBuffer(allow_edits, submit_immediately);
+	createTriangleIndexBuffer(allow_edits, submit_immediately);
 	createNormalBuffer(allow_edits, submit_immediately);
 	createTexCoordBuffer(allow_edits, submit_immediately);
 }
@@ -615,7 +635,7 @@ void Mesh::load_stl(std::string stlPath, bool allow_edits, bool submit_immediate
 			uniqueVertexMap[vertex] = static_cast<uint32_t>(uniqueVertices.size());
 			uniqueVertices.push_back(vertex);
 		}
-		indices.push_back(uniqueVertexMap[vertex]);
+		triangle_indices.push_back(uniqueVertexMap[vertex]);
 	}
 
 	/* Map vertices to buffers */
@@ -632,7 +652,7 @@ void Mesh::load_stl(std::string stlPath, bool allow_edits, bool submit_immediate
 	compute_metadata();
 	createPointBuffer(allow_edits, submit_immediately);
 	createColorBuffer(allow_edits, submit_immediately);
-	createIndexBuffer(allow_edits, submit_immediately);
+	createTriangleIndexBuffer(allow_edits, submit_immediately);
 	createNormalBuffer(allow_edits, submit_immediately);
 	createTexCoordBuffer(allow_edits, submit_immediately);
 }
@@ -735,7 +755,7 @@ void Mesh::load_glb(std::string glbPath, bool allow_edits, bool submit_immediate
 			uniqueVertexMap[vertex] = static_cast<uint32_t>(uniqueVertices.size());
 			uniqueVertices.push_back(vertex);
 		}
-		indices.push_back(uniqueVertexMap[vertex]);
+		triangle_indices.push_back(uniqueVertexMap[vertex]);
 	}
 
 	/* Map vertices to buffers */
@@ -752,7 +772,7 @@ void Mesh::load_glb(std::string glbPath, bool allow_edits, bool submit_immediate
 	compute_metadata();
 	createPointBuffer(allow_edits, submit_immediately);
 	createColorBuffer(allow_edits, submit_immediately);
-	createIndexBuffer(allow_edits, submit_immediately);
+	createTriangleIndexBuffer(allow_edits, submit_immediately);
 	createNormalBuffer(allow_edits, submit_immediately);
 	createTexCoordBuffer(allow_edits, submit_immediately);
 }
@@ -785,7 +805,8 @@ void Mesh::load_tetgen(std::string path, bool allow_edits, bool submit_immediate
 	if (in.numberoftetrahedra <= 0)
 		throw std::runtime_error(std::string("Error: number of tetrahedra must be more than 0"));
 
-	std::vector<Vertex> vertices;
+	std::vector<Vertex> tri_vertices;
+	std::vector<Vertex> tet_vertices;
 	for (uint32_t i = 0; i < (uint32_t)in.numberoftetrahedra; ++i) {
 		uint32_t i1 = in.tetrahedronlist[i * 4 + 0] - 1;
 		uint32_t i2 = in.tetrahedronlist[i * 4 + 1] - 1;
@@ -798,24 +819,34 @@ void Mesh::load_tetgen(std::string path, bool allow_edits, bool submit_immediate
 		v3.point = glm::vec3(in.pointlist[i3 * 3 + 0], in.pointlist[i3 * 3 + 1], in.pointlist[i3 * 3 + 2]);
 		v4.point = glm::vec3(in.pointlist[i4 * 3 + 0], in.pointlist[i4 * 3 + 1], in.pointlist[i4 * 3 + 2]);
 
-		vertices.push_back(v1); vertices.push_back(v4); vertices.push_back(v3);
-		vertices.push_back(v1); vertices.push_back(v2); vertices.push_back(v4);
-		vertices.push_back(v2); vertices.push_back(v3); vertices.push_back(v4);
-		vertices.push_back(v1); vertices.push_back(v3); vertices.push_back(v2);
+		tri_vertices.push_back(v1); tri_vertices.push_back(v4); tri_vertices.push_back(v3);
+		tri_vertices.push_back(v1); tri_vertices.push_back(v2); tri_vertices.push_back(v4);
+		tri_vertices.push_back(v2); tri_vertices.push_back(v3); tri_vertices.push_back(v4);
+		tri_vertices.push_back(v1); tri_vertices.push_back(v3); tri_vertices.push_back(v2);
+
+		tet_vertices.push_back(v1); tet_vertices.push_back(v2); tet_vertices.push_back(v3); tet_vertices.push_back(v4);
 	}
 
 	/* Eliminate duplicate positions */
 	std::unordered_map<Vertex, uint32_t> uniqueVertexMap = {};
 	std::vector<Vertex> uniqueVertices;
-	for (int i = 0; i < vertices.size(); ++i)
+	for (int i = 0; i < tri_vertices.size(); ++i)
 	{
-		Vertex vertex = vertices[i];
+		Vertex vertex = tri_vertices[i];
 		if (uniqueVertexMap.count(vertex) == 0)
 		{
 			uniqueVertexMap[vertex] = static_cast<uint32_t>(uniqueVertices.size());
 			uniqueVertices.push_back(vertex);
 		}
-		indices.push_back(uniqueVertexMap[vertex]);
+		triangle_indices.push_back(uniqueVertexMap[vertex]);
+	}
+
+	/* Since tetrahedra vertices are the triangle indices, we can reuse the 
+		same unique map constructed above */
+	for (int i = 0; i < tet_vertices.size(); ++i)
+	{
+		Vertex vertex = tet_vertices[i];
+		tetrahedra_indices.push_back(uniqueVertexMap[vertex]);		
 	}
 
 	/* Map vertices to buffers */
@@ -832,7 +863,7 @@ void Mesh::load_tetgen(std::string path, bool allow_edits, bool submit_immediate
 	compute_metadata();
 	createPointBuffer(allow_edits, submit_immediately);
 	createColorBuffer(allow_edits, submit_immediately);
-	createIndexBuffer(allow_edits, submit_immediately);
+	createTriangleIndexBuffer(allow_edits, submit_immediately);
 	createNormalBuffer(allow_edits, submit_immediately);
 	createTexCoordBuffer(allow_edits, submit_immediately);
 }
@@ -859,7 +890,7 @@ void Mesh::load_raw(
 		throw std::runtime_error( std::string("Error: No indices provided, and length of positions (") + std::to_string(positions_.size()) + std::string(") is not a multiple of 3."));
 
 	if ((reading_indices) && ((indices_.size() % 3) != 0))
-		throw std::runtime_error( std::string("Error: Length of indices (") + std::to_string(indices.size()) + std::string(") is not a multiple of 3."));
+		throw std::runtime_error( std::string("Error: Length of indices (") + std::to_string(triangle_indices.size()) + std::string(") is not a multiple of 3."));
 	
 	if (reading_normals && (normals_.size() != positions_.size()))
 		throw std::runtime_error( std::string("Error, length mismatch. Total normals: " + std::to_string(normals_.size()) + " does not equal total positions: " + std::to_string(positions_.size())));
@@ -897,11 +928,11 @@ void Mesh::load_raw(
 	if (allow_edits && !reading_indices) {
 		uniqueVertices = vertices;
 		for (int i = 0; i < vertices.size(); ++i) {
-			indices.push_back(i);
+			triangle_indices.push_back(i);
 		}
 	}
 	else if (reading_indices) {
-		indices = indices_;
+		triangle_indices = indices_;
 		uniqueVertices = vertices;
 	}
 	/* If indices werent supplied and editing isn't allowed, optimize by binning unique verts */
@@ -914,7 +945,7 @@ void Mesh::load_raw(
 				uniqueVertexMap[vertex] = static_cast<uint32_t>(uniqueVertices.size());
 				uniqueVertices.push_back(vertex);
 			}
-			indices.push_back(uniqueVertexMap[vertex]);
+			triangle_indices.push_back(uniqueVertexMap[vertex]);
 		}
 	}
 
@@ -932,7 +963,7 @@ void Mesh::load_raw(
 	compute_metadata();
 	createPointBuffer(allow_edits, submit_immediately);
 	createColorBuffer(allow_edits, submit_immediately);
-	createIndexBuffer(allow_edits, submit_immediately);
+	createTriangleIndexBuffer(allow_edits, submit_immediately);
 	createNormalBuffer(allow_edits, submit_immediately);
 	createTexCoordBuffer(allow_edits, submit_immediately);
 }
@@ -1029,11 +1060,11 @@ void Mesh::compute_smooth_normals(bool upload)
 {
 	std::vector<std::vector<glm::vec3>> w_normals(positions.size());
 
-	for (uint32_t f = 0; f < indices.size(); f += 3)
+	for (uint32_t f = 0; f < triangle_indices.size(); f += 3)
 	{
-		uint32_t i1 = indices[f + 0];
-		uint32_t i2 = indices[f + 1];
-		uint32_t i3 = indices[f + 2];
+		uint32_t i1 = triangle_indices[f + 0];
+		uint32_t i2 = triangle_indices[f + 1];
+		uint32_t i3 = triangle_indices[f + 2];
 
 		// p1, p2 and p3 are the positions in the face (f)
 		auto &p1 = positions[i1];
@@ -1348,7 +1379,7 @@ void Mesh::build_low_level_bvh(bool submit_immediately)
 		tris.vertexCount = (uint32_t) this->positions.size();
 		tris.vertexStride = sizeof(glm::vec3);
 		tris.vertexFormat = vk::Format::eR32G32B32A32Sfloat;
-		tris.indexData = this->indexBuffer;
+		tris.indexData = this->triangleIndexBuffer;
 		tris.indexOffset = 0;
 		tris.indexType = vk::IndexType::eUint32;
 
@@ -2183,18 +2214,18 @@ void Mesh::createColorBuffer(bool allow_edits, bool submit_immediately)
 	device.freeMemory(stagingBufferMemory);
 }
 
-void Mesh::createIndexBuffer(bool allow_edits, bool submit_immediately)
+void Mesh::createTriangleIndexBuffer(bool allow_edits, bool submit_immediately)
 {
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
 
-	vk::DeviceSize bufferSize = indices.size() * sizeof(uint32_t);
+	vk::DeviceSize bufferSize = triangle_indices.size() * sizeof(uint32_t);
 	vk::Buffer stagingBuffer;
 	vk::DeviceMemory stagingBufferMemory;
 	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, stagingBuffer, stagingBufferMemory);
 
 	void *data = device.mapMemory(stagingBufferMemory, 0, bufferSize, vk::MemoryMapFlags());
-	memcpy(data, indices.data(), (size_t)bufferSize);
+	memcpy(data, triangle_indices.data(), (size_t)bufferSize);
 	device.unmapMemory(stagingBufferMemory);
 
 	vk::MemoryPropertyFlags memoryProperties;
@@ -2204,12 +2235,12 @@ void Mesh::createIndexBuffer(bool allow_edits, bool submit_immediately)
 		memoryProperties |= vk::MemoryPropertyFlagBits::eHostCoherent;
 	// }
 	// Why cant I create a device local index buffer?..
-	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, memoryProperties, indexBuffer, indexBufferMemory);
+	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, memoryProperties, triangleIndexBuffer, triangleIndexBufferMemory);
 	
 	auto cmd = vulkan->begin_one_time_graphics_command();
 	vk::BufferCopy copyRegion;
 	copyRegion.size = bufferSize;
-	cmd.copyBuffer(stagingBuffer, indexBuffer, copyRegion);
+	cmd.copyBuffer(stagingBuffer, triangleIndexBuffer, copyRegion);
 
 	if (submit_immediately)
 		vulkan->end_one_time_graphics_command_immediately(cmd, "copy point index buffer", true);
