@@ -194,6 +194,9 @@ class Mesh : public StaticFactory
 		/* If editing is enabled, returns a list of triangle indices */
 		std::vector<uint32_t> get_indices();
 
+		/* TODO */
+		std::vector<uint32_t> get_tetrahedra_indices();
+
 		/* Returns the handle to the position buffer */
 		vk::Buffer get_point_buffer();
 
@@ -347,6 +350,7 @@ class Mesh : public StaticFactory
 		std::vector<glm::vec2> texcoords;
 		std::vector<glm::vec3> velocities;
 		std::vector<uint32_t> indices;
+		std::vector<uint32_t> tetrahedra_indices;
 
 		bool isTet = false;
 

@@ -142,6 +142,10 @@ std::vector<uint32_t> Mesh::get_indices() {
 	return indices;
 }
 
+std::vector<uint32_t> Mesh::get_tetrahedra_indices() {
+	return tetrahedra_indices;
+}
+
 vk::Buffer Mesh::get_point_buffer()
 {
 	return pointBuffer;
@@ -921,7 +925,9 @@ void Mesh::load_tetgen(std::string path, bool allow_edits, bool submit_immediate
 	if (in.numberoftetrahedra <= 0)
 		throw std::runtime_error(std::string("Error: number of tetrahedra must be more than 0"));
 
-	std::vector<Vertex> vertices;
+	std::vector<Vertex> tri_vertices;
+	std::vector<Vertex> tet_vertices;
+
 	for (uint32_t i = 0; i < (uint32_t)in.numberoftetrahedra; ++i) {
 		uint32_t i1 = in.tetrahedronlist[i * 4 + 0] - 1;
 		uint32_t i2 = in.tetrahedronlist[i * 4 + 1] - 1;
@@ -934,18 +940,25 @@ void Mesh::load_tetgen(std::string path, bool allow_edits, bool submit_immediate
 		v3.point = glm::vec3(in.pointlist[i3 * 3 + 0], in.pointlist[i3 * 3 + 1], in.pointlist[i3 * 3 + 2]);
 		v4.point = glm::vec3(in.pointlist[i4 * 3 + 0], in.pointlist[i4 * 3 + 1], in.pointlist[i4 * 3 + 2]);
 
-		vertices.push_back(v1); vertices.push_back(v4); vertices.push_back(v3);
-		vertices.push_back(v1); vertices.push_back(v2); vertices.push_back(v4);
-		vertices.push_back(v2); vertices.push_back(v3); vertices.push_back(v4);
-		vertices.push_back(v1); vertices.push_back(v3); vertices.push_back(v2);
+		tri_vertices.push_back(v1); tri_vertices.push_back(v4); tri_vertices.push_back(v3);
+		tri_vertices.push_back(v1); tri_vertices.push_back(v2); tri_vertices.push_back(v4);
+		tri_vertices.push_back(v2); tri_vertices.push_back(v3); tri_vertices.push_back(v4);
+		tri_vertices.push_back(v1); tri_vertices.push_back(v3); tri_vertices.push_back(v2);
+
+		tet_vertices.push_back(v1); tet_vertices.push_back(v2); tet_vertices.push_back(v3); tet_vertices.push_back(v4);
 	}
 
+	// from tet id to unique verticies
+	// what i have right now: from tet id to non-unique vertices. That's temp.
+
+
 	/* Eliminate duplicate positions */
+	tetrahedra_indices.clear();
 	std::unordered_map<Vertex, uint32_t> uniqueVertexMap = {};
 	std::vector<Vertex> uniqueVertices;
-	for (int i = 0; i < vertices.size(); ++i)
+	for (int i = 0; i < tri_vertices.size(); ++i)
 	{
-		Vertex vertex = vertices[i];
+		Vertex vertex = tri_vertices[i];
 		if (uniqueVertexMap.count(vertex) == 0)
 		{
 			uniqueVertexMap[vertex] = static_cast<uint32_t>(uniqueVertices.size());
@@ -954,10 +967,26 @@ void Mesh::load_tetgen(std::string path, bool allow_edits, bool submit_immediate
 		indices.push_back(uniqueVertexMap[vertex]);
 	}
 
-	// create tet list
-	for (int i = 0; i < indices.size(); i+=12)
+	/* Since tetrahedra vertices are the triangle indices, we can reuse the 
+		same unique map constructed above */
+	for (int i = 0; i < tet_vertices.size(); ++i)
 	{
-		tets.push_back(Tet(indices[i], indices[i+4], indices[i+2], indices[i+1]));
+		Vertex vertex = tet_vertices[i];
+		tetrahedra_indices.push_back(uniqueVertexMap[vertex]);
+		
+	}
+
+	/* Probably temporary */
+	for (int i = 0; i < tetrahedra_indices.size(); i+=4)
+	{
+		tets.push_back(
+			Tet(
+				tetrahedra_indices[i], 
+				tetrahedra_indices[i+1], 
+				tetrahedra_indices[i+2], 
+				tetrahedra_indices[i+3]
+			)
+		);
 	}
 
 	/* Map vertices to buffers */
@@ -1430,6 +1459,7 @@ void Mesh::update(float time_step, uint32_t iterations, glm::vec3 f_ext)
 				Matrix3f U = svd.matrixU();
 				Matrix3f VT = svd.matrixV().transpose();
 
+				// This is a bug. these should check if determinant is less than 1
 				if (U.determinant() == -1.f) { U.col(2) = -U.col(2); }
 				if (VT.determinant() == -1.f) { VT.row(2) = -VT.row(2); }
 
