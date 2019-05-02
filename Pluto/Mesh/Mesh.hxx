@@ -186,11 +186,14 @@ class Mesh : public StaticFactory
 		/* If editing is enabled, returns a list of per vertex texture coordinates */
 		std::vector<glm::vec2> get_texcoords();
 
-		/* If editing is enabled, returns a list of triangle indices */
-		std::vector<uint32_t> get_indices();
+		/* If editing is enabled, returns a list of edge indices */
+		std::vector<uint32_t> get_edge_indices();
 
-		/* TODO */
-		std::vector<uint32_t> get_tetrahedra_indices();
+		/* If editing is enabled, returns a list of triangle indices */
+		std::vector<uint32_t> get_triangle_indices();
+
+		/* If editing is enabled, returns a list of tetrahedra indices */
+		std::vector<uint32_t> get_tetrahedra_indices();		
 
 		/* Returns the handle to the position buffer */
 		vk::Buffer get_point_buffer();
@@ -199,7 +202,7 @@ class Mesh : public StaticFactory
 		vk::Buffer get_color_buffer();
 
 		/* Returns the handle to the triangle indices buffer */
-		vk::Buffer get_index_buffer();
+		vk::Buffer get_triangle_index_buffer();
 
 		/* Returns the handle to the per vertex normals buffer */
 		vk::Buffer get_normal_buffer();
@@ -207,9 +210,17 @@ class Mesh : public StaticFactory
 		/* Returns the handle to the per vertex texcoords buffer */
 		vk::Buffer get_texcoord_buffer();
 
-		/* Returns the total number of indices used by this mesh. 
+		/* Returns the total number of edge indices used by this mesh. 
+			Divide by 2 to get the number of edges.  */
+		uint32_t get_total_edge_indices();
+
+		/* Returns the total number of triangle indices used by this mesh. 
 			Divide by 3 to get the number of triangles.  */
-		uint32_t get_total_indices();
+		uint32_t get_total_triangle_indices();
+
+		/* Returns the total number of tetrahedral indices used by this mesh. 
+			Divide by 4 to get the number of tetrahedra.  */
+		uint32_t get_total_tetrahedra_indices();
 
 		/* Returns the total number of bytes per index */
 		uint32_t get_index_bytes();
@@ -349,9 +360,12 @@ class Mesh : public StaticFactory
 		std::vector<glm::vec3> normals;
 		std::vector<glm::vec4> colors;
 		std::vector<glm::vec2> texcoords;
-		std::vector<glm::vec3> velocities;
-		std::vector<uint32_t> indices;
 		std::vector<uint32_t> tetrahedra_indices;
+		std::vector<uint32_t> triangle_indices;
+		std::vector<uint32_t> edge_indices;
+
+		/* Additions from Daqi */
+		std::vector<glm::vec3> velocities;
 
 		bool isTet = false;
 
@@ -399,8 +413,8 @@ class Mesh : public StaticFactory
 		vk::DeviceMemory texCoordBufferMemory;
 
 		/* A handle to the buffer containing triangle indices */		
-		vk::Buffer indexBuffer;
-		vk::DeviceMemory indexBufferMemory;
+		vk::Buffer triangleIndexBuffer;
+		vk::DeviceMemory triangleIndexBufferMemory;
 
 		/* Declaration of an RTX geometry instance. This struct is described in the Khronos 
 			specification to be exactly this, so don't modify! */
@@ -452,7 +466,7 @@ class Mesh : public StaticFactory
 		void createTexCoordBuffer(bool allow_edits, bool submit_immediately);
 
 		/* Creates an index buffer, and uploads index data stored in the indices list */
-		void createIndexBuffer(bool allow_edits, bool submit_immediately);
+		void createTriangleIndexBuffer(bool allow_edits, bool submit_immediately);
 
 		/* Loads in an OBJ mesh and copies per vertex data to the GPU */
 		void load_obj(std::string objPath, bool allow_edits, bool submit_immediately);
@@ -504,9 +518,9 @@ class Mesh : public StaticFactory
 			auto genTriangles = mesh.triangles();
 			while (!genTriangles.done()) {
 				auto triangle = genTriangles.generate();
-				indices.push_back(triangle.vertices[0]);
-				indices.push_back(triangle.vertices[1]);
-				indices.push_back(triangle.vertices[2]);
+				triangle_indices.push_back(triangle.vertices[0]);
+				triangle_indices.push_back(triangle.vertices[1]);
+				triangle_indices.push_back(triangle.vertices[2]);
 				genTriangles.next();
 			}
 
@@ -518,6 +532,6 @@ class Mesh : public StaticFactory
 			createColorBuffer(allow_edits, submit_immediately);
 			createNormalBuffer(allow_edits, submit_immediately);
 			createTexCoordBuffer(allow_edits, submit_immediately);
-			createIndexBuffer(allow_edits, submit_immediately);
+			createTriangleIndexBuffer(allow_edits, submit_immediately);
 		}
 };
