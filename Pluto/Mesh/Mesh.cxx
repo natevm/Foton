@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 
 #include <functional>
+// #include <stdlib>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -1078,7 +1079,6 @@ void Mesh::load_tetgen(std::string path, bool allow_edits, bool submit_immediate
 	{
 		Vertex vertex = tet_vertices[i];
 		tetrahedra_indices.push_back(uniqueVertexMap[vertex]);
-		
 	}
 
 	/* Probably temporary */
@@ -1506,17 +1506,37 @@ void Mesh::update(float time_step, uint32_t iterations, glm::vec3 f_ext)
 	F_ext *= M;
 
 	using namespace Eigen;
+
+	/* Reflect velocities */
+	for (int i = 0; i < nN; i++) {
+		bool under = (positions[i][2] < 0);
+
+		if (under)
+		{
+			glm::vec3 to_ground = glm::vec3(0.0, 0.0, 0.0) - glm::vec3(positions[i][0], positions[i][1], positions[i][2]);
+			glm::vec3 velocity = glm::vec3(velocities[i][0], velocities[i][1], velocities[i][2]);
+			
+			/* if velocity will move the point further under ground, flip it */
+			if (glm::dot(to_ground, velocity) < 0.0)
+			{
+				velocity = glm::reflect(velocity, glm::vec3(0.0, 0.0, 1.0)) * .99f;
+				velocities[i][0] = velocity.x;
+				velocities[i][1] = velocity.y;
+				velocities[i][2] = velocity.z;
+				positions[i][2] = 0.01f;
+			}
+		}
+	}
+
+	/* Update Y */
 	MatrixXf Y(3, nN);
-	for (int i = 0; i < nN; i++)
+	for (int i = 0; i < nN; i++) 
+	{
 		for (int j = 0; j < 3; j++)
 		{
-			if (j == 2 && positions[i][2] + velocities[i][2] < 0) //velocity reflection on ground (z = 0)
-			{
-				velocities[i][2] = -velocities[i][2];
-			}
-			
 			Y(j, i) = positions[i][j] + velocities[i][j];
 		}
+	}
 
 	MatrixXf X(3, nN);
 	X = Y;
@@ -1560,6 +1580,14 @@ void Mesh::update(float time_step, uint32_t iterations, glm::vec3 f_ext)
 				D.col(3 * i) = Di.col(0);
 				D.col(3 * i + 1) = Di.col(1);
 				D.col(3 * i + 2) = Di.col(2);
+				
+				// /* If the volume of the current tetrahedra is very low, 
+				// try to instead rotate to rest position*/
+				// if (std::abs(Ds.determinant()) < 1.f) {
+				// 	Di.col(0) = Dms[i].col(0);
+				// 	Di.col(1) = Dms[i].col(1);
+				// 	Di.col(2) = Dms[i].col(2);
+				// }
 			}
 		}
 		else
