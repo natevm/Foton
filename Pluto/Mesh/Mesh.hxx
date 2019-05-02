@@ -366,12 +366,13 @@ class Mesh : public StaticFactory
 		std::vector<Eigen::Matrix3f> invDms;
 
 		//
-		Eigen::MatrixXf G; //gravity, hardcoded to (0,0,-9.8)
+		Eigen::MatrixXf F_ext; //external force
 		Eigen::SparseMatrix<float> L, J, M;
 		float mass; //using a hardcoded mass of 100 now
 		float stiffness; // using a hardcoded stiffness of 10000 now;
 		float step_size; // initialized to 0.001
 		float damping_factor; //initialized to 0;
+		float total_rest_volume;
 		std::shared_ptr<Eigen::SimplicialLLT<Eigen::SparseMatrix<float>>> precomputed_cholesky;
 
 		/* A handle to the attributes loaded from tiny obj */
@@ -475,8 +476,6 @@ class Mesh : public StaticFactory
 		);
 
 		void generate_edges();
-		/* need to call this whenever the mass changes*/
-		void precompute_mass_matrix();
 		/* need to call this whenever the step size or stiffness, or mass changes*/
 		void precompute_cholesky();
 		

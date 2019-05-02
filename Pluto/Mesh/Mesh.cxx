@@ -243,10 +243,12 @@ void Mesh::compute_simulation_matrices(float mass_, float stiffness_, float step
 
 	// allocate space for the mass matrix
 	M.resize(nN, nN);
-	precompute_mass_matrix();
+	M.setIdentity();
+	float unitmass = mass / nN;
+	M *= unitmass;
 
 	// matrix for external force
-	G.resize(3, nN);
+	F_ext.resize(3, nN);
 
 	//allocate space for precomputed cholesky
 	precomputed_cholesky = std::make_shared< Eigen::SimplicialLLT<Eigen::SparseMatrix<float>>>();
@@ -284,6 +286,11 @@ void Mesh::compute_tet_simulation_matrices(float mass_, float stiffness_, float 
 	L.resize(nN, nN);
 	J.resize(nM, nN);
 
+	// allocate space for the mass matrix
+	M.resize(nN, nN);
+
+	total_rest_volume = 0;
+
 	int counter = 0;
 	for (auto t : tets)
 	{
@@ -297,35 +304,43 @@ void Mesh::compute_tet_simulation_matrices(float mass_, float stiffness_, float 
 		Dms[counter] = Dm;
 		invDms[counter] = Dm.inverse();
 
-		L.coeffRef(t.v[0], t.v[0]) += 3;
-		L.coeffRef(t.v[0], t.v[1]) -= 1;
-		L.coeffRef(t.v[0], t.v[2]) -= 1;
-		L.coeffRef(t.v[0], t.v[3]) -= 1;
-		L.coeffRef(t.v[1], t.v[0]) -= 1;
-		L.coeffRef(t.v[2], t.v[0]) -= 1;
-		L.coeffRef(t.v[3], t.v[0]) -= 1;
-		L.coeffRef(t.v[1], t.v[1]) += 1;
-		L.coeffRef(t.v[2], t.v[2]) += 1;
-		L.coeffRef(t.v[3], t.v[3]) += 1;
+		float V = abs(Dm.determinant()) / 6.f; //rest volume
 
-		J.coeffRef(3 * counter, t.v[1]) += 1;
-		J.coeffRef(3 * counter+1, t.v[2]) += 1;
-		J.coeffRef(3 * counter+2, t.v[3]) += 1;
-		J.coeffRef(3 * counter, t.v[0]) -= 1;
-		J.coeffRef(3 * counter+1, t.v[0]) -= 1;
-		J.coeffRef(3 * counter+2, t.v[0]) -= 1;
+		total_rest_volume += V;
+
+		L.coeffRef(t.v[0], t.v[0]) += 3 * V;
+		L.coeffRef(t.v[0], t.v[1]) -= 1 * V;
+		L.coeffRef(t.v[0], t.v[2]) -= 1 * V;
+		L.coeffRef(t.v[0], t.v[3]) -= 1 * V;
+		L.coeffRef(t.v[1], t.v[0]) -= 1 * V;
+		L.coeffRef(t.v[2], t.v[0]) -= 1 * V;
+		L.coeffRef(t.v[3], t.v[0]) -= 1 * V;
+		L.coeffRef(t.v[1], t.v[1]) += 1 * V;
+		L.coeffRef(t.v[2], t.v[2]) += 1 * V;
+		L.coeffRef(t.v[3], t.v[3]) += 1 * V;
+
+		J.coeffRef(3 * counter, t.v[1]) += 1 * V;
+		J.coeffRef(3 * counter+1, t.v[2]) += 1 * V;
+		J.coeffRef(3 * counter+2, t.v[3]) += 1 * V;
+		J.coeffRef(3 * counter, t.v[0]) -= 1 * V;
+		J.coeffRef(3 * counter+1, t.v[0]) -= 1 * V;
+		J.coeffRef(3 * counter+2, t.v[0]) -= 1 * V;
+
+		for (int i = 0; i < 4; i++)
+			for (int j = 0; j < 4; j++)
+				M.coeffRef(t.v[i], t.v[j]) += i == j ? V / 10.f : V / 20.f;
 		counter++;
 	}
 
+	float density = mass / total_rest_volume;
+	M *= density;
+
 	L.makeCompressed();
 	J.makeCompressed();
-
-	// allocate space for the mass matrix
-	M.resize(nN, nN);
-	precompute_mass_matrix();
+	M.makeCompressed();
 
 	// matrix for external force
-	G.resize(3, nN);
+	F_ext.resize(3, nN);
 
 	//allocate space for precomputed cholesky
 	precomputed_cholesky = std::make_shared< Eigen::SimplicialLLT<Eigen::SparseMatrix<float>>>();
@@ -1133,24 +1148,11 @@ void Mesh::generate_edges()
 	}
 }
 
-void Mesh::precompute_mass_matrix()
-{
-	int nN = (int)positions.size();
-	M.setIdentity();
-	float unitmass = mass / nN;
-	M *= unitmass;
-}
-
 void Mesh::precompute_cholesky()
 {
-	int nN = (int)positions.size();
-	float unitmass = mass / nN;
-
 	Eigen::SparseMatrix<float> A = stiffness * L;
-	for (int i = 0; i < nN; i++)
-	{
-		A.coeffRef(i, i) += 1.f / (step_size*step_size) * unitmass;
-	}
+
+	A += 1.f / (step_size*step_size) * M;
 
 	precomputed_cholesky->compute(A.transpose());
 }
@@ -1359,8 +1361,8 @@ void Mesh::set_stiffness(float stiffness_)
 
 void Mesh::set_mass(float mass_)
 {
+	M *= mass_ / mass;
 	mass = mass_;
-	precompute_mass_matrix();
 	precompute_cholesky();
 }
 
@@ -1381,9 +1383,8 @@ void Mesh::update(float time_step, uint32_t iterations, glm::vec3 f_ext)
 	}
 
 	// compute the external force matrix
-	float unitmass = mass / nN;
-	G.colwise() = Eigen::Vector3f(f_ext.x, f_ext.y, f_ext.z);
-	G *= unitmass;
+	F_ext.colwise() = Eigen::Vector3f(f_ext.x, f_ext.y, f_ext.z);
+	F_ext *= M;
 
 	using namespace Eigen;
 	MatrixXf Y(3, nN);
@@ -1394,6 +1395,7 @@ void Mesh::update(float time_step, uint32_t iterations, glm::vec3 f_ext)
 			{
 				velocities[i][2] = -velocities[i][2];
 			}
+			
 			Y(j, i) = positions[i][j] + velocities[i][j];
 		}
 
@@ -1424,14 +1426,14 @@ void Mesh::update(float time_step, uint32_t iterations, glm::vec3 f_ext)
 				Matrix3f F = Ds * invDms[i];
 
 				// compute SVD
-				JacobiSVD<Matrix3f> svd(F);
+				JacobiSVD<Matrix3f> svd(F, ComputeFullU | ComputeFullV);
 				
 				// compute signed SVD
 				Matrix3f U = svd.matrixU();
 				Matrix3f VT = svd.matrixV().transpose();
 
-				if (U.determinant() == -1.f) { U.col(2) = -U.col(2); }
-				if (VT.determinant() == -1.f) { VT.row(2) = -VT.row(2); }
+				if (U.determinant() < 0) { U.col(2) = -U.col(2); }
+				if (VT.determinant() < 0) { VT.row(2) = -VT.row(2); }
 
 				// derive the rotation matrix				
 				Matrix3f R = U * VT;
@@ -1452,7 +1454,7 @@ void Mesh::update(float time_step, uint32_t iterations, glm::vec3 f_ext)
 		}
 
 		// compute X
-		MatrixXf b = D * (stiffness * J) + 1.f / (time_step*time_step) * Y * M + G;
+		MatrixXf b = D * (stiffness * J) + 1.f / (time_step*time_step) * Y * M + F_ext;
 		X = precomputed_cholesky->solve(b.transpose()).transpose();
 	}
 
