@@ -1142,11 +1142,11 @@ void Mesh::load_raw(
 		}
 	}
 
-	if (!reading_edges && !reading_indices)
-		throw std::runtime_error(std::string("Error, indices must be provided to automatically generate edges"));
+	// if (!reading_edges && !reading_indices)
+	// 	throw std::runtime_error(std::string("Error, indices must be provided to automatically generate edges"));
 
-	if (edges_.size() > rest_lengths_.size() && reading_rest_lengths)
-		throw std::runtime_error(std::string("Error, number of rest lengths provided (>0) is smaller than the number of edges."));
+	// if (edges_.size() > rest_lengths_.size() && reading_rest_lengths)
+	// 	throw std::runtime_error(std::string("Error, number of rest lengths provided (>0) is smaller than the number of edges."));
 		
 	std::vector<Vertex> vertices;
 
