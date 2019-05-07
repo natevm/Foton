@@ -14,6 +14,7 @@ add_subdirectory(Tools)
 add_subdirectory(Transform)
 add_subdirectory(Collider)
 add_subdirectory(RigidBody)
+add_subdirectory(Constraint)
 
 set (SRC 
     ${CMAKE_CURRENT_SOURCE_DIR}/Pluto.cxx
@@ -31,6 +32,7 @@ set (SRC
     ${Transform_SRC}
     ${Collider_SRC}
     ${RigidBody_SRC}
+    ${Constraint_SRC}
 )
 
 set (HDR 
@@ -49,6 +51,7 @@ set (HDR
     ${Transform_HDR}
     ${Collider_HDR}
     ${RigidBody_HDR}
+    ${Constraint_HDR}
 )
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRC} ${HDR})
