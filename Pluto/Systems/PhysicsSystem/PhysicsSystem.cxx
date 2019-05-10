@@ -3,6 +3,7 @@
 #include "Pluto/Entity/Entity.hxx"
 #include "Pluto/RigidBody/RigidBody.hxx"
 #include "Pluto/Collider/Collider.hxx"
+#include "Pluto/Constraint/Constraint.hxx"
 #include "Pluto/Transform/Transform.hxx"
 
 #include "Pluto/Libraries/GLFW/GLFW.hxx"
@@ -65,7 +66,7 @@ namespace Systems
         return true;
     }
 
-    void PhysicsSystem::add_physics_to_entity(uint32_t entity_id)
+    void PhysicsSystem::add_entity_to_simulation(uint32_t entity_id)
     {
         Entity* entities = Entity::GetFront();
         RigidBody* rigidBodies = RigidBody::GetFront();
@@ -115,7 +116,7 @@ namespace Systems
         dynamicsWorld->addRigidBody(body);
     }
 
-    void PhysicsSystem::remove_physics_from_entity(uint32_t entity_id)
+    void PhysicsSystem::remove_entity_from_simulation(uint32_t entity_id)
     {
         auto body = rigidBodyMap[entity_id];
         rigidBodyMap.erase(entity_id);
@@ -218,6 +219,35 @@ namespace Systems
         }
     }
 
+    bool PhysicsSystem::should_constraint_exist(uint32_t constraint_id)
+    {
+        // A constraint should exist when:
+        // 1. the constraint id is valid
+        // 2. the constraint component has two associated rigid bodies
+        // 3. the associated rigid bodies are registered in the simulation
+        return false;
+    }
+
+    bool PhysicsSystem::does_constraint_exist(uint32_t constraint_id)
+    {
+        return false;
+    }
+
+    void PhysicsSystem::add_constraint_to_simulation(uint32_t constraint_id)
+    {
+
+    }
+
+    void PhysicsSystem::remove_constraint_from_simulation(uint32_t constraint_id)
+    {
+
+    }
+
+    void PhysicsSystem::update_constraint(uint32_t constraint_id)
+    {
+
+    }
+
     bool PhysicsSystem::start() {
         /* Dont start unless initialized. Dont start twice. */
         if (!initialized) return false;
@@ -317,31 +347,66 @@ namespace Systems
                 /* Add or remove rigid bodies from the dynamic world */
 
                 Entity* entities = Entity::GetFront();
+                Constraint* constraints = Constraint::GetFront();
                 
-                // For each entity
+                // Handle entities (rigid bodies and collider components)
                 for (uint32_t entity_id = 0; entity_id < Entity::GetCount(); ++entity_id )
                 {
                     if (!entities[entity_id].is_initialized()) continue;
 
-                    if ((should_entity_have_physics(entity_id)) && (!does_entity_have_physics(entity_id)))
+                    bool does_have_physics = does_entity_have_physics(entity_id);
+                    bool should_have_physics = should_entity_have_physics(entity_id);
+
+                    if (should_have_physics && !does_have_physics)
                     {
-                        add_physics_to_entity(entity_id);
+                        add_entity_to_simulation(entity_id);
                     }
-                    else if ((does_entity_have_physics(entity_id)) && (!should_entity_have_physics(entity_id))) {
-                        remove_physics_from_entity(entity_id);
+                    
+                    if (does_have_physics) {
+                        update_entity(entity_id);
+                    }
+
+                    if (does_have_physics && !should_have_physics) {
+                        remove_entity_from_simulation(entity_id);
                     }
                 }
 
-                /* Update transform components */
-                for (uint32_t entity_id = 0; entity_id < Entity::GetCount(); ++entity_id )
+                // Handle constraints (rigid bodies and constraint components)
+                for (uint32_t constraint_id = 0; constraint_id < Constraint::GetCount(); ++constraint_id)
                 {
-                    if (does_entity_have_physics(entity_id)) {
-                        update_entity(entity_id);
+                    if (!constraints[constraint_id].is_initialized()) continue;
+
+                    bool does_exist = does_constraint_exist(constraint_id);
+                    bool should_exist = should_constraint_exist(constraint_id);
+
+                    if (should_exist && !does_exist)
+                    {
+                        add_constraint_to_simulation(constraint_id);
+                    }
+
+                    if (does_exist)
+                    {
+                        update_constraint(constraint_id);
+                    }
+
+                    if (does_exist && !should_exist)
+                    {
+                        remove_constraint_from_simulation(constraint_id);
                     }
                 }
+
             }
 
             // cleanup in the reverse order of creation/initialization
+
+            // remove the constraints from the dynamics world and delete them
+            for (int32_t i = dynamicsWorld->getNumConstraints() - 1; i >= 0; i--)
+            {
+                btTypedConstraint* constraint = dynamicsWorld->getConstraint(i);
+                dynamicsWorld->removeConstraint(constraint);
+                delete constraint;
+            }
+            constraintMap.clear();
 
             // remove the rigid bodies from the dynamics world and delete them
             for (int32_t i = dynamicsWorld->getNumCollisionObjects() - 1; i >= 0; i--)
@@ -355,6 +420,7 @@ namespace Systems
                 dynamicsWorld->removeCollisionObject(obj);
                 delete obj;
             }
+            rigidBodyMap.clear();
 
             // // delete collision shapes
             // for (uint32_t j = 0; j < collisionShapes.size(); j++)

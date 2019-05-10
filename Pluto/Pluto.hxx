@@ -14,7 +14,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtx/quaternion.hpp>
 
-
 extern bool Initialized;
 
 class Entity;

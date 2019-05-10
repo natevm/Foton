@@ -17,6 +17,7 @@ RigidBody::RigidBody(std::string name, uint32_t id)
 	this->name = name;
 	this->id = id;
 	this->collider = nullptr;
+	this->mode = KINEMATIC;
 
 	this->mass = 0.0;
 	this->friction = .5;

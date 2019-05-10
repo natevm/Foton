@@ -372,17 +372,7 @@ void Entity::CleanUp()
 }	
 
 /* Static Factory Implementations */
-Entity* Entity::Create(std::string name) {
-	try {
-		std::lock_guard<std::mutex> lock(creation_mutex);
-		return StaticFactory::Create(name, "Entity", lookupTable, entities, MAX_ENTITIES);
-	} catch (...) {
-		StaticFactory::DeleteIfExists(name, "Entity", lookupTable, entities, MAX_ENTITIES);
-		throw;
-	}
-}
-
-Entity* Entity::CreateFromComponents(std::string name, Transform* transform, Camera* camera, Material* material, Light* light, Mesh* mesh, RigidBody* rigid_body)
+Entity* Entity::Create(std::string name, Transform* transform, Camera* camera, Material* material, Light* light, Mesh* mesh, RigidBody* rigid_body)
 {
 	try {
 		std::lock_guard<std::mutex> lock(creation_mutex);

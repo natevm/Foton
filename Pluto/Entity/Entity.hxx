@@ -48,8 +48,7 @@ private:
 	Entity(std::string name, uint32_t id);
 
 public:
-	static Entity* Create(std::string name);
-	static Entity* CreateFromComponents(std::string name, 
+	static Entity* Create(std::string name, 
 		Transform* transform = nullptr, 
 		Camera* camera = nullptr,
 		Material* material = nullptr,
