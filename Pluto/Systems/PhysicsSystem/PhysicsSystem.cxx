@@ -15,6 +15,10 @@ struct PhysicsObject {
     btVector3 scale;
 };
 
+struct ConstraintObject {
+    btGeneric6DofSpring2Constraint* constraint;
+};
+
 namespace Systems 
 {
     PhysicsSystem* PhysicsSystem::Get() {
@@ -256,29 +260,135 @@ namespace Systems
     {
         // A constraint should exist when:
         // 1. the constraint id is valid
-        // 2. the constraint component has two associated rigid bodies
-        // 3. the associated rigid bodies are registered in the simulation
-        return false;
+        // 2. the constraint component has two associated entities
+        // 3. the associated entities are registered in the simulation
+
+        if ((constraint_id < 0 ) || (constraint_id >= MAX_CONSTRAINTS))
+            return false;
+        
+        auto constraint = Constraint::Get(constraint_id);
+        if ((!constraint) || (!constraint->is_initialized())) 
+            return false;
+
+        auto entity_a = constraint->get_entity_a();
+        auto entity_b = constraint->get_entity_b();
+
+        if ((!entity_a) || (!entity_b)) 
+            return false;
+        
+        if ((!entity_a->is_initialized()) || (!entity_b->is_initialized()))
+            return false;
+
+        if (!does_entity_have_physics(entity_a->get_id())) return false;
+        if (!does_entity_have_physics(entity_b->get_id())) return false;
+        
+        return true;
     }
 
     bool PhysicsSystem::does_constraint_exist(uint32_t constraint_id)
     {
-        return false;
+        auto it = constraintMap.find(constraint_id);
+        return (it != constraintMap.end());
     }
 
     void PhysicsSystem::add_constraint_to_simulation(uint32_t constraint_id)
     {
+        auto constraint = Constraint::Get(constraint_id);
+        if (!constraint) 
+            throw std::runtime_error("Error, constraint was null in add constraint to physics simulation");
+
+        auto entity_a = constraint->get_entity_a();
+        auto entity_b = constraint->get_entity_b();
+
+        if ((!entity_a) || (!entity_b))
+            throw std::runtime_error("Error, constrained entity was null in add constraint to physics simulation");
+
+        if ((!entity_a->is_initialized()) || (!entity_b->is_initialized()))
+            throw std::runtime_error("Error, constrained entity was uninitialized in add constraint to physics simulation");
+
+        if ((!does_entity_have_physics(entity_a->get_id())) 
+            || (!does_entity_have_physics(entity_b->get_id()))) 
+            throw std::runtime_error("Error, constrained entity not currently registered in the physics simulation");
+
+        auto A = physicsObjectMap[entity_a->get_id()];
+        auto B = physicsObjectMap[entity_b->get_id()];
+
+        // auto frame_a = constraint->get_a_frame();
+        // auto frame_b = constraint->get_b_frame();
+
+        btTransform btFrameInA;
+        btTransform btFrameInB;
+        btFrameInA.setIdentity();
+        btFrameInB.setIdentity();
+
+        ConstraintObject obj;
+        obj.constraint = new btGeneric6DofSpring2Constraint(*A.rigid_body, *B.rigid_body, btFrameInA, btFrameInB);
+
+        constraintMap[constraint_id] = obj;
+        dynamicsWorld->addConstraint((btTypedConstraint*)obj.constraint);
 
     }
 
     void PhysicsSystem::remove_constraint_from_simulation(uint32_t constraint_id)
     {
+        auto obj = constraintMap[constraint_id];
+        constraintMap.erase(constraint_id);
 
+        // remove the rigid body from the dynamic world and delete it.
+        // btCollisionObject* obj = dynamicsWorld->getCollisionObjectArray()[i];
+        // btRigidBody* body = btRigidBody::upcast(obj);
+
+        dynamicsWorld->removeConstraint((btTypedConstraint*)obj.constraint);
+        delete obj.constraint;
     }
 
     void PhysicsSystem::update_constraint(uint32_t constraint_id)
     {
+        auto obj = constraintMap[constraint_id];
+        auto constraint = Constraint::Get(constraint_id);
+        
+        if (!constraint) throw std::runtime_error("Error, constraint was null in update constraint simulation");
+        
+        btTransform btFrameInA;
+        btTransform btFrameInB;
+        btFrameInA.setIdentity();
+        btFrameInB.setIdentity();
+        auto alof = constraint->get_a_linear_offset();
+        auto blof = constraint->get_b_linear_offset();
 
+        auto aaof = constraint->get_a_angular_offset();
+        auto baof = constraint->get_b_angular_offset();
+
+        btFrameInA.setOrigin(btVector3(alof.x, alof.y, alof.z));
+        btFrameInB.setOrigin(btVector3(blof.x, blof.y, blof.z));
+
+        btFrameInA.setRotation(btQuaternion(aaof.x, aaof.y, aaof.z, aaof.w));
+        btFrameInB.setRotation(btQuaternion(baof.x, baof.y, baof.z, baof.w));
+        
+        obj.constraint->setFrames(btFrameInA, btFrameInB);
+        
+        auto lll = constraint->get_lower_linear_limit();
+        auto ull = constraint->get_upper_linear_limit();
+
+        auto lal = constraint->get_lower_angular_limit();
+        auto ual = constraint->get_upper_angular_limit();
+        
+        obj.constraint->setLinearLowerLimit(btVector3(lll.x, lll.y, lll.z));
+        obj.constraint->setLinearUpperLimit(btVector3(ull.x, ull.y, ull.z));
+        obj.constraint->setAngularLowerLimit(btVector3(lal.x, lal.y, lal.z));
+        obj.constraint->setAngularUpperLimit(btVector3(ual.x, ual.y, ual.z));
+
+        for (uint32_t i = 0; i < 6; ++i)
+        {
+            obj.constraint->enableSpring(i, constraint->is_spring_enabled(i));
+            obj.constraint->setBounce(i, (constraint->is_bounce_enabled(i) ? 1.0f : 0.0f));
+            glm::vec3 stiffness;
+            if (i < 3) stiffness = constraint->get_linear_spring_stiffness();
+            else stiffness = constraint->get_angular_spring_stiffness();
+            obj.constraint->setStiffness(i, stiffness[i % 3]);
+        }
+
+        obj.constraint->setEnabled(constraint->is_enabled());
     }
 
     bool PhysicsSystem::start() {

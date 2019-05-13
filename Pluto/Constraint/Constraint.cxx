@@ -1,6 +1,6 @@
 #include "Constraint.hxx"
 #include "Pluto/Collider/Collider.hxx"
-#include "Pluto/RigidBody/RigidBody.hxx"
+#include "Pluto/Entity/Entity.hxx"
 
 Constraint Constraint::constraints[MAX_CONSTRAINTS];
 std::map<std::string, uint32_t> Constraint::lookupTable;
@@ -21,6 +21,7 @@ Constraint::Constraint(std::string name, uint32_t id)
 	this->upper_linear_limit = glm::vec3(0.0, 0.0, 0.0);
 	this->lower_angular_limit = glm::vec3(0.0, 0.0, 0.0);
 	this->upper_angular_limit = glm::vec3(0.0, 0.0, 0.0);
+	this->enabled = true;
 
 	for (uint32_t i = 0; i < 6; ++i) {
 		enableSpring[i] = false;
@@ -30,8 +31,13 @@ Constraint::Constraint(std::string name, uint32_t id)
 	this->linear_spring_stiffness = glm::vec3(0.0, 0.0, 0.0);
 	this->angular_spring_stiffness = glm::vec3(0.0, 0.0, 0.0);
 
-	this->rigid_body_a = nullptr;
-	this->rigid_body_b = nullptr;
+	this->entity_a = nullptr;
+	this->entity_b = nullptr;
+
+	this->a_linear_offset = glm::vec3(0.0f, 0.0f, 0.0f);
+	this->a_angular_offset = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+	this->b_linear_offset = glm::vec3(0.0f, 0.0f, 0.0f);
+	this->b_angular_offset = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
 }
 
 std::string Constraint::to_string()
@@ -101,6 +107,16 @@ void Constraint::cleanup()
 	
 }
 
+void Constraint::enable(bool onoff)
+{
+	this->enabled = onoff;
+}
+
+bool Constraint::is_enabled()
+{
+	return this->enabled;
+}
+
 void Constraint::set_lower_linear_limit(glm::vec3 lower_limit)
 {
 	lower_linear_limit = lower_limit;
@@ -131,6 +147,26 @@ void Constraint::set_upper_linear_limit(float x, float y, float z)
 	upper_linear_limit = glm::vec3(x, y, z);
 }
 
+glm::vec3 Constraint::get_lower_linear_limit()
+{
+	return lower_linear_limit;
+}
+
+glm::vec3 Constraint::get_upper_linear_limit()
+{
+	return upper_linear_limit;
+}
+
+glm::vec3 Constraint::get_lower_angular_limit()
+{
+	return lower_angular_limit;
+}
+
+glm::vec3 Constraint::get_upper_angular_limit()
+{
+	return upper_angular_limit;
+}
+
 void Constraint::set_lower_angular_limit(float x, float y, float z)
 {
 	lower_angular_limit = glm::vec3(x, y, z);
@@ -147,12 +183,33 @@ void Constraint::enable_spring(uint32_t axis, bool on_off)
 	enableSpring[axis] = on_off;
 }
 
+bool Constraint::is_spring_enabled(uint32_t axis)
+{
+	if (axis > 5) throw std::runtime_error("Error: axis must be in range [0, 6)");
+	return enableSpring[axis];
+}
+
 void Constraint::enable_bounce(uint32_t axis, bool on_off)
 {
 	if (axis > 5) throw std::runtime_error("Error: axis must be in range [0, 6)");
 	enableBounce[axis] = on_off;
 }
 
+bool Constraint::is_bounce_enabled(uint32_t axis)
+{
+	if (axis > 5) throw std::runtime_error("Error: axis must be in range [0, 6)");
+	return enableBounce[axis];
+}
+
+glm::vec3 Constraint::get_linear_spring_stiffness()
+{
+	return linear_spring_stiffness;
+}
+
+glm::vec3 Constraint::get_angular_spring_stiffness()
+{
+	return angular_spring_stiffness;
+}
 
 void Constraint::enable_linear_spring(bool on_off)
 {
@@ -205,54 +262,94 @@ void Constraint::set_spring_stiffness(uint32_t axis, float stiffness)
 	}
 }
 
-void Constraint::set_frame_a(glm::mat4 frame)
+void Constraint::set_a_linear_offset(glm::vec3 offset)
 {
-	frame_a = frame;
+	a_linear_offset = offset;
 }
 
-void Constraint::set_frame_b(glm::mat4 frame)
+void Constraint::set_a_angular_offset(glm::quat offset)
 {
-	frame_b = frame;
+	a_angular_offset = offset;
 }
 
-void Constraint::set_rigid_body_a(RigidBody *rigid_body) 
+void Constraint::set_b_linear_offset(glm::vec3 offset)
 {
-	if (!rigid_body) throw std::runtime_error("Error: rigid_body was nullptr");
-	if (!rigid_body->is_initialized()) throw std::runtime_error("Error: rigid_body not initialized");
-	this->rigid_body_a = rigid_body;
+	b_linear_offset = offset;
 }
 
-void Constraint::set_rigid_body_b(RigidBody *rigid_body) 
+void Constraint::set_b_angular_offset(glm::quat offset)
 {
-	if (!rigid_body) throw std::runtime_error("Error: rigid_body was nullptr");
-	if (!rigid_body->is_initialized()) throw std::runtime_error("Error: rigid_body not initialized");
-	this->rigid_body_b = rigid_body;
+	b_angular_offset = offset;
 }
 
-void Constraint::set_rigid_bodies(RigidBody *rigid_body_a, RigidBody *rigid_body_b) 
+glm::vec3 Constraint::get_a_linear_offset()
 {
-	if (!rigid_body_a) throw std::runtime_error("Error: rigid_body_a was nullptr");
-	if (!rigid_body_a->is_initialized()) throw std::runtime_error("Error: rigid_body_a not initialized");
+	return a_linear_offset;
+}
+
+glm::quat Constraint::get_a_angular_offset()
+{
+	return a_angular_offset;
+}
+
+glm::vec3 Constraint::get_b_linear_offset()
+{
+	return b_linear_offset;
+}
+
+glm::quat Constraint::get_b_angular_offset()
+{
+	return b_angular_offset;
+}
+
+void Constraint::set_entity_a(Entity *entity) 
+{
+	if (!entity) throw std::runtime_error("Error: entity was nullptr");
+	if (!entity->is_initialized()) throw std::runtime_error("Error: entity not initialized");
+	this->entity_a = entity;
+}
+
+void Constraint::set_entity_b(Entity *entity) 
+{
+	if (!entity) throw std::runtime_error("Error: entity was nullptr");
+	if (!entity->is_initialized()) throw std::runtime_error("Error: entity not initialized");
+	this->entity_b = entity;
+}
+
+void Constraint::set_entities(Entity *entity_a, Entity *entity_b) 
+{
+	if (!entity_a) throw std::runtime_error("Error: entity_a was nullptr");
+	if (!entity_a->is_initialized()) throw std::runtime_error("Error: entity_a not initialized");
 	
-	if (!rigid_body_b) throw std::runtime_error("Error: rigid_body_b was nullptr");
-	if (!rigid_body_b->is_initialized()) throw std::runtime_error("Error: rigid_body_b not initialized");
+	if (!entity_b) throw std::runtime_error("Error: entity_b was nullptr");
+	if (!entity_b->is_initialized()) throw std::runtime_error("Error: entity_b not initialized");
 	
-	this->rigid_body_a = rigid_body_a;
-	this->rigid_body_b = rigid_body_b;
+	this->entity_a = entity_a;
+	this->entity_b = entity_b;
 }
 
-void Constraint::clear_rigid_body_a()
+Entity* Constraint::get_entity_a()
 {
-	this->rigid_body_a = nullptr;
+	return this->entity_a;
 }
 
-void Constraint::clear_rigid_body_b()
+Entity* Constraint::get_entity_b()
 {
-	this->rigid_body_b = nullptr;
+	return this->entity_b;
 }
 
-void Constraint::clear_rigid_bodies()
+void Constraint::clear_entity_a()
 {
-	this->rigid_body_a = nullptr;
-	this->rigid_body_b = nullptr;
+	this->entity_a = nullptr;
+}
+
+void Constraint::clear_entity_b()
+{
+	this->entity_b = nullptr;
+}
+
+void Constraint::clear_entities()
+{
+	this->entity_a = nullptr;
+	this->entity_b = nullptr;
 }

@@ -14,6 +14,7 @@ class Texture;
 class Transform;
 
 struct PhysicsObject;
+struct ConstraintObject;
 
 namespace Systems 
 {
@@ -43,7 +44,7 @@ namespace Systems
             btDiscreteDynamicsWorld* dynamicsWorld;
 
             std::map<uint32_t, PhysicsObject> physicsObjectMap;
-            std::map<uint32_t, btGeneric6DofSpring2Constraint> constraintMap;
+            std::map<uint32_t, ConstraintObject> constraintMap;
             
             PhysicsSystem();
             ~PhysicsSystem();
