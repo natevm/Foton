@@ -936,9 +936,9 @@ void Camera::CleanUp()
 /* Static Factory Implementations */
 Camera* Camera::Create(std::string name,uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t max_views, bool use_depth_prepass, bool use_multiview)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
+	auto camera = StaticFactory::Create(name, "Camera", lookupTable, cameras, MAX_CAMERAS);
 	try {
-		std::lock_guard<std::mutex> lock(creation_mutex);
-		auto camera = StaticFactory::Create(name, "Camera", lookupTable, cameras, MAX_CAMERAS);
 		camera->setup(tex_width, tex_height, msaa_samples, max_views, use_depth_prepass, use_multiview);
 		return camera;
 	} catch (...) {
@@ -1071,8 +1071,8 @@ std::vector<std::vector<std::pair<float, Entity*>>> Camera::get_visible_entities
 		Entity* entities = Entity::GetFront();
 		auto camera_entity = Entity::Get(camera_entity_id);
 		if (!camera_entity) return {};
-		if (camera_entity->get_transform() == -1) return {};
-		auto cam_transform = Transform::Get(camera_entity->get_transform());
+		if (camera_entity->get_transform() == nullptr) return {};
+		auto cam_transform = camera_entity->get_transform();
 		if (!cam_transform) return {};
 		glm::vec3 cam_pos = cam_transform->get_position();
 
@@ -1086,13 +1086,9 @@ std::vector<std::vector<std::pair<float, Entity*>>> Camera::get_visible_entities
 				if (i == camera_entity_id) continue;
 				
 				if (!entities[i].is_initialized()) continue;
-				auto mesh_id = entities[i].get_mesh();
-				auto transform_id = entities[i].get_transform();
-				if ((mesh_id == -1) || (transform_id == -1)) continue;
-
-				auto mesh = Mesh::Get(mesh_id);
-				auto transform = Transform::Get(transform_id);
-				if ((!mesh) || (!transform)) continue;
+				auto mesh = entities[i].get_mesh();
+				auto transform = entities[i].get_transform();
+				if ((mesh == nullptr) || (transform == nullptr)) continue;
 
 				std::array<glm::vec4, 6> planes;
 
@@ -1166,11 +1162,8 @@ std::vector<std::vector<std::pair<float, Entity*>>> Camera::get_visible_entities
 			sorted_visible_entities.push_back(std::vector<std::pair<float, Entity*>>());
 			for (uint32_t i = 0; i < visible_entities[idx].size(); ++i) 
 			{
-				auto transform_id = visible_entities[idx][i]->get_transform();
-				auto mesh_id = visible_entities[idx][i]->get_mesh();
-
-				auto transform = Transform::Get(transform_id);
-				auto mesh = Mesh::Get(mesh_id);
+				auto transform = visible_entities[idx][i]->get_transform();
+				auto mesh = visible_entities[idx][i]->get_mesh();
 
 				auto centroid = mesh->get_centroid();
 				auto w_centroid =  glm::vec3(transform->get_local_to_world_matrix() * glm::vec4(centroid.x, centroid.y, centroid.z, 1.0));

@@ -14,6 +14,7 @@ class Material;
 class Light;
 class Mesh;
 class RigidBody;
+class Collider;
 
 #include <string>
 class Entity : public StaticFactory {
@@ -54,7 +55,8 @@ public:
 		Material* material = nullptr,
 		Light* light = nullptr,
 		Mesh* mesh = nullptr,
-		RigidBody* rigid_body = nullptr
+		RigidBody* rigid_body = nullptr,
+		Collider* collider = nullptr
 	);
 	static Entity* Get(std::string name);
 	static Entity* Get(uint32_t id);
@@ -72,63 +74,52 @@ public:
 
 	std::string to_string();
 	
-	void set_rigid_body(int32_t rigid_body_id) ;
-	
-	void set_rigid_body(RigidBody* rigid_body) ;
-	
+	void set_rigid_body(int32_t rigid_body_id);
+	void set_rigid_body(RigidBody* rigid_body);
 	void clear_rigid_body();
-	
-	int32_t get_rigid_body();
-
+	int32_t get_rigid_body_id();
+	RigidBody* get_rigid_body();
 	RigidBody* rigid_body();
 
+	void set_collider(int32_t collider_id);
+	void set_collider(Collider* collider);
+	void clear_collider();
+	int32_t get_collider_id();
+	Collider* get_collider();
+	Collider* collider();
+
 	void set_transform(int32_t transform_id);
-
 	void set_transform(Transform* transform);
-
 	void clear_transform();
-
-	int32_t get_transform();
-
+	int32_t get_transform_id();
+	Transform* get_transform();
 	Transform* transform();
 
 	void set_camera(int32_t camera_id);
-
 	void set_camera(Camera *camera);
-
 	void clear_camera();
-
-	int32_t get_camera();
-
+	int32_t get_camera_id();
+	Camera* get_camera();
 	Camera* camera();
 
 	void set_material(int32_t material_id);
-
 	void set_material(Material *material);
-
 	void clear_material();
-
-	int32_t get_material();
-
+	int32_t get_material_id();
+	Material* get_material();
 	Material* material();
 
 	void set_light(int32_t light_id);
-
 	void set_light(Light* light);
-
 	void clear_light();
-
-	int32_t get_light();
-
+	int32_t get_light_id();
+	Light* get_light();
 	Light* light();
 
 	void set_mesh(int32_t mesh_id);
-
 	void set_mesh(Mesh* mesh);
-
 	void clear_mesh();
-
-	int32_t get_mesh();
-
+	int32_t get_mesh_id();
+	Mesh* get_mesh();
 	Mesh* mesh();
 };

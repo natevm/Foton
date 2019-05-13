@@ -8,6 +8,13 @@
 
 #include "Pluto/Libraries/GLFW/GLFW.hxx"
 
+struct PhysicsObject {
+    btRigidBody* rigid_body;
+    btCollisionShape* shape;
+    btScalar mass;
+    btVector3 scale;
+};
+
 namespace Systems 
 {
     PhysicsSystem* PhysicsSystem::Get() {
@@ -24,8 +31,8 @@ namespace Systems
 
     bool PhysicsSystem::does_entity_have_physics(uint32_t entity_id)
     {
-        auto it = rigidBodyMap.find(entity_id);
-        return (it != rigidBodyMap.end());
+        auto it = physicsObjectMap.find(entity_id);
+        return (it != physicsObjectMap.end());
     }
 
     bool PhysicsSystem::should_entity_have_physics(uint32_t entity_id)
@@ -35,33 +42,17 @@ namespace Systems
 
         if (entity_id >= entity_count) throw std::runtime_error("Error: Invalid entity id");
         
-        /* The entity must be valid, and must have a transform and rigid body component */
+        /* The entity must be valid, and must have a transform, a rigid body, and a collider component */
         auto &entity = entities[entity_id];
         if (!entity.is_initialized()) return false;
 
-        auto transform_id = entity.get_transform();
-        auto rigid_body_id = entity.get_rigid_body();
-        
-        RigidBody* rigidBodies = RigidBody::GetFront();
-        Transform* transforms = Transform::GetFront();
+        auto transform = entity.get_transform();
+        auto rigid_body = entity.get_rigid_body();
+        auto collider = entity.get_collider();
 
-        uint32_t rigid_body_count = RigidBody::GetCount();
-        uint32_t transform_count = Transform::GetCount();
-
-        if ((rigid_body_id < 0) || ((uint32_t)rigid_body_id >= rigid_body_count)) return false;
-        if ((transform_id < 0) || ((uint32_t)transform_id >= transform_count)) return false;
-
-        auto &transform = transforms[transform_id];
-        auto &rigid_body = rigidBodies[rigid_body_id];
-
-        if (!transform.is_initialized()) return false;
-        if (!rigid_body.is_initialized()) return false;
-
-        /* The rigid body component must have an associated collider */
-
-        auto collider = rigid_body.get_collider();
-        if (collider == nullptr) return false;
-        if (!collider->is_initialized()) return false;
+        if (!collider) return false;
+        if (!rigid_body) return false;
+        if (!transform) return false;
 
         return true;
     }
@@ -69,46 +60,54 @@ namespace Systems
     void PhysicsSystem::add_entity_to_simulation(uint32_t entity_id)
     {
         Entity* entities = Entity::GetFront();
-        RigidBody* rigidBodies = RigidBody::GetFront();
-        Transform* transforms = Transform::GetFront();
-
         auto &entity = entities[entity_id];
-        auto &transform = transforms[entity.get_transform()];
-        auto &rigidBody = rigidBodies[entity.get_rigid_body()];
 
-        btCollisionShape *shape = rigidBody.get_collider()->get_collision_shape();
+        auto transform = entity.get_transform();
+        auto rigid_body = entity.get_rigid_body();
+        auto collider = entity.get_collider();
 
-        glm::vec3 origin = transform.get_world_translation();
-        glm::quat rotation = transform.get_world_rotation();
+        if (!collider) throw std::runtime_error("Error, collider was null during add entity to physics simulation");
+        if (!rigid_body) throw std::runtime_error("Error, rigid body was null during add entity to physics simulation");
+        if (!transform) throw std::runtime_error("Error, transform was null during add entity to physics simulation");
+
+        btCollisionShape *shape = collider->get_collision_shape();
+
+        glm::vec3 origin = transform->get_world_translation();
+        glm::quat rotation = transform->get_world_rotation();
 
         btTransform bullet_transform;
         bullet_transform.setOrigin(btVector3(origin[0], origin[1], origin[2]));
         bullet_transform.setRotation(btQuaternion(rotation.x, rotation.y, rotation.z, rotation.w));
 
-        btScalar bullet_mass = btScalar(rigidBody.get_mass());
+        btScalar bullet_mass = btScalar(rigid_body->get_mass());
 
-        glm::vec3 local_inertia = rigidBody.get_local_inertia();
-        btVector3 bullet_local_inertia = btVector3(local_inertia.x, local_inertia.y, local_inertia.z);
+        btVector3 local_inertia;
+        shape->calculateLocalInertia(bullet_mass, local_inertia);
 
         //using motion state is optional, it provides interpolation capabilities, and only synchronizes 'active' objects
         btDefaultMotionState* motionState = new btDefaultMotionState(bullet_transform);
-        btRigidBody::btRigidBodyConstructionInfo rbInfo(bullet_mass, motionState, shape, bullet_local_inertia);
+        btRigidBody::btRigidBodyConstructionInfo rbInfo(bullet_mass, motionState, shape, local_inertia);
         btRigidBody* body = new btRigidBody(rbInfo);
 
         // body->setDamping(0.0, 0.0);
-        body->setFriction(rigidBody.get_friction());
-        body->setRollingFriction(rigidBody.get_rolling_friction());
-        body->setSpinningFriction(rigidBody.get_spinning_friction());
+        body->setFriction(rigid_body->get_friction());
+        body->setRollingFriction(rigid_body->get_rolling_friction());
+        body->setSpinningFriction(rigid_body->get_spinning_friction());
 
-        rigidBodyMap[entity_id] = body;
+        PhysicsObject obj;
+        obj.rigid_body = body;
+        obj.mass = bullet_mass;
+        obj.shape = shape;
+        obj.scale = shape->getLocalScaling();
+        physicsObjectMap[entity_id] = obj;
 
         /* TODO: do this each frame */
-        if (rigidBody.is_kinematic()) {
+        if (rigid_body->is_kinematic()) {
             body->setCollisionFlags( btCollisionObject::CF_KINEMATIC_OBJECT);
             body->setActivationState( DISABLE_DEACTIVATION );
         }
 
-        else if (rigidBody.is_static()) {
+        else if (rigid_body->is_static()) {
             body->setCollisionFlags( btCollisionObject::CF_STATIC_OBJECT);
         }
 
@@ -118,19 +117,19 @@ namespace Systems
 
     void PhysicsSystem::remove_entity_from_simulation(uint32_t entity_id)
     {
-        auto body = rigidBodyMap[entity_id];
-        rigidBodyMap.erase(entity_id);
+        auto obj = physicsObjectMap[entity_id];
+        physicsObjectMap.erase(entity_id);
 
         // remove the rigid body from the dynamic world and delete it.
         // btCollisionObject* obj = dynamicsWorld->getCollisionObjectArray()[i];
         // btRigidBody* body = btRigidBody::upcast(obj);
 
-        if (body && body->getMotionState())
+        if (obj.rigid_body && obj.rigid_body->getMotionState())
         {
-            delete body->getMotionState();
+            delete obj.rigid_body->getMotionState();
         }
-        dynamicsWorld->removeCollisionObject((btCollisionObject*)body);
-        delete body;
+        dynamicsWorld->removeCollisionObject((btCollisionObject*)obj.rigid_body);
+        delete obj.rigid_body;
     }
 
     void PhysicsSystem::update_entity(uint32_t entity_id)
@@ -138,31 +137,65 @@ namespace Systems
         Entity* entities = Entity::GetFront();
         RigidBody* rigidBodies = RigidBody::GetFront();
         Transform* transforms = Transform::GetFront();
+        Collider* colliders = Collider::GetFront();
 
         auto &entity = entities[entity_id];
-        auto &transform = transforms[entity.get_transform()];
-        auto &rigidBody = rigidBodies[entity.get_rigid_body()];
 
-        auto &body = rigidBodyMap[entity_id];
+        auto transform = entity.get_transform();
+        auto rigid_body = entity.get_rigid_body();
+        auto collider = entity.get_collider();
+
+        if (!collider) throw std::runtime_error("Error, collider was null during update in physics simulation");
+        if (!rigid_body) throw std::runtime_error("Error, rigid body was null during update in physics simulation");
+        if (!transform) throw std::runtime_error("Error, transform was null during update in physics simulation");
+
+        auto &obj = physicsObjectMap[entity_id];
+
+        // Did the mass change?
+        if (obj.mass != rigid_body->get_mass()) 
+        {
+            btScalar bullet_mass = btScalar(rigid_body->get_mass());
+            btVector3 local_inertia;
+            collider->get_collision_shape()->calculateLocalInertia(bullet_mass, local_inertia);
+            obj.rigid_body->setMassProps(bullet_mass, local_inertia);
+
+            obj.mass = rigid_body->get_mass();
+        }
+
+        // Did the shape or scale change?
+        else if ((obj.shape != collider->get_collision_shape()) 
+            || (obj.scale != collider->get_collision_shape()->getLocalScaling())) 
+        {
+            btScalar bullet_mass = btScalar(rigid_body->get_mass());
+            btVector3 local_inertia;
+            collider->get_collision_shape()->calculateLocalInertia(bullet_mass, local_inertia);
+            obj.rigid_body->setCollisionShape(collider->get_collision_shape());
+            obj.rigid_body->setMassProps(bullet_mass, local_inertia);
+            obj.shape = collider->get_collision_shape();
+            obj.scale = collider->get_collision_shape()->getLocalScaling();
+        }
+
+        // need to also check and see if any of the following changed... 
+        // Right now, reference counters are incrementing like crazy
 
         // body->setDamping(0.0, 0.0);
-        body->setFriction(rigidBody.get_friction());
-        body->setRollingFriction(rigidBody.get_rolling_friction());
+        obj.rigid_body->setFriction(rigid_body->get_friction());
+        obj.rigid_body->setRollingFriction(rigid_body->get_rolling_friction());
 
         /* Not sure if these can be changed per frame... */
-        if (rigidBody.is_kinematic()) {
-            body->setCollisionFlags( body->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
-            body->setCollisionFlags( body->getCollisionFlags() & ~btCollisionObject::CF_STATIC_OBJECT);
-            body->forceActivationState( DISABLE_DEACTIVATION );
+        if (rigid_body->is_kinematic()) {
+            obj.rigid_body->setCollisionFlags( obj.rigid_body->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+            obj.rigid_body->setCollisionFlags( obj.rigid_body->getCollisionFlags() & ~btCollisionObject::CF_STATIC_OBJECT);
+            obj.rigid_body->forceActivationState( DISABLE_DEACTIVATION );
         }
-        else if (rigidBody.is_static()) {
-            body->forceActivationState( ACTIVE_TAG );
-            body->setCollisionFlags( body->getCollisionFlags() | btCollisionObject::CF_STATIC_OBJECT);
-            body->setCollisionFlags( body->getCollisionFlags() & ~btCollisionObject::CF_KINEMATIC_OBJECT);
+        else if (rigid_body->is_static()) {
+            obj.rigid_body->forceActivationState( ACTIVE_TAG );
+            obj.rigid_body->setCollisionFlags( obj.rigid_body->getCollisionFlags() | btCollisionObject::CF_STATIC_OBJECT);
+            obj.rigid_body->setCollisionFlags( obj.rigid_body->getCollisionFlags() & ~btCollisionObject::CF_KINEMATIC_OBJECT);
         } else {
-            body->forceActivationState( ACTIVE_TAG );
-            body->setCollisionFlags( body->getCollisionFlags() & ~btCollisionObject::CF_KINEMATIC_OBJECT);
-            body->setCollisionFlags( body->getCollisionFlags() & ~btCollisionObject::CF_STATIC_OBJECT);
+            obj.rigid_body->forceActivationState( ACTIVE_TAG );
+            obj.rigid_body->setCollisionFlags( obj.rigid_body->getCollisionFlags() & ~btCollisionObject::CF_KINEMATIC_OBJECT);
+            obj.rigid_body->setCollisionFlags( obj.rigid_body->getCollisionFlags() & ~btCollisionObject::CF_STATIC_OBJECT);
         }
         
         /* Lots of fields we could be setting */
@@ -175,30 +208,30 @@ namespace Systems
         // body->setHitFraction()
         // body->set()
 
-        if (rigidBody.is_kinematic() )
+        if (rigid_body->is_kinematic() )
         {
             btTransform worldTrans;
 
-            glm::vec3 position = transform.get_world_translation();
-            glm::quat rotation = transform.get_world_rotation();
+            glm::vec3 position = transform->get_world_translation();
+            glm::quat rotation = transform->get_world_rotation();
 
             worldTrans.setOrigin(btVector3(position.x, position.y, position.z));
             worldTrans.setRotation(btQuaternion(rotation.x, rotation.y, rotation.z, rotation.w));
-            if (body && body->getMotionState())
+            if (obj.rigid_body && obj.rigid_body->getMotionState())
             {
-                body->getMotionState()->setWorldTransform(worldTrans);
+                obj.rigid_body->getMotionState()->setWorldTransform(worldTrans);
             }
             else {
-                body->setWorldTransform(worldTrans);
+                obj.rigid_body->setWorldTransform(worldTrans);
             }
         }
         else {
             btTransform trans;
-            if (body && body->getMotionState())
+            if (obj.rigid_body && obj.rigid_body->getMotionState())
             {
-                body->getMotionState()->getWorldTransform(trans);
+                obj.rigid_body->getMotionState()->getWorldTransform(trans);
             } else {
-                trans = body->getWorldTransform();
+                trans = obj.rigid_body->getWorldTransform();
             }
 
             glm::vec3 position = glm::vec3(
@@ -214,8 +247,8 @@ namespace Systems
             rotation.z = bullet_rotation.z();
             rotation.w = bullet_rotation.w();
 
-            transform.set_position(position);
-            transform.set_rotation(rotation);
+            transform->set_position(position);
+            transform->set_rotation(rotation);
         }
     }
 
@@ -270,7 +303,7 @@ namespace Systems
 
             dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, overlappingPairCache, solver, collisionConfiguration);
 
-            dynamicsWorld->setGravity(btVector3(0, 0, -9.8));
+            dynamicsWorld->setGravity(btVector3(0.f, 0.f, -9.8f));
 
             // // Create a few basic rigid bodies
             
@@ -341,7 +374,7 @@ namespace Systems
 
                 currentTime = glfwGetTime();
                 
-                dynamicsWorld->stepSimulation((currentTime - lastTime), 100, 1.0 / 120.f);
+                dynamicsWorld->stepSimulation((btScalar)(currentTime - lastTime), 100, 1.0f / 120.f);
                 lastTime = currentTime;
 
                 /* Add or remove rigid bodies from the dynamic world */
@@ -420,7 +453,7 @@ namespace Systems
                 dynamicsWorld->removeCollisionObject(obj);
                 delete obj;
             }
-            rigidBodyMap.clear();
+            physicsObjectMap.clear();
 
             // // delete collision shapes
             // for (uint32_t j = 0; j < collisionShapes.size(); j++)

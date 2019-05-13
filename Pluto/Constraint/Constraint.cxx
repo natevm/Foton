@@ -45,14 +45,9 @@ std::string Constraint::to_string()
 }
 
 Constraint *Constraint::Create(std::string name) {
-	try {
-		std::lock_guard<std::mutex> lock(creation_mutex);
-		auto Constraint = StaticFactory::Create(name, "Constraint", lookupTable, constraints, MAX_CONSTRAINTS);
-		return Constraint;
-	} catch (...) {
-		StaticFactory::DeleteIfExists(name, "Constraint", lookupTable, constraints, MAX_CONSTRAINTS);
-		throw;
-	}
+	std::lock_guard<std::mutex> lock(creation_mutex);
+	auto constraint = StaticFactory::Create(name, "Constraint", lookupTable, constraints, MAX_CONSTRAINTS);
+	return constraint;
 }
 
 Constraint *Constraint::Get(std::string name) {

@@ -40,7 +40,7 @@ using namespace Systems;
 
 /* Note: kwargs does not work with c++ standard types, like vector. 
 
-    For now, we can use kwargs with only specific declarations
+	For now, we can use kwargs with only specific declarations
 */
 
 %feature("autodoc","4");
@@ -65,9 +65,9 @@ using namespace Systems;
 
 %exception {
   try {
-    $action
+	$action
   } catch (const std::exception& e) {
-    SWIG_exception(SWIG_RuntimeError, e.what());
+	SWIG_exception(SWIG_RuntimeError, e.what());
   }
 }
 
@@ -177,54 +177,54 @@ using namespace Systems;
 
 /* Representations */
 %extend Transform {
-    %feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
-    std::string __repr__() { return $self->to_string(); }
+	%feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
+	std::string __repr__() { return $self->to_string(); }
 }
 
 %extend RigidBody {
-    %feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
-    std::string __repr__() { return $self->to_string(); }
+	%feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
+	std::string __repr__() { return $self->to_string(); }
 }
 
 %extend Collider {
-    %feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
-    std::string __repr__() { return $self->to_string(); }
+	%feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
+	std::string __repr__() { return $self->to_string(); }
 }
 
 %extend Constraint {
-    %feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
-    std::string __repr__() { return $self->to_string(); }
+	%feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
+	std::string __repr__() { return $self->to_string(); }
 }
 
 %extend Texture {
-    %feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
-    std::string __repr__() { return $self->to_string(); }
+	%feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
+	std::string __repr__() { return $self->to_string(); }
 }
 
 %extend Camera {
-    %feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
-    std::string __repr__() { return $self->to_string(); }
+	%feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
+	std::string __repr__() { return $self->to_string(); }
 }
 
 %extend Mesh {
-    %feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
-    std::string __repr__() { return $self->to_string(); }
+	%feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
+	std::string __repr__() { return $self->to_string(); }
 }
 
 %extend Light {
-    %feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
-    std::string __repr__() { return $self->to_string(); }
+	%feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
+	std::string __repr__() { return $self->to_string(); }
 }
 
 %extend Material {
-    %feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
-    std::string __repr__() { return $self->to_string(); }
+	%feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
+	std::string __repr__() { return $self->to_string(); }
 }
 
 /* Representations */
 %extend Entity {
-    %feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
-    std::string __repr__() { return $self->to_string(); }
+	%feature("python:slot", "tp_repr", functype="reprfunc") __repr__;
+	std::string __repr__() { return $self->to_string(); }
 }
 
 %template(EntityVector) vector<Entity*>;
@@ -237,3 +237,36 @@ using namespace Systems;
 %template(RigidBodyVector) vector<RigidBody*>;
 %template(LightVector) vector<Light*>;
 %template(MaterialVector) vector<Material*>;
+
+/* Some properties to make entity creation and modification easier */
+%extend Entity{
+	%pythoncode %{
+		__swig_getmethods__["rigid_body"] = get_rigid_body
+		__swig_setmethods__["rigid_body"] = set_rigid_body
+		if _newclass: rigid_body = property(get_rigid_body, set_rigid_body)
+
+		__swig_getmethods__["collider"] = get_collider
+		__swig_setmethods__["collider"] = set_collider
+		if _newclass: collider = property(get_collider, set_collider)
+		
+		__swig_getmethods__["transform"] = get_transform
+		__swig_setmethods__["transform"] = set_transform
+		if _newclass: transform = property(get_transform, set_transform)
+
+		__swig_getmethods__["mesh"] = get_mesh
+		__swig_setmethods__["mesh"] = set_mesh
+		if _newclass: mesh = property(get_mesh, set_mesh)
+
+		__swig_getmethods__["material"] = get_material
+		__swig_setmethods__["material"] = set_material
+		if _newclass: material = property(get_material, set_material)
+
+		__swig_getmethods__["light"] = get_light
+		__swig_setmethods__["light"] = set_light
+		if _newclass: light = property(get_light, set_light)
+
+		__swig_getmethods__["camera"] = get_camera
+		__swig_setmethods__["camera"] = set_camera
+		if _newclass: camera = property(get_camera, set_camera)
+	%}
+};

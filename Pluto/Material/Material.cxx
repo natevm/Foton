@@ -1319,14 +1319,12 @@ void Material::BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderP
 void Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants, RenderMode rendermode_override) //int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time)
 {    
 	/* Need a mesh to render. */
-	auto mesh_id = entity.get_mesh();
-	if (mesh_id < 0 || mesh_id >= MAX_MESHES) return;
-	auto m = Mesh::Get((uint32_t) mesh_id);
+	auto m = entity.get_mesh();
 	if (!m) return;
 
 	/* Need a transform to render. */
-	auto transform_id = entity.get_transform();
-	if (transform_id < 0 || transform_id >= MAX_TRANSFORMS) return;
+	auto transform = entity.get_transform();
+	if (!transform) return;
 
 	// push_constants.show_bounding_box = false;
 	// if (m->should_show_bounding_box()) {
@@ -1337,9 +1335,7 @@ void Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &ren
 	// }
 
 	/* Need a material to render. */
-	auto material_id = entity.get_material();
-	if (material_id < 0 || material_id >= MAX_MATERIALS) return;
-	auto material = Material::Get(material_id);
+	auto material = entity.get_material();
 	if (!material) return;
 
 	auto rendermode = (rendermode_override == RenderMode::NONE) ? material->renderMode : rendermode_override;
@@ -1438,19 +1434,15 @@ void Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &ren
 void Material::DrawVolume(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants, RenderMode rendermode_override) //int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time)
 {    
 	/* Need a mesh to render. */
-	auto mesh_id = entity.get_mesh();
-	if (mesh_id < 0 || mesh_id >= MAX_MESHES) return;
-	auto m = Mesh::Get((uint32_t) mesh_id);
+	auto m = entity.get_mesh();
 	if (!m) return;
 
 	/* Need a transform to render. */
-	auto transform_id = entity.get_transform();
-	if (transform_id < 0 || transform_id >= MAX_TRANSFORMS) return;
+	auto transform = entity.get_transform();
+	if (!transform) return;
 
 	/* Need a material to render. */
-	auto material_id = entity.get_material();
-	if (material_id < 0 || material_id >= MAX_MATERIALS) return;
-	auto material = Material::Get(material_id);
+	auto material = entity.get_material();
 	if (!material) return;
 
 	auto rendermode = (rendermode_override == RenderMode::NONE) ? material->renderMode : rendermode_override;
@@ -1611,13 +1603,8 @@ void Material::CleanUp()
 
 /* Static Factory Implementations */
 Material* Material::Create(std::string name) {
-	try {
-		std::lock_guard<std::mutex> lock(creation_mutex);
-		return StaticFactory::Create(name, "Material", lookupTable, materials, MAX_MATERIALS);
-	} catch (...) {
-		StaticFactory::DeleteIfExists(name, "Material", lookupTable, materials, MAX_MATERIALS);
-		throw;
-	}
+	std::lock_guard<std::mutex> lock(creation_mutex);
+	return StaticFactory::Create(name, "Material", lookupTable, materials, MAX_MATERIALS);
 }
 
 Material* Material::Get(std::string name) {

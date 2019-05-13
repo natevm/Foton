@@ -1620,9 +1620,9 @@ std::vector<vk::ImageLayout> Texture::GetLayouts(vk::ImageViewType view_type)
 /* Static Factory Implementations */
 Texture *Texture::CreateFromKTX(std::string name, std::string filepath, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
+	auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
 	try {
-		std::lock_guard<std::mutex> lock(creation_mutex);
-		auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
 		tex->loadKTX(filepath, submit_immediately);
 		tex->texture_struct.sampler_id = 0;
 		return tex;
@@ -1634,9 +1634,9 @@ Texture *Texture::CreateFromKTX(std::string name, std::string filepath, bool sub
 
 Texture *Texture::CreateFromPNG(std::string name, std::string filepath, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
+	auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
 	try {
-		std::lock_guard<std::mutex> lock(creation_mutex);
-		auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
 		tex->loadPNG(filepath, submit_immediately);
 		tex->texture_struct.sampler_id = 0;
 		return tex;
@@ -1649,10 +1649,9 @@ Texture *Texture::CreateFromPNG(std::string name, std::string filepath, bool sub
 Texture* Texture::CreateCubemap(
 	std::string name, uint32_t width, uint32_t height, bool hasColor, bool hasDepth, bool submit_immediately) 
 {
-	try {
-		std::lock_guard<std::mutex> lock(creation_mutex);
-		auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
-		
+	std::lock_guard<std::mutex> lock(creation_mutex);
+	auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+	try {		
 		tex->data.width = width;
 		tex->data.height = height;
 		tex->data.layers = 6;
@@ -1670,17 +1669,13 @@ Texture* Texture::CreateCubemap(
 
 Texture* Texture::CreateChecker(std::string name, bool submit_immediately)
 {
-	try {
-		std::lock_guard<std::mutex> lock(creation_mutex);
-		auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
-		tex->texture_struct.type = 1;
-		tex->texture_struct.mip_levels = 0;
-		tex->texture_struct.sampler_id = 0;
-		return tex;
-	} catch (...) {
-		StaticFactory::DeleteIfExists(name, "Texture", lookupTable, textures, MAX_TEXTURES);
-		throw;
-	}
+	std::lock_guard<std::mutex> lock(creation_mutex);
+	auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+
+	tex->texture_struct.type = 1;
+	tex->texture_struct.mip_levels = 0;
+	tex->texture_struct.sampler_id = 0;
+	return tex;
 }
 
 Texture* Texture::Create2D(
@@ -1688,10 +1683,10 @@ Texture* Texture::Create2D(
 	bool hasColor, bool hasDepth, uint32_t sampleCount, uint32_t layers, 
 	bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
+	auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+	
 	try {
-		std::lock_guard<std::mutex> lock(creation_mutex);
-		auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
-
 		auto vulkan = Libraries::Vulkan::Get();
 		if (!vulkan->is_initialized())
 			throw std::runtime_error( std::string("Vulkan library is not initialized"));
@@ -1723,10 +1718,10 @@ Texture* Texture::Create3D(
 	std::string name, uint32_t width, uint32_t height, uint32_t depth, 
 	uint32_t layers, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
+	auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+	
 	try {
-		std::lock_guard<std::mutex> lock(creation_mutex);
-		auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
-
 		auto vulkan = Libraries::Vulkan::Get();
 		if (!vulkan->is_initialized())
 			throw std::runtime_error( std::string("Vulkan library is not initialized"));
@@ -1753,9 +1748,10 @@ Texture* Texture::Create3D(
 Texture* Texture::Create2DFromColorData (
 	std::string name, uint32_t width, uint32_t height, std::vector<float> data, bool submit_immediately)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
+	auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+	
 	try {
-		std::lock_guard<std::mutex> lock(creation_mutex);
-		auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
 		tex->data.width = width;
 		tex->data.height = height;
 		tex->data.layers = 1;
@@ -1774,9 +1770,10 @@ Texture* Texture::Create2DFromColorData (
 
 Texture* Texture::CreateFromExternalData(std::string name, Data data)
 {
+	std::lock_guard<std::mutex> lock(creation_mutex);
+	auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+	
 	try {
-		std::lock_guard<std::mutex> lock(creation_mutex);
-		auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
 		tex->setData(data);
 		tex->texture_struct.sampler_id = 0;
 		return tex;

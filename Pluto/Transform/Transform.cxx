@@ -144,13 +144,8 @@ void Transform::CleanUp()
 
 /* Static Factory Implementations */
 Transform* Transform::Create(std::string name) {
-	try {
-		std::lock_guard<std::mutex> lock(creation_mutex);
-		return StaticFactory::Create(name, "Transform", lookupTable, transforms, MAX_TRANSFORMS);
-	} catch (...) {
-		StaticFactory::DeleteIfExists(name, "Transform", lookupTable, transforms, MAX_TRANSFORMS);
-		throw;
-	}
+	std::lock_guard<std::mutex> lock(creation_mutex);
+	return StaticFactory::Create(name, "Transform", lookupTable, transforms, MAX_TRANSFORMS);
 }
 
 Transform* Transform::Get(std::string name) {

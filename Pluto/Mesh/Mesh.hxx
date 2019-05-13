@@ -23,7 +23,7 @@ class Mesh : public StaticFactory
 		static Mesh* CreateBox(std::string name, bool allow_edits = false, bool submit_immediately = false);
 		
 		/* Creates a mesh component from a procedural cone capped on the bottom */
-		static Mesh* CreateCappedCone(std::string name, bool allow_edits = false, bool submit_immediately = false);
+		static Mesh* CreateCappedCone(std::string name, bool allow_edits = false, bool submit_immediately = false, float radius = 1.0, float height = 1.0);
 		
 		/* Creates a mesh component from a procedural cylinder capped on the bottom */
 		static Mesh* CreateCappedCylinder(std::string name, bool allow_edits = false, bool submit_immediately = false);
@@ -35,7 +35,7 @@ class Mesh : public StaticFactory
 		static Mesh* CreateCapsule(std::string name, float radius = 1.0, float size = 0.5, int slices = 32, int segments = 4, int rings = 8, float start = 0.0, float sweep = 6.28319, bool allow_edits = false, bool submit_immediately = false);
 		
 		/* Creates a mesh component from a procedural cone */
-		static Mesh* CreateCone(std::string name, bool allow_edits = false, bool submit_immediately = false);
+		static Mesh* CreateCone(std::string name, bool allow_edits = false, bool submit_immediately = false, float radius = 1.0, float height = 1.0);
 		
 		/* Creates a mesh component from a procedural pentagon */
 		static Mesh* CreatePentagon(std::string name, bool allow_edits = false, bool submit_immediately = false);

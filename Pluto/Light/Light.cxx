@@ -332,13 +332,8 @@ void Light::CleanUp()
 
 /* Static Factory Implementations */
 Light* Light::Create(std::string name) {
-    try {
-        std::lock_guard<std::mutex> lock(creation_mutex);
-        return StaticFactory::Create(name, "Light", lookupTable, lights, MAX_LIGHTS);
-    } catch (...) {
-        StaticFactory::DeleteIfExists(name, "Light", lookupTable, lights, MAX_LIGHTS);
-        throw;
-    }
+    std::lock_guard<std::mutex> lock(creation_mutex);
+    return StaticFactory::Create(name, "Light", lookupTable, lights, MAX_LIGHTS);
 }
 
 Light* Light::Get(std::string name) {

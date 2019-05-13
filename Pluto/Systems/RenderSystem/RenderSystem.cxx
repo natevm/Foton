@@ -143,7 +143,7 @@ bool RenderSystem::update_push_constants()
     std::vector<int32_t> light_entity_ids(MAX_LIGHTS, -1);
     for (uint32_t i = 0; i < Entity::GetCount(); ++i)
     {
-        if (entities[i].is_initialized() && (entities[i].get_light() != -1))
+        if (entities[i].is_initialized() && (entities[i].get_light() != nullptr))
         {
             entities[i].set_camera(shadowCams[light_count]);
             light_entity_ids[light_count] = i;
@@ -169,7 +169,9 @@ uint32_t shadow_idx = 0;
 
 void RenderSystem::record_depth_prepass(Entity &camera_entity, std::vector<std::vector<std::pair<float, Entity*>>> &visible_entities)
 {
-    auto camera = Camera::Get(camera_entity.get_camera());
+    auto camera = camera_entity.get_camera();
+    if (!camera) throw std::runtime_error("Error, camera was null during recording of depth prepass");
+
     vk::CommandBuffer command_buffer = camera->get_command_buffer();
 
     /* Record Z prepasses / Occlusion query  */
@@ -240,7 +242,9 @@ void RenderSystem::record_depth_prepass(Entity &camera_entity, std::vector<std::
 
 void RenderSystem::record_final_renderpass(Entity &camera_entity, std::vector<std::vector<std::pair<float, Entity*>>> &visible_entities)
 {
-    auto camera = Camera::Get(camera_entity.get_camera());
+    auto camera = camera_entity.get_camera();
+    if (!camera) throw std::runtime_error("Error, camera was null during recording of final renderpass");
+
     vk::CommandBuffer command_buffer = camera->get_command_buffer();
 
     if (!Options::IsClient()) {
@@ -308,13 +312,19 @@ void RenderSystem::record_final_renderpass(Entity &camera_entity, std::vector<st
 void RenderSystem::record_blit_camera(Entity &camera_entity, std::map<std::string, std::pair<Camera *, uint32_t>> &window_to_cam)
 {
     auto glfw = GLFW::Get();
-    auto camera = Camera::Get(camera_entity.get_camera());
+    auto camera = camera_entity.get_camera();
+
+    if (!camera) throw std::runtime_error("Error, camera was null in recording blits");
+
     vk::CommandBuffer command_buffer = camera->get_command_buffer();
     Texture * texture = camera->get_texture();
 
+    /* There might be a better way to handle this... */
+    if (!texture) throw std::runtime_error("Error, camera texture was null in recording blits");
+
     /* Blit to GLFW windows */
     for (auto w2c : window_to_cam) {
-        if ((w2c.second.first->get_id() == camera_entity.get_camera())) {
+        if ((w2c.second.first->get_id() == camera_entity.get_camera_id())) {
             /* Window needs a swapchain */
             auto swapchain = glfw->get_swapchain(w2c.first);
             if (!swapchain) {
@@ -360,31 +370,29 @@ void RenderSystem::record_cameras()
         if (!entities[entity_id].is_initialized()) continue;
 
         /* Entity needs a camera */
-        auto cam_id = entities[entity_id].get_camera();
-        if (cam_id < 0) continue;
-
-        if (!cameras[cam_id].is_initialized()) continue;
+        auto camera = entities[entity_id].get_camera();
+        if (!camera) continue;
 
         /* Camera needs a texture */
-        Texture * texture = cameras[cam_id].get_texture();
+        Texture * texture = camera->get_texture();
         if (!texture) continue;
 
         /* If entity is a shadow camera (TODO: REFACTOR THIS...) */
-        if (entities[entity_id].get_light() != -1) {
+        if (entities[entity_id].get_light() != nullptr) {
             /* Skip shadowmaps which shouldn't cast shadows */
-            auto light = Light::Get(entities[entity_id].get_light());
+            auto light = entities[entity_id].get_light();
             if (!light->should_cast_shadows()) continue;
         }
 
         /* Begin recording */
         vk::CommandBufferBeginInfo beginInfo;
-        if (cameras[cam_id].needs_command_buffers()) cameras[cam_id].create_command_buffers();
-        vk::CommandBuffer command_buffer = cameras[cam_id].get_command_buffer();
+        if (camera->needs_command_buffers()) camera->create_command_buffers();
+        vk::CommandBuffer command_buffer = camera->get_command_buffer();
         
         beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
         command_buffer.begin(beginInfo);
 
-        auto visible_entities = cameras[cam_id].get_visible_entities(entity_id);
+        auto visible_entities = camera->get_visible_entities(entity_id);
 
         record_depth_prepass(entities[entity_id], visible_entities);
 
@@ -610,16 +618,19 @@ void RenderSystem::enqueue_render_commands() {
 
             /* Look for entities with valid command buffers */
             if (!entities[e_id].is_initialized()) continue;
-            auto c_id = entities[e_id].get_camera();
-            if (c_id < 0) continue;
-            Texture * texture = cameras[c_id].get_texture();
+
+            auto camera = entities[e_id].get_camera();
+            if (!camera) continue;
+
+            Texture * texture = camera->get_texture();
             if (!texture) continue;
-            if (cameras[c_id].get_render_order() != rp_idx) continue;
+
+            if (camera->get_render_order() != rp_idx) continue;
             
             /* If the entity is a shadow camera (TODO: REFACTOR THIS...) */
-            if (entities[e_id].get_light() != -1){
+            if (entities[e_id].get_light() != nullptr){
                 /* If that light should cast shadows */
-                auto light = Light::Get(entities[e_id].get_light());
+                auto light = entities[e_id].get_light();
                 if (!light->should_cast_shadows()) continue;
             }
 
@@ -627,11 +638,11 @@ void RenderSystem::enqueue_render_commands() {
         auto node = std::make_shared<ComputeNode>();
             node->level = level_idx;
             node->queue_idx = queue_idx;
-            node->command_buffers.push_back(cameras[c_id].get_command_buffer());
+            node->command_buffers.push_back(camera->get_command_buffer());
 
             /* Add any connected windows to this node */
             for (auto w2c : window_to_cam) {
-                if ((w2c.second.first->get_id() == c_id)) {
+                if ((w2c.second.first->get_id() == camera->get_id())) {
                     auto swapchain = glfw->get_swapchain(w2c.first);
                     if (!swapchain) continue;
                     auto swapchain_texture = glfw->get_texture(w2c.first);
@@ -797,23 +808,21 @@ void RenderSystem::mark_cameras_as_render_complete()
         if (!entities[entity_id].is_initialized()) continue;
 
         /* Entity needs a camera */
-        auto cam_id = entities[entity_id].get_camera();
-        if (cam_id < 0) continue;
-
-        if (!cameras[cam_id].is_initialized()) continue;
+        auto camera = entities[entity_id].get_camera();
+        if (!camera) continue;
 
         /* Camera needs a texture */
-        Texture * texture = cameras[cam_id].get_texture();
+        Texture * texture = camera->get_texture();
         if (!texture) continue;
 
         /* If entity is a shadow camera (TODO: REFACTOR THIS...) */
-        if (entities[entity_id].get_light() != -1) {
+        if (entities[entity_id].get_light() != nullptr) {
             /* Skip shadowmaps which shouldn't cast shadows */
-            auto light = Light::Get(entities[entity_id].get_light());
+            auto light = entities[entity_id].get_light();
             if (!light->should_cast_shadows()) continue;
         }
 
-        cameras[cam_id].mark_render_as_complete();
+        camera->mark_render_as_complete();
     }
 
 }

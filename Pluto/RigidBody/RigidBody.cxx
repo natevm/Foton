@@ -1,5 +1,4 @@
 #include "RigidBody.hxx"
-#include "Pluto/Collider/Collider.hxx"
 
 RigidBody RigidBody::rigidbodies[MAX_RIGIDBODIES];
 std::map<std::string, uint32_t> RigidBody::lookupTable;
@@ -16,7 +15,6 @@ RigidBody::RigidBody(std::string name, uint32_t id)
 	initialized = true;
 	this->name = name;
 	this->id = id;
-	this->collider = nullptr;
 	this->mode = KINEMATIC;
 
 	this->mass = 0.0;
@@ -37,14 +35,9 @@ std::string RigidBody::to_string()
 }
 
 RigidBody *RigidBody::Create(std::string name) {
-	try {
-		std::lock_guard<std::mutex> lock(creation_mutex);
-		auto rigidbody = StaticFactory::Create(name, "RigidBody", lookupTable, rigidbodies, MAX_RIGIDBODIES);
-		return rigidbody;
-	} catch (...) {
-		StaticFactory::DeleteIfExists(name, "RigidBody", lookupTable, rigidbodies, MAX_RIGIDBODIES);
-		throw;
-	}
+	std::lock_guard<std::mutex> lock(creation_mutex);
+	auto rigidbody = StaticFactory::Create(name, "RigidBody", lookupTable, rigidbodies, MAX_RIGIDBODIES);
+	return rigidbody;
 }
 
 RigidBody *RigidBody::Get(std::string name) {
@@ -85,12 +78,12 @@ void RigidBody::CleanUp()
 {
 	if (!IsInitialized()) return;
 
-	for (auto &collider : rigidbodies) {
-		if (collider.initialized) {
-			collider.cleanup();
-			RigidBody::Delete(collider.id);
-		}
-	}
+	// for (auto &collider : rigidbodies) {
+	// 	if (collider.initialized) {
+	// 		collider.cleanup();
+	// 		RigidBody::Delete(collider.id);
+	// 	}
+	// }
 }
 
 void RigidBody::make_kinematic()
@@ -123,27 +116,23 @@ bool RigidBody::is_static()
 	return mode == STATIC;
 }
 
-void RigidBody::set_collider(Collider* collider)
-{
-	if (!collider) throw std::runtime_error("Error: collider was nullptr");
-	if (!collider->is_initialized()) throw std::runtime_error("Error: collider not initialized");
+// void RigidBody::set_collider(Collider* collider)
+// {
+// 	if (!collider) throw std::runtime_error("Error: collider was nullptr");
+// 	if (!collider->is_initialized()) throw std::runtime_error("Error: collider not initialized");
 
-	this->collider = collider;
+// 	this->collider = collider;
 
-	update_local_inertia();
-}
+// 	update_local_inertia();
+// }
 
-Collider* RigidBody::get_collider()
-{
-	return this->collider;
-}
 
 void RigidBody::set_mass(float mass)
 {
 	if (mass < 0.0) throw std::runtime_error("Error: mass must be greater than or equal to 0");
 
 	this->mass = (btScalar) mass;
-	update_local_inertia();
+	// update_local_inertia();
 }
 
 void RigidBody::set_friction(float friction)
@@ -184,27 +173,30 @@ float RigidBody::get_mass()
 	return (float) mass;
 }
 
-void RigidBody::update_local_inertia()
-{
-	if (!collider || mass <= 0.0) {
-		localInertia = glm::vec3(0.f, 0.f, 0.f);
-	}
-	else {
-		btCollisionShape *shape = collider->get_collision_shape();
-		btVector3 temp;
-		shape->calculateLocalInertia(mass, temp);
-		localInertia = glm::vec3(
-			(float) temp.getX(),
-			(float) temp.getY(),
-			(float) temp.getZ()
-		);
-	}
-}
+// Now that rigid body components arent one to one with colliders, this will need to 
+// be handled inside the physics system
 
-glm::vec3 RigidBody::get_local_inertia()
-{
-	return localInertia;
-}
+// void RigidBody::update_local_inertia()
+// {
+// 	if (!collider || mass <= 0.0) {
+// 		localInertia = glm::vec3(0.f, 0.f, 0.f);
+// 	}
+// 	else {
+// 		btCollisionShape *shape = collider->get_collision_shape();
+// 		btVector3 temp;
+// 		shape->calculateLocalInertia(mass, temp);
+// 		localInertia = glm::vec3(
+// 			(float) temp.getX(),
+// 			(float) temp.getY(),
+// 			(float) temp.getZ()
+// 		);
+// 	}
+// }
+
+// glm::vec3 RigidBody::get_local_inertia()
+// {
+// 	return localInertia;
+// }
 
 
 void RigidBody::cleanup()

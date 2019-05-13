@@ -13,6 +13,8 @@ class Camera;
 class Texture;
 class Transform;
 
+struct PhysicsObject;
+
 namespace Systems 
 {
     class PhysicsSystem : public System {
@@ -40,7 +42,7 @@ namespace Systems
             btSequentialImpulseConstraintSolver* solver;
             btDiscreteDynamicsWorld* dynamicsWorld;
 
-            std::map<uint32_t, btRigidBody*> rigidBodyMap;
+            std::map<uint32_t, PhysicsObject> physicsObjectMap;
             std::map<uint32_t, btGeneric6DofSpring2Constraint> constraintMap;
             
             PhysicsSystem();

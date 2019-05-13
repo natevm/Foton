@@ -10,6 +10,8 @@
 
 #include <glm/glm.hpp>
 
+#include "btBulletDynamicsCommon.h"
+
 #ifndef MAX_RIGIDBODIES
 #define MAX_RIGIDBODIES 512
 #endif
@@ -19,8 +21,6 @@ enum RigidBodyMode : uint32_t {
     DYNAMIC,
     KINEMATIC
 };
-
-class Collider; 
 
 class RigidBody : public StaticFactory
 {
@@ -78,12 +78,6 @@ class RigidBody : public StaticFactory
     /* TODO */
     bool is_static();
 
-    /* TODO */
-    void set_collider(Collider* collider);
-
-    /* TODO */
-    Collider* get_collider();
-
     void set_mass(float mass);
 
     float get_mass();
@@ -100,7 +94,7 @@ class RigidBody : public StaticFactory
 
     float get_spinning_friction();
 
-    glm::vec3 get_local_inertia();
+    // glm::vec3 get_local_inertia();
 
     private:
 
@@ -111,8 +105,6 @@ class RigidBody : public StaticFactory
     RigidBody(std::string name, uint32_t id);
 
     RigidBodyMode mode;
-
-    Collider* collider;
 
     float mass; 
 
@@ -140,5 +132,5 @@ class RigidBody : public StaticFactory
 	void cleanup();
 
     /* TODO */
-    void update_local_inertia();
+    // void update_local_inertia();
 };

@@ -16,5 +16,5 @@ struct EntityStruct {
 	int32_t light_id;
 	int32_t mesh_id;
 	int32_t rigid_body_id;
-	int32_t ph1;
+	int32_t collider_id;
 };
