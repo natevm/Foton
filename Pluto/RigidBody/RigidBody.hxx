@@ -130,7 +130,4 @@ class RigidBody : public StaticFactory
 
     /* Frees the current rigidbody's resources*/
 	void cleanup();
-
-    /* TODO */
-    // void update_local_inertia();
 };

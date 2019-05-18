@@ -13,10 +13,6 @@ RigidBody::RigidBody()
 
 RigidBody::RigidBody(std::string name, uint32_t id)
 {
-	auto ps = Systems::PhysicsSystem::Get();
-	auto edit_mutex = ps->get_edit_mutex();
-    auto edit_lock = std::lock_guard<std::mutex>(*edit_mutex.get());
-
 	initialized = true;
 	this->name = name;
 	this->id = id;
@@ -135,11 +131,6 @@ bool RigidBody::is_static()
 void RigidBody::set_mass(float mass)
 {
 	if (mass < 0.0) throw std::runtime_error("Error: mass must be greater than or equal to 0");
-
-	auto ps = Systems::PhysicsSystem::Get();
-	auto edit_mutex = ps->get_edit_mutex();
-    auto edit_lock = std::lock_guard<std::mutex>(*edit_mutex.get());
-
 	this->mass = (btScalar) mass;
 	// update_local_inertia();
 }
@@ -181,32 +172,6 @@ float RigidBody::get_mass()
 {
 	return (float) mass;
 }
-
-// Now that rigid body components arent one to one with colliders, this will need to 
-// be handled inside the physics system
-
-// void RigidBody::update_local_inertia()
-// {
-// 	if (!collider || mass <= 0.0) {
-// 		localInertia = glm::vec3(0.f, 0.f, 0.f);
-// 	}
-// 	else {
-// 		btCollisionShape *shape = collider->get_collision_shape();
-// 		btVector3 temp;
-// 		shape->calculateLocalInertia(mass, temp);
-// 		localInertia = glm::vec3(
-// 			(float) temp.getX(),
-// 			(float) temp.getY(),
-// 			(float) temp.getZ()
-// 		);
-// 	}
-// }
-
-// glm::vec3 RigidBody::get_local_inertia()
-// {
-// 	return localInertia;
-// }
-
 
 void RigidBody::cleanup()
 {

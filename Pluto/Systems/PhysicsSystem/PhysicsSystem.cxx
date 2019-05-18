@@ -563,18 +563,6 @@ namespace Systems
                         uint32_t entityA = rigidBodyToEntity[bodyA];
                         uint32_t entityB = rigidBodyToEntity[bodyB];
 
-
-                        /* If entity isn't in contact map, add it. */
-                        // if (newContactMap.find(entityA) == newContactMap.end())
-                        // {
-                        //     newContactMap[entityA] = std::vector<uint32_t>();
-                        // }
-
-                        // if (newContactMap.find(entityB) == newContactMap.end())
-                        // {
-                        //     newContactMap[entityB] = std::vector<uint32_t>();
-                        // }
-
                         /* Register contacting entities */
                         newContactMap[entityB].push_back(entityA);
                         newContactMap[entityA].push_back(entityB);
