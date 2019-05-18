@@ -17,9 +17,9 @@
 #endif
 
 enum RigidBodyMode : uint32_t { 
-    STATIC,
-    DYNAMIC,
-    KINEMATIC
+    STATIC = 1,
+    DYNAMIC = 2,
+    KINEMATIC = 4
 };
 
 class RigidBody : public StaticFactory

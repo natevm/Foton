@@ -10,6 +10,8 @@
 #include "Pluto/RigidBody/RigidBody.hxx"
 #include "Pluto/Collider/Collider.hxx"
 
+#include "Pluto/Systems/PhysicsSystem/PhysicsSystem.hxx"
+
 Entity Entity::entities[MAX_ENTITIES];
 EntityStruct* Entity::pinnedMemory;
 std::map<std::string, uint32_t> Entity::lookupTable;
@@ -66,6 +68,9 @@ void Entity::set_collider(int32_t collider_id)
 		throw std::runtime_error( std::string("Collider id must be greater than or equal to -1"));
 	if (collider_id >= MAX_COLLIDERS)
 		throw std::runtime_error( std::string("Collider id must be less than max colliders"));
+	auto ps = Systems::PhysicsSystem::Get();
+	auto edit_mutex = ps->get_edit_mutex();
+    auto edit_lock = std::lock_guard<std::mutex>(*edit_mutex.get());
 	this->entity_struct.collider_id = collider_id;
 }
 
@@ -75,11 +80,17 @@ void Entity::set_collider(Collider* collider)
 		throw std::runtime_error( std::string("Invalid rigid body handle."));
 	if (!collider->is_initialized())
 		throw std::runtime_error("Error, collider not initialized");
+	auto ps = Systems::PhysicsSystem::Get();
+	auto edit_mutex = ps->get_edit_mutex();
+    auto edit_lock = std::lock_guard<std::mutex>(*edit_mutex.get());
 	this->entity_struct.collider_id = collider->get_id();
 }
 
 void Entity::clear_collider()
 {
+	auto ps = Systems::PhysicsSystem::Get();
+	auto edit_mutex = ps->get_edit_mutex();
+    auto edit_lock = std::lock_guard<std::mutex>(*edit_mutex.get());
 	this->entity_struct.collider_id = -1;
 }
 

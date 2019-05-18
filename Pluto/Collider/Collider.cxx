@@ -1,5 +1,5 @@
 #include "Collider.hxx"
-
+#include "Pluto/Systems/PhysicsSystem/PhysicsSystem.hxx"
 Collider Collider::colliders[MAX_COLLIDERS];
 std::map<std::string, uint32_t> Collider::lookupTable;
 std::mutex Collider::creation_mutex;
@@ -31,6 +31,9 @@ Collider *Collider::CreateBox(std::string name, float size_x, float size_y, floa
 	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto collider = StaticFactory::Create(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 	try {
+		auto ps = Systems::PhysicsSystem::Get();
+		auto edit_mutex = ps->get_edit_mutex();
+		auto edit_lock = std::lock_guard<std::mutex>(*edit_mutex.get());
 		collider->colliderShape = std::make_shared<btBoxShape>(btVector3(btScalar(size_x), btScalar(size_y), btScalar(size_z)));
 		return collider;
 	} catch (...) {
@@ -43,6 +46,9 @@ Collider *Collider::CreateSphere(std::string name, float radius) {
 	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto collider = StaticFactory::Create(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 	try {
+		auto ps = Systems::PhysicsSystem::Get();
+		auto edit_mutex = ps->get_edit_mutex();
+		auto edit_lock = std::lock_guard<std::mutex>(*edit_mutex.get());
 		collider->colliderShape = std::make_shared<btSphereShape>(btScalar(radius));
 		return collider;
 	} catch (...) {
@@ -55,6 +61,9 @@ Collider *Collider::CreateCapsule(std::string name, float radius, float height) 
 	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto collider = StaticFactory::Create(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 	try {
+		auto ps = Systems::PhysicsSystem::Get();
+		auto edit_mutex = ps->get_edit_mutex();
+		auto edit_lock = std::lock_guard<std::mutex>(*edit_mutex.get());
 		collider->colliderShape = std::make_shared<btCapsuleShapeZ>(btScalar(radius), btScalar(height));
 		return collider;
 	} catch (...) {
@@ -67,6 +76,9 @@ Collider *Collider::CreateCylinder(std::string name, float radius, float height)
 	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto collider = StaticFactory::Create(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 	try {
+		auto ps = Systems::PhysicsSystem::Get();
+		auto edit_mutex = ps->get_edit_mutex();
+		auto edit_lock = std::lock_guard<std::mutex>(*edit_mutex.get());
 		collider->colliderShape = std::make_shared<btCylinderShapeZ>(btVector3(radius, radius, height / 2.f));
 		return collider;
 	} catch (...) {
@@ -79,6 +91,9 @@ Collider *Collider::CreateCone(std::string name, float radius, float height) {
 	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto collider = StaticFactory::Create(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 	try {
+		auto ps = Systems::PhysicsSystem::Get();
+		auto edit_mutex = ps->get_edit_mutex();
+		auto edit_lock = std::lock_guard<std::mutex>(*edit_mutex.get());
 		collider->colliderShape = std::make_shared<btConeShapeZ>(btScalar(radius), btScalar(height));
 		return collider;
 	} catch (...) {

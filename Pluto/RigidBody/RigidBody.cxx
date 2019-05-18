@@ -1,4 +1,5 @@
 #include "RigidBody.hxx"
+#include "Pluto/Systems/PhysicsSystem/PhysicsSystem.hxx"
 
 RigidBody RigidBody::rigidbodies[MAX_RIGIDBODIES];
 std::map<std::string, uint32_t> RigidBody::lookupTable;
@@ -12,6 +13,10 @@ RigidBody::RigidBody()
 
 RigidBody::RigidBody(std::string name, uint32_t id)
 {
+	auto ps = Systems::PhysicsSystem::Get();
+	auto edit_mutex = ps->get_edit_mutex();
+    auto edit_lock = std::lock_guard<std::mutex>(*edit_mutex.get());
+
 	initialized = true;
 	this->name = name;
 	this->id = id;
@@ -130,6 +135,10 @@ bool RigidBody::is_static()
 void RigidBody::set_mass(float mass)
 {
 	if (mass < 0.0) throw std::runtime_error("Error: mass must be greater than or equal to 0");
+
+	auto ps = Systems::PhysicsSystem::Get();
+	auto edit_mutex = ps->get_edit_mutex();
+    auto edit_lock = std::lock_guard<std::mutex>(*edit_mutex.get());
 
 	this->mass = (btScalar) mass;
 	// update_local_inertia();

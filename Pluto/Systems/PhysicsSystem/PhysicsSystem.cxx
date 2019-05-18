@@ -8,6 +8,8 @@
 
 #include "Pluto/Libraries/GLFW/GLFW.hxx"
 
+#include "BulletCollision/NarrowPhaseCollision/btRaycastCallback.h"
+
 struct PhysicsObject {
     btRigidBody* rigid_body;
     btCollisionShape* shape;
@@ -29,8 +31,28 @@ namespace Systems
     bool PhysicsSystem::initialize() {
         using namespace Libraries;
         if (initialized) return false;
+
+        contact_mutex = std::make_shared<std::mutex>();
+        edit_mutex = std::make_shared<std::mutex>();
+
         initialized = true;
         return true;
+    }
+
+    std::shared_ptr<std::mutex> PhysicsSystem::get_contact_mutex()
+    {
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, can't get contact mutex."));
+        
+        return contact_mutex;
+    }
+
+    std::shared_ptr<std::mutex> PhysicsSystem::get_edit_mutex()
+    {
+        if (initialized == false)
+            throw std::runtime_error( std::string("Error: Uninitialized, can't get edit mutex."));
+        
+        return edit_mutex;
     }
 
     bool PhysicsSystem::does_entity_have_physics(uint32_t entity_id)
@@ -93,27 +115,13 @@ namespace Systems
         btRigidBody::btRigidBodyConstructionInfo rbInfo(bullet_mass, motionState, shape, local_inertia);
         btRigidBody* body = new btRigidBody(rbInfo);
 
-        // body->setDamping(0.0, 0.0);
-        body->setFriction(rigid_body->get_friction());
-        body->setRollingFriction(rigid_body->get_rolling_friction());
-        body->setSpinningFriction(rigid_body->get_spinning_friction());
-
         PhysicsObject obj;
         obj.rigid_body = body;
         obj.mass = bullet_mass;
         obj.shape = shape;
         obj.scale = shape->getLocalScaling();
         physicsObjectMap[entity_id] = obj;
-
-        /* TODO: do this each frame */
-        if (rigid_body->is_kinematic()) {
-            body->setCollisionFlags( btCollisionObject::CF_KINEMATIC_OBJECT);
-            body->setActivationState( DISABLE_DEACTIVATION );
-        }
-
-        else if (rigid_body->is_static()) {
-            body->setCollisionFlags( btCollisionObject::CF_STATIC_OBJECT);
-        }
+        rigidBodyToEntity[body] = entity_id;
 
         // add the body to the dynamics world
         dynamicsWorld->addRigidBody(body);
@@ -123,6 +131,7 @@ namespace Systems
     {
         auto obj = physicsObjectMap[entity_id];
         physicsObjectMap.erase(entity_id);
+        rigidBodyToEntity.erase(obj.rigid_body);
 
         // remove the rigid body from the dynamic world and delete it.
         // btCollisionObject* obj = dynamicsWorld->getCollisionObjectArray()[i];
@@ -154,6 +163,49 @@ namespace Systems
         if (!transform) throw std::runtime_error("Error, transform was null during update in physics simulation");
 
         auto &obj = physicsObjectMap[entity_id];
+
+        if (rigid_body->is_kinematic() )
+        {
+            btTransform worldTrans;
+
+            glm::vec3 position = transform->get_world_translation();
+            glm::quat rotation = transform->get_world_rotation();
+
+            worldTrans.setOrigin(btVector3(position.x, position.y, position.z));
+            worldTrans.setRotation(btQuaternion(rotation.x, rotation.y, rotation.z, rotation.w));
+            if (obj.rigid_body && obj.rigid_body->getMotionState())
+            {
+                obj.rigid_body->getMotionState()->setWorldTransform(worldTrans);
+            }
+            else {
+                obj.rigid_body->setWorldTransform(worldTrans);
+            }
+        }
+        else {
+            btTransform trans;
+            if (obj.rigid_body && obj.rigid_body->getMotionState())
+            {
+                obj.rigid_body->getMotionState()->getWorldTransform(trans);
+            } else {
+                trans = obj.rigid_body->getWorldTransform();
+            }
+
+            glm::vec3 position = glm::vec3(
+                (float) trans.getOrigin().getX(), 
+                (float) trans.getOrigin().getY(), 
+                (float) trans.getOrigin().getZ());
+
+            btQuaternion bullet_rotation = trans.getRotation();
+
+            glm::quat rotation = glm::quat();
+            rotation.x = bullet_rotation.x();
+            rotation.y = bullet_rotation.y();
+            rotation.z = bullet_rotation.z();
+            rotation.w = bullet_rotation.w();
+
+            transform->set_position(position);
+            transform->set_rotation(rotation);
+        }
 
         // Did the mass change?
         if (obj.mass != rigid_body->get_mass()) 
@@ -211,49 +263,6 @@ namespace Systems
         // body->setCollisionShape();
         // body->setHitFraction()
         // body->set()
-
-        if (rigid_body->is_kinematic() )
-        {
-            btTransform worldTrans;
-
-            glm::vec3 position = transform->get_world_translation();
-            glm::quat rotation = transform->get_world_rotation();
-
-            worldTrans.setOrigin(btVector3(position.x, position.y, position.z));
-            worldTrans.setRotation(btQuaternion(rotation.x, rotation.y, rotation.z, rotation.w));
-            if (obj.rigid_body && obj.rigid_body->getMotionState())
-            {
-                obj.rigid_body->getMotionState()->setWorldTransform(worldTrans);
-            }
-            else {
-                obj.rigid_body->setWorldTransform(worldTrans);
-            }
-        }
-        else {
-            btTransform trans;
-            if (obj.rigid_body && obj.rigid_body->getMotionState())
-            {
-                obj.rigid_body->getMotionState()->getWorldTransform(trans);
-            } else {
-                trans = obj.rigid_body->getWorldTransform();
-            }
-
-            glm::vec3 position = glm::vec3(
-                (float) trans.getOrigin().getX(), 
-                (float) trans.getOrigin().getY(), 
-                (float) trans.getOrigin().getZ());
-
-            btQuaternion bullet_rotation = trans.getRotation();
-
-            glm::quat rotation = glm::quat();
-            rotation.x = bullet_rotation.x();
-            rotation.y = bullet_rotation.y();
-            rotation.z = bullet_rotation.z();
-            rotation.w = bullet_rotation.w();
-
-            transform->set_position(position);
-            transform->set_rotation(rotation);
-        }
     }
 
     bool PhysicsSystem::should_constraint_exist(uint32_t constraint_id)
@@ -391,6 +400,57 @@ namespace Systems
         obj.constraint->setEnabled(constraint->is_enabled());
     }
 
+    int32_t PhysicsSystem::raycast(glm::vec3 position, glm::vec3 direction, float distance)
+    {
+        if (dynamicsWorld == 0) return -1;
+        direction = glm::normalize(direction);
+        glm::vec3 to = distance * direction + position;
+
+        btVector3 rayFromWorld = btVector3(position.x, position.y, position.z);
+        btVector3 rayToWorld = btVector3(to.x, to.y, to.z);
+        btCollisionWorld::ClosestRayResultCallback rayCallback(rayFromWorld, rayToWorld);
+
+        rayCallback.m_flags |= btTriangleRaycastCallback::kF_UseGjkConvexCastRaytest;
+        dynamicsWorld->rayTest(rayFromWorld, rayToWorld, rayCallback);
+
+        if(rayCallback.hasHit())
+        {
+            btVector3 pickPos = rayCallback.m_hitPointWorld;
+            btVector3 pickNorm = rayCallback.m_hitNormalWorld;
+            btRigidBody* body = (btRigidBody*) btRigidBody::upcast(rayCallback.m_collisionObject);
+            auto result = rigidBodyToEntity.find(body);
+            if (result != rigidBodyToEntity.end()) {
+                return result->second;
+            }
+        }
+
+        return -1;
+    }
+
+    // int32_t PhysicsSystem::test_contact(uint32_t entity_id)
+    // {
+    //     if (!does_entity_have_physics(entity_id)) return -1;
+    //     auto obj = physicsObjectMap[entity_id];
+
+    //     btCollisionWorld::ContactResultCallback callback;
+    //     dynamicsWorld->contactTest((btCollisionObject*)obj.rigid_body, callback);
+
+    //     callback.
+    // }
+
+    std::vector<uint32_t> PhysicsSystem::get_contacting_entities(uint32_t entity_id)
+    {
+        auto mutex = contact_mutex.get();
+        std::lock_guard<std::mutex> lock(*mutex);
+        std::vector<uint32_t> result;
+        /* If entity isn't in contact map, add it. */
+        if (contactMap.find(entity_id) == contactMap.end()) {
+            return result;
+        }
+        result = contactMap[entity_id];
+        return result;
+    }
+
     bool PhysicsSystem::start() {
         /* Dont start unless initialized. Dont start twice. */
         if (!initialized) return false;
@@ -415,66 +475,6 @@ namespace Systems
 
             dynamicsWorld->setGravity(btVector3(0.f, 0.f, -9.8f));
 
-            // // Create a few basic rigid bodies
-            
-            // // the ground is a cube of side 100 at position y = -56
-            // // the sphere will hit it at y = -6, with center at -5
-            // {
-            //     btCollisionShape* groundShape = new btBoxShape(btVector3(btScalar(50.), btScalar(50.), btScalar(50.)));
-
-            //     collisionShapes.push_back(groundShape);
-
-            //     btTransform groundTransform;
-            //     groundTransform.setIdentity();
-            //     groundTransform.setOrigin(btVector3(0, -56, 0));
-
-            //     btScalar mass(0.);
-
-            //     //rigidbody is dynamic if and only if mass is non zero, otherwise static
-            //     bool isDynamic = (mass != 0.f);
-
-            //     btVector3 localInertia(0, 0, 0);
-            //     if (isDynamic)
-            //         groundShape->calculateLocalInertia(mass, localInertia);
-                
-            //     //using motion state is optional, it provides interpolation capabilities, and only synchronizes 'active' objects
-            //     btDefaultMotionState* myMotionState = new btDefaultMotionState(groundTransform);
-            //     btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, myMotionState, groundShape, localInertia);
-            //     btRigidBody* body = new btRigidBody(rbInfo);
-
-            //     // add the body to the dynamics world
-            //     dynamicsWorld->addRigidBody(body);
-            // }
-
-            // {
-            //     // Create a dynamic rigidbody
-
-            //     //btCollisionShape* colShape = new btBoxShape(btVector3(1,1,1));
-            //     btCollisionShape* colShape = new btSphereShape(btScalar(1.));
-            //     collisionShapes.push_back(colShape);
-
-            //     // Create dynamic objects
-            //     btTransform startTransform;
-            //     startTransform.setIdentity();
-
-            //     btScalar mass(1.0f);
-
-            //     // rigid body is dynamic if and only if mass is non zero, otherwise static
-            //     bool isDynamic = (mass != 0.f);
-
-            //     btVector3 localInertia(0,0,0);
-            //     if (isDynamic)
-            //         colShape->calculateLocalInertia(mass, localInertia);
-
-            //     startTransform.setOrigin(btVector3(2, 10, 0));
-
-            //     //using motionstate is recommended, it provides interpolation capabilities, and only synchronizes 'active' objects
-            //     btDefaultMotionState* myMotionState = new btDefaultMotionState(startTransform);
-            //     btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, myMotionState, colShape, localInertia);
-            //     btRigidBody* body = new btRigidBody(rbInfo);
-
-            //     dynamicsWorld->addRigidBody(body);
-            // }
             double lastTime, currentTime;
             lastTime = glfwGetTime();
 
@@ -488,56 +488,104 @@ namespace Systems
                 lastTime = currentTime;
 
                 /* Add or remove rigid bodies from the dynamic world */
-
                 Entity* entities = Entity::GetFront();
                 Constraint* constraints = Constraint::GetFront();
                 
-                // Handle entities (rigid bodies and collider components)
-                for (uint32_t entity_id = 0; entity_id < Entity::GetCount(); ++entity_id )
                 {
-                    if (!entities[entity_id].is_initialized()) continue;
+                    auto mutex = edit_mutex.get();
+                    std::lock_guard<std::mutex> lock(*mutex);
 
-                    bool does_have_physics = does_entity_have_physics(entity_id);
-                    bool should_have_physics = should_entity_have_physics(entity_id);
-
-                    if (should_have_physics && !does_have_physics)
+                    // Maintain registered entities (rigid bodies and collider components)
+                    for (uint32_t entity_id = 0; entity_id < Entity::GetCount(); ++entity_id )
                     {
-                        add_entity_to_simulation(entity_id);
-                    }
-                    
-                    if (does_have_physics) {
-                        update_entity(entity_id);
+                        if (!entities[entity_id].is_initialized()) continue;
+
+                        bool does_have_physics = does_entity_have_physics(entity_id);
+                        bool should_have_physics = should_entity_have_physics(entity_id);
+
+                        /* Note, update is before add to sim, so that all new entities step through 
+                        the simulation first. I get strange bugs with bullet otherwise... */
+                        if (does_have_physics) {
+                            update_entity(entity_id);
+                        }
+
+                        if (should_have_physics && !does_have_physics)
+                        {
+                            add_entity_to_simulation(entity_id);
+                        }
+                        
+                        if (does_have_physics && !should_have_physics) {
+                            remove_entity_from_simulation(entity_id);
+                        }
+
                     }
 
-                    if (does_have_physics && !should_have_physics) {
-                        remove_entity_from_simulation(entity_id);
+                    // Maintain registered constraints (rigid bodies and constraint components)
+                    for (uint32_t constraint_id = 0; constraint_id < Constraint::GetCount(); ++constraint_id)
+                    {
+                        if (!constraints[constraint_id].is_initialized()) continue;
+
+                        bool does_exist = does_constraint_exist(constraint_id);
+                        bool should_exist = should_constraint_exist(constraint_id);
+
+                        if (does_exist)
+                        {
+                            update_constraint(constraint_id);
+                        }
+
+                        if (should_exist && !does_exist)
+                        {
+                            add_constraint_to_simulation(constraint_id);
+                        }
+
+                        if (does_exist && !should_exist)
+                        {
+                            remove_constraint_from_simulation(constraint_id);
+                        }
+                    }
+
+                }
+
+
+                // Mark collisions 
+                std::unordered_map<uint32_t, std::vector<uint32_t>> newContactMap;
+
+                uint32_t numManifolds = dispatcher->getNumManifolds();
+                for (uint32_t i = 0; i < numManifolds; ++i)
+                {
+                    btPersistentManifold* contactManifold = dispatcher->getManifoldByIndexInternal(i);
+                    if (contactManifold->getNumContacts() > 0)
+                    {
+                        btCollisionObject* obA = const_cast<btCollisionObject*>(contactManifold->getBody0());
+                        btCollisionObject* obB = const_cast<btCollisionObject*>(contactManifold->getBody1());
+                        btRigidBody* bodyA = btRigidBody::upcast(obA);
+                        btRigidBody* bodyB = btRigidBody::upcast(obB);
+                        uint32_t entityA = rigidBodyToEntity[bodyA];
+                        uint32_t entityB = rigidBodyToEntity[bodyB];
+
+
+                        /* If entity isn't in contact map, add it. */
+                        // if (newContactMap.find(entityA) == newContactMap.end())
+                        // {
+                        //     newContactMap[entityA] = std::vector<uint32_t>();
+                        // }
+
+                        // if (newContactMap.find(entityB) == newContactMap.end())
+                        // {
+                        //     newContactMap[entityB] = std::vector<uint32_t>();
+                        // }
+
+                        /* Register contacting entities */
+                        newContactMap[entityB].push_back(entityA);
+                        newContactMap[entityA].push_back(entityB);
                     }
                 }
 
-                // Handle constraints (rigid bodies and constraint components)
-                for (uint32_t constraint_id = 0; constraint_id < Constraint::GetCount(); ++constraint_id)
                 {
-                    if (!constraints[constraint_id].is_initialized()) continue;
-
-                    bool does_exist = does_constraint_exist(constraint_id);
-                    bool should_exist = should_constraint_exist(constraint_id);
-
-                    if (should_exist && !does_exist)
-                    {
-                        add_constraint_to_simulation(constraint_id);
-                    }
-
-                    if (does_exist)
-                    {
-                        update_constraint(constraint_id);
-                    }
-
-                    if (does_exist && !should_exist)
-                    {
-                        remove_constraint_from_simulation(constraint_id);
-                    }
+                    auto mutex = contact_mutex.get();
+                    std::lock_guard<std::mutex> lock(*mutex);
+                    contactMap = newContactMap;
                 }
-
             }
 
             // cleanup in the reverse order of creation/initialization
