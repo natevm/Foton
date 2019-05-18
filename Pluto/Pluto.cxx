@@ -30,6 +30,8 @@ bool Initialized = false;
 #include <tiny_obj_loader.h>
 #include <glm/glm.hpp>
 
+#include <pbrtParser/Scene.h>
+
 namespace Pluto {
 
     std::thread callback_thread;
@@ -331,4 +333,29 @@ namespace Pluto {
         return entities;
     }
 
+    std::vector<Entity*> ImportPBRT(std::string filepath)
+    {
+        struct stat st;
+        if (stat(filepath.c_str(), &st) != 0)
+            throw std::runtime_error( std::string(filepath + " does not exist!"));
+
+        auto scene = pbrt::importPBRT(filepath);
+        
+        if (!scene) throw std::runtime_error( "pbrt scene was nullptr!");
+        if (!scene->world) throw std::runtime_error( "pbrt scene->world was nullptr!");
+        
+        auto world = scene->world;
+        auto instances = world->instances;
+        for (uint32_t i = 0; i < instances.size(); ++i )
+        {
+            auto instance = instances[i];
+            std::cout<<instance->toString()<<std::endl;
+        }
+        
+
+        std::vector<Entity*> entities;
+
+        
+        return entities;
+    }
 }

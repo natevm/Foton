@@ -165,6 +165,10 @@ add_definitions(-DTETLIBRARY)
 add_library(TetGen STATIC ${TETGEN_SRC})
 set_property(TARGET TetGen PROPERTY POSITION_INDEPENDENT_CODE ON)
 
+# PBRT Parser 
+add_subdirectory(external/pbrt-parser EXCLUDE_FROM_ALL) 
+include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/pbrt-parser/pbrtParser/include)
+
 # swig
 find_package(SWIG 3.0.8)
 if (UNIX AND NOT APPLE)
@@ -298,6 +302,7 @@ set (
     BulletDynamics
     BulletCollision
     LinearMath
+    pbrtParser_static
 )
 
 # Name of OpenVR target seems to change...
