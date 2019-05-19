@@ -26,13 +26,13 @@ class Mesh : public StaticFactory
 		static Mesh* CreateCappedCone(std::string name, bool allow_edits = false, bool submit_immediately = false, float radius = 1.0, float height = 1.0);
 		
 		/* Creates a mesh component from a procedural cylinder capped on the bottom */
-		static Mesh* CreateCappedCylinder(std::string name, bool allow_edits = false, bool submit_immediately = false);
+		static Mesh* CreateCappedCylinder(std::string name, float radius = 1.0f, float size = 1.f, int slices = 32, int segments = 1, int rings = 1, float start = 0.0f, float sweep = 6.28319f, bool allow_edits = false, bool submit_immediately = false);
 		
 		/* Creates a mesh component from a procedural tube capped on both ends */
 		static Mesh* CreateCappedTube(std::string name, bool allow_edits = false, bool submit_immediately = false);
 		
 		/* Creates a mesh component from a procedural capsule */
-		static Mesh* CreateCapsule(std::string name, float radius = 1.0, float size = 0.5, int slices = 32, int segments = 4, int rings = 8, float start = 0.0, float sweep = 6.28319, bool allow_edits = false, bool submit_immediately = false);
+		static Mesh* CreateCapsule(std::string name, float radius = 1.0, float size = 0.5, int slices = 32, int segments = 4, int rings = 8, float start = 0.0, float sweep = 6.28319f, bool allow_edits = false, bool submit_immediately = false);
 		
 		/* Creates a mesh component from a procedural cone */
 		static Mesh* CreateCone(std::string name, bool allow_edits = false, bool submit_immediately = false, float radius = 1.0, float height = 1.0);
@@ -64,9 +64,9 @@ class Mesh : public StaticFactory
 
 		/* Creates a mesh component from a procedural box with rounded edges */
 		static Mesh* CreateRoundedBox(std::string name, float radius = .25, glm::vec3 size = glm::vec3(.75f, .75f, .75f), int slices=4, glm::ivec3 segments=glm::ivec3(1, 1, 1), bool allow_edits = false, bool submit_immediately = false);
-
+	
 		/* Creates a mesh component from a procedural sphere */
-		static Mesh* CreateSphere(std::string name, bool allow_edits = false, bool submit_immediately = false);
+		static Mesh* CreateSphere(std::string name, float radius = 1.0f, int slices = 16, int segments = 16, float slice_start = 0.f, float slice_sweep = 6.28319f, float segment_start = 0.f, float segment_sweep = 6.28319f, bool allow_edits = false, bool submit_immediately = false);
 
 		/* Creates a mesh component from a procedural cone with a rounded cap */
 		static Mesh* CreateSphericalCone(std::string name, bool allow_edits = false, bool submit_immediately = false);

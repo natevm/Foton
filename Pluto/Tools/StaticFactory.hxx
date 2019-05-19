@@ -4,7 +4,7 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_RIGHT_HANDED
-
+#define SF_VERBOSE 1
 
 #include <glm/glm.hpp>
 #include <glm/common.hpp>
@@ -70,7 +70,9 @@ class StaticFactory {
             throw std::runtime_error(std::string("Error: max " + type + " limit reached."));
 
         // TODO: make this only output if verbose
-        // std::cout << "Adding " << type << " \"" << name << "\"" << std::endl;
+        #if SF_VERBOSE
+        std::cout << "Adding " << type << " \"" << name << "\"" << std::endl;
+        #endif
         items[id] = T(name, id);
         lookupTable[name] = id;
         return &items[id];
@@ -148,3 +150,4 @@ class StaticFactory {
     /* All items keep track of the entities which use them. */
     std::set<uint32_t> entities;
 };
+#undef SF_VERBOSE

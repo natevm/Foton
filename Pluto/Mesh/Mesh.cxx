@@ -380,6 +380,7 @@ void Mesh::Initialize() {
 	if (IsInitialized()) return;
 
 	CreateBox("BoundingBox");
+	CreateTeapotahedron("DefaultMesh"); // TODO: substitute this with the error mesh model.
 
 	auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
@@ -1622,12 +1623,12 @@ Mesh* Mesh::CreateCappedCone(std::string name, bool allow_edits, bool submit_imm
 	}
 }
 
-Mesh* Mesh::CreateCappedCylinder(std::string name, bool allow_edits, bool submit_immediately)
+Mesh* Mesh::CreateCappedCylinder(std::string name, float radius, float size, int slices, int segments, int rings, float start, float sweep, bool allow_edits, bool submit_immediately)
 {
 	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
-	try {
-		generator::CappedCylinderMesh gen_mesh{};
+	try {		
+		generator::CappedCylinderMesh gen_mesh{radius, size, slices, segments, rings, start, sweep};
 		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
 		return mesh;
 	} catch (...) {
@@ -1802,12 +1803,12 @@ Mesh* Mesh::CreateRoundedBox(std::string name, float radius, glm::vec3 size, int
 	}
 }
 
-Mesh* Mesh::CreateSphere(std::string name, bool allow_edits, bool submit_immediately)
+Mesh* Mesh::CreateSphere(std::string name, float radius, int slices, int segments, float slice_start, float slice_sweep, float segment_start, float segment_sweep, bool allow_edits, bool submit_immediately)
 {
 	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
-		generator::SphereMesh gen_mesh{};
+		generator::SphereMesh gen_mesh{radius, slices, segments, slice_start, slice_sweep, segment_start, segment_sweep};
 		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
 		return mesh;
 	} catch (...) {
