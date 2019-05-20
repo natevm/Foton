@@ -15,6 +15,7 @@ add_subdirectory(Transform)
 add_subdirectory(Collider)
 add_subdirectory(RigidBody)
 add_subdirectory(Constraint)
+add_subdirectory(Importers)
 
 set (SRC 
     ${CMAKE_CURRENT_SOURCE_DIR}/Pluto.cxx
@@ -33,6 +34,7 @@ set (SRC
     ${Collider_SRC}
     ${RigidBody_SRC}
     ${Constraint_SRC}
+    ${Importers_SRC}
 )
 
 set (HDR 
@@ -52,6 +54,7 @@ set (HDR
     ${Collider_HDR}
     ${RigidBody_HDR}
     ${Constraint_HDR}
+    ${Importers_HDR}
 )
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRC} ${HDR})
@@ -207,6 +210,9 @@ foreach(shader_file ${SHADERS_SRC})
     if(${DISABLE_REVERSE_Z})
         set(extra_flags ${extra_flags} -DDISABLE_REVERSE_Z)
     endif(${DISABLE_REVERSE_Z})
+    if (LARGE_SCENE_SUPPORT)
+        set(extra_flags ${extra_flags} -DLARGE_SCENE_SUPPORT)
+    endif(LARGE_SCENE_SUPPORT)
     add_custom_command(
         OUTPUT ${spv_file}_ # force file to regen every time
         COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} ${extra_flags} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${shader_file} -o ${spv_file}

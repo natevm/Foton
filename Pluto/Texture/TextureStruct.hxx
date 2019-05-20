@@ -9,7 +9,11 @@
 #endif
 #else
 #ifndef MAX_TEXTURES
+#ifndef LARGE_SCENE_SUPPORT
 #define MAX_TEXTURES 64
+#else
+#define MAX_TEXTURES 4000
+#endif
 #endif
 #endif
 

@@ -56,6 +56,9 @@ class Texture : public StaticFactory
 		/* Creates a procedural checker texture. */
 		static Texture* CreateChecker(std::string name, bool submit_immediately = false);
 
+		/* TODO: Explain this */
+		static bool DoesItemExist(std::string name);
+
 		/* Retrieves a texture component by name */
 		static Texture *Get(std::string name);
 

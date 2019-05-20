@@ -16,8 +16,6 @@
 
 extern bool Initialized;
 
-class Entity;
-
 namespace Pluto {
 
     void StartSystems(bool use_python = false, std::function<void()> callback = std::function<void()>());
@@ -42,11 +40,4 @@ namespace Pluto {
     void StopSystems();
 
     void CleanUp();
-
-    std::vector<Entity*> ImportOBJ(std::string filepath, std::string mtl_base_dir, 
-        glm::vec3 position = glm::vec3(0.0f), 
-        glm::vec3 scale = glm::vec3(1.0f),
-        glm::quat rotation = glm::angleAxis(0.0f, glm::vec3(1.0f, 0.0f, 0.0f)));
-
-    std::vector<Entity*> ImportPBRT(std::string name, std::string filepath, std::string basePath);
 }

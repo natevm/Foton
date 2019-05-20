@@ -5,7 +5,11 @@
 #endif
 
 #ifndef MAX_ENTITIES
+#ifndef LARGE_SCENE_SUPPORT
 #define MAX_ENTITIES 512
+#else
+#define MAX_ENTITIES 1024
+#endif
 #endif
 
 struct EntityStruct {

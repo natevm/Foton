@@ -24,8 +24,8 @@ void main() {
     
     /* Epsilon offset to account for depth precision errors values */
     #ifndef DISABLE_REVERSE_Z
-    gl_Position -= vec4(0.0, 0.0, .0001, 0.0);
+    gl_Position -= vec4(0.0, 0.0, .001, 0.0);
     #else
-    gl_Position += vec4(0.0, 0.0, .0001, 0.0);
+    gl_Position += vec4(0.0, 0.0, .001, 0.0);
     #endif
 }

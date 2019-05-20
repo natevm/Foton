@@ -1,6 +1,10 @@
 /* File shared by both GLSL and C++ */
 #ifndef MAX_MESHES
+#ifndef LARGE_SCENE_SUPPORT
 #define MAX_MESHES 1024
+#else
+#define MAX_MESHES 2048
+#endif
 #endif
 
 #ifndef GLSL

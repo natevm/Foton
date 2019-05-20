@@ -275,6 +275,13 @@ void Transform::set_transform(glm::mat4 transformation, bool decompose)
 		glm::vec3 skew;
 		glm::vec4 perspective;
 		glm::decompose(transformation, scale, rotation, translation, skew, perspective);
+
+		/* Decomposition can return negative scales. We make the assumption this is impossible.
+		*/
+
+		if (scale.x < 0.0) scale.x *= -1;
+		if (scale.y < 0.0) scale.y *= -1;
+		if (scale.z < 0.0) scale.z *= -1;
 		
 		set_position(translation);
 		set_scale(scale);

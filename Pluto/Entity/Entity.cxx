@@ -31,6 +31,7 @@ Entity::Entity() {
 	entity_struct.light_id = -1;
 	entity_struct.mesh_id = -1;
 	entity_struct.rigid_body_id = -1;
+	entity_struct.collider_id = -1;
 }
 
 Entity::Entity(std::string name, uint32_t id) {
@@ -44,6 +45,7 @@ Entity::Entity(std::string name, uint32_t id) {
 	entity_struct.light_id = -1;
 	entity_struct.mesh_id = -1;
 	entity_struct.rigid_body_id = -1;
+	entity_struct.collider_id = -1;
 }
 
 std::string Entity::to_string()

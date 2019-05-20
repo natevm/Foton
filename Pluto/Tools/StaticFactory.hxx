@@ -99,7 +99,7 @@ class StaticFactory {
             throw std::runtime_error(std::string("Error: id greater than max " + type));
 
         else if (!items[id].initialized) 
-            throw std::runtime_error(std::string("Error: entity with id " + std::to_string(id) + " does not exist"));
+            throw std::runtime_error(std::string("Error: " + type + " with id " + std::to_string(id) + " does not exist"));
          
         return &items[id];
     }

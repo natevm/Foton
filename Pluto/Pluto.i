@@ -3,6 +3,7 @@
 %{
 /* Common */
 #include "Pluto/Pluto.hxx"
+#include "Pluto/Importers/Importers.hxx"
 #include "Pluto/Tools/StaticFactory.hxx"
 using namespace Pluto;
 
@@ -142,6 +143,7 @@ using namespace Systems;
 %ignore Texture::Data;
 
 %include "Pluto/Pluto.hxx"
+%include "Pluto/Importers/Importers.hxx"
 %include "Pluto/Tools/Singleton.hxx"
 %include "Pluto/Tools/StaticFactory.hxx"
 

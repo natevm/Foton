@@ -1,6 +1,10 @@
 /* File shared by both GLSL and C++ */
 #ifndef MAX_MATERIALS
+#ifndef LARGE_SCENE_SUPPORT
 #define MAX_MATERIALS 256
+#else
+#define MAX_MATERIALS 1024
+#endif
 #endif
 
 #ifndef GLSL

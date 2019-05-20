@@ -28,7 +28,12 @@ CameraPrefab::CameraPrefab(std::string mode, uint32_t width, uint32_t height, fl
     entity->set_transform(transform);
     
     camera->set_view(glm::lookAt(glm::vec3(0.0f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.0f, 0.0f, 1.0f)));
+    /* Not sure why, but metal struggles with small near values */
+    #ifdef APPLE
     camera->set_perspective_projection(fov, (float)width, (float)height, 2.);
+    #else
+    camera->set_perspective_projection(fov, (float)width, (float)height, 1);
+    #endif
     this->target = target;
 
     initialized = true;

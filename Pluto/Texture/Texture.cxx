@@ -1783,6 +1783,10 @@ Texture* Texture::CreateFromExternalData(std::string name, Data data)
 	}
 }
 
+bool Texture::DoesItemExist(std::string name) {
+	return StaticFactory::DoesItemExist(lookupTable, name);
+}
+
 Texture* Texture::Get(std::string name) {
 	return StaticFactory::Get(name, "Texture", lookupTable, textures, MAX_TEXTURES);
 }
