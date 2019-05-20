@@ -45,6 +45,7 @@ endif()
 # option(BUILD_OPENVR "Build with OpenVR support" ON)s
 option(BUILD_SPACEMOUSE "Build with SpaceMouse support" OFF)
 option(BUILD_TESTS "Include the regression and unit tests target" OFF)
+option(LARGE_SCENE_SUPPORT "Increases component limits. Generally only supported by discrete cards" ON)
 
 set(platformDisablesMultiview OFF)
 set(platformDisablesReverseZProjection OFF)
@@ -77,6 +78,9 @@ if (BUILD_SPACEMOUSE)
     add_definitions(-DBUILD_SPACEMOUSE)
 endif(BUILD_SPACEMOUSE)
 
+if (LARGE_SCENE_SUPPORT)
+  add_definitions(-DLARGE_SCENE_SUPPORT)
+endif(LARGE_SCENE_SUPPORT)
 # Force binaries to go to build folder, not subfolders
 set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin )
 set( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib )
@@ -166,8 +170,9 @@ add_library(TetGen STATIC ${TETGEN_SRC})
 set_property(TARGET TetGen PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 # PBRT Parser 
-add_subdirectory(external/pbrt-parser EXCLUDE_FROM_ALL) 
+include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/pbrt-parser/)
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/pbrt-parser/pbrtParser/include)
+add_subdirectory(external/pbrt-parser EXCLUDE_FROM_ALL) 
 
 # swig
 find_package(SWIG 3.0.8)
