@@ -204,11 +204,18 @@ void RenderSystem::record_depth_prepass(Entity &camera_entity, std::vector<std::
                     push_constants.camera_id = camera_entity.get_id();
                     push_constants.viewIndex = rp_idx;
                     push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
-                    Material::DrawEntity(command_buffer, rp, *mask_entity, push_constants, RenderMode::VRMASK);
+                    Material::DrawEntity(command_buffer, rp, *mask_entity, push_constants, RenderMode::RENDER_MODE_VRMASK);
                 }
             }
 
             for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i) {
+                /* An object needs a transform, a mesh, a material, and cannot be transparent 
+                in order to be drawn in the depth prepass */
+                if (!visible_entities[rp_idx][i].second->transform()) continue;
+                if (!visible_entities[rp_idx][i].second->mesh()) continue;
+                if (!visible_entities[rp_idx][i].second->material()) continue;
+                if (visible_entities[rp_idx][i].second->material()->contains_transparency()) continue;
+
                 auto target_id = visible_entities[rp_idx][i].second->get_id();
 
                 // if (camera->is_entity_visible(target_id) {
@@ -229,7 +236,7 @@ void RenderSystem::record_depth_prepass(Entity &camera_entity, std::vector<std::
                 push_constants.camera_id = camera_entity.get_id();
                 push_constants.viewIndex = rp_idx;
                 push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
-                Material::DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].second, push_constants, RenderMode::FRAGMENTDEPTH);
+                Material::DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].second, push_constants, RenderMode::RENDER_MODE_FRAGMENTDEPTH);
 
                 camera->end_visibility_query(command_buffer, target_id, i);
                 // }
@@ -275,12 +282,18 @@ void RenderSystem::record_final_renderpass(Entity &camera_entity, std::vector<st
                     push_constants.camera_id = camera_entity.get_id();
                     push_constants.viewIndex = rp_idx;
                     push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
-                    Material::DrawEntity(command_buffer, rp, *mask_entity, push_constants, RenderMode::VRMASK);
+                    Material::DrawEntity(command_buffer, rp, *mask_entity, push_constants, RenderMode::RENDER_MODE_VRMASK);
                 }
             }
 
-            /* Render all objects */
+            /* Render all opaque objects */
             for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i) {
+                /* An object must be opaque, have a transform, a mesh, and a material to be rendered. */
+                if (!visible_entities[rp_idx][i].second->transform()) continue;
+                if (!visible_entities[rp_idx][i].second->mesh()) continue;
+                if (!visible_entities[rp_idx][i].second->material()) continue;
+                if (visible_entities[rp_idx][i].second->material()->contains_transparency()) continue;
+
                 auto target_id = visible_entities[rp_idx][i].second->get_id();
                 if (camera->is_entity_visible(target_id) || (!camera->should_record_depth_prepass())) {
                     push_constants.target_id = target_id;
@@ -292,8 +305,13 @@ void RenderSystem::record_final_renderpass(Entity &camera_entity, std::vector<st
             }
             
             /* Draw transparent objects last */
-            for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i)
+            for (int32_t i = visible_entities[rp_idx].size() - 1; i >= 0; --i)
             {
+                if (!visible_entities[rp_idx][i].second->transform()) continue;
+                if (!visible_entities[rp_idx][i].second->mesh()) continue;
+                if (!visible_entities[rp_idx][i].second->material()) continue;
+                if (!visible_entities[rp_idx][i].second->material()->contains_transparency()) continue;
+
                 auto target_id = visible_entities[rp_idx][i].second->get_id();
 
                 if (camera->is_entity_visible(target_id) || (!camera->should_record_depth_prepass())) {
@@ -301,7 +319,8 @@ void RenderSystem::record_final_renderpass(Entity &camera_entity, std::vector<st
                     push_constants.camera_id = camera_entity.get_id();
                     push_constants.viewIndex = rp_idx;
                     push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
-                    Material::DrawVolume(command_buffer, rp, *visible_entities[rp_idx][i].second, push_constants, camera->get_rendermode_override());
+                    Material::DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].second, push_constants, 
+                        camera->get_rendermode_override(), PipelineType::PIPELINE_TYPE_DEPTH_TEST_GREATER);
                 }
             }
             camera->end_renderpass(command_buffer, rp_idx);

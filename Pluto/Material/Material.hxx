@@ -14,6 +14,7 @@
 
 #include <iostream>
 #include <map>
+#include <unordered_map>
 #include <mutex>
 
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
@@ -30,20 +31,28 @@ class Camera;
 
 /* An enumeration used to select a pipeline type for use when drawing a given entity. */
 enum RenderMode : uint32_t { 
-    BLINN, 
-    PBR, 
-    NORMAL, 
-    TEXCOORD, 
-    SKYBOX, 
-    BASECOLOR, 
-    DEPTH, 
-    VOLUME, 
-    SHADOWMAP, 
-    FRAGMENTDEPTH, 
-    FRAGMENTPOSITION, 
-    VRMASK, 
-    HIDDEN, 
-    NONE 
+    RENDER_MODE_BLINN, 
+    RENDER_MODE_PBR, 
+    RENDER_MODE_NORMAL, 
+    RENDER_MODE_TEXCOORD, 
+    RENDER_MODE_SKYBOX, 
+    RENDER_MODE_BASECOLOR, 
+    RENDER_MODE_DEPTH, 
+    RENDER_MODE_VOLUME, 
+    RENDER_MODE_SHADOWMAP, 
+    RENDER_MODE_FRAGMENTDEPTH, 
+    RENDER_MODE_FRAGMENTPOSITION, 
+    RENDER_MODE_VRMASK, 
+    RENDER_MODE_HIDDEN, 
+    RENDER_MODE_NONE 
+};
+
+enum PipelineType : uint32_t {
+    PIPELINE_TYPE_NORMAL = 0,
+    PIPELINE_TYPE_DEPTH_TEST_DISABLED = 1,
+    PIPELINE_TYPE_DEPTH_TEST_LESS = 2,
+    PIPELINE_TYPE_DEPTH_TEST_GREATER = 3,
+    PIPELINE_TYPE_WIREFRAME = 4
 };
 
 class Material : public StaticFactory
@@ -106,10 +115,8 @@ class Material : public StaticFactory
         static void BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
 
         /* Records a draw of the supplied entity to the current command buffer. Call this during a renderpass. */
-        static void DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants, RenderMode rendermode_override = RenderMode::NONE); // int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time
-
-        /* Records a draw of the supplied entity to the current command buffer. Call this during a renderpass. */
-        static void DrawVolume(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants, RenderMode rendermode_override = RenderMode::NONE); // int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time
+        static void DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants, 
+            RenderMode rendermode_override = RenderMode::RENDER_MODE_NONE, PipelineType pipeline_type_override = PipelineType::PIPELINE_TYPE_NORMAL); // int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time
 
         /* TODO... */
         static void ResetBoundMaterial();
@@ -151,6 +158,14 @@ class Material : public StaticFactory
         void set_roughness_texture(Texture *texture);
         void clear_roughness_texture();
 
+        void set_bump_texture(uint32_t texture_id);
+        void set_bump_texture(Texture *texture);
+        void clear_bump_texture();
+
+        void set_alpha_texture(uint32_t texture_id);
+        void set_alpha_texture(Texture *texture);
+        void clear_alpha_texture();
+
         /* A uniform base color can be replaced with per-vertex colors as well. */
         void use_vertex_colors(bool use);
 
@@ -162,6 +177,7 @@ class Material : public StaticFactory
         void set_transfer_function_texture(Texture *texture);
         void clear_transfer_function_texture();
 
+        bool contains_transparency();
 
     private:
         /* Creates an uninitialized material. Useful for preallocation. */
@@ -207,7 +223,7 @@ class Material : public StaticFactory
             (rasterizer, input assembly, etc), with their corresponding graphics pipeline. */
         struct RasterPipelineResources {
             PipelineParameters pipelineParameters;
-            vk::Pipeline pipeline;
+            std::unordered_map<PipelineType, vk::Pipeline> pipelines;
             vk::PipelineLayout pipelineLayout;
         };
 
@@ -271,7 +287,7 @@ class Material : public StaticFactory
             PipelineParameters parameters,
             vk::RenderPass renderpass,
             uint32 subpass,
-            vk::Pipeline &pipeline,
+            std::unordered_map<PipelineType, vk::Pipeline> &pipelines,
             vk::PipelineLayout &layout 
         );
 
@@ -296,9 +312,11 @@ class Material : public StaticFactory
         /* The structure containing all shader material properties. This is what's coppied into the SSBO per instance */
         MaterialStruct material_struct;
         
-        RenderMode renderMode = PBR;
+        RenderMode renderMode = RENDER_MODE_PBR;
 
         static RenderMode currentlyBoundRenderMode;
+        
+        static PipelineType currentlyBoundPipelineType;
 
         static vk::RenderPass currentRenderpass;
 };

@@ -251,7 +251,7 @@ void Light::CreateShadowCameras()
         cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0,  -1,  0), glm::vec3(0.0, 0.0, 1.0)), 4);
         cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0,  1,  0), glm::vec3(0.0, 0.0, 1.0)), 5);
         cam->set_render_order(-1);
-        cam->force_render_mode(RenderMode::SHADOWMAP);
+        cam->force_render_mode(RenderMode::RENDER_MODE_SHADOWMAP);
         shadowCameras.push_back(cam);
     }
 }

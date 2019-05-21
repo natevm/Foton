@@ -103,6 +103,31 @@ vec4 getAlbedo(inout MaterialStruct material)
 	return vec4(pow(albedo.rgb, vec3(push.consts.gamma)), albedo.a);
 }
 
+float getAlphaMask(inout MaterialStruct material) {
+    float alpha_mask = 1.0;
+
+    if ((material.alpha_texture_id < 0) || (material.alpha_texture_id >= MAX_TEXTURES))
+        return alpha_mask;
+
+    TextureStruct tex = txbo.textures[material.alpha_texture_id];
+
+    if ((tex.sampler_id < 0) || (tex.sampler_id >= MAX_SAMPLERS)) 
+        return alpha_mask;
+
+    /* Raster texture */
+    if (tex.type == 0) {
+        alpha_mask = texture(sampler2D(texture_2Ds[material.alpha_texture_id], samplers[tex.sampler_id]), fragTexCoord).r;
+    }
+
+    /* Procedural checker texture */
+    else if (tex.type == 1)
+    {
+        return checker(m_position, tex.scale);
+    }
+
+    return alpha_mask;
+}
+
 vec4 sampleVolume(vec3 position, float lod)
 {
     EntityStruct entity = ebo.entities[push.consts.target_id];

@@ -17,7 +17,8 @@ vk::DeviceMemory Material::SSBOMemory;
 vk::Buffer Material::stagingSSBO;
 vk::DeviceMemory Material::stagingSSBOMemory;
 
-RenderMode Material::currentlyBoundRenderMode = RenderMode::NONE;
+RenderMode Material::currentlyBoundRenderMode = RenderMode::RENDER_MODE_NONE;
+PipelineType Material::currentlyBoundPipelineType = PipelineType::PIPELINE_TYPE_NORMAL;
 vk::RenderPass Material::currentRenderpass = vk::RenderPass();;
 
 vk::DescriptorSetLayout Material::componentDescriptorSetLayout;
@@ -83,6 +84,8 @@ Material::Material(std::string name, uint32_t id)
 	material_struct.roughness_texture_id = -1;
 	material_struct.occlusion_texture_id = -1;
 	material_struct.transfer_function_texture_id = -1;
+	material_struct.bump_texture_id = -1;
+	material_struct.alpha_texture_id = -1;
 }
 
 std::string Material::to_string() {
@@ -133,7 +136,7 @@ void Material::CreateRasterPipeline(
 	PipelineParameters parameters,
 	vk::RenderPass renderpass,
 	uint32 subpass,
-	vk::Pipeline &pipeline,
+	std::unordered_map<PipelineType, vk::Pipeline> &pipelines,
 	vk::PipelineLayout &layout 
 ) {
 	auto vulkan = Libraries::Vulkan::Get();
@@ -179,7 +182,33 @@ void Material::CreateRasterPipeline(
 	pipelineInfo.basePipelineIndex = -1; // Optional
 
 	/* Create pipeline */
-	pipeline = device.createGraphicsPipelines(vk::PipelineCache(), {pipelineInfo})[0];
+	pipelines[PIPELINE_TYPE_NORMAL] = device.createGraphicsPipelines(vk::PipelineCache(), {pipelineInfo})[0];
+	
+	auto old_depth_test_enable_setting = parameters.depthStencil.depthTestEnable;
+	auto old_depth_write_enable_setting = parameters.depthStencil.depthWriteEnable;
+	parameters.depthStencil.setDepthTestEnable(false);
+	parameters.depthStencil.setDepthWriteEnable(false); // possibly rename this?
+	pipelines[PIPELINE_TYPE_DEPTH_TEST_DISABLED] = device.createGraphicsPipelines(vk::PipelineCache(), {pipelineInfo})[0];
+
+	parameters.depthStencil.setDepthWriteEnable(true);
+	parameters.depthStencil.setDepthTestEnable(true);
+	auto old_depth_compare_op = parameters.depthStencil.depthCompareOp;
+	parameters.depthStencil.setDepthCompareOp(vk::CompareOp::eGreater);
+	pipelines[PIPELINE_TYPE_DEPTH_TEST_GREATER] = device.createGraphicsPipelines(vk::PipelineCache(), {pipelineInfo})[0];
+	parameters.depthStencil.setDepthCompareOp(vk::CompareOp::eLess);
+	pipelines[PIPELINE_TYPE_DEPTH_TEST_LESS] = device.createGraphicsPipelines(vk::PipelineCache(), {pipelineInfo})[0];
+	parameters.depthStencil.setDepthTestEnable(old_depth_test_enable_setting);
+	parameters.depthStencil.setDepthCompareOp(old_depth_compare_op);
+	parameters.depthStencil.setDepthWriteEnable(old_depth_write_enable_setting);
+
+
+	// auto old_fill_setting = pipelineInfo.pRasterizationState->polygonMode;
+	// pipelineInfo.pRasterizationState->polygonMode = vk::Poly
+
+	auto old_polygon_mode = parameters.rasterizer.polygonMode;
+	parameters.rasterizer.polygonMode = vk::PolygonMode::eLine;
+	pipelines[PIPELINE_TYPE_WIREFRAME] = device.createGraphicsPipelines(vk::PipelineCache(), {pipelineInfo})[0];
+	parameters.rasterizer.polygonMode = old_polygon_mode;
 }
 
 /* Compiles all shaders */
@@ -233,7 +262,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			uniformColor[renderpass].pipelineParameters, 
 			renderpass, 0, 
-			uniformColor[renderpass].pipeline, uniformColor[renderpass].pipelineLayout);
+			uniformColor[renderpass].pipelines, uniformColor[renderpass].pipelineLayout);
 
 		device.destroyShaderModule(fragShaderModule);
 		device.destroyShaderModule(vertShaderModule);
@@ -273,7 +302,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			blinn[renderpass].pipelineParameters, 
 			renderpass, 0, 
-			blinn[renderpass].pipeline, blinn[renderpass].pipelineLayout);
+			blinn[renderpass].pipelines, blinn[renderpass].pipelineLayout);
 
 		device.destroyShaderModule(fragShaderModule);
 		device.destroyShaderModule(vertShaderModule);
@@ -320,7 +349,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			pbr[renderpass].pipelineParameters, 
 			renderpass, 0, 
-			pbr[renderpass].pipeline, pbr[renderpass].pipelineLayout);
+			pbr[renderpass].pipelines, pbr[renderpass].pipelineLayout);
 
 		device.destroyShaderModule(fragShaderModule);
 		device.destroyShaderModule(vertShaderModule);
@@ -359,7 +388,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			normalsurface[renderpass].pipelineParameters, 
 			renderpass, 0, 
-			normalsurface[renderpass].pipeline, normalsurface[renderpass].pipelineLayout);
+			normalsurface[renderpass].pipelines, normalsurface[renderpass].pipelineLayout);
 
 		device.destroyShaderModule(fragShaderModule);
 		device.destroyShaderModule(vertShaderModule);
@@ -398,7 +427,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			texcoordsurface[renderpass].pipelineParameters, 
 			renderpass, 0, 
-			texcoordsurface[renderpass].pipeline, texcoordsurface[renderpass].pipelineLayout);
+			texcoordsurface[renderpass].pipelines, texcoordsurface[renderpass].pipelineLayout);
 
 		device.destroyShaderModule(fragShaderModule);
 		device.destroyShaderModule(vertShaderModule);
@@ -440,7 +469,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			skybox[renderpass].pipelineParameters, 
 			renderpass, 0, 
-			skybox[renderpass].pipeline, skybox[renderpass].pipelineLayout);
+			skybox[renderpass].pipelines, skybox[renderpass].pipelineLayout);
 
 		device.destroyShaderModule(fragShaderModule);
 		device.destroyShaderModule(vertShaderModule);
@@ -487,7 +516,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			depth[renderpass].pipelineParameters, 
 			renderpass, 0, 
-			depth[renderpass].pipeline, depth[renderpass].pipelineLayout);
+			depth[renderpass].pipelines, depth[renderpass].pipelineLayout);
 
 		device.destroyShaderModule(fragShaderModule);
 		device.destroyShaderModule(vertShaderModule);
@@ -526,7 +555,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			volume[renderpass].pipelineParameters, 
 			renderpass, 0, 
-			volume[renderpass].pipeline, volume[renderpass].pipelineLayout);
+			volume[renderpass].pipelines, volume[renderpass].pipelineLayout);
 
 		device.destroyShaderModule(fragShaderModule);
 		device.destroyShaderModule(vertShaderModule);
@@ -564,7 +593,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			fragmentdepth[renderpass].pipelineParameters, 
 			renderpass, 0, 
-			fragmentdepth[renderpass].pipeline, fragmentdepth[renderpass].pipelineLayout);
+			fragmentdepth[renderpass].pipelines, fragmentdepth[renderpass].pipelineLayout);
 
 		device.destroyShaderModule(vertShaderModule);
 	}
@@ -611,7 +640,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			shadowmap[renderpass].pipelineParameters, 
 			renderpass, 0, 
-			shadowmap[renderpass].pipeline, shadowmap[renderpass].pipelineLayout);
+			shadowmap[renderpass].pipelines, shadowmap[renderpass].pipelineLayout);
 
 		device.destroyShaderModule(fragShaderModule);
 		device.destroyShaderModule(vertShaderModule);
@@ -659,7 +688,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			fragmentposition[renderpass].pipelineParameters, 
 			renderpass, 0, 
-			fragmentposition[renderpass].pipeline, fragmentposition[renderpass].pipelineLayout);
+			fragmentposition[renderpass].pipelines, fragmentposition[renderpass].pipelineLayout);
 
 		device.destroyShaderModule(fragShaderModule);
 		device.destroyShaderModule(vertShaderModule);
@@ -695,7 +724,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			vrmask[renderpass].pipelineParameters, 
 			renderpass, 0, 
-			vrmask[renderpass].pipeline, vrmask[renderpass].pipelineLayout);
+			vrmask[renderpass].pipelines, vrmask[renderpass].pipelineLayout);
 
 		device.destroyShaderModule(vertShaderModule);
 	}
@@ -1316,8 +1345,10 @@ void Material::BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderP
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, volume[render_pass].pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
 }
 
-void Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants, RenderMode rendermode_override) //int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time)
+void Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants, RenderMode rendermode_override, PipelineType pipeline_type_override) //int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time)
 {    
+	auto pipeline_type = pipeline_type_override;
+
 	/* Need a mesh to render. */
 	auto m = entity.get_mesh();
 	if (!m) return;
@@ -1338,126 +1369,103 @@ void Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &ren
 	auto material = entity.get_material();
 	if (!material) return;
 
-	auto rendermode = (rendermode_override == RenderMode::NONE) ? material->renderMode : rendermode_override;
+	auto rendermode = (rendermode_override == RenderMode::RENDER_MODE_NONE) ? material->renderMode : rendermode_override;
 
-	/* Dont render volumes yet. */
-	if (rendermode == VOLUME) return;
-	if (rendermode == HIDDEN) return;
+	if (rendermode == RENDER_MODE_HIDDEN) return;
 
-	if (rendermode == NORMAL) {
+	if (rendermode == RENDER_MODE_NORMAL) {
 		command_buffer.pushConstants(normalsurface[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
 		
-		if ((currentlyBoundRenderMode != NORMAL) || (currentRenderpass != render_pass)) {
-			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, normalsurface[render_pass].pipeline);
-			currentlyBoundRenderMode = NORMAL;
+		if ((currentlyBoundRenderMode != RENDER_MODE_NORMAL) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
+			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, normalsurface[render_pass].pipelines[pipeline_type]);
+			currentlyBoundRenderMode = RENDER_MODE_NORMAL;
 			currentRenderpass = render_pass;
 		}
 	}
-	else if (rendermode == BLINN) {
+	else if (rendermode == RENDER_MODE_BLINN) {
 		command_buffer.pushConstants(blinn[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-		if ((currentlyBoundRenderMode != BLINN) || (currentRenderpass != render_pass)) {
-			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, blinn[render_pass].pipeline);
-			currentlyBoundRenderMode = BLINN;
+		if ((currentlyBoundRenderMode != RENDER_MODE_BLINN) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
+			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, blinn[render_pass].pipelines[pipeline_type]);
+			currentlyBoundRenderMode = RENDER_MODE_BLINN;
 			currentRenderpass = render_pass;
 		}
 	}
-	else if (rendermode == TEXCOORD) {
+	else if (rendermode == RENDER_MODE_TEXCOORD) {
 		command_buffer.pushConstants(texcoordsurface[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-		if ((currentlyBoundRenderMode != TEXCOORD) || (currentRenderpass != render_pass)) {
-			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, texcoordsurface[render_pass].pipeline);
-			currentlyBoundRenderMode = TEXCOORD;
+		if ((currentlyBoundRenderMode != RENDER_MODE_TEXCOORD) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
+			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, texcoordsurface[render_pass].pipelines[pipeline_type]);
+			currentlyBoundRenderMode = RENDER_MODE_TEXCOORD;
 			currentRenderpass = render_pass;
 		}
 	}
-	else if (rendermode == PBR) {
+	else if (rendermode == RENDER_MODE_PBR) {
 		command_buffer.pushConstants(pbr[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-		if ((currentlyBoundRenderMode != PBR) || (currentRenderpass != render_pass)) {
-			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pbr[render_pass].pipeline);
-			currentlyBoundRenderMode = PBR;
+		if ((currentlyBoundRenderMode != RENDER_MODE_PBR) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
+			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pbr[render_pass].pipelines[pipeline_type]);
+			currentlyBoundRenderMode = RENDER_MODE_PBR;
 			currentRenderpass = render_pass;
 		}
 	}
-	else if (rendermode == DEPTH) {
+	else if (rendermode == RENDER_MODE_DEPTH) {
 		command_buffer.pushConstants(depth[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-		if ((currentlyBoundRenderMode != DEPTH) || (currentRenderpass != render_pass)) {
-			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, depth[render_pass].pipeline);
-			currentlyBoundRenderMode = DEPTH;
+		if ((currentlyBoundRenderMode != RENDER_MODE_DEPTH) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
+			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, depth[render_pass].pipelines[pipeline_type]);
+			currentlyBoundRenderMode = RENDER_MODE_DEPTH;
 			currentRenderpass = render_pass;
 		}
 	}
-	else if (rendermode == SKYBOX) {
+	else if (rendermode == RENDER_MODE_SKYBOX) {
 		command_buffer.pushConstants(skybox[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-		if ((currentlyBoundRenderMode != SKYBOX) || (currentRenderpass != render_pass)) {
-			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, skybox[render_pass].pipeline);
-			currentlyBoundRenderMode = SKYBOX;
+		if ((currentlyBoundRenderMode != RENDER_MODE_SKYBOX) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
+			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, skybox[render_pass].pipelines[pipeline_type]);
+			currentlyBoundRenderMode = RENDER_MODE_SKYBOX;
 			currentRenderpass = render_pass;
 		}
 	}
-	else if (rendermode == FRAGMENTDEPTH) {
+	else if (rendermode == RENDER_MODE_FRAGMENTDEPTH) {
 		command_buffer.pushConstants(fragmentdepth[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-		if ((currentlyBoundRenderMode != FRAGMENTDEPTH) || (currentRenderpass != render_pass)) {
-			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, fragmentdepth[render_pass].pipeline);
-			currentlyBoundRenderMode = FRAGMENTDEPTH;
+		if ((currentlyBoundRenderMode != RENDER_MODE_FRAGMENTDEPTH) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
+			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, fragmentdepth[render_pass].pipelines[pipeline_type]);
+			currentlyBoundRenderMode = RENDER_MODE_FRAGMENTDEPTH;
 			currentRenderpass = render_pass;
 		}
 	}
-	else if (rendermode == FRAGMENTPOSITION) {
+	else if (rendermode == RENDER_MODE_FRAGMENTPOSITION) {
 		command_buffer.pushConstants(fragmentposition[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-		if ((currentlyBoundRenderMode != FRAGMENTPOSITION) || (currentRenderpass != render_pass)) {
-			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, fragmentposition[render_pass].pipeline);
-			currentlyBoundRenderMode = FRAGMENTPOSITION;
+		if ((currentlyBoundRenderMode != RENDER_MODE_FRAGMENTPOSITION) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
+			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, fragmentposition[render_pass].pipelines[pipeline_type]);
+			currentlyBoundRenderMode = RENDER_MODE_FRAGMENTPOSITION;
 			currentRenderpass = render_pass;
 		}
 	}
-	else if (rendermode == SHADOWMAP) {
+	else if (rendermode == RENDER_MODE_SHADOWMAP) {
 		command_buffer.pushConstants(shadowmap[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-		if ((currentlyBoundRenderMode != SHADOWMAP) || (currentRenderpass != render_pass)) {
-			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, shadowmap[render_pass].pipeline);
-			currentlyBoundRenderMode = SHADOWMAP;
+		if ((currentlyBoundRenderMode != RENDER_MODE_SHADOWMAP) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
+			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, shadowmap[render_pass].pipelines[pipeline_type]);
+			currentlyBoundRenderMode = RENDER_MODE_SHADOWMAP;
 			currentRenderpass = render_pass;
 		}
 	}
-	else if (rendermode == VRMASK) {
+	else if (rendermode == RENDER_MODE_VRMASK) {
 		command_buffer.pushConstants(vrmask[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-		if ((currentlyBoundRenderMode != VRMASK) || (currentRenderpass != render_pass)) {
-			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vrmask[render_pass].pipeline);
-			currentlyBoundRenderMode = VRMASK;
+		if ((currentlyBoundRenderMode != RENDER_MODE_VRMASK) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
+			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vrmask[render_pass].pipelines[pipeline_type]);
+			currentlyBoundRenderMode = RENDER_MODE_VRMASK;
 			currentRenderpass = render_pass;
 		}
 	}
-	
-	command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
-	command_buffer.bindIndexBuffer(m->get_triangle_index_buffer(), 0, vk::IndexType::eUint32);
-	command_buffer.drawIndexed(m->get_total_triangle_indices(), 1, 0, 0, 0);
-}
-
-void Material::DrawVolume(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants, RenderMode rendermode_override) //int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time)
-{    
-	/* Need a mesh to render. */
-	auto m = entity.get_mesh();
-	if (!m) return;
-
-	/* Need a transform to render. */
-	auto transform = entity.get_transform();
-	if (!transform) return;
-
-	/* Need a material to render. */
-	auto material = entity.get_material();
-	if (!material) return;
-
-	auto rendermode = (rendermode_override == RenderMode::NONE) ? material->renderMode : rendermode_override;
-
-	if (rendermode != VOLUME) return;
-	
+	else if (rendermode == RENDER_MODE_VOLUME)
 	{
 		command_buffer.pushConstants(volume[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-		
-		if ((currentlyBoundRenderMode != VOLUME) || (currentRenderpass != render_pass)) {
-			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, volume[render_pass].pipeline);
-			currentlyBoundRenderMode = VOLUME;
+		if ((currentlyBoundRenderMode != RENDER_MODE_VOLUME) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
+			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, volume[render_pass].pipelines[pipeline_type]);
+			currentlyBoundRenderMode = RENDER_MODE_VOLUME;
 			currentRenderpass = render_pass;
 		}
 	}
+
+	
+	currentlyBoundPipelineType = pipeline_type;
 	
 	command_buffer.bindVertexBuffers(0, {m->get_point_buffer(), m->get_color_buffer(), m->get_normal_buffer(), m->get_texcoord_buffer()}, {0,0,0,0});
 	command_buffer.bindIndexBuffer(m->get_triangle_index_buffer(), 0, vk::IndexType::eUint32);
@@ -1512,7 +1520,7 @@ void Material::CreateSSBO()
 void Material::ResetBoundMaterial()
 {
 	currentRenderpass = vk::RenderPass();
-	currentlyBoundRenderMode = NONE;
+	currentlyBoundRenderMode = RENDER_MODE_NONE;
 }
 
 void Material::UploadSSBO(vk::CommandBuffer command_buffer)
@@ -1633,6 +1641,8 @@ uint32_t Material::GetCount() {
 
 void Material::set_base_color_texture(uint32_t texture_id) 
 {
+	if (texture_id > MAX_TEXTURES)
+		throw std::runtime_error( std::string("Invalid texture handle"));
 	this->material_struct.base_color_texture_id = texture_id;
 }
 
@@ -1649,6 +1659,8 @@ void Material::clear_base_color_texture() {
 
 void Material::set_roughness_texture(uint32_t texture_id) 
 {
+	if (texture_id > MAX_TEXTURES)
+		throw std::runtime_error( std::string("Invalid texture handle"));
 	this->material_struct.roughness_texture_id = texture_id;
 }
 
@@ -1657,6 +1669,44 @@ void Material::set_roughness_texture(Texture *texture)
 	if (!texture) 
 		throw std::runtime_error( std::string("Invalid texture handle"));
 	this->material_struct.roughness_texture_id = texture->get_id();
+}
+
+void Material::set_bump_texture(uint32_t texture_id)
+{
+	if (texture_id > MAX_TEXTURES)
+		throw std::runtime_error( std::string("Invalid texture handle"));
+	this->material_struct.bump_texture_id = texture_id;
+}
+
+void Material::set_bump_texture(Texture *texture)
+{
+	if (!texture)
+		throw std::runtime_error( std::string("Invalid texture handle"));
+	this->material_struct.bump_texture_id = texture->get_id();
+}
+
+void Material::clear_bump_texture()
+{
+	this->material_struct.bump_texture_id = -1;
+}
+
+void Material::set_alpha_texture(uint32_t texture_id)
+{
+	if (texture_id > MAX_TEXTURES)
+		throw std::runtime_error( std::string("Invalid texture handle"));
+	this->material_struct.alpha_texture_id = texture_id;
+}
+
+void Material::set_alpha_texture(Texture *texture)
+{
+	if (!texture)
+		throw std::runtime_error( std::string("Invalid texture handle"));
+	this->material_struct.alpha_texture_id = texture->get_id();
+}
+
+void Material::clear_alpha_texture()
+{
+	this->material_struct.alpha_texture_id = -1;
 }
 
 void Material::use_vertex_colors(bool use)
@@ -1703,51 +1753,51 @@ void Material::clear_transfer_function_texture()
 
 
 void Material::show_pbr() {
-	renderMode = PBR;
+	renderMode = RENDER_MODE_PBR;
 }
 
 void Material::show_normals () {
-	renderMode = NORMAL;
+	renderMode = RENDER_MODE_NORMAL;
 }
 
 void Material::show_base_color() {
-	renderMode = BASECOLOR;
+	renderMode = RENDER_MODE_BASECOLOR;
 }
 
 void Material::show_texcoords() {
-	renderMode = TEXCOORD;
+	renderMode = RENDER_MODE_TEXCOORD;
 }
 
 void Material::show_blinn() {
-	renderMode = BLINN;
+	renderMode = RENDER_MODE_BLINN;
 }
 
 void Material::show_depth() {
-	renderMode = DEPTH;
+	renderMode = RENDER_MODE_DEPTH;
 }
 
 void Material::show_fragment_depth() {
-	renderMode = FRAGMENTDEPTH;
+	renderMode = RENDER_MODE_FRAGMENTDEPTH;
 }
 
 void Material::show_vr_mask() {
-	renderMode = VRMASK;
+	renderMode = RENDER_MODE_VRMASK;
 }
 
 void Material::show_position() {
-	renderMode = FRAGMENTPOSITION;
+	renderMode = RENDER_MODE_FRAGMENTPOSITION;
 }
 
 void Material::show_volume() {
-	renderMode = VOLUME;
+	renderMode = RENDER_MODE_VOLUME;
 }
 
 void Material::show_environment() {
-	renderMode = SKYBOX;
+	renderMode = RENDER_MODE_SKYBOX;
 }
 
 void Material::hide() {
-	renderMode = HIDDEN;
+	renderMode = RENDER_MODE_HIDDEN;
 }
 
 void Material::set_base_color(glm::vec4 color) {
@@ -1776,4 +1826,12 @@ void Material::set_transmission_roughness(float transmission_roughness) {
 
 void Material::set_ior(float ior) {
 	this->material_struct.ior = ior;
+}
+
+bool Material::contains_transparency() {
+	/* We can expand this to other transparency cases if needed */
+	if (this->material_struct.alpha_texture_id != -1) return true;
+	if (this->material_struct.base_color.a < 1.0f) return true;
+	if (this->renderMode == RENDER_MODE_VOLUME) return true;
+	return false;
 }

@@ -79,6 +79,15 @@ namespace Pluto {
         auto item = texture_map.find(pbrt_texture);
         if (item != texture_map.end()) tex = item->second;
 
+//         PtexFileTexture
+// FbmTexture
+// WindyTexture
+// MarbleTexture
+// WrinkledTexture
+// ScaleTexture
+// MixTexture
+// ConstantTexture
+
         /* If this is a new texture, import it */
         if (!tex) {
             auto texture_type = pbrt_texture->toString();
@@ -103,6 +112,8 @@ namespace Pluto {
         std::string basePath, std::string mat_name, std::shared_ptr<pbrt::Material> pbrt_material) 
     {
         std::string mat_type = (pbrt_material) ? pbrt_material->toString() : "";
+
+        if (pbrt_material) std::cout<<"MATERIAL NAME: " << pbrt_material->name << std::endl;
         Material* mat = nullptr;
         if (pbrt_material) {
             auto item = material_map.find(pbrt_material);
@@ -286,7 +297,8 @@ namespace Pluto {
                 } else if (mat_type.compare("GlassMaterial") == 0) {
                     auto glass_mat = pbrt_material->as<pbrt::GlassMaterial>();
                     mat->set_ior(glass_mat->index);
-                    mat->set_base_color(glass_mat->kt.x, glass_mat->kt.y, glass_mat->kt.z, 1.0);
+                    float max_kt = std::max(std::max(glass_mat->kt.x, glass_mat->kt.y), glass_mat->kt.z);
+                    mat->set_base_color(glass_mat->kt.x, glass_mat->kt.y, glass_mat->kt.z, 1.0 - max_kt);
                     mat->set_roughness(0.0);
                     mat->set_metallic(.2f); // Makes the glass shiny
                     mat->set_transmission(1.0);
@@ -295,8 +307,8 @@ namespace Pluto {
                     */
                 } else if (mat_type.compare("UberMaterial") == 0) {
                     auto uber_mat = pbrt_material->as<pbrt::UberMaterial>();
-                    
-                    mat->set_base_color(uber_mat->kd.x, uber_mat->kd.y, uber_mat->kd.z, uber_mat->alpha);
+                    float min_opacity = std::max(std::max(uber_mat->opacity.x, uber_mat->opacity.y), uber_mat->opacity.z);
+                    mat->set_base_color(uber_mat->kd.x, uber_mat->kd.y, uber_mat->kd.z, min_opacity);
                     mat->set_roughness(uber_mat->roughness);
                     mat->set_ior(uber_mat->index);
 

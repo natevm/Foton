@@ -7,6 +7,8 @@ void main() {
 	EntityStruct entity = ebo.entities[push.consts.target_id];
 	MaterialStruct material = mbo.materials[entity.material_id];
 
+	float alphaMask = getAlphaMask(material);
+
 	vec3 N = /*(material.hasNormalTexture == 1.0f) ? perturbNormal() :*/ normalize(w_normal);
 	if (!gl_FrontFacing) N *= -1.0;
 	vec3 V = normalize(w_cameraPos - w_position);
@@ -19,6 +21,8 @@ void main() {
 	float roughness = getRoughness(material);
 	float transmission_roughness = getTransmissionRoughness(material);
 	vec4 albedo = getAlbedo(material);
+	float alpha = (alphaMask < 1.0) ? alphaMask : albedo.a; // todo: move alpha out of albedo. 
+	if (alpha == 0.0) discard;
 
 	/* Todo: read from metallic/roughness texture if one exists. */
 	vec3 reflection = getPrefilteredReflection(R, roughness).rgb;
@@ -64,5 +68,5 @@ void main() {
 	finalColor = pow(finalColor, vec3(1.0f / push.consts.gamma));
 	
 	// Handle emission here...
-	outColor = vec4(finalColor, albedo.a);
+	outColor = vec4(finalColor, alpha);
 }

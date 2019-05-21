@@ -365,7 +365,7 @@ Camera::Camera(std::string name, uint32_t id) {
 	this->initialized = true;
 	this->name = name;
 	this->id = id;
-	this->renderModeOverride = RenderMode::NONE;
+	this->renderModeOverride = RenderMode::RENDER_MODE_NONE;
 
 	this->render_complete_mutex = std::make_shared<std::mutex>();
 	this->cv = std::make_shared<std::condition_variable>();
@@ -745,6 +745,7 @@ std::vector<uint64_t> & Camera::get_query_pool_results()
 	return queryResults;
 }
 
+// TODO: Improve performance of this. We really shouldn't be using a map like this...
 bool Camera::is_entity_visible(uint32_t entity_id)
 {
 	/* Assume true if not queried. */

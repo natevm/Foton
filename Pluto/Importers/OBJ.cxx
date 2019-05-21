@@ -61,15 +61,45 @@ namespace Pluto {
 
         for (uint32_t i = 0; i < materials.size(); ++i) {
             materialComponents.push_back(Material::Create(materials[i].name));
-
+            
             if (materials[i].alpha_texname.length() > 0)
                 texture_paths.insert(materials[i].alpha_texname);
 
+            if (materials[i].ambient_texname.length() > 0)
+                texture_paths.insert(materials[i].ambient_texname);
+            
+            if (materials[i].bump_texname.length() > 0)
+                texture_paths.insert(materials[i].bump_texname);
+
+            if (materials[i].displacement_texname.length() > 0)
+                texture_paths.insert(materials[i].displacement_texname);
+            
             if (materials[i].diffuse_texname.length() > 0)
                 texture_paths.insert(materials[i].diffuse_texname);
 
-            if (materials[i].bump_texname.length() > 0)
-                texture_paths.insert(materials[i].bump_texname);
+            if (materials[i].emissive_texname.length() > 0)
+                texture_paths.insert(materials[i].emissive_texname);
+
+            if (materials[i].metallic_texname.length() > 0)
+                texture_paths.insert(materials[i].metallic_texname);
+
+            if (materials[i].normal_texname.length() > 0)
+                texture_paths.insert(materials[i].normal_texname);
+
+            if (materials[i].reflection_texname.length() > 0)
+                texture_paths.insert(materials[i].reflection_texname);
+
+            if (materials[i].roughness_texname.length() > 0)
+                texture_paths.insert(materials[i].roughness_texname);
+
+            if (materials[i].sheen_texname.length() > 0)
+                texture_paths.insert(materials[i].sheen_texname);
+
+            if (materials[i].specular_highlight_texname.length() > 0)
+                texture_paths.insert(materials[i].specular_highlight_texname);
+
+            if (materials[i].specular_texname.length() > 0)
+                texture_paths.insert(materials[i].specular_texname);
 
             materialComponents[i]->set_base_color(materials[i].diffuse[0], materials[i].diffuse[1], materials[i].diffuse[2], 1.0);
             materialComponents[i]->set_roughness(1.0);
@@ -84,15 +114,57 @@ namespace Pluto {
 
         for (uint32_t i = 0; i < materials.size(); ++i) {
 
-            // if (materials[i].alpha_texname.length() > 0)
-                // texture_paths.insert(materials[i].alpha_texname);
+            if (materials[i].alpha_texname.length() > 0) {
+                materialComponents[i]->set_alpha_texture(texture_map[materials[i].alpha_texname]);
+            }
 
             if (materials[i].diffuse_texname.length() > 0) {
                 materialComponents[i]->set_base_color_texture(texture_map[materials[i].diffuse_texname]);
             }
             
+            if (materials[i].bump_texname.length() > 0) {
+                materialComponents[i]->set_bump_texture(texture_map[materials[i].bump_texname]);
+            }
+
+            // TODO:
+            // if (materials[i].alpha_texname.length() > 0)
+            //     texture_paths.insert(materials[i].alpha_texname);
+
+            // if (materials[i].ambient_texname.length() > 0)
+            //     texture_paths.insert(materials[i].ambient_texname);
+            
             // if (materials[i].bump_texname.length() > 0)
-                // texture_paths.insert(materials[i].bump_texname);
+            //     texture_paths.insert(materials[i].bump_texname);
+
+            // if (materials[i].displacement_texname.length() > 0)
+            //     texture_paths.insert(materials[i].displacement_texname);
+            
+            // if (materials[i].diffuse_texname.length() > 0)
+            //     texture_paths.insert(materials[i].diffuse_texname);
+
+            // if (materials[i].emissive_texname.length() > 0)
+            //     texture_paths.insert(materials[i].emissive_texname);
+
+            // if (materials[i].metallic_texname.length() > 0)
+            //     texture_paths.insert(materials[i].metallic_texname);
+
+            // if (materials[i].normal_texname.length() > 0)
+            //     texture_paths.insert(materials[i].normal_texname);
+
+            // if (materials[i].reflection_texname.length() > 0)
+            //     texture_paths.insert(materials[i].reflection_texname);
+
+            // if (materials[i].roughness_texname.length() > 0)
+            //     texture_paths.insert(materials[i].roughness_texname);
+
+            // if (materials[i].sheen_texname.length() > 0)
+            //     texture_paths.insert(materials[i].sheen_texname);
+
+            // if (materials[i].specular_highlight_texname.length() > 0)
+            //     texture_paths.insert(materials[i].specular_highlight_texname);
+
+            // if (materials[i].specular_texname.length() > 0)
+            //     texture_paths.insert(materials[i].specular_texname);
         }
 
         for (uint32_t i = 0; i < shapes.size(); ++i) {
