@@ -72,6 +72,8 @@ namespace Libraries {
         bool is_ASTC_supported();
         bool is_ETC2_supported();
         bool is_BC_supported();
+        bool is_draw_indirect_first_instance_supported();
+        bool is_multidraw_indirect_supported();
 
         vk::SampleCountFlags min(vk::SampleCountFlags A, vk::SampleCountFlags B);
         vk::SampleCountFlagBits highest(vk::SampleCountFlags flags);

@@ -721,6 +721,8 @@ void Camera::download_query_pool_results()
 		if (result == vk::Result::eSuccess) {
 			for (uint32_t i = 0; i < max_queried; ++i) {
 				if (temp[i] > 0) {
+					// a result of 1 means ready, and not visible. 
+					// anything larger than 1 is both ready _and_ visible.
 					queryResults[i] = temp[i] - 1;
 				}
 			}

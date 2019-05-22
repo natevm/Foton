@@ -1142,6 +1142,16 @@ float Vulkan::get_max_anisotropy() {
     return deviceProperties.limits.maxSamplerAnisotropy;
 }
 
+bool Vulkan::is_draw_indirect_first_instance_supported()
+{
+    return deviceFeatures.drawIndirectFirstInstance;
+}
+
+bool Vulkan::is_multidraw_indirect_supported()
+{
+    return deviceFeatures.multiDrawIndirect;
+}
+
 bool Vulkan::is_ASTC_supported()
 {
     return deviceFeatures.textureCompressionASTC_LDR;

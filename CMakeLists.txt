@@ -45,7 +45,7 @@ endif()
 # option(BUILD_OPENVR "Build with OpenVR support" ON)s
 option(BUILD_SPACEMOUSE "Build with SpaceMouse support" OFF)
 option(BUILD_TESTS "Include the regression and unit tests target" OFF)
-option(LARGE_SCENE_SUPPORT "Increases component limits. Generally only supported by discrete cards" ON)
+option(LARGE_SCENE_SUPPORT "Increases component limits. Generally only supported by discrete cards" OFF)
 
 set(platformDisablesMultiview OFF)
 set(platformDisablesReverseZProjection OFF)
