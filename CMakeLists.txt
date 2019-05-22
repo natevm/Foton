@@ -173,6 +173,7 @@ set_property(TARGET TetGen PROPERTY POSITION_INDEPENDENT_CODE ON)
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/pbrt-parser/)
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/pbrt-parser/pbrtParser/include)
 add_subdirectory(external/pbrt-parser EXCLUDE_FROM_ALL) 
+set_property(TARGET pbrtParser_static PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 # swig
 find_package(SWIG 3.0.8)
