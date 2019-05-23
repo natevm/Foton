@@ -22,6 +22,10 @@
 
 #include "Pluto/Libraries/OpenVR/OpenVR.hxx"
 
+#ifdef BUILD_DISPLAY_WALL
+#include <dw2_client.h>
+#endif
+
 using namespace Libraries;
 
 namespace Systems
@@ -73,7 +77,7 @@ bool RenderSystem::initialize()
         zmq_setsockopt(socket, ZMQ_RATE, &rate, sizeof(int64_t));
     }
     #endif
-
+    
     push_constants.top_sky_color = vec4(0.0f);
     push_constants.bottom_sky_color = vec4(0.0f);
     push_constants.sky_transition = 0.0f;
@@ -102,6 +106,7 @@ bool RenderSystem::initialize()
     push_constants.flags |= ( 1<< 1 );
     #endif
 
+    display_wall_camera = nullptr;
     initialized = true;
     return true;
 }
@@ -906,6 +911,35 @@ bool RenderSystem::start()
         lastTime = glfwGetTime();
         auto glfw = GLFW::Get();
 
+        #ifdef BUILD_DISPLAY_WALL
+        // char* hostname = "powerwall00.sci.utah.edu";
+        char* hostname = "155.98.19.61";
+        // char* hostname = "155.98.19.60";
+        // char* hostname = "155.98.19.14";
+        int port = 2903;
+        dw2_info_t info;
+        auto error = dw2_query_info(&info, hostname, port);
+        if (error == DW2_ERROR) throw std::runtime_error("Error, unable to connect to display wall");
+        
+        std::cout<< "Control window size " << info.controlWindowSize[0] << " " << info.controlWindowSize[1] << std::endl;
+        std::cout<< "Has Control Window " << info.hasControlWindow << std::endl;
+        std::cout<< "Num Displays " << info.numDisplays[0] << " " << info.numDisplays[1] << std::endl;
+        std::cout<< "Total Pixels in Wall " << info.totalPixelsInWall[0] << " " << info.totalPixelsInWall[1] << std::endl;
+
+        dw2_connect(hostname, port, 1);
+
+        uint32_t sizeX = 64;//info.totalPixelsInWall[0];
+        uint32_t sizeY = 64;//info.totalPixelsInWall[1];
+        uint32_t num_pixels_per_row = sizeX;
+
+        uint32_t num_x_tiles = info.totalPixelsInWall[0] / sizeX;
+        uint32_t num_y_tiles = info.totalPixelsInWall[1] / sizeY;
+        uint32_t offset = 0;
+
+        std::vector<uint32_t> frame_buffer(info.totalPixelsInWall[0] * info.totalPixelsInWall[1]);
+
+        #endif
+
         while (true)
         {
             if (futureObj.wait_for(.1ms) == future_status::ready) break;
@@ -973,6 +1007,53 @@ bool RenderSystem::start()
 
                 download_visibility_queries();
 
+                #ifdef BUILD_DISPLAY_WALL
+                if (display_wall_camera && display_wall_camera->get_texture()) {
+
+                    Texture* texture = display_wall_camera->get_texture();
+                    uint32_t tex_width = info.totalPixelsInWall[0];
+                    uint32_t tex_height = info.totalPixelsInWall[1];
+                    auto fbdata = texture->download_color_data(tex_width, tex_height, 1, true);
+
+                    dw2_begin_frame();
+                    for (uint32_t y = 0; y < num_y_tiles; ++y) {
+                        for (uint32_t x = 0; x < num_x_tiles; ++x) {
+                            uint32_t x0 = x * sizeX;
+                            uint32_t y0 = y * sizeY;
+
+                            std::vector<uint32_t> pixels(sizeX * sizeY);
+
+                            for (uint32_t yy = 0; yy < sizeY; ++yy) {
+                                for (uint32_t xx = 0; xx < sizeX; ++xx) {
+                                    unsigned char h = ((y / sizeY) * (x / sizeX)) * 180;
+                                    unsigned char s = 255;
+                                    unsigned char v = 128;
+
+                                    uint32_t global_x_coord = x * sizeX + xx;
+                                    uint32_t global_y_coord = (info.totalPixelsInWall[1] - 1) - (y * sizeY + yy);
+
+                                    uint32_t result = 0;
+
+                                    if ((global_x_coord < tex_width) && (global_y_coord < tex_height))
+                                    {
+                                        unsigned char r = (unsigned char) (255.0 * std::min((float)fbdata[(global_y_coord * tex_width + global_x_coord) * 4 + 0], 1.0f));
+                                        unsigned char g = (unsigned char) (255.0 * std::min((float)fbdata[(global_y_coord * tex_width + global_x_coord) * 4 + 1], 1.0f));
+                                        unsigned char b = (unsigned char) (255.0 * std::min((float)fbdata[(global_y_coord * tex_width + global_x_coord) * 4 + 2], 1.0f));
+                                        // hsv2rgb(h, s, v, r, g, b);
+                                        result = (b << 16) | (g << 8) | (r);
+                                    }
+
+                                    pixels[yy * sizeX + xx] = result;
+                                }
+                            }
+
+                            dw2_send_rgba(x0, y0, sizeX, sizeY, num_pixels_per_row, pixels.data());
+                        }
+                    }
+                    dw2_end_frame();
+                } 
+                #endif
+
                 for (auto &level : compute_graph) {
                     vk::SemaphoreCreateInfo semaphoreInfo;
                     vk::FenceCreateInfo fenceInfo;
@@ -993,6 +1074,11 @@ bool RenderSystem::start()
         }
 
         release_vulkan_resources();
+
+        #ifdef BUILD_DISPLAY_WALL
+        dw2_disconnect();
+        #endif
+
     };
 
     /* Use future promise to terminate the loop on stop. */
@@ -1045,5 +1131,15 @@ void RenderSystem::set_bottom_sky_color(float r, float g, float b) { set_bottom_
 void RenderSystem::set_sky_transition(float transition) { push_constants.sky_transition = transition; }
 void RenderSystem::use_openvr(bool useOpenVR) { this->using_openvr = useOpenVR; }
 void RenderSystem::use_openvr_hidden_area_masks(bool use_masks) {this->using_vr_hidden_area_masks = use_masks;};
+
+void RenderSystem::set_display_wall_camera(Camera* camera)
+{
+    this->display_wall_camera = camera;
+}
+
+void RenderSystem::clear_display_wall_camera()
+{
+    this->display_wall_camera = nullptr;
+}
 
 } // namespace Systems

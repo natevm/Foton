@@ -8,6 +8,7 @@
 
 class Entity;
 class Texture;
+class Camera;
 
 namespace Systems 
 {
@@ -43,6 +44,9 @@ namespace Systems
 
             void use_openvr(bool useOpenVR);
             void use_openvr_hidden_area_masks(bool use_masks);
+
+            void set_display_wall_camera(Camera* camera);
+            void clear_display_wall_camera();
         private:
             PushConsts push_constants;            
 
@@ -78,6 +82,8 @@ namespace Systems
                 float data[4 * 16 * 16];
             };
             bool vulkan_resources_created = false;
+
+            Camera* display_wall_camera;
 
             uint32_t currentFrame = 0;
             

@@ -43,6 +43,7 @@ endif()
 # │  Options                                                         │
 # └──────────────────────────────────────────────────────────────────┘
 # option(BUILD_OPENVR "Build with OpenVR support" ON)s
+option(BUILD_DISPLAY_WALL "Build with Display Wall support" OFF)
 option(BUILD_SPACEMOUSE "Build with SpaceMouse support" OFF)
 option(BUILD_TESTS "Include the regression and unit tests target" OFF)
 option(LARGE_SCENE_SUPPORT "Increases component limits. Generally only supported by discrete cards" OFF)
@@ -77,6 +78,10 @@ add_definitions(-DOPENVR_BUILD_STATIC)
 if (BUILD_SPACEMOUSE)
     add_definitions(-DBUILD_SPACEMOUSE)
 endif(BUILD_SPACEMOUSE)
+
+if (BUILD_DISPLAY_WALL)
+    add_definitions(-DBUILD_DISPLAY_WALL)
+endif(BUILD_DISPLAY_WALL)
 
 if (LARGE_SCENE_SUPPORT)
   add_definitions(-DLARGE_SCENE_SUPPORT)
@@ -219,6 +224,15 @@ else()
     set(ZMQ_LIBRARIES)
 endif(${ZMQ_FOUND})
 
+# dw2
+if(BUILD_DISPLAY_WALL)
+find_package(dw2_common REQUIRED)
+find_package(dw2_client REQUIRED)
+
+# Turbo JPEG
+find_package(TurboJPEG REQUIRED)
+endif(BUILD_DISPLAY_WALL)
+
 # python
 find_package(Python3 3.6 COMPONENTS Development REQUIRED)
 if (UNIX AND NOT APPLE)
@@ -310,6 +324,19 @@ set (
     LinearMath
     pbrtParser_static
 )
+
+if(BUILD_DISPLAY_WALL)
+set (
+  LIBRARIES
+  ${JPEGTURBO_LIBRARY}
+  dw2_common::dw2_common
+  dw2_client::dw2_client
+  wsock32
+  ws2_32
+  ${LIBRARIES}
+)
+message(WARN "ADDING DISPLAY WALL TARGETS")
+endif(BUILD_DISPLAY_WALL)
 
 # Name of OpenVR target seems to change...
 if (MSVC)
