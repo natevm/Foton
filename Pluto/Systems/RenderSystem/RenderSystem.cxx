@@ -411,6 +411,7 @@ void RenderSystem::record_cameras()
             /* Skip shadowmaps which shouldn't cast shadows */
             auto light = entities[entity_id].get_light();
             if (!light->should_cast_shadows()) continue;
+            if (!light->should_cast_dynamic_shadows()) continue;
         }
 
         /* Begin recording */
@@ -661,6 +662,7 @@ void RenderSystem::enqueue_render_commands() {
                 /* If that light should cast shadows */
                 auto light = entities[e_id].get_light();
                 if (!light->should_cast_shadows()) continue;
+                if (!light->should_cast_dynamic_shadows()) continue;
             }
 
             /* Make a compute node for this command buffer */
@@ -849,6 +851,7 @@ void RenderSystem::mark_cameras_as_render_complete()
             /* Skip shadowmaps which shouldn't cast shadows */
             auto light = entities[entity_id].get_light();
             if (!light->should_cast_shadows()) continue;
+            if (!light->should_cast_dynamic_shadows()) continue;
         }
 
         camera->mark_render_as_complete();

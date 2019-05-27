@@ -107,6 +107,17 @@ void Light::show_end_caps(bool show_end_caps)
     }
 }
 
+void Light::cast_dynamic_shadows(bool enable_cast_dynamic_shadows)
+{
+    castsDynamicShadows = enable_cast_dynamic_shadows;
+}
+
+bool Light::should_cast_dynamic_shadows()
+{
+    return castsDynamicShadows;
+}
+
+
 void Light::cast_shadows(bool enable_cast_shadows)
 {
     if (enable_cast_shadows) {

@@ -771,7 +771,7 @@ void Camera::download_query_pool_results()
 			{
 				auto result = device.getQueryPoolResults(queryPool, query_range.first, query_range.second - query_range.first,
 					sizeof(uint64_t) * (query_range.second - query_range.first), &queryResults[query_range.first], sizeof(uint64_t), 
-					vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::eWait);
+					vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::ePartial | vk::QueryResultFlagBits::eWait);
 
 				// if (result == vk::Result::eSuccess) {
 				
