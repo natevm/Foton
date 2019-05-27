@@ -18,13 +18,19 @@ using namespace glm;
 
 /* Not all these properties are mapped to PBR. */
 struct MeshStruct {
+    mat4 bb_local_to_parent;
+
     /* The last computed average of all mesh positions */
-    glm::vec3 centroid;
+    vec4 center; // 16
+    
+    /* Minimum and maximum bounding box coordinates */
+    vec4 bbmin; // 32
+    vec4 bbmax; // 48
     
     /* The radius of a sphere centered at the centroid which contains the mesh */
-    float bounding_sphere_radius;
+    float bounding_sphere_radius; // 52
+    int32_t show_bounding_box; // 56
+    int32_t ph2; // 60
+    int32_t ph3; // 64
 
-    /* Minimum and maximum bounding box coordinates */
-    glm::vec3 bbmin;
-    glm::vec3 bbmax;
 };

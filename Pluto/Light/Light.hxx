@@ -33,6 +33,8 @@ class Light : public StaticFactory
         Light();
         Light(std::string name, uint32_t id);
 
+        float max_distance;
+
     public:
         
         /* Factory functions */

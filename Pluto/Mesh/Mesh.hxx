@@ -379,9 +379,6 @@ class Mesh : public StaticFactory
 		/* True if this mesh component supports editing. If false, indices are automatically generated. */
 		bool allowEdits = false;
 
-		/* TODO */
-		bool showBoundingBox = false;
-
 		/* Frees any vulkan resources this mesh component may have allocated */
 		void cleanup();
 

@@ -13,6 +13,8 @@
 #include "Pluto/Transform/TransformStruct.hxx"
 #include "Pluto/Camera/CameraStruct.hxx"
 #include "Pluto/Texture/TextureStruct.hxx"
+#include "Pluto/Mesh/MeshStruct.hxx"
+
 
 /* Descriptor Sets */
 layout(std430, set = 0, binding = 0) readonly buffer EntitySSBO    { EntityStruct entities[]; } ebo;
@@ -20,6 +22,7 @@ layout(std430, set = 0, binding = 1) readonly buffer TransformSSBO { TransformSt
 layout(std430, set = 0, binding = 2) readonly buffer CameraSSBO    { CameraStruct cameras[]; } cbo;
 layout(std430, set = 0, binding = 3) readonly buffer MaterialSSBO  { MaterialStruct materials[]; } mbo;
 layout(std430, set = 0, binding = 4) readonly buffer LightSSBO     { LightStruct lights[]; } lbo;
+layout(std430, set = 0, binding = 5) readonly buffer MeshSSBO      { MeshStruct meshes[]; } mesh_ssbo;
 
 layout(std430, set = 1, binding = 0) readonly buffer TextureSSBO           { TextureStruct textures[]; } txbo;
 layout(set = 1, binding = 1) uniform sampler samplers[MAX_SAMPLERS];

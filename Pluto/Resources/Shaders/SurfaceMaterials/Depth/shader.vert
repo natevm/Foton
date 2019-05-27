@@ -14,7 +14,15 @@ void main() {
 
     TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
 
-    w_position = (target_transform.localToWorld * vec4(point.xyz, 1.0)).xyz;
+    // w_position = (target_transform.localToWorld * vec4(point.xyz, 1.0)).xyz;
+
+    
+    if (push.consts.show_bounding_box == 1) {
+        MeshStruct mesh_struct = mesh_ssbo.meshes[target_entity.mesh_id];
+        w_position = vec3(target_transform.localToWorld * mesh_struct.bb_local_to_parent * vec4(point.xyz, 1.0));
+    }
+    else w_position = vec3(target_transform.localToWorld * vec4(point.xyz, 1.0));
+
     c_position = (camera_transform.localToWorld[3]).xyz;
 
     #ifdef DISABLE_MULTIVIEW

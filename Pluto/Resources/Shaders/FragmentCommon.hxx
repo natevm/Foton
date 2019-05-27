@@ -1095,6 +1095,8 @@ float get_shadow_contribution(EntityStruct light_entity, LightStruct light, vec3
             adjusted + sampleOffsetDirections[i] * diskRadius
         ).r;
 
+        if (closestDepth == 0.0f) return 1.0f; // testing 
+
         shadow += 1.0f;
         if((l_dist - closestDepth) > 0.15)
           shadow -= min(1.0, pow((l_dist - closestDepth), .1));
@@ -1204,11 +1206,12 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
         
         if (dotNL < 0.0) continue;
         
+        float over_dist_squared = 1.0 / max(sqr(length(w_light_position - w_position)), 1.0);
+        
         /* Point light */
         if (light.type == 0) {
             vec3 spec = (D * F * G / (4.0 * dotNL * dotNV + 0.001));
-            float dist_squared = max(sqr(length(w_light_position - w_position)), 1.0);
-            finalColor += shadow_term * (1.0 / dist_squared) * lcol * dotNL * (kD * albedo + spec);
+            finalColor += shadow_term * over_dist_squared * lcol * dotNL * (kD * albedo + spec);
         }
         
         /* Rectangle light */

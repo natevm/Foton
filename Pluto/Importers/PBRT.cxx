@@ -71,7 +71,8 @@ namespace Pluto {
 
     inline Texture* get_texture_from_pbrt(
         std::unordered_map<std::shared_ptr<pbrt::Texture>, Texture*> &texture_map, 
-        std::string basePath, std::shared_ptr<pbrt::Texture> pbrt_texture) 
+        std::string basePath, std::shared_ptr<pbrt::Texture> pbrt_texture, 
+        std::string texture_name) 
     {
         Texture* tex = nullptr;
         
@@ -79,7 +80,11 @@ namespace Pluto {
         auto item = texture_map.find(pbrt_texture);
         if (item != texture_map.end()) tex = item->second;
 
-//         PtexFileTexture
+        /* If this is a new texture, import it */
+        if (!tex) {
+            auto texture_type = pbrt_texture->toString();
+
+// PtexFileTexture
 // FbmTexture
 // WindyTexture
 // MarbleTexture
@@ -87,11 +92,11 @@ namespace Pluto {
 // ScaleTexture
 // MixTexture
 // ConstantTexture
-
-        /* If this is a new texture, import it */
-        if (!tex) {
-            auto texture_type = pbrt_texture->toString();
-            if (texture_type.compare("ImageTexture") == 0) {
+            if (texture_type.compare("ConstantTexture") == 0) {
+                auto const_texture = pbrt_texture->as<pbrt::ConstantTexture>();
+                tex = Texture::Create2D(texture_name, 1, 1, true, false, 1, 1);
+                tex->upload_color_data(1, 1, 1, {const_texture->value.x, const_texture->value.y, const_texture->value.z, 1.0f});
+            } else if (texture_type.compare("ImageTexture") == 0) {
                 auto image_texture = pbrt_texture->as<pbrt::ImageTexture>();
                 if (endsWith(image_texture->fileName, ".png")) {
                     if (Texture::DoesItemExist(image_texture->fileName)) {
@@ -153,20 +158,20 @@ namespace Pluto {
                     */
 
                     if (metal_mat->map_bump) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, metal_mat->map_bump);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, metal_mat->map_bump, mat_name + "_bump");
                         // if (tex) TODO 
                     }
                     if (metal_mat->map_roughness) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, metal_mat->map_roughness);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, metal_mat->map_roughness, mat_name + "_roughness");
                         if (tex) mat->set_roughness_texture(tex);
                         // if (tex) TODO 
                     }
                     if (metal_mat->map_uRoughness) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, metal_mat->map_uRoughness);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, metal_mat->map_uRoughness, mat_name + "_uRoughness");
                         // if (tex) TODO 
                     }
                     if (metal_mat->map_vRoughness) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, metal_mat->map_vRoughness);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, metal_mat->map_vRoughness, mat_name + "_vRoughness");
                         // if (tex) TODO 
                     }
                 } else if (mat_type.compare("TranslucentMaterial") == 0) {
@@ -181,7 +186,7 @@ namespace Pluto {
                         max_transparency);
 
                     if (translucent_mat->map_kd) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, translucent_mat->map_kd);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, translucent_mat->map_kd, mat_name + "_kd");
                         if (tex) mat->set_base_color_texture(tex);
                     }
                     /* Other possible parameters:
@@ -193,19 +198,19 @@ namespace Pluto {
                     mat->set_roughness(plastic_mat->roughness);
 
                     if (plastic_mat->map_bump) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, plastic_mat->map_bump);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, plastic_mat->map_bump, mat_name + "_bump");
                         // if (tex) TODO 
                     }
                     if (plastic_mat->map_ks) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, plastic_mat->map_ks);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, plastic_mat->map_ks, mat_name + "_ks");
                         // if (tex) TODO 
                     }
                     if (plastic_mat->map_roughness) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, plastic_mat->map_roughness);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, plastic_mat->map_roughness, mat_name + "_roughness");
                         if (tex) mat->set_roughness_texture(tex);
                     }
                     if (plastic_mat->map_kd) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, plastic_mat->map_kd);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, plastic_mat->map_kd, mat_name + "_kd");
                         if (tex) mat->set_base_color_texture(tex);
                     }
                     /* Other possible parameters:
@@ -219,23 +224,23 @@ namespace Pluto {
                         std::cout<<"Warning, SubstrateMaterial different u and v roughness parameters not currently supported. Approximating..."<<std::endl;
                     }
                     if (substrate_mat->map_bump) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, substrate_mat->map_bump);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, substrate_mat->map_bump, mat_name + "_bump");
                         // if (tex) TODO 
                     }
                     if (substrate_mat->map_ks) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, substrate_mat->map_ks);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, substrate_mat->map_ks, mat_name + "_ks");
                         // if (tex) TODO 
                     }
                     if (substrate_mat->map_uRoughness) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, substrate_mat->map_uRoughness);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, substrate_mat->map_uRoughness, mat_name + "_uRoughness");
                         // if (tex) TODO 
                     }
                     if (substrate_mat->map_vRoughness) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, substrate_mat->map_vRoughness);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, substrate_mat->map_vRoughness, mat_name + "_vRoughness");
                         // if (tex) TODO 
                     }
                     if (substrate_mat->map_kd) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, substrate_mat->map_kd);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, substrate_mat->map_kd, mat_name + "_kd");
                         if (tex) mat->set_base_color_texture(tex);
                     }
                     /* Other possible parameters:
@@ -260,7 +265,7 @@ namespace Pluto {
                     mat->set_metallic(1.0);
 
                     if (mirror_mat->map_bump) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, mirror_mat->map_bump);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, mirror_mat->map_bump, mat_name + "_bump");
                         //if (tex) TODO
                     }
                     /* Other possible parameters: 
@@ -280,15 +285,15 @@ namespace Pluto {
                     }
 
                     if (matte_mat->map_bump) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, matte_mat->map_bump);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, matte_mat->map_bump, mat_name + "_bump");
                         //if (tex) TODO
                     }
                     if (matte_mat->map_sigma) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, matte_mat->map_sigma);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, matte_mat->map_sigma, mat_name + "_sigma");
                         //if (tex) TODO
                     }
                     if (matte_mat->map_kd) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, matte_mat->map_kd);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, matte_mat->map_kd, mat_name + "_kd");
                         if (tex) mat->set_base_color_texture(tex);
                     }
                     /* Other possible parameters: 
@@ -313,37 +318,36 @@ namespace Pluto {
                     mat->set_ior(uber_mat->index);
 
                     if (uber_mat->map_kd) {
-                        std::cout<<"UBERMAT DIFFFUSE TEXTURE" << std::endl;
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, uber_mat->map_kd);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, uber_mat->map_kd, mat_name + "_kd");
                         if (tex) mat->set_base_color_texture(tex);
                     }
 
                     if (uber_mat->map_alpha) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, uber_mat->map_alpha);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, uber_mat->map_alpha, mat_name + "_alpha");
                         //if (tex) TODO
                     }
                     if (uber_mat->map_bump) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, uber_mat->map_bump);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, uber_mat->map_bump, mat_name + "_bump");
                         //if (tex) TODO
                     }
                     if (uber_mat->map_opacity) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, uber_mat->map_opacity);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, uber_mat->map_opacity, mat_name + "_opacity");
                         //if (tex) TODO
                     }
                     if (uber_mat->map_roughness) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, uber_mat->map_roughness);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, uber_mat->map_roughness, mat_name + "_roughness");
                         if (tex) mat->set_roughness_texture(tex);
                     }
                     if (uber_mat->map_shadowAlpha) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, uber_mat->map_shadowAlpha);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, uber_mat->map_shadowAlpha, mat_name + "_shadowAlpha");
                         //if (tex) TODO
                     }
                     if (uber_mat->map_uRoughness) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, uber_mat->map_uRoughness);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, uber_mat->map_uRoughness, mat_name + "_uRoughness");
                         //if (tex) TODO
                     }
                     if (uber_mat->map_vRoughness) {
-                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, uber_mat->map_vRoughness);
+                        Texture* tex = get_texture_from_pbrt(texture_map, basePath, uber_mat->map_vRoughness, mat_name + "_vRoughness");
                         //if (tex) TODO
                     }
 
@@ -381,7 +385,7 @@ namespace Pluto {
 
         /* Setup Cameras */
         auto pbrt_camera = scene->cameras[0]; // TODO: Add support for more cameras
-        auto camera_prefab = Prefabs::CreatePrefabCamera("fps", scene->film->resolution.x, scene->film->resolution.y, glm::radians(pbrt_camera->fov), 4, 1.0, true);
+        auto camera_prefab = Prefabs::CreatePrefabCamera("fps", scene->film->resolution.x, scene->film->resolution.y, glm::radians(pbrt_camera->fov), 1, 1.0, true, name);
         
         auto frame = pbrt_camera->frame;
         glm::mat4 cam_xfm = pbrt_frame_to_glm(frame);

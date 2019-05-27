@@ -32,7 +32,7 @@ struct PushConsts
     int32_t viewIndex;
     int32_t light_entity_ids [MAX_LIGHTS];
     int32_t flags;
-    int32_t ph1;
+    int32_t show_bounding_box;
     
     float sky_transition;
     float gamma;

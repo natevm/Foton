@@ -17,13 +17,14 @@
 
 CameraPrefab::CameraPrefab(){}
 
-CameraPrefab::CameraPrefab(std::string mode, uint32_t width, uint32_t height, float fov, uint32_t msaa_samples, float target, bool enable_depth_prepass)
+CameraPrefab::CameraPrefab(std::string mode, uint32_t width, uint32_t height, float fov, uint32_t msaa_samples, float target, bool enable_depth_prepass, std::string window_name)
 {
+    this->window_name = window_name; 
     auto es = Systems::EventSystem::Get();
-    es->create_window("prefab_window", width, height);
-    camera = Camera::Create("prefab_camera", width, height, msaa_samples, 1, enable_depth_prepass);
-    transform = Transform::Create("prefab_camera");
-    entity = Entity::Create("prefab_camera");
+    es->create_window(window_name, width, height);
+    camera = Camera::Create(window_name, width, height, msaa_samples, 1, enable_depth_prepass);
+    transform = Transform::Create(window_name);
+    entity = Entity::Create(window_name);
     entity->set_camera(camera);
     entity->set_transform(transform);
     
@@ -32,12 +33,12 @@ CameraPrefab::CameraPrefab(std::string mode, uint32_t width, uint32_t height, fl
     #ifdef APPLE
     camera->set_perspective_projection(fov, (float)width, (float)height, 2.);
     #else
-    camera->set_perspective_projection(fov, (float)width, (float)height, 1);
+    camera->set_perspective_projection(fov, (float)width, (float)height, 2.);
     #endif
     this->target = target;
 
     initialized = true;
-    es->connect_camera_to_window("prefab_window", camera);
+    es->connect_camera_to_window(window_name, camera);
 
     this->mode = mode;
 }
@@ -81,33 +82,33 @@ void CameraPrefab::update_arcball()
     using namespace Libraries;
     auto g = GLFW::Get();
 
-    if (initialized && (g->does_window_exist("prefab_window"))) {
+    if (initialized && (g->does_window_exist(window_name))) {
         if (!last_cursor_pos_initialized) {
-            last_cursor_pos = g->get_cursor_pos("prefab_window");
+            last_cursor_pos = g->get_cursor_pos(window_name);
             last_cursor_pos_initialized = true;
         } else {
             last_cursor_pos = curr_cursor_pos;
         }
 
         // Get GLFW event data
-        curr_cursor_pos                = g->get_cursor_pos("prefab_window");
-        auto right_mouse_action = g->get_button_action("prefab_window", 1);
-        auto left_mouse_action  = g->get_button_action("prefab_window", 0);
-        auto left_mouse_mods    = g->get_button_mods("prefab_window", 0);
+        curr_cursor_pos                = g->get_cursor_pos(window_name);
+        auto right_mouse_action = g->get_button_action(window_name, 1);
+        auto left_mouse_action  = g->get_button_action(window_name, 0);
+        auto left_mouse_mods    = g->get_button_mods(window_name, 0);
 
-        auto left_arrow_action  = g->get_key_action("prefab_window", GLFW::get_key_code("LEFT"));
-        auto right_arrow_action = g->get_key_action("prefab_window", GLFW::get_key_code("RIGHT"));
-        auto up_arrow_action    = g->get_key_action("prefab_window", GLFW::get_key_code("UP"));
-        auto down_arrow_action  = g->get_key_action("prefab_window", GLFW::get_key_code("DOWN"));
+        auto left_arrow_action  = g->get_key_action(window_name, GLFW::get_key_code("LEFT"));
+        auto right_arrow_action = g->get_key_action(window_name, GLFW::get_key_code("RIGHT"));
+        auto up_arrow_action    = g->get_key_action(window_name, GLFW::get_key_code("UP"));
+        auto down_arrow_action  = g->get_key_action(window_name, GLFW::get_key_code("DOWN"));
 
-        auto w_action  = g->get_key_action("prefab_window", GLFW::get_key_code("W"));
-        auto s_action = g->get_key_action("prefab_window", GLFW::get_key_code("S"));
-        auto a_action    = g->get_key_action("prefab_window", GLFW::get_key_code("A"));
-        auto d_action  = g->get_key_action("prefab_window", GLFW::get_key_code("D"));
-        auto q_action  = g->get_key_action("prefab_window", GLFW::get_key_code("Q"));
-        auto e_action  = g->get_key_action("prefab_window", GLFW::get_key_code("E"));
+        auto w_action  = g->get_key_action(window_name, GLFW::get_key_code("W"));
+        auto s_action = g->get_key_action(window_name, GLFW::get_key_code("S"));
+        auto a_action    = g->get_key_action(window_name, GLFW::get_key_code("A"));
+        auto d_action  = g->get_key_action(window_name, GLFW::get_key_code("D"));
+        auto q_action  = g->get_key_action(window_name, GLFW::get_key_code("Q"));
+        auto e_action  = g->get_key_action(window_name, GLFW::get_key_code("E"));
 
-        auto window_extent = g->get_size("prefab_window");
+        auto window_extent = g->get_size(window_name);
 
         // # Compute delta position/rotation from event data
         if ((right_mouse_action == 1) || ((left_mouse_action == 1) && (left_mouse_mods == 2))) {
@@ -170,33 +171,33 @@ void CameraPrefab::update_fps()
     using namespace Libraries;
     auto g = GLFW::Get();
 
-    if (initialized && (g->does_window_exist("prefab_window"))) {
+    if (initialized && (g->does_window_exist(window_name))) {
         if (!last_cursor_pos_initialized) {
-            last_cursor_pos = g->get_cursor_pos("prefab_window");
+            last_cursor_pos = g->get_cursor_pos(window_name);
             last_cursor_pos_initialized = true;
         } else {
             last_cursor_pos = curr_cursor_pos;
         }
 
         // Get GLFW event data
-        curr_cursor_pos                = g->get_cursor_pos("prefab_window");
-        auto right_mouse_action = g->get_button_action("prefab_window", 1);
-        auto left_mouse_action  = g->get_button_action("prefab_window", 0);
-        auto left_mouse_mods    = g->get_button_mods("prefab_window", 0);
+        curr_cursor_pos                = g->get_cursor_pos(window_name);
+        auto right_mouse_action = g->get_button_action(window_name, 1);
+        auto left_mouse_action  = g->get_button_action(window_name, 0);
+        auto left_mouse_mods    = g->get_button_mods(window_name, 0);
 
-        auto left_arrow_action  = g->get_key_action("prefab_window", GLFW::get_key_code("LEFT"));
-        auto right_arrow_action = g->get_key_action("prefab_window", GLFW::get_key_code("RIGHT"));
-        auto up_arrow_action    = g->get_key_action("prefab_window", GLFW::get_key_code("UP"));
-        auto down_arrow_action  = g->get_key_action("prefab_window", GLFW::get_key_code("DOWN"));
+        auto left_arrow_action  = g->get_key_action(window_name, GLFW::get_key_code("LEFT"));
+        auto right_arrow_action = g->get_key_action(window_name, GLFW::get_key_code("RIGHT"));
+        auto up_arrow_action    = g->get_key_action(window_name, GLFW::get_key_code("UP"));
+        auto down_arrow_action  = g->get_key_action(window_name, GLFW::get_key_code("DOWN"));
 
-        auto w_action  = g->get_key_action("prefab_window", GLFW::get_key_code("W"));
-        auto s_action = g->get_key_action("prefab_window", GLFW::get_key_code("S"));
-        auto a_action    = g->get_key_action("prefab_window", GLFW::get_key_code("A"));
-        auto d_action  = g->get_key_action("prefab_window", GLFW::get_key_code("D"));
-        auto q_action  = g->get_key_action("prefab_window", GLFW::get_key_code("Q"));
-        auto e_action  = g->get_key_action("prefab_window", GLFW::get_key_code("E"));
+        auto w_action  = g->get_key_action(window_name, GLFW::get_key_code("W"));
+        auto s_action = g->get_key_action(window_name, GLFW::get_key_code("S"));
+        auto a_action    = g->get_key_action(window_name, GLFW::get_key_code("A"));
+        auto d_action  = g->get_key_action(window_name, GLFW::get_key_code("D"));
+        auto q_action  = g->get_key_action(window_name, GLFW::get_key_code("Q"));
+        auto e_action  = g->get_key_action(window_name, GLFW::get_key_code("E"));
 
-        auto window_extent = g->get_size("prefab_window");
+        auto window_extent = g->get_size(window_name);
 
         // # Compute delta position/rotation from event data
         if ((right_mouse_action == 1) || ((left_mouse_action == 1) && (left_mouse_mods == 2))) {
@@ -249,7 +250,7 @@ void CameraPrefab::update_spacemouse()
 
     #ifdef BUILD_SPACEMOUSE
     auto s = SpaceMouse::Get();
-    s->connect_to_window("prefab_window");
+    s->connect_to_window(window_name);
     glm::vec3 t = s->get_translation();
     glm::vec3 r = s->get_rotation();
 

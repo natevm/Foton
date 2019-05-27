@@ -16,8 +16,8 @@ VRRig Prefabs::vr_rig;
 Prefabs::Prefabs() { }
 Prefabs::~Prefabs() { }
 
-CameraPrefab Prefabs::CreatePrefabCamera(std::string mode, uint32_t width, uint32_t height, float fov, uint32_t msaa_samples, float target, bool enable_depth_prepass) {
-    camera_prefab = CameraPrefab(mode, width, height, fov, msaa_samples, target, enable_depth_prepass);
+CameraPrefab Prefabs::CreatePrefabCamera(std::string mode, uint32_t width, uint32_t height, float fov, uint32_t msaa_samples, float target, bool enable_depth_prepass, std::string window_name) {
+    camera_prefab = CameraPrefab(mode, width, height, fov, msaa_samples, target, enable_depth_prepass, window_name);
     return camera_prefab;
 }
 
