@@ -9,7 +9,7 @@ void main() {
 
 	float alphaMask = getAlphaMask(material);
 
-	vec3 N = /*(material.hasNormalTexture == 1.0f) ? perturbNormal() :*/ normalize(w_normal);
+	vec3 N = perturbNormal(w_position, normalize(w_normal), fragTexCoord, material);
 	if (!gl_FrontFacing) N *= -1.0;
 	vec3 V = normalize(w_cameraPos - w_position);
 	vec3 R = -normalize(reflect(V, N));	
@@ -45,6 +45,7 @@ void main() {
 
 	// Add on either a white schlick ring if rough, or nothing. 
 	vec3 albedo_mix_schlicked = albedo_mix + ((max(vec3(1.0 - roughness), albedo_mix) - albedo_mix) * s);
+	
 	vec3 refraction_schlicked = refraction_mix * (1.0 - s);
 	vec3 reflection_schlicked = reflection * (mix(s, 1.0, metallic));
 	vec3 specular_reflection = reflection_schlicked * (albedo_mix_schlicked * brdf.x + brdf.y); // brdf.x seems to never reach 1.0
@@ -55,7 +56,7 @@ void main() {
 
 	// Ambient occlusion part
 	float ao = /*(material.hasOcclusionTexture == 1.0f) ? texture(aoMap, inUV).r : */ 1.0f;
-	vec3 ambient = (kD * diffuse + specular_reflection + specular_refraction + specular_refraction) * ao;
+	vec3 ambient = (kD * diffuse + specular_reflection + specular_refraction) * ao;
 
 	// Iterate over point lights
 	vec3 finalColor = ambient + get_light_contribution(w_position, V, N, albedo_mix, albedo.rgb, metallic, roughness);

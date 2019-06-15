@@ -1865,20 +1865,40 @@ void Material::set_base_color(float r, float g, float b, float a) {
 	this->material_struct.base_color = glm::vec4(r, g, b, a);
 }
 
+glm::vec4 Material::get_base_color() {
+	return this->material_struct.base_color;
+}
+
 void Material::set_roughness(float roughness) {
 	this->material_struct.roughness = roughness;
+}
+
+float Material::get_roughness() {
+	return this->material_struct.roughness;
 }
 
 void Material::set_metallic(float metallic) {
 	this->material_struct.metallic = metallic;
 }
 
+float Material::get_metallic() {
+	return this->material_struct.metallic;
+}
+
 void Material::set_transmission(float transmission) {
 	this->material_struct.transmission = transmission;
 }
 
+float Material::get_transmission() {
+	return this->material_struct.transmission;
+}
+
 void Material::set_transmission_roughness(float transmission_roughness) {
 	this->material_struct.transmission_roughness = transmission_roughness;
+}
+
+float Material::get_transmission_roughness() {
+	return this->material_struct.transmission_roughness;
 }
 
 void Material::set_ior(float ior) {

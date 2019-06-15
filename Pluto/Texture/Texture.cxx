@@ -1098,7 +1098,8 @@ void Texture::loadKTX(std::string imagePath, bool submit_immediately)
 	data.colorImageView = device.createImageView(vInfo);
 }
 
-void Texture::loadPNG(std::string imagePath, bool submit_immediately)
+
+void Texture::loadPNG(std::string imagePath, bool convert_bump, bool submit_immediately)
 {
 	/* First, check if file exists. */
 	struct stat st;
@@ -1125,7 +1126,7 @@ void Texture::loadPNG(std::string imagePath, bool submit_immediately)
 	if (!pixels) { throw std::runtime_error("failed to load texture image!"); }
 
 	textureData = (void*) pixels;
-	
+
 	textureSize = texWidth * texHeight * 4;
 	data.width = texWidth;
 	data.height = texHeight;
@@ -1136,6 +1137,64 @@ void Texture::loadPNG(std::string imagePath, bool submit_immediately)
 	data.imageType = vk::ImageType::e2D;
 	/* For PNG, we assume the following format */
 	data.colorFormat = vk::Format::eR8G8B8A8Unorm;
+
+	if (convert_bump) {
+		float strength = 2.0f;
+		std::vector<uint32_t> texture_copy(texWidth * texHeight); 
+		memcpy(texture_copy.data(), textureData, textureSize);
+
+		for (int y = 0; y < texHeight; ++y)
+		{
+			for (int x = 0; x < texWidth; ++x)
+			{
+				glm::vec3 n;
+				int x_change = 0;
+				if (x == 0) x_change = 1;
+				if (x == texWidth - 1) x_change = -1;
+
+				int y_change = 0;
+				if (y == 0) y_change = 1;
+				if (y == texHeight - 1) y_change = -1;
+
+				int x1 = x + 1 + x_change;
+				int x2 = x + x_change;
+				int x3 = x - 1 + x_change;
+
+				int y1 = y + 1 + y_change;
+				int y2 = y + y_change;
+				int y3 = y - 1 + y_change;
+
+				float tr = (texture_copy[y1 * texWidth + x1 ] & 255) / 255.f;
+				float r = (texture_copy[y2 * texWidth + x1] & 255) / 255.f;
+				float br = (texture_copy[y3 * texWidth + x1] & 255) / 255.f;
+
+				float tl = (texture_copy[y1 * texWidth + x3] & 255) / 255.f;
+				float l = (texture_copy[y2 * texWidth + x3] & 255) / 255.f;
+				float bl = (texture_copy[y3 * texWidth + x3] & 255) / 255.f;
+
+				float b = (texture_copy[y3 * texWidth + x2] & 255) / 255.f;
+				float t = (texture_copy[y1 * texWidth + x2] & 255) / 255.f;
+
+				// Compute dx using Sobel:
+				//           -1 0 1 
+				//           -2 0 2
+				//           -1 0 1
+				float dX = tr + 2 * r + br - tl - 2 * l - bl;
+
+				// Compute dy using Sobel:
+				//           -1 -2 -1 
+				//            0  0  0
+				//            1  2  1
+				float dY = bl + 2 * b + br - tl - 2 * t - tr;
+
+				n = vec3(dX, dY, 1.0f / strength);
+				n = glm::normalize(n);
+				n = n * .5f;
+				n += .5f;
+				((uint32_t*)textureData)[y * texWidth + x] = ((uint32_t)(n.x * 255) << 0) | ((uint32_t)(n.y * 255) << 8) | ((uint32_t)(n.z * 255) << 16) | (255 << 24);
+			}
+		}
+	}
 
 	std::vector<uint32_t> textureMipSizes;
 	std::vector<uint32_t> textureMipWidths;
@@ -1637,7 +1696,21 @@ Texture *Texture::CreateFromPNG(std::string name, std::string filepath, bool sub
 	std::lock_guard<std::mutex> lock(creation_mutex);
 	auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
 	try {
-		tex->loadPNG(filepath, submit_immediately);
+		tex->loadPNG(filepath, false, submit_immediately);
+		tex->texture_struct.sampler_id = 0;
+		return tex;
+	} catch (...) {
+		StaticFactory::DeleteIfExists(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+		throw;
+	}
+}
+
+Texture *Texture::CreateFromBumpPNG(std::string name, std::string filepath, bool submit_immediately)
+{
+	std::lock_guard<std::mutex> lock(creation_mutex);
+	auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+	try {
+		tex->loadPNG(filepath, true, submit_immediately);
 		tex->texture_struct.sampler_id = 0;
 		return tex;
 	} catch (...) {

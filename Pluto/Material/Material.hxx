@@ -150,10 +150,15 @@ class Material : public StaticFactory
         /* Accessors / Mutators */
         void set_base_color(glm::vec4 color);
         void set_base_color(float r, float g, float b, float a);
+        glm::vec4 get_base_color();
         void set_roughness(float roughness);
+        float get_roughness();
         void set_metallic(float metallic);
+        float get_metallic();
         void set_transmission(float transmission);
+        float get_transmission();
         void set_transmission_roughness(float transmission_roughness);
+        float get_transmission_roughness();
         void set_ior(float ior);
 
         /* Certain constant material properties can be replaced with texture lookups. */
