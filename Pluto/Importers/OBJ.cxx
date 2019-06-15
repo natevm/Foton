@@ -39,7 +39,7 @@ struct OBJTextureInfo {
 };
 
 struct OBJTextureInfoCompare {
-    bool operator()(const OBJTextureInfo& lhs, const OBJTextureInfo& rhs)
+    bool operator() (const OBJTextureInfo& lhs, const OBJTextureInfo& rhs) const
     {
         return lhs.path < rhs.path;
     }
