@@ -32,7 +32,7 @@ Light::Light(std::string name, uint32_t id)
     this->light_struct.intensity = 1.0;
     this->light_struct.flags = 0;
     this->light_struct.softnessSamples = 20;
-    this->light_struct.softnessRadius = 1.0;
+    this->light_struct.softnessRadius = .1;
 }
 
 void Light::set_shadow_softness_samples(uint32_t samples)
@@ -106,6 +106,17 @@ void Light::show_end_caps(bool show_end_caps)
         light_struct.flags &= (~(1 << 1));
     }
 }
+
+void Light::cast_dynamic_shadows(bool enable_cast_dynamic_shadows)
+{
+    castsDynamicShadows = enable_cast_dynamic_shadows;
+}
+
+bool Light::should_cast_dynamic_shadows()
+{
+    return castsDynamicShadows;
+}
+
 
 void Light::cast_shadows(bool enable_cast_shadows)
 {
@@ -237,7 +248,7 @@ void Light::CreateShadowCameras()
     // Right, Left, Up, Down, Far, Near
     /* Create shadow map textures */
     for (uint32_t i = 0; i < MAX_LIGHTS; ++i) {
-        auto cam = Camera::Create("ShadowCam_" + std::to_string(i), 512, 512, 1, 6, false, false);
+        auto cam = Camera::Create("ShadowCam_" + std::to_string(i), 512, 512, 1, 6, true, false);
         cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 0);
         cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 1);
         cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 2);

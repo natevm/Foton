@@ -33,6 +33,18 @@
 
 #include "stb_image_write.h"
 
+struct OBJTextureInfo {
+    std::string path = "";
+    bool is_bump = false;
+};
+
+struct OBJTextureInfoCompare {
+    bool operator()(const OBJTextureInfo& lhs, const OBJTextureInfo& rhs)
+    {
+        return lhs.path < rhs.path;
+    }
+};
+
 namespace Pluto {
     std::vector<Entity*> ImportOBJ(std::string filepath, std::string mtl_base_dir, glm::vec3 position, glm::vec3 scale, glm::quat rotation)
     {
@@ -56,59 +68,62 @@ namespace Pluto {
         std::vector<Transform*> transformComponents;
         std::vector<Entity*> entities;
 
-        std::set<std::string> texture_paths;
+        std::set<OBJTextureInfo, OBJTextureInfoCompare> texture_paths;
         std::map<std::string, Texture*> texture_map;
 
         for (uint32_t i = 0; i < materials.size(); ++i) {
             materialComponents.push_back(Material::Create(materials[i].name));
             
             if (materials[i].alpha_texname.length() > 0)
-                texture_paths.insert(materials[i].alpha_texname);
+                texture_paths.insert({materials[i].alpha_texname, false});
 
             if (materials[i].ambient_texname.length() > 0)
-                texture_paths.insert(materials[i].ambient_texname);
+                texture_paths.insert({materials[i].ambient_texname, false});
             
             if (materials[i].bump_texname.length() > 0)
-                texture_paths.insert(materials[i].bump_texname);
+                texture_paths.insert({materials[i].bump_texname, true});
 
             if (materials[i].displacement_texname.length() > 0)
-                texture_paths.insert(materials[i].displacement_texname);
+                texture_paths.insert({materials[i].displacement_texname, false});
             
             if (materials[i].diffuse_texname.length() > 0)
-                texture_paths.insert(materials[i].diffuse_texname);
+                texture_paths.insert({materials[i].diffuse_texname, false});
 
             if (materials[i].emissive_texname.length() > 0)
-                texture_paths.insert(materials[i].emissive_texname);
+                texture_paths.insert({materials[i].emissive_texname, false});
 
             if (materials[i].metallic_texname.length() > 0)
-                texture_paths.insert(materials[i].metallic_texname);
+                texture_paths.insert({materials[i].metallic_texname, false});
 
             if (materials[i].normal_texname.length() > 0)
-                texture_paths.insert(materials[i].normal_texname);
+                texture_paths.insert({materials[i].normal_texname, false});
 
             if (materials[i].reflection_texname.length() > 0)
-                texture_paths.insert(materials[i].reflection_texname);
+                texture_paths.insert({materials[i].reflection_texname, false});
 
             if (materials[i].roughness_texname.length() > 0)
-                texture_paths.insert(materials[i].roughness_texname);
+                texture_paths.insert({materials[i].roughness_texname, false});
 
             if (materials[i].sheen_texname.length() > 0)
-                texture_paths.insert(materials[i].sheen_texname);
+                texture_paths.insert({materials[i].sheen_texname, false});
 
             if (materials[i].specular_highlight_texname.length() > 0)
-                texture_paths.insert(materials[i].specular_highlight_texname);
+                texture_paths.insert({materials[i].specular_highlight_texname, false});
 
             if (materials[i].specular_texname.length() > 0)
-                texture_paths.insert(materials[i].specular_texname);
+                texture_paths.insert({materials[i].specular_texname, false});
 
             materialComponents[i]->set_base_color(materials[i].diffuse[0], materials[i].diffuse[1], materials[i].diffuse[2], 1.0);
             materialComponents[i]->set_roughness(1.0);
             materialComponents[i]->set_metallic(0.0);
         }
 
-        for (auto &path : texture_paths)
+        for (auto &pathobj : texture_paths)
         {
-            texture_map[path] = Texture::CreateFromPNG(mtl_base_dir + path, mtl_base_dir + path);
+            if (pathobj.is_bump)
+                texture_map[pathobj.path] = Texture::CreateFromBumpPNG(mtl_base_dir + pathobj.path, mtl_base_dir + pathobj.path);
+            else 
+                texture_map[pathobj.path] = Texture::CreateFromPNG(mtl_base_dir + pathobj.path, mtl_base_dir + pathobj.path);
             // Maybe think of a better name here? Could accidentally conflict...
         }
 
@@ -126,36 +141,32 @@ namespace Pluto {
                 materialComponents[i]->set_bump_texture(texture_map[materials[i].bump_texname]);
             }
 
+            if (materials[i].normal_texname.length() > 0) {
+                materialComponents[i]->set_bump_texture(texture_map[materials[i].normal_texname]);
+            }
+
+            if (materials[i].displacement_texname.length() > 0) {
+                materialComponents[i]->set_bump_texture(texture_map[materials[i].displacement_texname]);
+            }
+
+            if (materials[i].roughness_texname.length() > 0) {
+                materialComponents[i]->set_roughness_texture(texture_map[materials[i].roughness_texname]);
+            }
+
+            // if (materials[i].metallic_texname.length() > 0) {
+            //     materialComponents[i]->set_metallic_texture(texture_map[materials[i].metallic_texname]);
+            // }
+
             // TODO:
-            // if (materials[i].alpha_texname.length() > 0)
-            //     texture_paths.insert(materials[i].alpha_texname);
 
             // if (materials[i].ambient_texname.length() > 0)
             //     texture_paths.insert(materials[i].ambient_texname);
-            
-            // if (materials[i].bump_texname.length() > 0)
-            //     texture_paths.insert(materials[i].bump_texname);
-
-            // if (materials[i].displacement_texname.length() > 0)
-            //     texture_paths.insert(materials[i].displacement_texname);
-            
-            // if (materials[i].diffuse_texname.length() > 0)
-            //     texture_paths.insert(materials[i].diffuse_texname);
 
             // if (materials[i].emissive_texname.length() > 0)
             //     texture_paths.insert(materials[i].emissive_texname);
 
-            // if (materials[i].metallic_texname.length() > 0)
-            //     texture_paths.insert(materials[i].metallic_texname);
-
-            // if (materials[i].normal_texname.length() > 0)
-            //     texture_paths.insert(materials[i].normal_texname);
-
             // if (materials[i].reflection_texname.length() > 0)
             //     texture_paths.insert(materials[i].reflection_texname);
-
-            // if (materials[i].roughness_texname.length() > 0)
-            //     texture_paths.insert(materials[i].roughness_texname);
 
             // if (materials[i].sheen_texname.length() > 0)
             //     texture_paths.insert(materials[i].sheen_texname);

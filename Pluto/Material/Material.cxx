@@ -181,21 +181,47 @@ void Material::CreateRasterPipeline(
 	pipelineInfo.basePipelineHandle = vk::Pipeline(); // Optional
 	pipelineInfo.basePipelineIndex = -1; // Optional
 
+	#ifndef DISABLE_REVERSE_Z
+	auto prepassDepthCompareOp = vk::CompareOp::eGreater;
+	auto prepassDepthCompareOpEqual = vk::CompareOp::eGreaterOrEqual;
+	auto depthCompareOpGreaterEqual = vk::CompareOp::eGreaterOrEqual;
+	auto depthCompareOpLessEqual = vk::CompareOp::eLessOrEqual;
+	#else
+	auto prepassDepthCompareOp = vk::CompareOp::eLess;
+	auto prepassDepthCompareOpEqual = vk::CompareOp::eLessOrEqual;
+	auto depthCompareOpGreaterEqual = vk::CompareOp::eLessOrEqual;
+	auto depthCompareOpLessEqual = vk::CompareOp::eGreaterOrEqual;
+	#endif	
+
+
 	/* Create pipeline */
 	pipelines[PIPELINE_TYPE_NORMAL] = device.createGraphicsPipelines(vk::PipelineCache(), {pipelineInfo})[0];
 	
 	auto old_depth_test_enable_setting = parameters.depthStencil.depthTestEnable;
 	auto old_depth_write_enable_setting = parameters.depthStencil.depthWriteEnable;
-	parameters.depthStencil.setDepthTestEnable(false);
-	parameters.depthStencil.setDepthWriteEnable(false); // possibly rename this?
-	pipelines[PIPELINE_TYPE_DEPTH_TEST_DISABLED] = device.createGraphicsPipelines(vk::PipelineCache(), {pipelineInfo})[0];
-
-	parameters.depthStencil.setDepthWriteEnable(true);
-	parameters.depthStencil.setDepthTestEnable(true);
+	auto old_cull_mode = parameters.rasterizer.cullMode;
 	auto old_depth_compare_op = parameters.depthStencil.depthCompareOp;
-	parameters.depthStencil.setDepthCompareOp(vk::CompareOp::eGreater);
+
+	parameters.depthStencil.setDepthTestEnable(true);
+	parameters.depthStencil.setDepthWriteEnable(false); // possibly rename this?
+
+	// fragmentdepth[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
+	// fragmentdepth[renderpass].pipelineParameters.rasterizer.cullMode = vk::CullModeFlagBits::eNone;
+	parameters.depthStencil.setDepthCompareOp(prepassDepthCompareOpEqual);	// Needed for transparent objects.
+	// parameters.depthStencil.setDepthCompareOp(prepassDepthCompareOpEqual);	
+	
+	parameters.rasterizer.setCullMode(vk::CullModeFlagBits::eNone); // possibly rename this?
+	pipelines[PIPELINE_TYPE_DEPTH_WRITE_DISABLED] = device.createGraphicsPipelines(vk::PipelineCache(), {pipelineInfo})[0];
+	
+	parameters.depthStencil.setDepthCompareOp(prepassDepthCompareOpEqual);	
+	parameters.rasterizer.setCullMode(old_cull_mode); // possibly rename this?
+	parameters.depthStencil.setDepthWriteEnable(true); // possibly rename this?
+
+	// parameters.depthStencil.setDepthWriteEnable(old_depth_write_enable_setting);
+	// parameters.depthStencil.setDepthTestEnable(true);
+	parameters.depthStencil.setDepthCompareOp(depthCompareOpGreaterEqual);
 	pipelines[PIPELINE_TYPE_DEPTH_TEST_GREATER] = device.createGraphicsPipelines(vk::PipelineCache(), {pipelineInfo})[0];
-	parameters.depthStencil.setDepthCompareOp(vk::CompareOp::eLess);
+	parameters.depthStencil.setDepthCompareOp(depthCompareOpLessEqual);
 	pipelines[PIPELINE_TYPE_DEPTH_TEST_LESS] = device.createGraphicsPipelines(vk::PipelineCache(), {pipelineInfo})[0];
 	parameters.depthStencil.setDepthTestEnable(old_depth_test_enable_setting);
 	parameters.depthStencil.setDepthCompareOp(old_depth_compare_op);
@@ -900,7 +926,15 @@ void Material::CreateRasterDescriptorSetLayouts()
 	lboLayoutBinding.pImmutableSamplers = nullptr;
 	lboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
 
-	std::array<vk::DescriptorSetLayoutBinding, 5> SSBObindings = { eboLayoutBinding, tboLayoutBinding, cboLayoutBinding, mboLayoutBinding, lboLayoutBinding};
+	// Mesh SSBO
+	vk::DescriptorSetLayoutBinding meshssboLayoutBinding;
+	meshssboLayoutBinding.binding = 5;
+	meshssboLayoutBinding.descriptorCount = 1;
+	meshssboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
+	meshssboLayoutBinding.pImmutableSamplers = nullptr;
+	meshssboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+
+	std::array<vk::DescriptorSetLayoutBinding, 6> SSBObindings = { eboLayoutBinding, tboLayoutBinding, cboLayoutBinding, mboLayoutBinding, lboLayoutBinding, meshssboLayoutBinding};
 	vk::DescriptorSetLayoutCreateInfo SSBOLayoutInfo;
 	SSBOLayoutInfo.bindingCount = (uint32_t)SSBObindings.size();
 	SSBOLayoutInfo.pBindings = SSBObindings.data();
@@ -996,7 +1030,7 @@ void Material::CreateDescriptorPools()
 	auto device = vulkan->get_device();
 
 	/* SSBO Descriptor Pool Info */
-	std::array<vk::DescriptorPoolSize, 5> SSBOPoolSizes = {};
+	std::array<vk::DescriptorPoolSize, 6> SSBOPoolSizes = {};
 	
 	// Entity SSBO
 	SSBOPoolSizes[0].type = vk::DescriptorType::eStorageBuffer;
@@ -1017,6 +1051,10 @@ void Material::CreateDescriptorPools()
 	// Light SSBO
 	SSBOPoolSizes[4].type = vk::DescriptorType::eStorageBuffer;
 	SSBOPoolSizes[4].descriptorCount = MAX_MATERIALS;
+
+	// Mesh SSBO
+	SSBOPoolSizes[5].type = vk::DescriptorType::eStorageBuffer;
+	SSBOPoolSizes[5].descriptorCount = MAX_MESHES;
 
 	vk::DescriptorPoolCreateInfo SSBOPoolInfo;
 	SSBOPoolInfo.poolSizeCount = (uint32_t)SSBOPoolSizes.size();
@@ -1086,7 +1124,7 @@ void Material::UpdateRasterDescriptorSets()
 	
 	/* ------ Component Descriptor Set  ------ */
 	vk::DescriptorSetLayout SSBOLayouts[] = { componentDescriptorSetLayout };
-	std::array<vk::WriteDescriptorSet, 5> SSBODescriptorWrites = {};
+	std::array<vk::WriteDescriptorSet, 6> SSBODescriptorWrites = {};
 	if (componentDescriptorSet == vk::DescriptorSet())
 	{
 		vk::DescriptorSetAllocateInfo allocInfo;
@@ -1170,6 +1208,19 @@ void Material::UpdateRasterDescriptorSets()
 	SSBODescriptorWrites[4].descriptorType = vk::DescriptorType::eStorageBuffer;
 	SSBODescriptorWrites[4].descriptorCount = 1;
 	SSBODescriptorWrites[4].pBufferInfo = &lightBufferInfo;
+
+	// Mesh SSBO
+	vk::DescriptorBufferInfo meshBufferInfo;
+	meshBufferInfo.buffer = Mesh::GetSSBO();
+	meshBufferInfo.offset = 0;
+	meshBufferInfo.range = Mesh::GetSSBOSize();
+
+	SSBODescriptorWrites[5].dstSet = componentDescriptorSet;
+	SSBODescriptorWrites[5].dstBinding = 5;
+	SSBODescriptorWrites[5].dstArrayElement = 0;
+	SSBODescriptorWrites[5].descriptorType = vk::DescriptorType::eStorageBuffer;
+	SSBODescriptorWrites[5].descriptorCount = 1;
+	SSBODescriptorWrites[5].pBufferInfo = &meshBufferInfo;
 	
 	device.updateDescriptorSets((uint32_t)SSBODescriptorWrites.size(), SSBODescriptorWrites.data(), 0, nullptr);
 	
@@ -1345,25 +1396,31 @@ void Material::BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderP
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, volume[render_pass].pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
 }
 
-void Material::DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants, RenderMode rendermode_override, PipelineType pipeline_type_override) //int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time)
-{    
+void Material::DrawEntity(
+	vk::CommandBuffer &command_buffer, 
+	vk::RenderPass &render_pass, 
+	Entity &entity, 
+	PushConsts &push_constants, 
+	RenderMode rendermode_override, 
+	PipelineType pipeline_type_override, 
+	bool render_bounding_box_override)
+{
 	auto pipeline_type = pipeline_type_override;
 
 	/* Need a mesh to render. */
 	auto m = entity.get_mesh();
 	if (!m) return;
 
+	bool show_bounding_box = m->should_show_bounding_box() | render_bounding_box_override;
+	push_constants.show_bounding_box = show_bounding_box;
+
 	/* Need a transform to render. */
 	auto transform = entity.get_transform();
 	if (!transform) return;
 
-	// push_constants.show_bounding_box = false;
-	// if (m->should_show_bounding_box()) {
-	//     push_constants.show_bounding_box = true;
-	//     m = Mesh::Get("BoundingBox");
-	//     push_constants.bounding_box_min = glm::vec4(m->get_min_aabb_corner(), 1.0f);
-	//     push_constants.bounding_box_max = glm::vec4(m->get_max_aabb_corner(), 1.0f);
-	// }
+	if (show_bounding_box) {
+	    m = Mesh::Get("BoundingBox");
+	}
 
 	/* Need a material to render. */
 	auto material = entity.get_material();
@@ -1808,20 +1865,40 @@ void Material::set_base_color(float r, float g, float b, float a) {
 	this->material_struct.base_color = glm::vec4(r, g, b, a);
 }
 
+glm::vec4 Material::get_base_color() {
+	return this->material_struct.base_color;
+}
+
 void Material::set_roughness(float roughness) {
 	this->material_struct.roughness = roughness;
+}
+
+float Material::get_roughness() {
+	return this->material_struct.roughness;
 }
 
 void Material::set_metallic(float metallic) {
 	this->material_struct.metallic = metallic;
 }
 
+float Material::get_metallic() {
+	return this->material_struct.metallic;
+}
+
 void Material::set_transmission(float transmission) {
 	this->material_struct.transmission = transmission;
 }
 
+float Material::get_transmission() {
+	return this->material_struct.transmission;
+}
+
 void Material::set_transmission_roughness(float transmission_roughness) {
 	this->material_struct.transmission_roughness = transmission_roughness;
+}
+
+float Material::get_transmission_roughness() {
+	return this->material_struct.transmission_roughness;
 }
 
 void Material::set_ior(float ior) {

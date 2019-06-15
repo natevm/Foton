@@ -9,6 +9,7 @@
 class Entity;
 class Texture;
 class Camera;
+struct VisibleEntityInfo;
 
 namespace Systems 
 {
@@ -103,8 +104,8 @@ namespace Systems
 
             bool update_push_constants();
             void record_render_commands();
-            void record_final_renderpass(Entity &camera_entity, std::vector<std::vector<std::pair<float, Entity*>>> &visible_entities);
-            void record_depth_prepass(Entity &camera_entity, std::vector<std::vector<std::pair<float, Entity*>>> &visible_entities);
+            void record_final_renderpass(Entity &camera_entity, std::vector<std::vector<VisibleEntityInfo>> &visible_entities);
+            void record_depth_prepass(Entity &camera_entity, std::vector<std::vector<VisibleEntityInfo>> &visible_entities);
             void record_blit_camera(Entity &camera_entity, std::map<std::string, std::pair<Camera *, uint32_t>> &window_to_cam);
             void record_cameras();
             void record_blit_textures();

@@ -71,6 +71,32 @@ float checker(in vec3 uvw, float scale)
     return i.x * i.y * i.z + (1.0f - i.x) * (1.0f - i.y) * (1.0f - i.z);
 }
 
+vec4 sample_texture_2D(vec4 default_color, int texture_id, vec2 uv)
+{
+    vec4 color = default_color; 
+
+    if ((texture_id < 0) || (texture_id >= MAX_TEXTURES)) return default_color;
+
+    TextureStruct tex = txbo.textures[texture_id];
+    
+    if ((tex.sampler_id < 0) || (tex.sampler_id >= MAX_SAMPLERS))  return default_color;
+
+    /* Raster texture */
+    if (tex.type == 0) {
+        color = texture(sampler2D(texture_2Ds[texture_id], samplers[tex.sampler_id]), uv);
+    }
+
+    /* Procedural checker texture */
+    else if (tex.type == 1)
+    {
+        float mate = checker(m_position, tex.scale);
+        // If I do gamma correction here on linux, I get weird nans...
+        color = mix(tex.color1, tex.color2, mate);
+    }
+
+    return color;
+}
+
 vec4 getAlbedo(inout MaterialStruct material)
 {
 	vec4 albedo = material.base_color; 
@@ -153,17 +179,19 @@ vec4 sampleVolume(vec3 position, float lod)
 
 float getRoughness(inout MaterialStruct material)
 {
+
+    // if ((material.roughness_texture_id < 0) || (material.roughness_texture_id >= MAX_TEXTURES)) 
+    //     return clamp(roughness, 0.0, 1.0);
+    
+    // TextureStruct tex = txbo.textures[material.roughness_texture_id];
+    
+    // if ((tex.sampler_id < 0) || (tex.sampler_id >= MAX_SAMPLERS)) 
+    //     return clamp(roughness, 0.0, 1.0);
 	float roughness = material.roughness;
 
-    if ((material.roughness_texture_id < 0) || (material.roughness_texture_id >= MAX_TEXTURES)) 
-        return clamp(roughness, 0.0, 1.0);
-    
-    TextureStruct tex = txbo.textures[material.roughness_texture_id];
-    
-    if ((tex.sampler_id < 0) || (tex.sampler_id >= MAX_SAMPLERS)) 
-        return clamp(roughness, 0.0, 1.0);
+    roughness = sample_texture_2D(vec4(roughness, roughness, roughness, roughness), material.roughness_texture_id, fragTexCoord).r;
 
-    return clamp(texture(sampler2D(texture_2Ds[material.roughness_texture_id], samplers[tex.sampler_id]), fragTexCoord).r, 0.0, 1.0);
+    return clamp(roughness, 0.0, 1.0);
 }
 
 float getTransmissionRoughness(inout MaterialStruct material)
@@ -296,24 +324,75 @@ vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 F0, vec3 albedo, float me
 	return color;
 }
 
+// vec3 CalculateNormal(int u, int v)
+// {
+//     // Value from trial & error.
+//     // Seems to work fine for the scales we are dealing with.
+//     float strength = scale.Y / 16;
+
+//     float tl = Math.Abs(this[u - 1, v - 1]);
+//     float l = Math.Abs(this[u - 1, v]);
+//     float bl = Math.Abs(this[u - 1, v + 1]);
+//     float b = Math.Abs(this[u, v + 1]);
+//     float br = Math.Abs(this[u + 1, v + 1]);
+//     float r = Math.Abs(this[u + 1, v]);
+//     float tr = Math.Abs(this[u + 1, v - 1]);
+//     float t = Math.Abs(this[u, v - 1]);
+
+//     // Compute dx using Sobel:
+//     //           -1 0 1 
+//     //           -2 0 2
+//     //           -1 0 1
+//     float dX = tr + 2 * r + br - tl - 2 * l - bl;
+
+//     // Compute dy using Sobel:
+//     //           -1 -2 -1 
+//     //            0  0  0
+//     //            1  2  1
+//     float dY = bl + 2 * b + br - tl - 2 * t - tr;
+
+//     Vector3 N = new Vector3(dX, dY, 1.0f / strength);
+//     N.Normalize();
+
+//     //convert (-1.0 , 1.0) to (0.0 , 1.0), if necessary
+//     //Vector3 scale = new Vector3(0.5f, 0.5f, 0.5f);
+//     //Vector3.Multiply(ref N, ref scale, out N);
+//     //Vector3.Add(ref N, ref scale, out N);
+
+//     return N;
+// }
+
 // Todo: add support for normal maps
 // See http://www.thetenthplanet.de/archives/1180
-vec3 perturbNormal()
+vec3 perturbNormal(vec3 w_position, vec3 w_normal, vec2 uv, inout MaterialStruct material)
 {
-	// vec3 tangentNormal = texture(normalMap, inUV).xyz * 2.0 - 1.0;
+    w_normal = normalize(w_normal);
+	vec3 tangentNormal = sample_texture_2D(vec4(w_normal.xyz, 0.0), material.bump_texture_id, uv).xyz;// texture(normalMap, inUV).xyz * 2.0 - 1.0;
+    if (w_normal == tangentNormal) return w_normal;
 
-	// vec3 q1 = dFdx(inWorldPos);
-	// vec3 q2 = dFdy(inWorldPos);
-	// vec2 st1 = dFdx(inUV);
-	// vec2 st2 = dFdy(inUV);
 
-	// vec3 N = normalize(inNormal);
-	// vec3 T = normalize(q1 * st2.t - q2 * st1.t);
-	// vec3 B = -normalize(cross(N, T));
-	// mat3 TBN = mat3(T, B, N);
+    // tangentNormal = normalize(  tangentNormalDX + tangentNormalDY + vec3(0.0, 0.0, 1.0) );//vec3(0.0, 0.0, 1.0);
 
-	// return normalize(TBN * tangentNormal);
-	return vec3(0.0, 0.0, 0.0);
+	vec3 q1 = dFdx(w_position);
+	vec3 q2 = dFdy(w_position);
+	vec2 st1 = dFdx(uv);
+	vec2 st2 = dFdy(uv);
+
+    // vec3 T = vec3(1.0, 0.0, 0.0); // Right
+    // vec3 B = vec3(0.0, 1.0, 0.0); // Forward
+    // vec3 N = vec3(0.0, 0.0, 1.0); // Up
+	
+    vec3 N = normalize(w_normal);
+	vec3 T = normalize(q1 * st2.t - q2 * st1.t);
+	vec3 B = -normalize(cross(N, T));
+	mat3 TBN = mat3(T, B, N);
+
+    EntityStruct target_entity = ebo.entities[push.consts.target_id];
+    TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
+    // tangentNormal = (transpose(target_transform.worldToLocal) * vec4(w_normal, 0.0)).xyz;
+
+	return normalize(TBN * tangentNormal);
+	// return tangentNormal;
 }
 
 vec3 get_environment_color(vec3 dir) {
@@ -1095,6 +1174,8 @@ float get_shadow_contribution(EntityStruct light_entity, LightStruct light, vec3
             adjusted + sampleOffsetDirections[i] * diskRadius
         ).r;
 
+        if (closestDepth == 0.0f) return 1.0f; // testing 
+
         shadow += 1.0f;
         if((l_dist - closestDepth) > 0.15)
           shadow -= min(1.0, pow((l_dist - closestDepth), .1));
@@ -1204,11 +1285,12 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
         
         if (dotNL < 0.0) continue;
         
+        float over_dist_squared = 1.0 / max(sqr(length(w_light_position - w_position)), 1.0);
+        
         /* Point light */
         if (light.type == 0) {
             vec3 spec = (D * F * G / (4.0 * dotNL * dotNV + 0.001));
-            float dist_squared = max(sqr(length(w_light_position - w_position)), 1.0);
-            finalColor += shadow_term * (1.0 / dist_squared) * lcol * dotNL * (kD * albedo + spec);
+            finalColor += shadow_term * over_dist_squared * lcol * dotNL * (kD * albedo + spec);
         }
         
         /* Rectangle light */

@@ -33,6 +33,9 @@ class Light : public StaticFactory
         Light();
         Light(std::string name, uint32_t id);
 
+        float max_distance;
+        bool castsDynamicShadows = true;
+
     public:
         
         /* Factory functions */
@@ -61,7 +64,9 @@ class Light : public StaticFactory
         void set_double_sided(bool double_sided);
         void show_end_caps(bool show_end_caps);
         void cast_shadows(bool enable_cast_shadows);
+        void cast_dynamic_shadows(bool enable);
         bool should_cast_shadows();
+        bool should_cast_dynamic_shadows();
         void set_cone_angle(float angle);
         void set_cone_softness(float softness);
         void set_shadow_softness_samples(uint32_t samples);

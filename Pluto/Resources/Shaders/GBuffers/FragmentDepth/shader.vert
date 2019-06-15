@@ -10,7 +10,12 @@ void main() {
     TransformStruct camera_transform = tbo.transforms[camera_entity.transform_id];
     TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
 
-    vec4 w_position = target_transform.localToWorld * vec4(point.xyz, 1.0);
+    vec3 w_position;
+    if (push.consts.show_bounding_box == 1) {
+        MeshStruct mesh_struct = mesh_ssbo.meshes[target_entity.mesh_id];
+        w_position = vec3(target_transform.localToWorld * mesh_struct.bb_local_to_parent * vec4(point.xyz, 1.0));
+    }
+    else w_position = vec3(target_transform.localToWorld * vec4(point.xyz, 1.0));
 
     #ifdef DISABLE_MULTIVIEW
     int viewIndex = push.consts.viewIndex;
@@ -20,7 +25,7 @@ void main() {
     gl_Position = camera.multiviews[viewIndex].viewproj * 
         camera_transform.worldToLocalRotation * 
         camera_transform.worldToLocalTranslation * 
-        w_position;
+        vec4(w_position, 1.0);
     
     /* Epsilon offset to account for depth precision errors values */
     #ifndef DISABLE_REVERSE_Z

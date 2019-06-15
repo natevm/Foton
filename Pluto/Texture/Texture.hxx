@@ -38,6 +38,8 @@ class Texture : public StaticFactory
 		/* Creates a 2D texture from a PNG image file */
 		static Texture *CreateFromPNG(std::string name, std::string filepath, bool submit_immediately = false);
 
+		static Texture *CreateFromBumpPNG(std::string name, std::string filepath, bool submit_immediately = false);
+
 		/* Creates a texture from data allocated outside this class. Helpful for swapchains, external libraries, etc */
 		static Texture *CreateFromExternalData(std::string name, Data data);
 
@@ -239,5 +241,5 @@ class Texture : public StaticFactory
 		void loadKTX(std::string imagePath, bool submit_immediately = false);
 
 		/* Creates a texture from a png texture file, replacing any vulkan resources with new ones containing the png data. */
-		void loadPNG(std::string imagePath, bool submit_immediately = false);
+		void loadPNG(std::string imagePath, bool convert_bump = false, bool submit_immediately = false);
 };

@@ -16,6 +16,18 @@ class Entity;
 
 enum RenderMode : uint32_t;
 
+struct VisibleEntityInfo {
+	float distance;
+	bool visible;
+	uint32_t entity_index;
+	Entity* entity;
+
+	bool operator < (const VisibleEntityInfo& other) const
+	{
+		return (distance < other.distance);
+	};
+};
+
 class Camera : public StaticFactory
 {
 	friend class StaticFactory;
@@ -143,13 +155,13 @@ class Camera : public StaticFactory
 	void download_query_pool_results();
 
 	/* TODO: Explain this */
-	void begin_visibility_query(vk::CommandBuffer command_buffer, uint32_t entity_id, uint32_t drawIdx);
+	void begin_visibility_query(vk::CommandBuffer command_buffer, uint32_t renderpass_idx, uint32_t entity_id);
 	
 	/* TODO: Explain this */
-	void end_visibility_query(vk::CommandBuffer command_buffer, uint32_t entity_id, uint32_t drawIdx);
+	void end_visibility_query(vk::CommandBuffer command_buffer, uint32_t renderpass_idx, uint32_t entity_id);
 
 	/* TODO: */
-	bool is_entity_visible(uint32_t entity_id);
+	bool is_entity_visible(uint32_t renderpass_idx, uint32_t entity_id);
 
 	/* TODO: Explain this */
 	// vk::Semaphore get_semaphore(uint32_t frame_idx);
@@ -173,6 +185,10 @@ class Camera : public StaticFactory
 	/* Sets the renderpass order of the current camera. This is used to handle dependencies between 
 		renderpasses. Eg, rendering shadow maps or reflections. */
 	void set_render_order(int32_t order);
+
+	void set_max_visible_distance(float max_distance);
+
+	float get_max_visible_distance();
 	
 	/* Gets the renderpass order of the current camera. This is used to handle dependencies between 
 		renderpasses. Eg, rendering shadow maps or reflections. */
@@ -197,7 +213,7 @@ class Camera : public StaticFactory
 	bool should_use_multiview();
 
 	/* TODO: Explain this */
-	std::vector<std::vector<std::pair<float, Entity*>>> get_visible_entities(uint32_t camera_entity_id);
+	std::vector<std::vector<VisibleEntityInfo>> get_visible_entities(uint32_t camera_entity_id) ;
 
 	/* Creates a vulkan commandbuffer handle used to record the renderpass. */
 	void create_command_buffers();
@@ -266,14 +282,18 @@ class Camera : public StaticFactory
 
 	uint64_t max_queried = 0;
 
-	std::map<uint32_t, uint32_t> previousEntityToDrawIdx;
-	
-	std::map<uint32_t, uint32_t> entityToDrawIdx;
+	float max_visibility_distance;
 
+	std::vector<bool> index_queried;
+	std::vector<bool> next_index_queried;
+
+	/* TODO: Explain this */
+	std::vector<uint64_t> previousQueryResults;
+	
 	/* TODO: Explain this */
 	std::vector<uint64_t> queryResults;
 
-	std::vector<std::vector<std::pair<float, Entity*>>> frustum_culling_results;
+	std::vector<std::vector<VisibleEntityInfo>> frustum_culling_results;
 
 	/* The vulkan depth prpass renderpass handles, used to begin and end depth prepasses for the given camera. */
 	std::vector<vk::RenderPass> depthPrepasses;
@@ -349,7 +369,7 @@ class Camera : public StaticFactory
 	void create_frame_buffers(uint32_t layers);
 
 	/* TODO: Explain this */
-	void create_query_pool();
+	void create_query_pool(uint32_t max_views);
 
 	/* TODO: Explain this */
 	// void create_semaphores();

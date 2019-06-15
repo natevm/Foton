@@ -49,7 +49,7 @@ enum RenderMode : uint32_t {
 
 enum PipelineType : uint32_t {
     PIPELINE_TYPE_NORMAL = 0,
-    PIPELINE_TYPE_DEPTH_TEST_DISABLED = 1,
+    PIPELINE_TYPE_DEPTH_WRITE_DISABLED = 1,
     PIPELINE_TYPE_DEPTH_TEST_LESS = 2,
     PIPELINE_TYPE_DEPTH_TEST_GREATER = 3,
     PIPELINE_TYPE_WIREFRAME = 4
@@ -115,8 +115,15 @@ class Material : public StaticFactory
         static void BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
 
         /* Records a draw of the supplied entity to the current command buffer. Call this during a renderpass. */
-        static void DrawEntity(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &entity, PushConsts &push_constants, 
-            RenderMode rendermode_override = RenderMode::RENDER_MODE_NONE, PipelineType pipeline_type_override = PipelineType::PIPELINE_TYPE_NORMAL); // int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time
+        static void DrawEntity(
+            vk::CommandBuffer &command_buffer, 
+            vk::RenderPass &render_pass, 
+            Entity &entity, 
+            PushConsts &push_constants, 
+            RenderMode rendermode_override = RenderMode::RENDER_MODE_NONE, 
+            PipelineType pipeline_type_override = PipelineType::PIPELINE_TYPE_NORMAL,
+            bool render_bounding_box_override = false
+        ); // int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time
 
         /* TODO... */
         static void ResetBoundMaterial();
@@ -143,10 +150,15 @@ class Material : public StaticFactory
         /* Accessors / Mutators */
         void set_base_color(glm::vec4 color);
         void set_base_color(float r, float g, float b, float a);
+        glm::vec4 get_base_color();
         void set_roughness(float roughness);
+        float get_roughness();
         void set_metallic(float metallic);
+        float get_metallic();
         void set_transmission(float transmission);
+        float get_transmission();
         void set_transmission_roughness(float transmission_roughness);
+        float get_transmission_roughness();
         void set_ior(float ior);
 
         /* Certain constant material properties can be replaced with texture lookups. */

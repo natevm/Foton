@@ -172,7 +172,7 @@ void RenderSystem::download_visibility_queries()
 
 uint32_t shadow_idx = 0;
 
-void RenderSystem::record_depth_prepass(Entity &camera_entity, std::vector<std::vector<std::pair<float, Entity*>>> &visible_entities)
+void RenderSystem::record_depth_prepass(Entity &camera_entity, std::vector<std::vector<VisibleEntityInfo>> &visible_entities)
 {
     auto camera = camera_entity.get_camera();
     if (!camera) throw std::runtime_error("Error, camera was null during recording of depth prepass");
@@ -213,46 +213,61 @@ void RenderSystem::record_depth_prepass(Entity &camera_entity, std::vector<std::
                 }
             }
 
+            // if (using_openvr) {
+            //     auto ovr = Libraries::OpenVR::Get();
+            //     if (camera == ovr->get_connected_camera()) {
+            //         if ( ovr->get_left_eye_hidden_area_entity()->get_id() == target_id) continue;
+            //         if ( ovr->get_right_eye_hidden_area_entity()->get_id() == target_id) continue;
+            //     }
+            // }
+
             for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i) {
-                /* An object needs a transform, a mesh, a material, and cannot be transparent 
-                in order to be drawn in the depth prepass */
-                if (!visible_entities[rp_idx][i].second->transform()) continue;
-                if (!visible_entities[rp_idx][i].second->mesh()) continue;
-                if (!visible_entities[rp_idx][i].second->material()) continue;
-                if (visible_entities[rp_idx][i].second->material()->contains_transparency()) continue;
+                auto target_id = visible_entities[rp_idx][i].entity->get_id();
+                if (visible_entities[rp_idx][i].visible && visible_entities[rp_idx][i].distance < camera->get_max_visible_distance()) {
+                    camera->begin_visibility_query(command_buffer, rp_idx, visible_entities[rp_idx][i].entity_index);
+                    // Push constants
+                    push_constants.target_id = target_id;
+                    push_constants.camera_id = camera_entity.get_id();
+                    push_constants.viewIndex = rp_idx;
+                    push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
+                    
+                    bool was_visible_last_frame = camera->is_entity_visible(rp_idx, target_id);
+                    bool contains_transparency = visible_entities[rp_idx][i].entity->material()->contains_transparency();
+                    bool disable_depth_write = (was_visible_last_frame) ? contains_transparency : true;
+                    
+                    bool show_bounding_box = !was_visible_last_frame;
 
-                auto target_id = visible_entities[rp_idx][i].second->get_id();
+                    PipelineType pipeline_type = PipelineType::PIPELINE_TYPE_NORMAL;
+                    if (show_bounding_box || contains_transparency)
+                        pipeline_type = PipelineType::PIPELINE_TYPE_DEPTH_WRITE_DISABLED;
 
-                // if (camera->is_entity_visible(target_id) {
-                /* This is a problem, since a single entity may be drawn multiple times on devices
-                not supporting multiview, (mac). Might need to increase query pool size to MAX_ENTITIES * renderpass count */
-                camera->begin_visibility_query(command_buffer, target_id, i);
-
-                if (using_openvr) {
-                    auto ovr = Libraries::OpenVR::Get();
-                    if (camera == ovr->get_connected_camera()) {
-                        if ( ovr->get_left_eye_hidden_area_entity()->get_id() == target_id) continue;
-                        if ( ovr->get_right_eye_hidden_area_entity()->get_id() == target_id) continue;
-                    }
+                    Material::DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].entity, push_constants, 
+                        RenderMode::RENDER_MODE_FRAGMENTDEPTH, pipeline_type, show_bounding_box);
+                    camera->end_visibility_query(command_buffer, rp_idx, visible_entities[rp_idx][i].entity_index);
                 }
-                
-                // Push constants
-                push_constants.target_id = target_id;
-                push_constants.camera_id = camera_entity.get_id();
-                push_constants.viewIndex = rp_idx;
-                push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
-                Material::DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].second, push_constants, RenderMode::RENDER_MODE_FRAGMENTDEPTH);
 
-                camera->end_visibility_query(command_buffer, target_id, i);
+
+                // /* An object needs a transform, a mesh, a material, and cannot be transparent 
+                // in order to be drawn in the depth prepass */
+                // if (visible_entities[rp_idx][i].entity->transform() &&
+                //     visible_entities[rp_idx][i].entity->mesh() &&
+                //     visible_entities[rp_idx][i].entity->material())
+                // {
+
+
+                //     // if (camera->is_entity_visible(target_id) {
+                //     /* This is a problem, since a single entity may be drawn multiple times on devices
+                //     not supporting multiview, (mac). Might need to increase query pool size to MAX_ENTITIES * renderpass count */
+                    
+
                 // }
-
             }
             camera->end_depth_prepass(command_buffer, rp_idx);
         }
     }
 }
 
-void RenderSystem::record_final_renderpass(Entity &camera_entity, std::vector<std::vector<std::pair<float, Entity*>>> &visible_entities)
+void RenderSystem::record_final_renderpass(Entity &camera_entity, std::vector<std::vector<VisibleEntityInfo>> &visible_entities)
 {
     auto camera = camera_entity.get_camera();
     if (!camera) throw std::runtime_error("Error, camera was null during recording of final renderpass");
@@ -294,37 +309,32 @@ void RenderSystem::record_final_renderpass(Entity &camera_entity, std::vector<st
             /* Render all opaque objects */
             for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i) {
                 /* An object must be opaque, have a transform, a mesh, and a material to be rendered. */
-                if (!visible_entities[rp_idx][i].second->transform()) continue;
-                if (!visible_entities[rp_idx][i].second->mesh()) continue;
-                if (!visible_entities[rp_idx][i].second->material()) continue;
-                if (visible_entities[rp_idx][i].second->material()->contains_transparency()) continue;
+                if (!visible_entities[rp_idx][i].visible || visible_entities[rp_idx][i].distance > camera->get_max_visible_distance()) continue;
+                if (visible_entities[rp_idx][i].entity->material()->contains_transparency()) continue;
 
-                auto target_id = visible_entities[rp_idx][i].second->get_id();
-                if (camera->is_entity_visible(target_id) || (!camera->should_record_depth_prepass())) {
+                auto target_id = visible_entities[rp_idx][i].entity_index;
+                if (camera->is_entity_visible(rp_idx, target_id) || (!camera->should_record_depth_prepass())) {
                     push_constants.target_id = target_id;
                     push_constants.camera_id = camera_entity.get_id();
                     push_constants.viewIndex = rp_idx;
                     push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
-                    Material::DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].second, push_constants, camera->get_rendermode_override());
+                    Material::DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].entity, push_constants, camera->get_rendermode_override());
                 }
             }
             
             /* Draw transparent objects last */
             for (int32_t i = visible_entities[rp_idx].size() - 1; i >= 0; --i)
             {
-                if (!visible_entities[rp_idx][i].second->transform()) continue;
-                if (!visible_entities[rp_idx][i].second->mesh()) continue;
-                if (!visible_entities[rp_idx][i].second->material()) continue;
-                if (!visible_entities[rp_idx][i].second->material()->contains_transparency()) continue;
+                if (!visible_entities[rp_idx][i].visible || visible_entities[rp_idx][i].distance > camera->get_max_visible_distance()) continue;
+                if (!visible_entities[rp_idx][i].entity->material()->contains_transparency()) continue;
 
-                auto target_id = visible_entities[rp_idx][i].second->get_id();
-
-                if (camera->is_entity_visible(target_id) || (!camera->should_record_depth_prepass())) {
+                auto target_id = visible_entities[rp_idx][i].entity_index;
+                if (camera->is_entity_visible(rp_idx, target_id) || (!camera->should_record_depth_prepass())) {
                     push_constants.target_id = target_id;
                     push_constants.camera_id = camera_entity.get_id();
                     push_constants.viewIndex = rp_idx;
                     push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
-                    Material::DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].second, push_constants, 
+                    Material::DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].entity, push_constants, 
                         camera->get_rendermode_override(), PipelineType::PIPELINE_TYPE_DEPTH_TEST_GREATER);
                 }
             }
@@ -406,6 +416,7 @@ void RenderSystem::record_cameras()
             /* Skip shadowmaps which shouldn't cast shadows */
             auto light = entities[entity_id].get_light();
             if (!light->should_cast_shadows()) continue;
+            if (!light->should_cast_dynamic_shadows()) continue;
         }
 
         /* Begin recording */
@@ -656,6 +667,7 @@ void RenderSystem::enqueue_render_commands() {
                 /* If that light should cast shadows */
                 auto light = entities[e_id].get_light();
                 if (!light->should_cast_shadows()) continue;
+                if (!light->should_cast_dynamic_shadows()) continue;
             }
 
             /* Make a compute node for this command buffer */
@@ -844,6 +856,7 @@ void RenderSystem::mark_cameras_as_render_complete()
             /* Skip shadowmaps which shouldn't cast shadows */
             auto light = entities[entity_id].get_light();
             if (!light->should_cast_shadows()) continue;
+            if (!light->should_cast_dynamic_shadows()) continue;
         }
 
         camera->mark_render_as_complete();

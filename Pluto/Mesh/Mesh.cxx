@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 
 #include <functional>
+#include <limits>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -110,6 +111,8 @@ Mesh::Mesh(std::string name, uint32_t id)
 	this->initialized = true;
 	this->name = name;
 	this->id = id;
+	this->mesh_struct.show_bounding_box = 0;
+	this->mesh_struct.bb_local_to_parent = glm::mat4(1.0);
 }
 
 std::string Mesh::to_string() {
@@ -201,22 +204,28 @@ uint32_t Mesh::get_index_bytes()
 
 void Mesh::compute_metadata()
 {
-	glm::vec3 s(0.0);
-	mesh_struct.bbmin = glm::vec3(0.0f);
-	mesh_struct.bbmax = glm::vec3(0.0f);
+	glm::vec4 s(0.0);
+	mesh_struct.bbmin = glm::vec4(std::numeric_limits<float>::max());
+	mesh_struct.bbmax = glm::vec4( std::numeric_limits<float>::lowest());
+	mesh_struct.bbmax.w = 0.f;
+	mesh_struct.bbmin.w = 0.f;
 	for (int i = 0; i < positions.size(); i += 1)
 	{
-		s += positions[i];
-		mesh_struct.bbmin = glm::min(positions[i], mesh_struct.bbmin);
-		mesh_struct.bbmax = glm::max(positions[i], mesh_struct.bbmax);
+		s += glm::vec4(positions[i].x, positions[i].y, positions[i].z, 0.0f);
+		mesh_struct.bbmin = glm::vec4(glm::min(positions[i], glm::vec3(mesh_struct.bbmin)), 0.0);
+		mesh_struct.bbmax = glm::vec4(glm::max(positions[i], glm::vec3(mesh_struct.bbmax)), 0.0);
 	}
-	s /= positions.size();
-	mesh_struct.centroid = s;
+	s /= (float)positions.size();
+	mesh_struct.center = s;
+
+	mesh_struct.bb_local_to_parent = glm::mat4(1.0);
+	mesh_struct.bb_local_to_parent = glm::translate(mesh_struct.bb_local_to_parent, glm::vec3(mesh_struct.bbmax + mesh_struct.bbmin) * .5f);
+	mesh_struct.bb_local_to_parent = glm::scale(mesh_struct.bb_local_to_parent, glm::vec3(mesh_struct.bbmax - mesh_struct.bbmin) * .5f);
 
 	mesh_struct.bounding_sphere_radius = 0.0;
 	for (int i = 0; i < positions.size(); i += 1) {
 		mesh_struct.bounding_sphere_radius = std::max(mesh_struct.bounding_sphere_radius, 
-			glm::distance(positions[i], mesh_struct.centroid));
+			glm::distance(glm::vec4(positions[i].x, positions[i].y, positions[i].z, 0.0f), mesh_struct.center));
 	}
 }
 
@@ -295,7 +304,7 @@ void Mesh::save_tetrahedralization(float quality_bound, float maximum_volume)
 
 glm::vec3 Mesh::get_centroid()
 {
-	return mesh_struct.centroid;
+	return vec3(mesh_struct.center);
 }
 
 float Mesh::get_bounding_sphere_radius()
@@ -2400,10 +2409,10 @@ void Mesh::createTexCoordBuffer(bool allow_edits, bool submit_immediately)
 /* TODO */
 void Mesh::show_bounding_box(bool should_show)
 {
-	this->showBoundingBox = should_show;
+	this->mesh_struct.show_bounding_box = should_show;
 }
 
 bool Mesh::should_show_bounding_box()
 {
-	return showBoundingBox;
+	return this->mesh_struct.show_bounding_box;
 }
