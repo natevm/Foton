@@ -163,12 +163,12 @@ bool SpaceMouse::poll_event()
 	handled = SPW_FALSE;     /* init handled */
 
 	BOOL res;
-	// UINT_PTR timerId = SetTimer(NULL, NULL, 1, NULL);
+	// UINT_PTR timerId = SetTimer(NULL, NULL, 0, NULL);
 	
-	res = PeekMessage(&msg, NULL, 0, 0, PM_REMOVE);
+	// res = PeekMessage(&msg, NULL, 0, 0, PM_REMOVE);
 
 	/* start message loop */ 
-	// res = GetMessage( &msg, NULL, 0, 0 );
+	res = GetMessage( &msg, NULL, 0, 0 );
 
 	// KillTimer(NULL, timerId);
 

@@ -44,6 +44,9 @@ namespace Systems
 
             void use_openvr(bool useOpenVR);
             void use_openvr_hidden_area_masks(bool use_masks);
+
+            /* If RTX Raytracing is enabled, builds a top level BVH for all created meshes. (TODO, account for mesh transformations) */
+		    void build_top_level_bvh(bool submit_immediately = false);
         private:
             PushConsts push_constants;            
 
@@ -83,6 +86,32 @@ namespace Systems
             uint32_t currentFrame = 0;
             
             vk::CommandBuffer main_command_buffer;
+
+            /* Declaration of an RTX geometry instance. This struct is described in the Khronos 
+                specification to be exactly this, so don't modify! */
+            struct VkGeometryInstance
+            {
+                float transform[12];
+                uint32_t instanceId : 24;
+                uint32_t mask : 8;
+                uint32_t instanceOffset : 24;
+                uint32_t flags : 8;
+                uint64_t accelerationStructureHandle;
+            };
+
+            static_assert(sizeof(VkGeometryInstance) == 64, "VkGeometryInstance structure compiles to incorrect size");
+
+            /* A handle to an RTX top level BVH */
+            vk::AccelerationStructureNV topAS;
+            vk::DeviceMemory topASMemory;
+
+            vk::DeviceMemory accelerationStructureScratchMemory;
+            vk::Buffer accelerationStructureScratchBuffer;
+
+            /* A handle to an RTX buffer of geometry instances used to build the top level BVH */
+            vk::Buffer instanceBuffer;
+            vk::DeviceMemory instanceBufferMemory;
+
             // std::vector<vk::Semaphore> main_command_buffer_semaphores;
             // vk::Fence main_fence;
             bool main_command_buffer_recorded = false;

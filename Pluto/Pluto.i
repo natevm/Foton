@@ -46,6 +46,7 @@ using namespace Systems;
 
 %feature("autodoc","4");
 
+%feature("kwargs") Initialize;
 %feature("kwargs") Prefabs;
 %feature("kwargs") Camera;
 %feature("kwargs") Collider;

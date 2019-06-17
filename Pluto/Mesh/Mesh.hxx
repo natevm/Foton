@@ -265,8 +265,10 @@ class Mesh : public StaticFactory
 		/* If RTX Raytracing is enabled, builds a low level BVH for this mesh. */
 		void build_low_level_bvh(bool submit_immediately = false);
 
-		/* If RTX Raytracing is enabled, builds a top level BVH for all created meshes. (TODO, account for mesh transformations) */
-		static void build_top_level_bvh(bool submit_immediately = false);
+		/* TODO */
+		vk::AccelerationStructureNV get_low_level_bvh();
+
+		vk::GeometryNV get_nv_geometry();
 
 		/* TODO */
 		void show_bounding_box(bool should_show);
@@ -311,14 +313,6 @@ class Mesh : public StaticFactory
 		/* The structure containing all shader mesh properties. This is what's coppied into the SSBO per instance */
         MeshStruct mesh_struct;
 
-		/* A handle to an RTX top level BVH */
-		static vk::AccelerationStructureNV topAS;
-		static vk::DeviceMemory topASMemory;
-
-		/* A handle to an RTX buffer of geometry instances used to build the top level BVH */
-		static vk::Buffer instanceBuffer;
-		static vk::DeviceMemory instanceBufferMemory;
-
 		/* Lists of per vertex data. These might not match GPU memory if editing is disabled. */
 		std::vector<glm::vec3> positions;
 		std::vector<glm::vec3> normals;
@@ -351,23 +345,8 @@ class Mesh : public StaticFactory
 		vk::Buffer triangleIndexBuffer;
 		vk::DeviceMemory triangleIndexBufferMemory;
 
-		/* Declaration of an RTX geometry instance. This struct is described in the Khronos 
-			specification to be exactly this, so don't modify! */
-		struct VkGeometryInstance
-		{
-			float transform[12];
-			uint32_t instanceId : 24;
-			uint32_t mask : 8;
-			uint32_t instanceOffset : 24;
-			uint32_t flags : 8;
-			uint64_t accelerationStructureHandle;
-		};
-
 		/* An RTX geometry handle */
 		vk::GeometryNV geometry;
-
-		/* An RTX instance handle */
-		VkGeometryInstance instance;
 
 		/* An RTX handle to the low level acceleration structure */
 		vk::AccelerationStructureNV lowAS;

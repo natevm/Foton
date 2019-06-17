@@ -46,10 +46,6 @@ vk::Buffer Mesh::SSBO;
 vk::DeviceMemory Mesh::SSBOMemory;
 vk::Buffer Mesh::stagingSSBO;
 vk::DeviceMemory Mesh::stagingSSBOMemory;
-vk::AccelerationStructureNV Mesh::topAS;
-vk::DeviceMemory Mesh::topASMemory;
-vk::Buffer Mesh::instanceBuffer;
-vk::DeviceMemory Mesh::instanceBufferMemory;
 std::mutex Mesh::creation_mutex;
 bool Mesh::Initialized = false;
 
@@ -1269,166 +1265,6 @@ void Mesh::edit_texture_coordinates(uint32_t index, std::vector<glm::vec2> new_t
 	device.unmapMemory(texCoordBufferMemory);
 }
 
-void Mesh::build_top_level_bvh(bool submit_immediately)
-{
-	auto vulkan = Libraries::Vulkan::Get();
-	if (!vulkan->is_initialized()) throw std::runtime_error("Error: vulkan is not initialized");
-
-	if (!vulkan->is_ray_tracing_enabled()) 
-		throw std::runtime_error("Error: Vulkan device extension VK_NVX_raytracing is not currently enabled.");
-	
-	auto dldi = vulkan->get_dldi();
-	auto device = vulkan->get_device();
-	if (!device) 
-		throw std::runtime_error("Error: vulkan device not initialized");
-
-	auto CreateAccelerationStructure = [&](vk::AccelerationStructureTypeNV type, uint32_t geometryCount,
-		vk::GeometryNV* geometries, uint32_t instanceCount, vk::AccelerationStructureNV& AS, vk::DeviceMemory& memory)
-	{
-		vk::AccelerationStructureCreateInfoNV accelerationStructureInfo;
-		accelerationStructureInfo.compactedSize = 0;
-		accelerationStructureInfo.info.type = type;
-		accelerationStructureInfo.info.instanceCount = instanceCount;
-		accelerationStructureInfo.info.geometryCount = geometryCount;
-		accelerationStructureInfo.info.pGeometries = geometries;
-
-		AS = device.createAccelerationStructureNV(accelerationStructureInfo, nullptr, dldi);
-
-		vk::AccelerationStructureMemoryRequirementsInfoNV memoryRequirementsInfo;
-		memoryRequirementsInfo.accelerationStructure = AS;
-		memoryRequirementsInfo.type = vk::AccelerationStructureMemoryRequirementsTypeNV::eObject;
-
-		vk::MemoryRequirements2 memoryRequirements;
-		memoryRequirements = device.getAccelerationStructureMemoryRequirementsNV(memoryRequirementsInfo, dldi);
-
-		vk::MemoryAllocateInfo memoryAllocateInfo;
-		memoryAllocateInfo.allocationSize = memoryRequirements.memoryRequirements.size;
-		memoryAllocateInfo.memoryTypeIndex = vulkan->find_memory_type(memoryRequirements.memoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
-
-		memory = device.allocateMemory(memoryAllocateInfo);
-		
-		vk::BindAccelerationStructureMemoryInfoNV bindInfo;
-		bindInfo.accelerationStructure = AS;
-		bindInfo.memory = memory;
-		bindInfo.memoryOffset = 0;
-		bindInfo.deviceIndexCount = 0;
-		bindInfo.pDeviceIndices = nullptr;
-
-		device.bindAccelerationStructureMemoryNV({bindInfo}, dldi);
-	};
-
-	/* Create top level acceleration structure */
-	CreateAccelerationStructure(vk::AccelerationStructureTypeNV::eTopLevel,
-		0, nullptr, 1, topAS, topASMemory);
-
-
-	/* Gather Instances */
-	std::vector<VkGeometryInstance> instances;
-	for (uint32_t i = 0; i < MAX_MESHES; ++i)
-	{
-		if (!meshes[i].is_initialized()) continue;
-		if (!meshes[i].lowBVHBuilt) continue;
-		instances.push_back(meshes[i].instance);
-	}
-
-	/* ----- Create Instance Buffer ----- */
-	{
-		uint32_t instanceBufferSize = (uint32_t)(sizeof(VkGeometryInstance) * instances.size());
-
-		vk::BufferCreateInfo instanceBufferInfo;
-		instanceBufferInfo.size = instanceBufferSize;
-		instanceBufferInfo.usage = vk::BufferUsageFlagBits::eRayTracingNV;
-		instanceBufferInfo.sharingMode = vk::SharingMode::eExclusive;
-
-		instanceBuffer = device.createBuffer(instanceBufferInfo);
-
-		vk::MemoryRequirements instanceBufferRequirements;
-		instanceBufferRequirements = device.getBufferMemoryRequirements(instanceBuffer);
-
-		vk::MemoryAllocateInfo instanceMemoryAllocateInfo;
-		instanceMemoryAllocateInfo.allocationSize = instanceBufferRequirements.size;
-		instanceMemoryAllocateInfo.memoryTypeIndex = vulkan->find_memory_type(instanceBufferRequirements.memoryTypeBits, 
-			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent );
-
-		instanceBufferMemory = device.allocateMemory(instanceMemoryAllocateInfo);
-		
-		device.bindBufferMemory(instanceBuffer, instanceBufferMemory, 0);
-
-		void* ptr = device.mapMemory(instanceBufferMemory, 0, instanceBufferSize);
-		memcpy(ptr, instances.data(), instanceBufferSize);
-		device.unmapMemory(instanceBufferMemory);
-	}
-
-	/* Build top level BVH */
-	auto GetScratchBufferSize = [&](vk::AccelerationStructureNV handle)
-	{
-		vk::AccelerationStructureMemoryRequirementsInfoNV memoryRequirementsInfo;
-		memoryRequirementsInfo.accelerationStructure = handle;
-		memoryRequirementsInfo.type = vk::AccelerationStructureMemoryRequirementsTypeNV::eBuildScratch;
-
-		vk::MemoryRequirements2 memoryRequirements;
-		memoryRequirements = device.getAccelerationStructureMemoryRequirementsNV( memoryRequirementsInfo, dldi);
-
-		vk::DeviceSize result = memoryRequirements.memoryRequirements.size;
-		return result;
-	};
-
-	{
-		vk::DeviceSize scratchBufferSize = GetScratchBufferSize(topAS);
-
-		vk::BufferCreateInfo bufferInfo;
-		bufferInfo.size = scratchBufferSize;
-		bufferInfo.usage = vk::BufferUsageFlagBits::eRayTracingNV;
-		bufferInfo.sharingMode = vk::SharingMode::eExclusive;
-		vk::Buffer accelerationStructureScratchBuffer = device.createBuffer(bufferInfo);
-		
-		vk::MemoryRequirements scratchBufferRequirements;
-		scratchBufferRequirements = device.getBufferMemoryRequirements(accelerationStructureScratchBuffer);
-		
-		vk::MemoryAllocateInfo scratchMemoryAllocateInfo;
-		scratchMemoryAllocateInfo.allocationSize = scratchBufferRequirements.size;
-		scratchMemoryAllocateInfo.memoryTypeIndex = vulkan->find_memory_type(scratchBufferRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
-
-		vk::DeviceMemory accelerationStructureScratchMemory = device.allocateMemory(scratchMemoryAllocateInfo);
-		device.bindBufferMemory(accelerationStructureScratchBuffer, accelerationStructureScratchMemory, 0);
-
-		/* Now we can build our acceleration structure */
-		vk::MemoryBarrier memoryBarrier;
-		memoryBarrier.srcAccessMask  = vk::AccessFlagBits::eAccelerationStructureWriteNV;
-		memoryBarrier.srcAccessMask |= vk::AccessFlagBits::eAccelerationStructureReadNV;
-		memoryBarrier.dstAccessMask  = vk::AccessFlagBits::eAccelerationStructureWriteNV;
-		memoryBarrier.dstAccessMask |= vk::AccessFlagBits::eAccelerationStructureReadNV;
-
-		auto cmd = vulkan->begin_one_time_graphics_command();
-
-		/* TODO: MOVE INSTANCE STUFF INTO HERE */
-		{
-			vk::AccelerationStructureInfoNV asInfo;
-			asInfo.type = vk::AccelerationStructureTypeNV::eTopLevel;
-			asInfo.instanceCount = (uint32_t) instances.size();
-			asInfo.geometryCount = 0;// (uint32_t)geometries.size();
-			asInfo.pGeometries = nullptr;//&geometries[0];
-
-			cmd.buildAccelerationStructureNV(&asInfo, 
-				instanceBuffer, 0, VK_FALSE, 
-				topAS, vk::AccelerationStructureNV(),
-				accelerationStructureScratchBuffer, 0, dldi);
-		}
-		
-		// cmd.pipelineBarrier(
-		//     vk::PipelineStageFlagBits::eAccelerationStructureBuildNV, 
-		//     vk::PipelineStageFlagBits::eRayTracingShaderNV, 
-		//     vk::DependencyFlags(), {memoryBarrier}, {}, {});
-
-		if (submit_immediately)
-			vulkan->end_one_time_graphics_command_immediately(cmd, "build acceleration structure", true);
-		else
-			vulkan->end_one_time_graphics_command(cmd, "build acceleration structure", true);
-
-	}
-
-}
-
 void Mesh::build_low_level_bvh(bool submit_immediately)
 {
 	auto vulkan = Libraries::Vulkan::Get();
@@ -1506,24 +1342,6 @@ void Mesh::build_low_level_bvh(bool submit_immediately)
 	CreateAccelerationStructure(vk::AccelerationStructureTypeNV::eBottomLevel,
 		1, &geometry, 0, lowAS, lowASMemory);
 
-	/* Create Instance */
-	{
-		uint64_t accelerationStructureHandle;
-		device.getAccelerationStructureHandleNV(lowAS, sizeof(uint64_t), &accelerationStructureHandle, dldi);
-		float transform[12] = {
-			1.0f, 0.0f, 0.0f, 0.0f,
-			0.0f, 1.0f, 0.0f, 0.0f,
-			0.0f, 0.0f, 1.0f, 0.0f,
-		};
-
-		memcpy(instance.transform, transform, sizeof(instance.transform));
-		instance.instanceId = 0;
-		instance.mask = 0xff;
-		instance.instanceOffset = 0;
-		instance.flags = (uint32_t) vk::GeometryInstanceFlagBitsNV::eTriangleCullDisable;
-		instance.accelerationStructureHandle = accelerationStructureHandle;
-	}
-
 
 	/* Build low level BVH */
 	auto GetScratchBufferSize = [&](vk::AccelerationStructureNV handle)
@@ -1593,6 +1411,16 @@ void Mesh::build_low_level_bvh(bool submit_immediately)
 
 	/* Might need a fence here */
 	lowBVHBuilt = true;
+}
+
+vk::AccelerationStructureNV Mesh::get_low_level_bvh()
+{
+	return lowAS;
+}
+
+vk::GeometryNV Mesh::get_nv_geometry()
+{
+	return geometry;
 }
 
 /* Static Factory Implementations */

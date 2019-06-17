@@ -890,6 +890,7 @@ void RenderSystem::allocate_vulkan_resources()
 
     auto vulkan = Vulkan::Get();
     auto device = vulkan->get_device();
+    auto dldi = vulkan->get_dldi();
     
     /* Create a main command buffer if one does not already exist */
     vk::CommandBufferAllocateInfo mainCmdAllocInfo;
@@ -906,7 +907,227 @@ void RenderSystem::allocate_vulkan_resources()
     // }
     // main_fence = device.createFence(fenceInfo);
 
+
+    // Create top level acceleration structure resources
+    if (vulkan->is_ray_tracing_enabled()) {
+        auto CreateAccelerationStructure = [&](vk::AccelerationStructureTypeNV type, uint32_t geometryCount,
+            vk::GeometryNV* geometries, uint32_t instanceCount, vk::AccelerationStructureNV& AS, vk::DeviceMemory& memory)
+        {
+            vk::AccelerationStructureCreateInfoNV accelerationStructureInfo;
+            accelerationStructureInfo.compactedSize = 0;
+            accelerationStructureInfo.info.type = type;
+            accelerationStructureInfo.info.instanceCount = instanceCount;
+            accelerationStructureInfo.info.geometryCount = geometryCount;
+            accelerationStructureInfo.info.pGeometries = geometries;
+
+            AS = device.createAccelerationStructureNV(accelerationStructureInfo, nullptr, dldi);
+
+            vk::AccelerationStructureMemoryRequirementsInfoNV memoryRequirementsInfo;
+            memoryRequirementsInfo.accelerationStructure = AS;
+            memoryRequirementsInfo.type = vk::AccelerationStructureMemoryRequirementsTypeNV::eObject;
+
+            vk::MemoryRequirements2 memoryRequirements;
+            memoryRequirements = device.getAccelerationStructureMemoryRequirementsNV(memoryRequirementsInfo, dldi);
+
+            vk::MemoryAllocateInfo memoryAllocateInfo;
+            memoryAllocateInfo.allocationSize = memoryRequirements.memoryRequirements.size;
+            memoryAllocateInfo.memoryTypeIndex = vulkan->find_memory_type(memoryRequirements.memoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
+
+            memory = device.allocateMemory(memoryAllocateInfo);
+            
+            vk::BindAccelerationStructureMemoryInfoNV bindInfo;
+            bindInfo.accelerationStructure = AS;
+            bindInfo.memory = memory;
+            bindInfo.memoryOffset = 0;
+            bindInfo.deviceIndexCount = 0;
+            bindInfo.pDeviceIndices = nullptr;
+
+            device.bindAccelerationStructureMemoryNV({bindInfo}, dldi);
+        };
+
+        /* Create top level acceleration structure */
+        CreateAccelerationStructure(vk::AccelerationStructureTypeNV::eTopLevel,
+            0, nullptr, MAX_ENTITIES, topAS, topASMemory);
+
+        /* ----- Create Instance Buffer ----- */
+		uint32_t instanceBufferSize = (uint32_t) (sizeof(VkGeometryInstance) * MAX_ENTITIES);
+
+		vk::BufferCreateInfo instanceBufferInfo;
+		instanceBufferInfo.size = instanceBufferSize;
+		instanceBufferInfo.usage = vk::BufferUsageFlagBits::eRayTracingNV;
+		instanceBufferInfo.sharingMode = vk::SharingMode::eExclusive;
+
+		instanceBuffer = device.createBuffer(instanceBufferInfo);
+
+		vk::MemoryRequirements instanceBufferRequirements;
+		instanceBufferRequirements = device.getBufferMemoryRequirements(instanceBuffer);
+
+		vk::MemoryAllocateInfo instanceMemoryAllocateInfo;
+		instanceMemoryAllocateInfo.allocationSize = instanceBufferRequirements.size;
+		instanceMemoryAllocateInfo.memoryTypeIndex = vulkan->find_memory_type(instanceBufferRequirements.memoryTypeBits, 
+			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent );
+
+		instanceBufferMemory = device.allocateMemory(instanceMemoryAllocateInfo);
+		
+		device.bindBufferMemory(instanceBuffer, instanceBufferMemory, 0);
+
+        /* Allocate scratch buffer for building */
+        auto GetScratchBufferSize = [&](vk::AccelerationStructureNV handle)
+        {
+            vk::AccelerationStructureMemoryRequirementsInfoNV memoryRequirementsInfo;
+            memoryRequirementsInfo.accelerationStructure = handle;
+            memoryRequirementsInfo.type = vk::AccelerationStructureMemoryRequirementsTypeNV::eBuildScratch;
+
+            vk::MemoryRequirements2 memoryRequirements;
+            memoryRequirements = device.getAccelerationStructureMemoryRequirementsNV( memoryRequirementsInfo, dldi);
+
+            vk::DeviceSize result = memoryRequirements.memoryRequirements.size;
+            return result;
+        };
+
+        vk::DeviceSize scratchBufferSize = GetScratchBufferSize(topAS);
+
+		vk::BufferCreateInfo bufferInfo;
+		bufferInfo.size = scratchBufferSize;
+		bufferInfo.usage = vk::BufferUsageFlagBits::eRayTracingNV;
+		bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+		accelerationStructureScratchBuffer = device.createBuffer(bufferInfo);
+		
+		vk::MemoryRequirements scratchBufferRequirements;
+		scratchBufferRequirements = device.getBufferMemoryRequirements(accelerationStructureScratchBuffer);
+		
+		vk::MemoryAllocateInfo scratchMemoryAllocateInfo;
+		scratchMemoryAllocateInfo.allocationSize = scratchBufferRequirements.size;
+		scratchMemoryAllocateInfo.memoryTypeIndex = vulkan->find_memory_type(scratchBufferRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
+
+		accelerationStructureScratchMemory = device.allocateMemory(scratchMemoryAllocateInfo);
+		device.bindBufferMemory(accelerationStructureScratchBuffer, accelerationStructureScratchMemory, 0);
+    }
+
     vulkan_resources_created = true;
+}
+
+void RenderSystem::build_top_level_bvh(bool submit_immediately)
+{
+	auto vulkan = Libraries::Vulkan::Get();
+	if (!vulkan->is_initialized()) throw std::runtime_error("Error: vulkan is not initialized");
+
+	if (!vulkan->is_ray_tracing_enabled()) 
+		throw std::runtime_error("Error: Vulkan device extension VK_NVX_raytracing is not currently enabled.");
+	
+	auto dldi = vulkan->get_dldi();
+	auto device = vulkan->get_device();
+	if (!device) 
+		throw std::runtime_error("Error: vulkan device not initialized");
+
+    auto entities = Entity::GetFront();
+
+	/* Gather Instances */
+	std::vector<VkGeometryInstance> instances(MAX_ENTITIES);
+	for (uint32_t i = 0; i < MAX_ENTITIES; ++i)
+	{
+        VkGeometryInstance instance;
+
+        if ((!entities[i].is_initialized())
+            || (!entities[i].mesh())
+            || (!entities[i].transform())
+            || (!entities[i].material())
+            || (!entities[i].mesh()->get_low_level_bvh()))
+        {
+            instance.instanceId = i;
+            instance.mask = 0; // means this instance can't be hit.
+            instance.instanceOffset = 0;
+            instance.accelerationStructureHandle = 0; // not sure if this is allowed...
+        }
+        else {
+            auto llas = entities[i].mesh()->get_low_level_bvh();
+            if (!llas) continue;
+
+            /* Create Instance */
+            uint64_t accelerationStructureHandle;
+            device.getAccelerationStructureHandleNV(llas, sizeof(uint64_t), &accelerationStructureHandle, dldi);
+            auto local_to_world = entities[i].transform()->get_local_to_world_matrix();
+            float transform[12] = {
+                local_to_world[0][0], local_to_world[1][0], local_to_world[2][0], local_to_world[3][0],
+                local_to_world[0][1], local_to_world[1][1], local_to_world[2][1], local_to_world[3][1],
+                local_to_world[0][2], local_to_world[1][2], local_to_world[2][2], local_to_world[3][2],
+            };
+
+            memcpy(instance.transform, transform, sizeof(instance.transform));
+            instance.instanceId = i;
+            instance.mask = 0xff;
+            instance.instanceOffset = 0;
+            instance.flags = (uint32_t) vk::GeometryInstanceFlagBitsNV::eTriangleCullDisable;
+            instance.accelerationStructureHandle = accelerationStructureHandle;
+        }
+	
+		instances[i] = instance;
+	}
+
+	/* ----- Upload Instances ----- */
+	{
+		uint32_t instanceBufferSize = (uint32_t)(sizeof(VkGeometryInstance) * MAX_ENTITIES);
+        void* ptr = device.mapMemory(instanceBufferMemory, 0, instanceBufferSize);
+		memcpy(ptr, instances.data(), instanceBufferSize);
+		device.unmapMemory(instanceBufferMemory);
+	}
+
+	/* Build top level BVH */
+	// auto GetScratchBufferSize = [&](vk::AccelerationStructureNV handle)
+	// {
+	// 	vk::AccelerationStructureMemoryRequirementsInfoNV memoryRequirementsInfo;
+	// 	memoryRequirementsInfo.accelerationStructure = handle;
+	// 	memoryRequirementsInfo.type = vk::AccelerationStructureMemoryRequirementsTypeNV::eBuildScratch;
+
+	// 	vk::MemoryRequirements2 memoryRequirements;
+	// 	memoryRequirements = device.getAccelerationStructureMemoryRequirementsNV( memoryRequirementsInfo, dldi);
+
+	// 	vk::DeviceSize result = memoryRequirements.memoryRequirements.size;
+	// 	return result;
+	// };
+
+    /* Get geometry count */
+    std::vector<vk::GeometryNV> geometries;
+    auto meshes = Mesh::GetFront();
+    for (uint32_t i = 0; i < Mesh::GetCount(); ++i) {
+        if (!meshes[i].is_initialized()) continue;
+        if (meshes[i].get_nv_geometry() != vk::GeometryNV()) geometries.push_back(meshes[i].get_nv_geometry());
+    }
+
+	{
+		/* Now we can build our acceleration structure */
+		vk::MemoryBarrier memoryBarrier;
+		memoryBarrier.srcAccessMask  = vk::AccessFlagBits::eAccelerationStructureWriteNV;
+		memoryBarrier.srcAccessMask |= vk::AccessFlagBits::eAccelerationStructureReadNV;
+		memoryBarrier.dstAccessMask  = vk::AccessFlagBits::eAccelerationStructureWriteNV;
+		memoryBarrier.dstAccessMask |= vk::AccessFlagBits::eAccelerationStructureReadNV;
+
+		auto cmd = vulkan->begin_one_time_graphics_command();
+
+		/* TODO: MOVE INSTANCE STUFF INTO HERE */
+		{
+			vk::AccelerationStructureInfoNV asInfo;
+			asInfo.type = vk::AccelerationStructureTypeNV::eTopLevel;
+			asInfo.instanceCount = (uint32_t) instances.size();
+			asInfo.geometryCount = (uint32_t) geometries.size();
+			asInfo.pGeometries = geometries.data();
+
+			cmd.buildAccelerationStructureNV(&asInfo, 
+				instanceBuffer, 0, VK_FALSE, 
+				topAS, vk::AccelerationStructureNV(),
+				accelerationStructureScratchBuffer, 0, dldi);
+		}
+		
+		// cmd.pipelineBarrier(
+		//     vk::PipelineStageFlagBits::eAccelerationStructureBuildNV, 
+		//     vk::PipelineStageFlagBits::eRayTracingShaderNV, 
+		//     vk::DependencyFlags(), {memoryBarrier}, {}, {});
+
+		if (submit_immediately)
+			vulkan->end_one_time_graphics_command_immediately(cmd, "build acceleration structure", true);
+		else
+			vulkan->end_one_time_graphics_command(cmd, "build acceleration structure", true);
+	}
 }
 
 bool RenderSystem::start()
