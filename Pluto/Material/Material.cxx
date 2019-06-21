@@ -50,6 +50,8 @@ std::map<vk::RenderPass, Material::RasterPipelineResources> Material::vrmask;
 
 std::map<vk::RenderPass, Material::RaytracingPipelineResources> Material::rttest;
 
+std::unordered_map<std::string, vk::ShaderModule> Material::shaderModuleCache;
+
 Material::Material() {
 	this->initialized = false;
 }
@@ -115,7 +117,8 @@ std::string Material::to_string() {
 }
 
 /* Wrapper for shader module creation */
-vk::ShaderModule Material::CreateShaderModule(const std::vector<char>& code) {
+vk::ShaderModule Material::CreateShaderModule(std::string name, const std::vector<char>& code) {
+	if (shaderModuleCache.find(name) != shaderModuleCache.end()) return shaderModuleCache[name];
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
 
@@ -124,6 +127,7 @@ vk::ShaderModule Material::CreateShaderModule(const std::vector<char>& code) {
 	createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
 	vk::ShaderModule shaderModule = device.createShaderModule(createInfo);
+	shaderModuleCache[name] = shaderModule;
 	return shaderModule;
 }
 
@@ -264,8 +268,8 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/UniformColor/frag.spv"));
 
 		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule(vertShaderCode);
-		auto fragShaderModule = CreateShaderModule(fragShaderCode);
+		auto vertShaderModule = CreateShaderModule("uniform_color_vert", vertShaderCode);
+		auto fragShaderModule = CreateShaderModule("uniform_color_frag", fragShaderCode);
 
 		/* Info for shader stages */
 		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -290,8 +294,8 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			renderpass, 0, 
 			uniformColor[renderpass].pipelines, uniformColor[renderpass].pipelineLayout);
 
-		device.destroyShaderModule(fragShaderModule);
-		device.destroyShaderModule(vertShaderModule);
+		// device.destroyShaderModule(fragShaderModule);
+		// device.destroyShaderModule(vertShaderModule);
 	}
 
 
@@ -304,8 +308,8 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Blinn/frag.spv"));
 
 		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule(vertShaderCode);
-		auto fragShaderModule = CreateShaderModule(fragShaderCode);
+		auto vertShaderModule = CreateShaderModule("blinn_vert", vertShaderCode);
+		auto fragShaderModule = CreateShaderModule("blinn_frag", fragShaderCode);
 
 		/* Info for shader stages */
 		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -330,8 +334,8 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			renderpass, 0, 
 			blinn[renderpass].pipelines, blinn[renderpass].pipelineLayout);
 
-		device.destroyShaderModule(fragShaderModule);
-		device.destroyShaderModule(vertShaderModule);
+		// device.destroyShaderModule(fragShaderModule);
+		// device.destroyShaderModule(vertShaderModule);
 	}
 
 	/* ------ PBR  ------ */
@@ -343,8 +347,8 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/PBRSurface/frag.spv"));
 
 		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule(vertShaderCode);
-		auto fragShaderModule = CreateShaderModule(fragShaderCode);
+		auto vertShaderModule = CreateShaderModule("pbr_vert", vertShaderCode);
+		auto fragShaderModule = CreateShaderModule("pbr_frag", fragShaderCode);
 
 		/* Info for shader stages */
 		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -377,8 +381,8 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			renderpass, 0, 
 			pbr[renderpass].pipelines, pbr[renderpass].pipelineLayout);
 
-		device.destroyShaderModule(fragShaderModule);
-		device.destroyShaderModule(vertShaderModule);
+		// device.destroyShaderModule(fragShaderModule);
+		// device.destroyShaderModule(vertShaderModule);
 	}
 
 	/* ------ NORMAL SURFACE ------ */
@@ -390,8 +394,8 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/NormalSurface/frag.spv"));
 
 		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule(vertShaderCode);
-		auto fragShaderModule = CreateShaderModule(fragShaderCode);
+		auto vertShaderModule = CreateShaderModule("normal_surf_vert", vertShaderCode);
+		auto fragShaderModule = CreateShaderModule("normal_surf_frag", fragShaderCode);
 
 		/* Info for shader stages */
 		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -416,8 +420,8 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			renderpass, 0, 
 			normalsurface[renderpass].pipelines, normalsurface[renderpass].pipelineLayout);
 
-		device.destroyShaderModule(fragShaderModule);
-		device.destroyShaderModule(vertShaderModule);
+		// device.destroyShaderModule(fragShaderModule);
+		// device.destroyShaderModule(vertShaderModule);
 	}
 
 	/* ------ TEXCOORD SURFACE  ------ */
@@ -429,8 +433,8 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/TexCoordSurface/frag.spv"));
 
 		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule(vertShaderCode);
-		auto fragShaderModule = CreateShaderModule(fragShaderCode);
+		auto vertShaderModule = CreateShaderModule("texcoord_vert", vertShaderCode);
+		auto fragShaderModule = CreateShaderModule("texcoord_frag", fragShaderCode);
 
 		/* Info for shader stages */
 		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -455,8 +459,8 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			renderpass, 0, 
 			texcoordsurface[renderpass].pipelines, texcoordsurface[renderpass].pipelineLayout);
 
-		device.destroyShaderModule(fragShaderModule);
-		device.destroyShaderModule(vertShaderModule);
+		// device.destroyShaderModule(fragShaderModule);
+		// device.destroyShaderModule(vertShaderModule);
 	}
 
 	/* ------ SKYBOX  ------ */
@@ -468,8 +472,8 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Skybox/frag.spv"));
 
 		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule(vertShaderCode);
-		auto fragShaderModule = CreateShaderModule(fragShaderCode);
+		auto vertShaderModule = CreateShaderModule("skybox_vert", vertShaderCode);
+		auto fragShaderModule = CreateShaderModule("skybox_frag", fragShaderCode);
 
 		/* Info for shader stages */
 		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -497,8 +501,8 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			renderpass, 0, 
 			skybox[renderpass].pipelines, skybox[renderpass].pipelineLayout);
 
-		device.destroyShaderModule(fragShaderModule);
-		device.destroyShaderModule(vertShaderModule);
+		// device.destroyShaderModule(fragShaderModule);
+		// device.destroyShaderModule(vertShaderModule);
 	}
 
 	/* ------ DEPTH  ------ */
@@ -510,8 +514,8 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Depth/frag.spv"));
 
 		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule(vertShaderCode);
-		auto fragShaderModule = CreateShaderModule(fragShaderCode);
+		auto vertShaderModule = CreateShaderModule("depth_vert", vertShaderCode);
+		auto fragShaderModule = CreateShaderModule("depth_frag", fragShaderCode);
 
 		/* Info for shader stages */
 		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -544,8 +548,8 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			renderpass, 0, 
 			depth[renderpass].pipelines, depth[renderpass].pipelineLayout);
 
-		device.destroyShaderModule(fragShaderModule);
-		device.destroyShaderModule(vertShaderModule);
+		// device.destroyShaderModule(fragShaderModule);
+		// device.destroyShaderModule(vertShaderModule);
 	}
 
 	/* ------ Volume  ------ */
@@ -557,8 +561,8 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/VolumeMaterials/Volume/frag.spv"));
 
 		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule(vertShaderCode);
-		auto fragShaderModule = CreateShaderModule(fragShaderCode);
+		auto vertShaderModule = CreateShaderModule("volume_vert", vertShaderCode);
+		auto fragShaderModule = CreateShaderModule("volume_frag", fragShaderCode);
 
 		/* Info for shader stages */
 		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -583,8 +587,8 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			renderpass, 0, 
 			volume[renderpass].pipelines, volume[renderpass].pipelineLayout);
 
-		device.destroyShaderModule(fragShaderModule);
-		device.destroyShaderModule(vertShaderModule);
+		// device.destroyShaderModule(fragShaderModule);
+		// device.destroyShaderModule(vertShaderModule);
 	}
 
 	/*  G BUFFERS  */
@@ -597,7 +601,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/FragmentDepth/vert.spv"));
 
 		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule(vertShaderCode);
+		auto vertShaderModule = CreateShaderModule("frag_depth", vertShaderCode);
 
 		/* Info for shader stages */
 		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -621,7 +625,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			renderpass, 0, 
 			fragmentdepth[renderpass].pipelines, fragmentdepth[renderpass].pipelineLayout);
 
-		device.destroyShaderModule(vertShaderModule);
+		// device.destroyShaderModule(vertShaderModule);
 	}
 
 	/* ------ SHADOWMAP  ------ */
@@ -634,8 +638,8 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/ShadowMap/frag.spv"));
 
 		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule(vertShaderCode);
-		auto fragShaderModule = CreateShaderModule(fragShaderCode);
+		auto vertShaderModule = CreateShaderModule("shadow_map_vert", vertShaderCode);
+		auto fragShaderModule = CreateShaderModule("shadow_map_frag", fragShaderCode);
 
 		/* Info for shader stages */
 		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -668,8 +672,8 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			renderpass, 0, 
 			shadowmap[renderpass].pipelines, shadowmap[renderpass].pipelineLayout);
 
-		device.destroyShaderModule(fragShaderModule);
-		device.destroyShaderModule(vertShaderModule);
+		// device.destroyShaderModule(fragShaderModule);
+		// device.destroyShaderModule(vertShaderModule);
 	}
 
 	/* ------ FRAGMENT POSITION  ------ */
@@ -682,8 +686,8 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/FragmentPosition/frag.spv"));
 
 		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule(vertShaderCode);
-		auto fragShaderModule = CreateShaderModule(fragShaderCode);
+		auto vertShaderModule = CreateShaderModule("frag_pos_vert", vertShaderCode);
+		auto fragShaderModule = CreateShaderModule("frag_pos_frag", fragShaderCode);
 
 		/* Info for shader stages */
 		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -716,8 +720,8 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			renderpass, 0, 
 			fragmentposition[renderpass].pipelines, fragmentposition[renderpass].pipelineLayout);
 
-		device.destroyShaderModule(fragShaderModule);
-		device.destroyShaderModule(vertShaderModule);
+		// device.destroyShaderModule(fragShaderModule);
+		// device.destroyShaderModule(vertShaderModule);
 	}
 
 	/* ------ VR MASK ------ */
@@ -728,7 +732,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/VRMask/vert.spv"));
 
 		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule(vertShaderCode);
+		auto vertShaderModule = CreateShaderModule("vr_mask", vertShaderCode);
 
 		/* Info for shader stages */
 		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -752,7 +756,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			renderpass, 0, 
 			vrmask[renderpass].pipelines, vrmask[renderpass].pipelineLayout);
 
-		device.destroyShaderModule(vertShaderModule);
+		// device.destroyShaderModule(vertShaderModule);
 	}
 
 	if (!vulkan->is_ray_tracing_enabled()) return;
@@ -766,7 +770,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		auto raygenShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracedMaterials/TutorialShaders/rgen.spv"));
 		
 		/* Create shader modules */
-		auto raygenShaderModule = CreateShaderModule(raygenShaderCode);
+		auto raygenShaderModule = CreateShaderModule("ray_tracing", raygenShaderCode);
 
 		/* Info for shader stages */
 		vk::PipelineShaderStageCreateInfo raygenShaderStageInfo;
@@ -806,7 +810,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		rttest[renderpass].pipeline = device.createRayTracingPipelinesNV(vk::PipelineCache(), 
 			{rayPipelineInfo}, nullptr, dldi)[0];
 
-		device.destroyShaderModule(raygenShaderModule);
+		// device.destroyShaderModule(raygenShaderModule);
 	}
 
 	SetupRaytracingShaderBindingTable(renderpass);
@@ -1662,6 +1666,10 @@ void Material::CleanUp()
 	componentDescriptorPool = vk::DescriptorPool();
 	textureDescriptorSetLayout = vk::DescriptorSetLayout();
 	textureDescriptorPool = vk::DescriptorPool();
+
+	for (auto item : shaderModuleCache) {
+		device.destroyShaderModule(item.second);
+	}
 
 	Initialized = false;
 }	
