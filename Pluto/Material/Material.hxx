@@ -100,7 +100,7 @@ class Material : public StaticFactory
         static void UpdateRasterDescriptorSets();
 
         /* EXPLAIN THIS */
-        static void UpdateRaytracingDescriptorSets();
+        static void UpdateRaytracingDescriptorSets(vk::AccelerationStructureNV &tlas, Entity &camera_entity);
 
         /* Returns the SSBO vulkan buffer handle */
         static vk::Buffer GetSSBO();
@@ -114,6 +114,8 @@ class Material : public StaticFactory
         /* Records a bind of all descriptor sets to each possible pipeline to the given command buffer. Call this at the beginning of a renderpass. */
         static void BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
 
+        static void BindRayTracingDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
+        
         /* Records a draw of the supplied entity to the current command buffer. Call this during a renderpass. */
         static void DrawEntity(
             vk::CommandBuffer &command_buffer, 
@@ -124,6 +126,12 @@ class Material : public StaticFactory
             PipelineType pipeline_type_override = PipelineType::PIPELINE_TYPE_NORMAL,
             bool render_bounding_box_override = false
         ); // int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time
+
+        static void TraceRays(
+            vk::CommandBuffer &command_buffer, 
+            vk::RenderPass &render_pass, 
+            PushConsts &push_constants,
+            Texture &texture);
 
         /* TODO... */
         static void ResetBoundMaterial();
@@ -270,6 +278,9 @@ class Material : public StaticFactory
 
         /* The descriptor set containing references to all array of textues to be used as uniforms. */
         static vk::DescriptorSet textureDescriptorSet;
+
+        /* The descriptor set containing references to acceleration structures and textures to trace onto. */
+        static vk::DescriptorSet raytracingDescriptorSet;
         
         /* The pipeline resources for each of the possible material types */
         static std::map<vk::RenderPass, RasterPipelineResources> uniformColor;
@@ -303,11 +314,8 @@ class Material : public StaticFactory
             vk::PipelineLayout &layout 
         );
 
-        /* Creates all possible rasterized descriptor set layout combinations */
-        static void CreateRasterDescriptorSetLayouts();
-
-        /* Creates all possible raytraced descriptor set layout combinations */
-        static void CreateRaytracingDescriptorSetLayouts();
+        /* Creates all possible descriptor set layout combinations */
+        static void CreateDescriptorSetLayouts();
 
         /* Creates the descriptor pool where the descriptor sets will be allocated from. */
         static void CreateDescriptorPools();

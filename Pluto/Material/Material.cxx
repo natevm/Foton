@@ -31,6 +31,7 @@ std::vector<vk::VertexInputBindingDescription> Material::vertexInputBindingDescr
 std::vector<vk::VertexInputAttributeDescription> Material::vertexInputAttributeDescriptions;
 vk::DescriptorSet Material::componentDescriptorSet;
 vk::DescriptorSet Material::textureDescriptorSet;
+vk::DescriptorSet Material::raytracingDescriptorSet;
 std::mutex Material::creation_mutex;
 bool Material::Initialized = false;
 
@@ -745,7 +746,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		vrmask[renderpass].pipelineParameters.depthStencil.depthWriteEnable = true;
 		vrmask[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
 		vrmask[renderpass].pipelineParameters.rasterizer.cullMode = vk::CullModeFlagBits::eNone;
-
+		
 		CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
 			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			vrmask[renderpass].pipelineParameters, 
@@ -762,6 +763,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 	{
 		rttest[renderpass] = RaytracingPipelineResources();
 
+		/* RAY GEN SHADERS */
 		std::string ResourcePath = Options::GetResourcePath();
 		auto raygenShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracedMaterials/TutorialShaders/rgen.spv"));
 		
@@ -776,12 +778,19 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 
 		std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { raygenShaderStageInfo };
 		
-		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
-		pipelineLayoutCreateInfo.setLayoutCount = 1;
-		pipelineLayoutCreateInfo.pSetLayouts = &raytracingDescriptorSetLayout;
-		pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
-		pipelineLayoutCreateInfo.pPushConstantRanges = nullptr;
+		vk::PushConstantRange range;
+		range.offset = 0;
+		range.size = sizeof(PushConsts);
+		range.stageFlags = vk::ShaderStageFlagBits::eAll;
 
+		std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, raytracingDescriptorSetLayout };
+		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+
+		pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)layouts.size();
+		pipelineLayoutCreateInfo.pSetLayouts = layouts.data();
+		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+		pipelineLayoutCreateInfo.pPushConstantRanges = &range;
+		
 		rttest[renderpass].pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
 
 		std::vector<vk::RayTracingShaderGroupCreateInfoNV> shaderGroups;
@@ -860,15 +869,13 @@ void Material::Initialize()
 {
 	if (IsInitialized()) return;
 
-	Material::CreateRasterDescriptorSetLayouts();
-	Material::CreateRaytracingDescriptorSetLayouts();
+	Material::CreateDescriptorSetLayouts();
 	Material::CreateDescriptorPools();
 	Material::CreateVertexInputBindingDescriptions();
 	Material::CreateVertexAttributeDescriptions();
 	Material::CreateSSBO();
 	Material::UpdateRasterDescriptorSets();
-	Material::UpdateRaytracingDescriptorSets();
-
+	
 	Initialized = true;
 }
 
@@ -877,7 +884,7 @@ bool Material::IsInitialized()
 	return Initialized;
 }
 
-void Material::CreateRasterDescriptorSetLayouts()
+void Material::CreateDescriptorSetLayouts()
 {
 	/* Descriptor set layouts are standardized across shaders for optimized runtime binding */
 
@@ -989,36 +996,30 @@ void Material::CreateRasterDescriptorSetLayouts()
 	// Create the layouts
 	componentDescriptorSetLayout = device.createDescriptorSetLayout(SSBOLayoutInfo);
 	textureDescriptorSetLayout = device.createDescriptorSetLayout(textureLayoutInfo);
-}
 
-void Material::CreateRaytracingDescriptorSetLayouts()
-{
-	auto vulkan = Libraries::Vulkan::Get();
-	auto device = vulkan->get_device();
+	if (vulkan->is_ray_tracing_enabled()) {
+		vk::DescriptorSetLayoutBinding accelerationStructureLayoutBinding;
+		accelerationStructureLayoutBinding.binding = 0;
+		accelerationStructureLayoutBinding.descriptorType = vk::DescriptorType::eAccelerationStructureNV;
+		accelerationStructureLayoutBinding.descriptorCount = 1;
+		accelerationStructureLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV;
+		accelerationStructureLayoutBinding.pImmutableSamplers = nullptr;
 
-	if (!vulkan->is_ray_tracing_enabled()) return;
+		vk::DescriptorSetLayoutBinding outputImageLayoutBinding;
+		outputImageLayoutBinding.binding = 1;
+		outputImageLayoutBinding.descriptorType = vk::DescriptorType::eStorageImage;
+		outputImageLayoutBinding.descriptorCount = 1;
+		outputImageLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV;
+		outputImageLayoutBinding.pImmutableSamplers = nullptr;
 
-	vk::DescriptorSetLayoutBinding accelerationStructureLayoutBinding;
-	accelerationStructureLayoutBinding.binding = 0;
-	accelerationStructureLayoutBinding.descriptorType = vk::DescriptorType::eAccelerationStructureNV;
-	accelerationStructureLayoutBinding.descriptorCount = 1;
-	accelerationStructureLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV;
-	accelerationStructureLayoutBinding.pImmutableSamplers = nullptr;
+		std::vector<vk::DescriptorSetLayoutBinding> bindings({ accelerationStructureLayoutBinding, outputImageLayoutBinding });
 
-	vk::DescriptorSetLayoutBinding outputImageLayoutBinding;
-	outputImageLayoutBinding.binding = 1;
-	outputImageLayoutBinding.descriptorType = vk::DescriptorType::eStorageImage;
-	outputImageLayoutBinding.descriptorCount = 1;
-	outputImageLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV;
-	outputImageLayoutBinding.pImmutableSamplers = nullptr;
+		vk::DescriptorSetLayoutCreateInfo layoutInfo;
+		layoutInfo.bindingCount = (uint32_t)(bindings.size());
+		layoutInfo.pBindings = bindings.data();
 
-	std::vector<vk::DescriptorSetLayoutBinding> bindings({ accelerationStructureLayoutBinding, outputImageLayoutBinding });
-
-	vk::DescriptorSetLayoutCreateInfo layoutInfo;
-	layoutInfo.bindingCount = (uint32_t)(bindings.size());
-	layoutInfo.pBindings = bindings.data();
-
-	raytracingDescriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
+		raytracingDescriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
+	}
 }
 
 void Material::CreateDescriptorPools()
@@ -1327,9 +1328,56 @@ void Material::UpdateRasterDescriptorSets()
 	device.updateDescriptorSets((uint32_t)textureDescriptorWrites.size(), textureDescriptorWrites.data(), 0, nullptr);
 }
 
-void Material::UpdateRaytracingDescriptorSets()
+void Material::UpdateRaytracingDescriptorSets(vk::AccelerationStructureNV &tlas, Entity &camera_entity)
 {
-	// TODO
+	auto vulkan = Libraries::Vulkan::Get();
+	auto device = vulkan->get_device();
+
+	if (!vulkan->is_ray_tracing_enabled()) return;
+	if (tlas == vk::AccelerationStructureNV()) return;
+	if (!camera_entity.is_initialized()) return;
+	if (!camera_entity.camera()) return;
+	if (!camera_entity.camera()->get_texture()) return;
+	
+	vk::DescriptorSetLayout raytracingLayouts[] = { raytracingDescriptorSetLayout };
+
+	if (raytracingDescriptorSet == vk::DescriptorSet())
+	{
+		vk::DescriptorSetAllocateInfo allocInfo;
+		allocInfo.descriptorPool = raytracingDescriptorPool;
+		allocInfo.descriptorSetCount = 1;
+		allocInfo.pSetLayouts = raytracingLayouts;
+
+		raytracingDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
+	}
+
+	std::array<vk::WriteDescriptorSet, 2> raytraceDescriptorWrites = {};
+
+	vk::WriteDescriptorSetAccelerationStructureNV descriptorAccelerationStructureInfo;
+	descriptorAccelerationStructureInfo.accelerationStructureCount = 1;
+	descriptorAccelerationStructureInfo.pAccelerationStructures = &tlas;
+
+	raytraceDescriptorWrites[0].dstSet = raytracingDescriptorSet;
+	raytraceDescriptorWrites[0].pNext = &descriptorAccelerationStructureInfo;
+	raytraceDescriptorWrites[0].dstBinding = 0;
+	raytraceDescriptorWrites[0].dstArrayElement = 0;
+	raytraceDescriptorWrites[0].descriptorCount = 1;
+	raytraceDescriptorWrites[0].descriptorType = vk::DescriptorType::eAccelerationStructureNV;
+
+	// descriptorOutputImageInfo.imageView = ;
+	vk::DescriptorImageInfo descriptorOutputImageInfo;
+	descriptorOutputImageInfo.imageLayout = vk::ImageLayout::eGeneral;
+	descriptorOutputImageInfo.imageView = camera_entity.camera()->get_texture()->get_color_image_view();		
+
+	raytraceDescriptorWrites[1].dstSet = raytracingDescriptorSet;
+	raytraceDescriptorWrites[1].pNext = &descriptorAccelerationStructureInfo;
+	raytraceDescriptorWrites[1].dstBinding = 1;
+	raytraceDescriptorWrites[1].dstArrayElement = 0;
+	raytraceDescriptorWrites[1].descriptorCount = 1;
+	raytraceDescriptorWrites[1].descriptorType = vk::DescriptorType::eStorageImage;
+	raytraceDescriptorWrites[1].pImageInfo = &descriptorOutputImageInfo;
+
+	device.updateDescriptorSets((uint32_t)raytraceDescriptorWrites.size(), raytraceDescriptorWrites.data(), 0, nullptr);
 }
 
 void Material::CreateVertexInputBindingDescriptions() {
@@ -1394,6 +1442,12 @@ void Material::BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderP
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, skybox[render_pass].pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, depth[render_pass].pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, volume[render_pass].pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
+}
+
+void Material::BindRayTracingDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass)
+{
+	std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet, raytracingDescriptorSet};
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, rttest[render_pass].pipelineLayout, 0, 3, descriptorSets.data(), 0, nullptr);
 }
 
 void Material::DrawEntity(
@@ -1528,6 +1582,53 @@ void Material::DrawEntity(
 	command_buffer.bindIndexBuffer(m->get_triangle_index_buffer(), 0, vk::IndexType::eUint32);
 	command_buffer.drawIndexed(m->get_total_triangle_indices(), 1, 0, 0, 0);
 }
+
+void Material::TraceRays(
+	vk::CommandBuffer &command_buffer, 
+	vk::RenderPass &render_pass, 
+	PushConsts &push_constants,
+	Texture &texture)
+{
+	auto vulkan = Libraries::Vulkan::Get();
+    auto device = vulkan->get_device();
+    auto dldi = vulkan->get_dldi();
+
+	auto rayTracingProps = vulkan->get_physical_device_ray_tracing_properties();
+
+	command_buffer.pushConstants(rttest[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+	command_buffer.bindPipeline(vk::PipelineBindPoint::eRayTracingNV, rttest[render_pass].pipeline);
+
+	/* Need to make the camera's associated texture writable. Perhaps write 
+        to a separate "ray tracing" texture?
+        Depth buffer access would be handy as well...
+    */
+
+   // Here's how the shader binding table looks like in this tutorial:
+    // |[ raygen shader ]|
+    // |                 |
+    // | 0               | 1
+    command_buffer.traceRaysNV(
+    //     raygenShaderBindingTableBuffer, offset
+		rttest[render_pass].shaderBindingTable, 0,
+    //     missShaderBindingTableBuffer, offset, stride
+		rttest[render_pass].shaderBindingTable, 0, rayTracingProps.shaderGroupHandleSize,
+    //     hitShaderBindingTableBuffer, offset, stride
+		rttest[render_pass].shaderBindingTable, 0, rayTracingProps.shaderGroupHandleSize,
+    //     callableShaderBindingTableBuffer, offset, stride
+		vk::Buffer(), 0, 0,
+        // width, height, depth, 
+		texture.get_width(), texture.get_height(), 1,
+        dldi
+    );
+	
+    // vkCmdTraceRaysNVX(commandBuffer,
+    //     _shaderBindingTable.Buffer, 0,
+    //     _shaderBindingTable.Buffer, 0, _raytracingProperties.shaderHeaderSize,
+    //     _shaderBindingTable.Buffer, 0, _raytracingProperties.shaderHeaderSize,
+    //     _actualWindowWidth, _actualWindowHeight);
+		
+}
+            
 
 void Material::CreateSSBO() 
 {

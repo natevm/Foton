@@ -1029,7 +1029,7 @@ void Texture::loadKTX(std::string imagePath, bool submit_immediately)
 	imageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
 	imageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
 	imageCreateInfo.extent = vk::Extent3D{data.width, data.height, data.depth};
-	imageCreateInfo.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eSampled;
+	imageCreateInfo.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage;
 	if (data.viewType == vk::ImageViewType::eCube) {
 		imageCreateInfo.flags |= vk::ImageCreateFlagBits::eCubeCompatible;
 	}
@@ -1379,7 +1379,7 @@ void Texture::create_color_image_resources(bool submit_immediately, bool attachm
 	imageInfo.arrayLayers = data.layers;
 	imageInfo.samples = data.sampleCount;
 	imageInfo.tiling = vk::ImageTiling::eOptimal;
-	imageInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc;
+	imageInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eStorage;
 	imageInfo.initialLayout = data.colorImageLayout;
 	if (data.viewType == vk::ImageViewType::eCube)
 	{
@@ -1946,4 +1946,27 @@ void Texture::make_samplable(vk::CommandBuffer commandBuffer,
 			subresourceRange, srcStageMask, dstStageMask);
 	}
 	this->data.colorImageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+}
+
+void Texture::make_general(vk::CommandBuffer commandBuffer, 
+	vk::PipelineStageFlags srcStageMask,
+	vk::PipelineStageFlags dstStageMask)
+{
+	if (this->data.colorImageLayout != vk::ImageLayout::eGeneral) {
+		/* Transition destination image to transfer destination optimal */
+		vk::ImageSubresourceRange subresourceRange;
+		subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+		subresourceRange.baseMipLevel = 0;
+		subresourceRange.baseMipLevel = 0;
+		subresourceRange.levelCount = this->data.colorMipLevels;
+		subresourceRange.layerCount = this->data.layers;
+
+		setImageLayout(
+			commandBuffer,
+			this->data.colorImage,
+			this->data.colorImageLayout,
+			vk::ImageLayout::eGeneral,
+			subresourceRange, srcStageMask, dstStageMask);
+	}
+	this->data.colorImageLayout = vk::ImageLayout::eGeneral;
 }

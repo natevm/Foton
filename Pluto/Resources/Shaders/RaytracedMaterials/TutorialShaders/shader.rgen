@@ -1,15 +1,33 @@
 #version 460
 #extension GL_NV_ray_tracing : require
+#define RAYTRACING
 
-layout(binding = 0) uniform accelerationStructureNV topLevelAS;
-layout(binding = 1, rgba8) uniform image2D image;
-
-layout(location = 0) rayPayloadNV float hitValue;
+#include "Pluto/Resources/Shaders/Descriptors.hxx"
+// layout(binding = 1, rgba8) uniform image2D image;
 
 void main() 
 {
     const vec2 pixelCenter = vec2(gl_LaunchIDNV.xy) + vec2(0.5);
     const vec2 inUV = pixelCenter/vec2(gl_LaunchSizeNV.xy);
 
-    imageStore(image, ivec2(gl_LaunchIDNV.xy), vec4(inUV.x, inUV.y, 0.0, 0.0));
+    // EntityStruct camera_entity = ebo.entities[push.consts.camera_id];
+    // CameraStruct camera = cbo.cameras[camera_entity.camera_id];
+
+    // Note, ray gen shaders don't currently support multiview
+    // int viewIndex = push.consts.viewIndex;
+    // int texture_id = camera.multiviews[viewIndex].tex_id;
+    
+    // if ((texture_id < 0) || (texture_id >= MAX_TEXTURES)) return;
+    // TextureStruct tex = txbo.textures[texture_id];
+    // if (tex.type != 0) return;
+    // if ((tex.sampler_id < 0) || (tex.sampler_id >= MAX_SAMPLERS)) return;
+
+
+    // texture_2Ds[camera.multiviews[viewIndex].tex_id]
+
+    // texture2D test = texture_2Ds[texture_id];
+
+    // layout(rgba8) image2D test = layout(rgba8) texture_2Ds[texture_id];
+
+    imageStore(render_image, ivec2(gl_LaunchIDNV.xy), vec4(inUV.x, inUV.y, 0.0, 0.0));
 }

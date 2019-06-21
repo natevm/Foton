@@ -30,6 +30,11 @@ layout(set = 1, binding = 2) uniform texture2D texture_2Ds[MAX_TEXTURES];
 layout(set = 1, binding = 3) uniform textureCube texture_cubes[MAX_TEXTURES];
 layout(set = 1, binding = 4) uniform texture3D texture_3Ds[MAX_TEXTURES];
 
+#ifdef RAYTRACING
+layout(set = 2, binding = 0) uniform accelerationStructureNV topLevelAS;
+layout(set = 2, binding = 1, rgba16f) uniform image2D render_image;
+#endif
+
 /* Push Constants */
 layout(std430, push_constant) uniform PushConstants {
     PushConsts consts;

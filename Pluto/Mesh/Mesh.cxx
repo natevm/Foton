@@ -223,6 +223,11 @@ void Mesh::compute_metadata()
 		mesh_struct.bounding_sphere_radius = std::max(mesh_struct.bounding_sphere_radius, 
 			glm::distance(glm::vec4(positions[i].x, positions[i].y, positions[i].z, 0.0f), mesh_struct.center));
 	}
+	
+	auto vulkan = Libraries::Vulkan::Get();
+	if (vulkan->is_ray_tracing_enabled()) {
+		build_low_level_bvh();
+	}
 }
 
 void Mesh::save_tetrahedralization(float quality_bound, float maximum_volume)

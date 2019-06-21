@@ -262,7 +262,7 @@ void RenderSystem::record_depth_prepass(Entity &camera_entity, std::vector<std::
     }
 }
 
-void RenderSystem::record_final_renderpass(Entity &camera_entity, std::vector<std::vector<VisibleEntityInfo>> &visible_entities)
+void RenderSystem::record_raster_renderpass(Entity &camera_entity, std::vector<std::vector<VisibleEntityInfo>> &visible_entities)
 {
     auto camera = camera_entity.get_camera();
     if (!camera) throw std::runtime_error("Error, camera was null during recording of final renderpass");
@@ -335,6 +335,44 @@ void RenderSystem::record_final_renderpass(Entity &camera_entity, std::vector<st
             }
             camera->end_renderpass(command_buffer, rp_idx);
         }
+    }
+}
+
+void RenderSystem::record_ray_trace_pass(Entity &camera_entity, std::vector<std::vector<VisibleEntityInfo>> &visible_entities)
+{
+    auto vulkan = Vulkan::Get();
+    auto device = vulkan->get_device();
+    auto dldi = vulkan->get_dldi();
+
+    if (!vulkan->is_ray_tracing_enabled()) return;
+
+    build_top_level_bvh(true);
+        
+    auto camera = camera_entity.get_camera();
+    if (!camera) throw std::runtime_error("Error, camera was null in recording ray trace");
+    vk::CommandBuffer command_buffer = camera->get_command_buffer();
+    Texture * texture = camera->get_texture();
+
+    /* Camera needs a texture */
+    if (!texture) return;
+
+    texture->make_general(command_buffer);
+
+    for(uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
+        Material::ResetBoundMaterial();
+
+        /* Get the renderpass for the current camera */
+        vk::RenderPass rp = camera->get_renderpass(rp_idx);
+        
+        Material::UpdateRaytracingDescriptorSets(topAS, camera_entity);
+        Material::BindRayTracingDescriptorSets(command_buffer, rp);
+
+        push_constants.target_id = -1;
+        push_constants.camera_id = camera_entity.get_id();
+        push_constants.viewIndex = rp_idx;
+        push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
+        
+        Material::TraceRays(command_buffer, rp, push_constants, *texture);
     }
 }
 
@@ -426,7 +464,9 @@ void RenderSystem::record_cameras()
 
         record_depth_prepass(entities[entity_id], visible_entities);
 
-        record_final_renderpass(entities[entity_id], visible_entities);
+        record_raster_renderpass(entities[entity_id], visible_entities);
+
+        record_ray_trace_pass(entities[entity_id], visible_entities);
 
         record_blit_camera(entities[entity_id], window_to_cam);
 
@@ -487,7 +527,6 @@ void RenderSystem::record_render_commands()
 	vulkan->end_one_time_graphics_command_immediately(upload_command, "Upload SSBO Data", true);
 
     Material::UpdateRasterDescriptorSets();
-    Material::UpdateRaytracingDescriptorSets();
     
     if (update_push_constants() == true) {
         record_cameras();
@@ -1034,6 +1073,7 @@ void RenderSystem::build_top_level_bvh(bool submit_immediately)
             || (!entities[i].material())
             || (!entities[i].mesh()->get_low_level_bvh()))
         {
+
             instance.instanceId = i;
             instance.mask = 0; // means this instance can't be hit.
             instance.instanceOffset = 0;
