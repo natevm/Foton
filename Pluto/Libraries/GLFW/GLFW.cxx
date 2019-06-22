@@ -521,13 +521,13 @@ namespace Libraries {
             window.imageAvailableSemaphores.push_back(device.createSemaphore(semaphoreInfo));
 
             Texture::Data data = {};
-            data.colorFormat = window.surfaceFormat.format;
-            data.colorImage = window.swapchainColorImages[i];
-            data.colorImageLayout = vk::ImageLayout::ePresentSrcKHR;
+            data.colorBuffer.format = window.surfaceFormat.format;
+            data.colorBuffer.image = window.swapchainColorImages[i];
+            data.colorBuffer.imageLayout = vk::ImageLayout::ePresentSrcKHR;
             data.width = window.surfaceExtent.width;
             data.height = window.surfaceExtent.height;
             data.depth = 1;
-            data.colorMipLevels = 1;
+            data.colorBuffer.mipLevels = 1;
             data.layers = 1;
             data.viewType = vk::ImageViewType::e2D;
             data.imageType = vk::ImageType::e2D;
@@ -546,7 +546,7 @@ namespace Libraries {
             subresourceRange.layerCount = 1;
 
             vk::CommandBuffer cmdBuffer = vulkan->begin_one_time_graphics_command();
-            window.textures[i]->setImageLayout( cmdBuffer, data.colorImage, vk::ImageLayout::eUndefined, vk::ImageLayout::ePresentSrcKHR, subresourceRange);
+            window.textures[i]->setImageLayout( cmdBuffer, data.colorBuffer.image, vk::ImageLayout::eUndefined, vk::ImageLayout::ePresentSrcKHR, subresourceRange);
             auto fut = vulkan->end_one_time_graphics_command(cmdBuffer, "Transition swapchain image", true);
         }
         

@@ -52,13 +52,14 @@ void Camera::setup(uint32_t tex_width, uint32_t tex_height, uint32_t msaa_sample
 	this->msaa_samples = msaa_samples;
 	
 	if (max_views == 6) {
-		renderTexture = Texture::CreateCubemap(name, tex_width, tex_height, true, true);
-		// TODO: Enable MSAA for cubemaps
+		renderTexture = Texture::CreateCubemapGBuffers(name, tex_width, tex_height, msaa_samples);
+		if (msaa_samples != 1)
+			resolveTexture = Texture::CreateCubemapGBuffers(name, tex_width, tex_height, 1);
 	}
 	else {
-		renderTexture = Texture::Create2D(name, tex_width, tex_height, true, true, msaa_samples, max_views);
+		renderTexture = Texture::Create2DGBuffers(name, tex_width, tex_height, msaa_samples, max_views);
 		if (msaa_samples != 1)
-			resolveTexture = Texture::Create2D(name + "_resolve", tex_width, tex_height, true, true, 1, max_views);
+			resolveTexture = Texture::Create2DGBuffers(name + "_resolve", tex_width, tex_height, 1, max_views);
 	}
 
 	for (uint32_t i = 0; i < max_views; ++i) {

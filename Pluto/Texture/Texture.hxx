@@ -16,18 +16,33 @@ class Texture : public StaticFactory
 	public:
 		/* This is public so that external libraries can easily create 
 			textures while still conforming to the component interface */
+		struct ImageData {
+			vk::Image image;
+			vk::Format format;
+			vk::DeviceMemory imageMemory;
+			vk::ImageView imageView;
+			std::vector<vk::ImageView> imageViewLayers;
+			vk::ImageLayout imageLayout;
+			uint32_t mipLevels = 1;
+			uint32_t samplerId = 0;
+		};
+
 		struct Data
 		{
-			vk::Image colorImage, depthImage;
-			vk::Format colorFormat, depthFormat;
-			vk::DeviceMemory colorImageMemory, depthImageMemory;
-            vk::ImageView colorImageView, depthImageView;
-            std::vector<vk::ImageView> colorImageViewLayers, depthImageViewLayers;
-			vk::ImageLayout colorImageLayout, depthImageLayout;
-			uint32_t width = 1, height = 1, depth = 1, colorMipLevels = 1, layers = 1;
+			ImageData colorBuffer;
+			ImageData depthBuffer;
+			ImageData normalBuffer;
+			ImageData positionBuffer;
+
+			// vk::Image colorImage, depthImage, normalImage, positionImage;
+			// vk::Format colorFormat, depthFormat, normalFormat, positionFormat;
+			// vk::DeviceMemory colorImageMemory, depthImageMemory, normalImageMemory, depthImageMemory;
+            // vk::ImageView colorImageView, depthImageView, normalImageView, positionImageView;
+            // std::vector<vk::ImageView> colorImageViewLayers, depthImageViewLayers;
+			// vk::ImageLayout colorImageLayout, depthImageLayout, normalImageLayout, positionImageLayout;
+			uint32_t width = 1, height = 1, depth = 1, layers = 1;
 			vk::ImageViewType viewType;
 			vk::ImageType imageType;
-			uint32_t colorSamplerId = 0; uint32_t depthSamplerId = 0;
 			vk::SampleCountFlagBits sampleCount = vk::SampleCountFlagBits::e1;
 			std::vector<vk::Image> additionalColorImages;
 		};
@@ -49,8 +64,14 @@ class Texture : public StaticFactory
 		/* Creates a cubemap texture of a given width and height, and with color and/or depth resources. */
 		static Texture *CreateCubemap(std::string name, uint32_t width, uint32_t height, bool hasColor, bool hasDepth, bool submit_immediately = false);
 
+		/* Creates a cubemap texture of a given width and height, and with several G buffer a depth buffer resources */
+		static Texture *CreateCubemapGBuffers(std::string name, uint32_t width, uint32_t height, uint32_t sampleCount, bool submit_immediately = false);
+
 		/* Creates a 2d texture of a given width and height, consisting of possibly several layers, and with color and/or depth resources. */
 		static Texture *Create2D(std::string name, uint32_t width, uint32_t height, bool hasColor, bool hasDepth, uint32_t sampleCount, uint32_t layers, bool submit_immediately = false);
+
+		/* Creates a 2d texture of a given width and height, consisting of possibly several layers, and with several G buffer a depth buffer resources */
+		static Texture* Create2DGBuffers(std::string name, uint32_t width, uint32_t height, uint32_t sampleCount, uint32_t layers, bool submit_immediately = false);
 
 		/* Creates a 3d texture of a given width, height, and depth consisting of possibly several layers. */
 		static Texture *Create3D(std::string name, uint32_t width, uint32_t height, uint32_t depth, uint32_t layers, bool submit_immediately = false);
@@ -230,6 +251,12 @@ class Texture : public StaticFactory
 
 		/* Allocates vulkan resources required for a colored image */
 		void create_color_image_resources(bool submit_immediately = false, bool attachment_optimal = true);
+
+		/* Allocates vulkan resources required for a normal image */
+		void create_normal_image_resources(bool submit_immediately = false, bool attachment_optimal = true);
+
+		/* Allocates vulkan resources required for a position image */
+		void create_position_image_resources(bool submit_immediately = false, bool attachment_optimal = true);
 
 		/* Allocates vulkan resources required for a depth/stencil image */
 		void create_depth_stencil_resources(bool submit_immediately = false);
