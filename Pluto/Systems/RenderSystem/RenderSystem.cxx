@@ -466,7 +466,7 @@ void RenderSystem::record_cameras()
 
         record_raster_renderpass(entities[entity_id], visible_entities);
 
-        record_ray_trace_pass(entities[entity_id], visible_entities);
+        //record_ray_trace_pass(entities[entity_id], visible_entities);
 
         record_blit_camera(entities[entity_id], window_to_cam);
 
