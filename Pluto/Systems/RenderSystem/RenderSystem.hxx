@@ -6,6 +6,8 @@
 
 #include "Pluto/Material/PushConstants.hxx"
 
+#include <stack>
+
 class Entity;
 class Texture;
 struct VisibleEntityInfo;
@@ -18,8 +20,7 @@ namespace Systems
             bool initialize();
             bool start();
             bool stop();
-            void *socket;
-            std::string ip;
+
             void set_gamma(float gamma);
             void set_exposure(float exposure);
 
@@ -45,56 +46,117 @@ namespace Systems
             void use_openvr(bool useOpenVR);
             void use_openvr_hidden_area_masks(bool use_masks);
         private:
-            PushConsts push_constants;            
-
+            PushConsts push_constants;
             bool using_openvr = false;
             bool using_vr_hidden_area_masks = true;
-            void *zmq_context;
-            
-
-            // glm::vec3 top_sky_color;
-            // glm::vec3 bottom_sky_color;
-            // float sky_transition;
 
             double lastTime, currentTime;
 
             struct ComputeNode
             {
+                vk::CommandBuffer command_buffer;
+                vk::Fence fence = vk::Fence();
+
                 std::vector<std::shared_ptr<ComputeNode>> dependencies;
                 std::vector<std::shared_ptr<ComputeNode>> children;
                 std::vector<std::string> connected_windows;
                 std::vector<vk::Semaphore> signal_semaphores;
                 std::vector<vk::Semaphore> window_signal_semaphores;
-                std::vector<vk::CommandBuffer> command_buffers;
-                vk::Fence fence = vk::Fence();
                 uint32_t level;
                 uint32_t queue_idx;
             };
 
             std::vector<std::vector<std::shared_ptr<ComputeNode>>> compute_graph;
 
-            struct Bucket
+            std::vector<std::stack<vk::Semaphore>> availableSemaphores;
+            std::vector<std::stack<vk::Semaphore>> usedSemaphores;
+            std::vector<std::stack<vk::Fence>> availableFences;
+            std::vector<std::stack<vk::Fence>> usedFences;
+
+            void initializeSemaphorePools() 
             {
-                int x, y, width, height;
-                float data[4 * 16 * 16];
-            };
+                while (availableSemaphores.size() <= currentFrame) {
+                    availableSemaphores.push_back(std::stack<vk::Semaphore>());
+                }
+                while (usedSemaphores.size() <= currentFrame) {
+                    usedSemaphores.push_back(std::stack<vk::Semaphore>());
+                }
+            }
+
+            void initializeFencePools() 
+            {
+                while (availableFences.size() <= currentFrame) {
+                    availableFences.push_back(std::stack<vk::Fence>());
+                }
+                while (usedFences.size() <= currentFrame) {
+                    usedFences.push_back(std::stack<vk::Fence>());
+                }
+            }
+
+            void semaphoresSubmitted()
+            {
+                initializeSemaphorePools();
+                while (!usedSemaphores[currentFrame].empty()) {
+                    vk::Semaphore semaphore = usedSemaphores[currentFrame].top();
+                    usedSemaphores[currentFrame].pop();
+                    availableSemaphores[currentFrame].push(semaphore);
+                }
+            }
+
+            void fencesSubmitted()
+            {
+                initializeFencePools();
+                while (!usedFences[currentFrame].empty()) {
+                    vk::Fence fence = usedFences[currentFrame].top();
+                    usedFences[currentFrame].pop();
+                    availableFences[currentFrame].push(fence);
+                }
+            }
+
+            vk::Semaphore get_semaphore() {
+                initializeSemaphorePools();
+                if (!availableSemaphores[currentFrame].empty()) {
+                    vk::Semaphore semaphore = availableSemaphores[currentFrame].top();
+                    availableSemaphores[currentFrame].pop();
+                    usedSemaphores[currentFrame].push(semaphore);
+                    return semaphore;
+                }
+
+                vk::SemaphoreCreateInfo semaphoreInfo;
+                auto vulkan = Libraries::Vulkan::Get(); auto device = vulkan->get_device();
+                vk::Semaphore semaphore = device.createSemaphore(semaphoreInfo);
+                usedSemaphores[currentFrame].push(semaphore);
+                return semaphore;
+            }
+
+            vk::Fence get_fence() {
+                auto vulkan = Libraries::Vulkan::Get(); auto device = vulkan->get_device();
+                initializeFencePools();
+                if (!availableFences[currentFrame].empty()) {
+                    vk::Fence fence = availableFences[currentFrame].top();
+                    availableFences[currentFrame].pop();
+                    usedFences[currentFrame].push(fence);
+                    device.resetFences({fence});
+                    return fence;
+                }
+
+                vk::FenceCreateInfo fenceInfo;
+                vk::Fence fence = device.createFence(fenceInfo);
+                usedFences[currentFrame].push(fence);
+                return fence;
+            }
+
             bool vulkan_resources_created = false;
 
             uint32_t currentFrame = 0;
             
             vk::CommandBuffer main_command_buffer;
-            // std::vector<vk::Semaphore> main_command_buffer_semaphores;
-            // vk::Fence main_fence;
             bool main_command_buffer_recorded = false;
             bool main_command_buffer_presenting = false;
-            // bool final_renderpass_semaphore_signalled = false;
-
-            // std::vector<vk::Fence> maincmd_fences;
 
             std::vector<vk::Semaphore> final_renderpass_semaphores;
             std::vector<vk::Fence> final_fences;
             uint32_t max_frames_in_flight = 2;
-            // uint32_t max_renderpass_semaphore_sets = 2;
 
             bool update_push_constants();
             void record_render_commands();
