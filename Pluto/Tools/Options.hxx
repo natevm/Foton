@@ -13,9 +13,6 @@ namespace Options
     std::string GetResourcePath();
     std::string GetConnectionFile();
     std::string GetMainModule();
-    bool IsServer();
-    bool IsClient();
-    std::string GetIP();
     bool IsIPyKernel();
     bool IsMainModuleSet();
     int GetRequestedDevice();

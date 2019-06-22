@@ -17,11 +17,8 @@ std::string ConnectionFile = "";
 std::string PythonArgs = "";
 
 bool ipykernelEnabled = false;
-bool isClient = false;
-bool isServer = false;
 bool isIPyKernel = false;
 bool isMainModuleSet = false;
-std::string ip = "";
 
 int requestedDevice = -1;
 
@@ -37,20 +34,6 @@ bool ProcessArg(int &i, char **argv)
         std::cout<<"Activating ipykernel mode. Connection file is "<< ConnectionFile <<std::endl;
         ++i;
         isIPyKernel = true;
-    }
-    else if $("-server") {
-        ++i;
-        isServer = true;
-        ip = std::string(argv[i]);
-        ++i;
-        std::cout<<"Activating server mode. " <<std::endl;
-    }
-    else if $("-client") {
-        ++i;
-        isClient = true;
-        ip = std::string(argv[i]);
-        ++i;
-        std::cout<<"Activating client mode. " <<std::endl;
     }
     else if $("-device") {
         ++i;
@@ -116,16 +99,6 @@ std::string GetMainModule() {
     return MainModule;
 }
 
-bool IsServer()
-{
-    return isServer;
-}
-
-bool IsClient() 
-{
-    return isClient;
-}
-
 bool IsMainModuleSet() 
 {
     return isMainModuleSet;
@@ -145,10 +118,6 @@ std::string GetConnectionFile()
 int GetRequestedDevice()
 {
     return requestedDevice;
-}
-
-std::string GetIP() {
-    return ip;
 }
 
 } // namespace Options

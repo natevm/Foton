@@ -177,7 +177,7 @@ void RenderSystem::record_depth_prepass(Entity &camera_entity, std::vector<std::
     /* Record Z prepasses / Occlusion query  */
     camera->reset_query_pool(command_buffer);
 
-    if ((!Options::IsClient()) && (camera->should_record_depth_prepass())) {
+    if (camera->should_record_depth_prepass()) {
         for(uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
             Material::ResetBoundMaterial();
             
@@ -269,72 +269,69 @@ void RenderSystem::record_raster_renderpass(Entity &camera_entity, std::vector<s
 
     vk::CommandBuffer command_buffer = camera->get_command_buffer();
 
-    if (!Options::IsClient()) {
-        /* If we're the client, we recieve color data from "stream_frames". Only render a scene if not the client. */
-        for(uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
-            Material::ResetBoundMaterial();
+    for(uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
+        Material::ResetBoundMaterial();
 
-            /* Get the renderpass for the current camera */
-            vk::RenderPass rp = camera->get_renderpass(rp_idx);
+        /* Get the renderpass for the current camera */
+        vk::RenderPass rp = camera->get_renderpass(rp_idx);
 
-            /* Bind all descriptor sets to that renderpass.
-                Note that we're using a single bind. The same descriptors are shared across pipelines. */
-            Material::BindDescriptorSets(command_buffer, rp);
-            
-            camera->begin_renderpass(command_buffer, rp_idx);
+        /* Bind all descriptor sets to that renderpass.
+            Note that we're using a single bind. The same descriptors are shared across pipelines. */
+        Material::BindDescriptorSets(command_buffer, rp);
+        
+        camera->begin_renderpass(command_buffer, rp_idx);
 
-            /* Render visibility masks */
-            if (using_openvr && using_vr_hidden_area_masks && !(camera->should_record_depth_prepass()))
-            {
-                auto ovr = Libraries::OpenVR::Get();
+        /* Render visibility masks */
+        if (using_openvr && using_vr_hidden_area_masks && !(camera->should_record_depth_prepass()))
+        {
+            auto ovr = Libraries::OpenVR::Get();
 
-                if (camera == ovr->get_connected_camera()) {
-                    Entity* mask_entity;
-                    if (rp_idx == 0) mask_entity = ovr->get_left_eye_hidden_area_entity();
-                    else mask_entity = ovr->get_right_eye_hidden_area_entity();
-                    // Push constants
-                    push_constants.target_id = mask_entity->get_id();
-                    push_constants.camera_id = camera_entity.get_id();
-                    push_constants.viewIndex = rp_idx;
-                    push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
-                    Material::DrawEntity(command_buffer, rp, *mask_entity, push_constants, RenderMode::RENDER_MODE_VRMASK);
-                }
+            if (camera == ovr->get_connected_camera()) {
+                Entity* mask_entity;
+                if (rp_idx == 0) mask_entity = ovr->get_left_eye_hidden_area_entity();
+                else mask_entity = ovr->get_right_eye_hidden_area_entity();
+                // Push constants
+                push_constants.target_id = mask_entity->get_id();
+                push_constants.camera_id = camera_entity.get_id();
+                push_constants.viewIndex = rp_idx;
+                push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
+                Material::DrawEntity(command_buffer, rp, *mask_entity, push_constants, RenderMode::RENDER_MODE_VRMASK);
             }
-
-            /* Render all opaque objects */
-            for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i) {
-                /* An object must be opaque, have a transform, a mesh, and a material to be rendered. */
-                if (!visible_entities[rp_idx][i].visible || visible_entities[rp_idx][i].distance > camera->get_max_visible_distance()) continue;
-                if (visible_entities[rp_idx][i].entity->material()->contains_transparency()) continue;
-
-                auto target_id = visible_entities[rp_idx][i].entity_index;
-                if (camera->is_entity_visible(rp_idx, target_id) || (!camera->should_record_depth_prepass())) {
-                    push_constants.target_id = target_id;
-                    push_constants.camera_id = camera_entity.get_id();
-                    push_constants.viewIndex = rp_idx;
-                    push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
-                    Material::DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].entity, push_constants, camera->get_rendermode_override());
-                }
-            }
-            
-            /* Draw transparent objects last */
-            for (int32_t i = (int32_t)visible_entities[rp_idx].size() - 1; i >= 0; --i)
-            {
-                if (!visible_entities[rp_idx][i].visible || visible_entities[rp_idx][i].distance > camera->get_max_visible_distance()) continue;
-                if (!visible_entities[rp_idx][i].entity->material()->contains_transparency()) continue;
-
-                auto target_id = visible_entities[rp_idx][i].entity_index;
-                if (camera->is_entity_visible(rp_idx, target_id) || (!camera->should_record_depth_prepass())) {
-                    push_constants.target_id = target_id;
-                    push_constants.camera_id = camera_entity.get_id();
-                    push_constants.viewIndex = rp_idx;
-                    push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
-                    Material::DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].entity, push_constants, 
-                        camera->get_rendermode_override(), PipelineType::PIPELINE_TYPE_DEPTH_TEST_GREATER);
-                }
-            }
-            camera->end_renderpass(command_buffer, rp_idx);
         }
+
+        /* Render all opaque objects */
+        for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i) {
+            /* An object must be opaque, have a transform, a mesh, and a material to be rendered. */
+            if (!visible_entities[rp_idx][i].visible || visible_entities[rp_idx][i].distance > camera->get_max_visible_distance()) continue;
+            if (visible_entities[rp_idx][i].entity->material()->contains_transparency()) continue;
+
+            auto target_id = visible_entities[rp_idx][i].entity_index;
+            if (camera->is_entity_visible(rp_idx, target_id) || (!camera->should_record_depth_prepass())) {
+                push_constants.target_id = target_id;
+                push_constants.camera_id = camera_entity.get_id();
+                push_constants.viewIndex = rp_idx;
+                push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
+                Material::DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].entity, push_constants, camera->get_rendermode_override());
+            }
+        }
+        
+        /* Draw transparent objects last */
+        for (int32_t i = (int32_t)visible_entities[rp_idx].size() - 1; i >= 0; --i)
+        {
+            if (!visible_entities[rp_idx][i].visible || visible_entities[rp_idx][i].distance > camera->get_max_visible_distance()) continue;
+            if (!visible_entities[rp_idx][i].entity->material()->contains_transparency()) continue;
+
+            auto target_id = visible_entities[rp_idx][i].entity_index;
+            if (camera->is_entity_visible(rp_idx, target_id) || (!camera->should_record_depth_prepass())) {
+                push_constants.target_id = target_id;
+                push_constants.camera_id = camera_entity.get_id();
+                push_constants.viewIndex = rp_idx;
+                push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
+                Material::DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].entity, push_constants, 
+                    camera->get_rendermode_override(), PipelineType::PIPELINE_TYPE_DEPTH_TEST_GREATER);
+            }
+        }
+        camera->end_renderpass(command_buffer, rp_idx);
     }
 }
 
@@ -1272,12 +1269,6 @@ bool RenderSystem::stop()
 
     exitSignal.set_value();
     eventThread.join();
-
-    if (Options::IsServer() || Options::IsClient())
-    {
-        //zmq_close(socket);
-        //zmq_ctx_destroy(zmq_context);
-    }
 
     running = false;
     return true;
