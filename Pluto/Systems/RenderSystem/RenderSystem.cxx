@@ -318,7 +318,7 @@ void RenderSystem::record_raster_renderpass(Entity &camera_entity, std::vector<s
             }
             
             /* Draw transparent objects last */
-            for (int32_t i = visible_entities[rp_idx].size() - 1; i >= 0; --i)
+            for (int32_t i = (int32_t)visible_entities[rp_idx].size() - 1; i >= 0; --i)
             {
                 if (!visible_entities[rp_idx][i].visible || visible_entities[rp_idx][i].distance > camera->get_max_visible_distance()) continue;
                 if (!visible_entities[rp_idx][i].entity->material()->contains_transparency()) continue;
@@ -657,8 +657,7 @@ void RenderSystem::stream_frames()
 }
 
 void RenderSystem::enqueue_render_commands() {
-    auto vulkan = Vulkan::Get();
-    auto device = vulkan->get_device();
+    auto vulkan = Vulkan::Get(); auto device = vulkan->get_device();
     auto glfw = GLFW::Get();
 
     auto window_to_cam = glfw->get_window_to_camera_map();
@@ -667,8 +666,7 @@ void RenderSystem::enqueue_render_commands() {
     auto entities = Entity::GetFront();
     auto cameras = Camera::GetFront();
     
-    int32_t min_render_idx = Camera::GetMinRenderOrder();
-    int32_t max_render_idx = Camera::GetMaxRenderOrder();
+    std::vector<Vulkan::CommandQueueItem> command_queue;
 
     compute_graph.clear();
     final_fences.clear();
@@ -679,42 +677,32 @@ void RenderSystem::enqueue_render_commands() {
     std::vector<std::shared_ptr<ComputeNode>> current_level;
 
     uint32_t level_idx = 0;
-    for (int32_t rp_idx = min_render_idx; rp_idx <= max_render_idx; ++rp_idx)
+    for (int32_t rp_idx = Camera::GetMinRenderOrder(); rp_idx <= Camera::GetMaxRenderOrder(); ++rp_idx)
     {
         uint32_t queue_idx = 0;
         bool command_found = false;
         for (uint32_t e_id = 0; e_id < Entity::GetCount(); ++e_id) {
+            if ((!entities[e_id].is_initialized()) ||
+                (!entities[e_id].camera()) ||
+                (!entities[e_id].camera()->get_texture()) ||
+                (entities[e_id].camera()->get_render_order() != rp_idx)
+            ) continue;
 
-            /* Look for entities with valid command buffers */
-            if (!entities[e_id].is_initialized()) continue;
-
-            auto camera = entities[e_id].get_camera();
-            if (!camera) continue;
-
-            Texture * texture = camera->get_texture();
-            if (!texture) continue;
-
-            if (camera->get_render_order() != rp_idx) continue;
-            
-            /* If the entity is a shadow camera (TODO: REFACTOR THIS...) */
-            if (entities[e_id].get_light() != nullptr){
-                /* If that light should cast shadows */
-                auto light = entities[e_id].get_light();
-                if (!light->should_cast_shadows()) continue;
-                if (!light->should_cast_dynamic_shadows()) continue;
-            }
+            /* If the entity is a shadow camera and shouldn't cast shadows, skip it. (TODO: REFACTOR THIS...) */
+            if (entities[e_id].light() && 
+                ((!entities[e_id].light()->should_cast_shadows())
+                    || (!entities[e_id].light()->should_cast_dynamic_shadows()))) continue; 
 
             /* Make a compute node for this command buffer */
-        auto node = std::make_shared<ComputeNode>();
+            auto node = std::make_shared<ComputeNode>();
             node->level = level_idx;
             node->queue_idx = queue_idx;
-            node->command_buffers.push_back(camera->get_command_buffer());
+            node->command_buffer = entities[e_id].camera()->get_command_buffer();
 
             /* Add any connected windows to this node */
             for (auto w2c : window_to_cam) {
-                if ((w2c.second.first->get_id() == camera->get_id())) {
-                    auto swapchain = glfw->get_swapchain(w2c.first);
-                    if (!swapchain) continue;
+                if ((w2c.second.first->get_id() == entities[e_id].camera()->get_id())) {
+                    if (!glfw->get_swapchain(w2c.first)) continue;
                     auto swapchain_texture = glfw->get_texture(w2c.first);
                     if ( (!swapchain_texture) || (!swapchain_texture->is_initialized())) continue;
                     node->connected_windows.push_back(w2c.first);
@@ -749,7 +737,7 @@ void RenderSystem::enqueue_render_commands() {
         auto node = std::make_shared<ComputeNode>();
         node->level = level_idx;
         node->queue_idx = 0;
-        node->command_buffers.push_back(main_command_buffer);
+        node->command_buffer = main_command_buffer;
         if (main_command_buffer_presenting) {
             for (auto &w2t : window_to_tex) {
                 node->connected_windows.push_back(w2t.first);
@@ -760,34 +748,28 @@ void RenderSystem::enqueue_render_commands() {
 
     /* Create semaphores and fences for nodes in the graph */
     for (auto &level : compute_graph) {
-        vk::SemaphoreCreateInfo semaphoreInfo;
-        vk::FenceCreateInfo fenceInfo;
-
         for (auto &node : level) {
-
+            /* All internal nodes need to signal each child */
             for (uint32_t i = 0; i < node->children.size(); ++i) {
-                /* Create a signal semaphore for the child */
-                node->signal_semaphores.push_back(device.createSemaphore(semaphoreInfo));
+                node->signal_semaphores.push_back(get_semaphore());
             }
 
-            /* If the current node is connected to any windows, make signal semaphores for those windows */
+            /* If any windows are dependent on this node, signal those too. */
             for (auto &window_key : node->connected_windows) {
                 auto image_available = glfw->get_image_available_semaphore(window_key, currentFrame);
                 if (image_available != vk::Semaphore()) {
-                    auto swapchain = glfw->get_swapchain(window_key);
-                    if (!swapchain) continue;
-                    auto swapchain_texture = glfw->get_texture(window_key);
-                    if ( (!swapchain_texture) || (!swapchain_texture->is_initialized())) continue;
+                    if (!glfw->get_swapchain(window_key)) continue;
+                    if ((!glfw->get_texture(window_key)) || (!glfw->get_texture(window_key)->is_initialized())) continue;
                     
-                    auto render_complete = device.createSemaphore(semaphoreInfo);
+                    auto render_complete = get_semaphore();
                     node->window_signal_semaphores.push_back(render_complete);
                     final_renderpass_semaphores.push_back(render_complete);
                 }
             }
 
-            /* If the node has no children, make a fence */
+            /* If the node has no children, add a fence */
             if (node->children.size() == 0) {
-                node->fence = device.createFence(fenceInfo);
+                node->fence = get_fence();
                 final_fences.push_back(node->fence);
             }
         }
@@ -802,7 +784,7 @@ void RenderSystem::enqueue_render_commands() {
         std::set<vk::Semaphore> signal_semaphores_set;
         std::vector<vk::CommandBuffer> command_buffers;
 
-        vk::Fence possible_fence = vk::Fence();
+        Vulkan::CommandQueueItem item;
         
         for (auto &node : level) {
             /* Connect signal semaphores to wait semaphore slots in the graph */
@@ -835,37 +817,35 @@ void RenderSystem::enqueue_render_commands() {
                 signal_semaphores_set.insert(signal_semaphore);
 
             if (node->fence != vk::Fence()) {
-                if (possible_fence != vk::Fence()) throw std::runtime_error("Error, not expecting more than one fence per level!");
-                possible_fence = node->fence;
+                if (item.fence != vk::Fence()) throw std::runtime_error("Error, not expecting more than one fence per level!");
+                item.fence = node->fence;
             }
 
-            for (auto &command : node->command_buffers)
-                command_buffers.push_back(command);
-            
+            item.commandBuffers.push_back(node->command_buffer);            
             // For some reason, queues arent actually ran in parallel? Also calling submit many times turns out to be expensive...
             // vulkan->enqueue_graphics_commands(node->command_buffers, wait_semaphores, wait_stage_masks, signal_semaphores, 
             //     node->fence, "draw call lvl " + std::to_string(node->level) + " queue " + std::to_string(node->queue_idx), node->queue_idx);
         }
 
-        std::vector<vk::Semaphore> wait_semaphores;
-        std::vector<vk::PipelineStageFlags> wait_stage_masks;
-
         /* Making hasty assumptions here about wait stage masks. */
         for (auto &semaphore : wait_semaphores_set) {
-            wait_semaphores.push_back(semaphore);
-            wait_stage_masks.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
-        }
-
-        std::vector<vk::Semaphore> signal_semaphores;
-        for (auto &semaphore : signal_semaphores_set) {
-            signal_semaphores.push_back(semaphore);
+            item.waitSemaphores.push_back(semaphore);
+            item.waitDstStageMask.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
         }
         
-        vulkan->enqueue_graphics_commands(command_buffers, wait_semaphores, wait_stage_masks, signal_semaphores, 
-            possible_fence, "draw call lvl " + std::to_string(level_idx) + " queue " + std::to_string(0), 0);
+        for (auto &semaphore : signal_semaphores_set) 
+            item.signalSemaphores.push_back(semaphore);
         
+        item.hint = "draw call lvl " + std::to_string(level_idx) + " queue " + std::to_string(0);
+        item.queue_idx = 0;
+        command_queue.push_back(item);
         level_idx++;
     }
+    
+    /* Enqueue the commands */
+    for (auto &item : command_queue) vulkan->enqueue_graphics_commands(item);
+    semaphoresSubmitted();
+    fencesSubmitted();
 }
 
 void RenderSystem::mark_cameras_as_render_complete()
@@ -941,6 +921,7 @@ void RenderSystem::allocate_vulkan_resources()
     vk::FenceCreateInfo fenceInfo;
     
     main_command_buffer = device.allocateCommandBuffers(mainCmdAllocInfo)[0];
+
     // for (uint32_t i = 0; i < max_frames_in_flight; ++i) {
     //     main_command_buffer_semaphores.push_back(device.createSemaphore(semaphoreInfo));
     // }
@@ -1247,20 +1228,23 @@ bool RenderSystem::start()
 
                 download_visibility_queries();
 
-                for (auto &level : compute_graph) {
-                    vk::SemaphoreCreateInfo semaphoreInfo;
-                    vk::FenceCreateInfo fenceInfo;
+                // vulkan->flush_queues(); // Does this solve some validation issues? EDIT it does. 
+                // Need to find a better way to clean up semaphores and things on the compute graph...
 
-                    for (auto &node : level) {
-                        auto device = vulkan->get_device();
-                        for (auto signal_semaphore : node->signal_semaphores) device.destroySemaphore(signal_semaphore);
-                        node->signal_semaphores.clear();
-                        for (auto signal_semaphore : node->window_signal_semaphores) device.destroySemaphore(signal_semaphore);
-                        node->window_signal_semaphores.clear();
-                        if (node->fence != vk::Fence()) device.destroyFence(node->fence);
-                        node->fence = vk::Fence();
-                    }
-                }
+                // for (auto &level : compute_graph) {
+                //     vk::SemaphoreCreateInfo semaphoreInfo;
+                //     vk::FenceCreateInfo fenceInfo;
+
+                //     for (auto &node : level) {
+                //         auto device = vulkan->get_device();
+                //         for (auto signal_semaphore : node->signal_semaphores) device.destroySemaphore(signal_semaphore);
+                //         node->signal_semaphores.clear();
+                //         for (auto signal_semaphore : node->window_signal_semaphores) device.destroySemaphore(signal_semaphore);
+                //         node->window_signal_semaphores.clear();
+                //         if (node->fence != vk::Fence()) device.destroyFence(node->fence);
+                //         node->fence = vk::Fence();
+                //     }
+                // }
             }
 
             currentFrame = (currentFrame + 1) % max_frames_in_flight;

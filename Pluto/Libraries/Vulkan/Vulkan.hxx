@@ -51,7 +51,22 @@ namespace Libraries {
         vk::DispatchLoaderDynamic get_dispatch_loader_dynamic() const;
         
         uint32_t find_memory_type(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
+
+        struct CommandQueueItem {
+            std::string hint;
+            std::vector<vk::SwapchainKHR> swapchains;
+            std::vector<uint32_t> swapchain_indices;
+            std::vector<vk::PipelineStageFlags> waitDstStageMask;
+            std::vector<vk::Semaphore> waitSemaphores;
+            std::vector<vk::CommandBuffer> commandBuffers;
+            std::vector<vk::Semaphore> signalSemaphores;
+            vk::Fence fence;
+            uint32_t queue_idx = 0;
+            std::shared_ptr<std::promise<void>> promise;
+            bool should_free;
+        };
         
+        std::future<void> enqueue_graphics_commands(CommandQueueItem item);
         std::future<void> enqueue_graphics_commands(
             std::vector<vk::CommandBuffer> commandBuffers, 
             std::vector<vk::Semaphore> waitSemaphores,
@@ -60,6 +75,7 @@ namespace Libraries {
             vk::Fence fence,
             std::string hint,
             uint32_t queue_idx);
+        
         std::future<void> enqueue_present_commands(
             std::vector<vk::SwapchainKHR> swapchains, 
             std::vector<uint32_t> swapchain_indices, 
@@ -132,20 +148,6 @@ namespace Libraries {
         std::vector<vk::Queue> graphicsQueues;
         std::vector<vk::Queue> presentQueues;	
         // vk::SubmitInfo submission;
-
-        struct CommandQueueItem {
-            std::string hint;
-            std::vector<vk::SwapchainKHR> swapchains;
-            std::vector<uint32_t> swapchain_indices;
-            std::vector<vk::PipelineStageFlags> waitDstStageMask;
-            std::vector<vk::Semaphore> waitSemaphores;
-            std::vector<vk::CommandBuffer> commandBuffers;
-            std::vector<vk::Semaphore> signalSemaphores;
-            vk::Fence fence;
-            uint32_t queue_idx = 0;
-            std::shared_ptr<std::promise<void>> promise;
-            bool should_free;
-        };
 
         std::mutex graphics_queue_mutex;
         std::mutex present_queue_mutex;

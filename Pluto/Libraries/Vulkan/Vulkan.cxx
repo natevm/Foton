@@ -965,6 +965,15 @@ std::future<void> Vulkan::enqueue_graphics_commands
     return new_future;
 }
 
+std::future<void> Vulkan::enqueue_graphics_commands(CommandQueueItem item)
+{
+    std::lock_guard<std::mutex> lock(graphics_queue_mutex);
+    item.promise = std::make_shared<std::promise<void>>();
+    auto new_future = item.promise->get_future();
+    graphicsCommandQueue.push(item);
+    return new_future;
+}
+
 std::future<void> Vulkan::enqueue_present_commands(
     std::vector<vk::SwapchainKHR> swapchains, 
     std::vector<uint32_t> swapchain_indices, 

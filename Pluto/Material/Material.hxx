@@ -16,6 +16,7 @@
 #include <map>
 #include <unordered_map>
 #include <mutex>
+#include <string>
 
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
 #include "Pluto/Tools/StaticFactory.hxx"
@@ -299,7 +300,10 @@ class Material : public StaticFactory
         static std::map<vk::RenderPass, RaytracingPipelineResources> rttest;
 
         /* Wrapper for shader module creation.  */
-        static vk::ShaderModule CreateShaderModule(const std::vector<char>& code);
+        static vk::ShaderModule CreateShaderModule(std::string name, const std::vector<char>& code);
+
+        /* Cached modules */
+        static std::unordered_map<std::string, vk::ShaderModule> shaderModuleCache;
 
         /* Wraps the vulkan boilerplate for creation of a graphics pipeline */
         static void CreateRasterPipeline(

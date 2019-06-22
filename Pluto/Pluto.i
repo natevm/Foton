@@ -136,7 +136,10 @@ using namespace Systems;
 
 // Issue where swig tries to construct a std future from non-existant copy constructor...
 %ignore Libraries::Vulkan::enqueue_graphics_commands(std::vector<vk::CommandBuffer> commandBuffers, std::vector<vk::Semaphore> waitSemaphores, std::vector<vk::PipelineStageFlags> waitDstStageMasks, std::vector<vk::Semaphore> signalSemaphores, vk::Fence fence, std::string hint, uint32_t queue_idx);
+%ignore Libraries::Vulkan::enqueue_graphics_commands(CommandQueueItem item);
 %ignore Libraries::Vulkan::enqueue_present_commands(std::vector<vk::SwapchainKHR> swapchains, std::vector<uint32_t> swapchain_indices, std::vector<vk::Semaphore> waitSemaphores);
+%ignore Libraries::Vulkan::CommandQueueItem;
+%ignore Libraries::Vulkan::CommandQueueItem;
 
 %ignore CommandQueueItem;
 
