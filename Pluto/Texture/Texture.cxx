@@ -1335,7 +1335,7 @@ void Texture::loadPNG(std::string imagePath, bool convert_bump, bool submit_imme
 	stbi_image_free(pixels);
 }
 
-void Texture::create_color_image_resources(bool submit_immediately, bool attachment_optimal)
+void Texture::create_color_image_resources(ImageData &imageData, bool submit_immediately, bool attachment_optimal)
 {
 	auto vulkan = Libraries::Vulkan::Get();
 	if (!vulkan->is_initialized())
@@ -1353,63 +1353,63 @@ void Texture::create_color_image_resources(bool submit_immediately, bool attachm
 	//     device.destroySampler(data.colorSampler);
 
 	/* Destroy Image Views */
-	if (data.colorBuffer.imageView)
-		device.destroyImageView(data.colorBuffer.imageView);
+	if (imageData.imageView)
+		device.destroyImageView(imageData.imageView);
 
 	/* Destroy Images */
-	if (data.colorBuffer.image)
-		device.destroyImage(data.colorBuffer.image);
+	if (imageData.image)
+		device.destroyImage(imageData.image);
 
 	/* Free Memory */
-	if (data.colorBuffer.imageMemory)
-		device.freeMemory(data.colorBuffer.imageMemory);
+	if (imageData.imageMemory)
+		device.freeMemory(imageData.imageMemory);
 
 	/* For now, assume the following format: */
-	data.colorBuffer.format = vk::Format::eR16G16B16A16Sfloat;
+	imageData.format = vk::Format::eR16G16B16A16Sfloat;
 
-	data.colorBuffer.imageLayout = vk::ImageLayout::eUndefined;
+	imageData.imageLayout = vk::ImageLayout::eUndefined;
 
 	vk::ImageCreateInfo imageInfo;
 	imageInfo.imageType = data.imageType;
-	imageInfo.format = data.colorBuffer.format;
+	imageInfo.format = imageData.format;
 	imageInfo.extent.width = data.width;
 	imageInfo.extent.height = data.height;
 	imageInfo.extent.depth = data.depth;
-	imageInfo.mipLevels = data.colorBuffer.mipLevels;
+	imageInfo.mipLevels = imageData.mipLevels;
 	imageInfo.arrayLayers = data.layers;
 	imageInfo.samples = data.sampleCount;
 	imageInfo.tiling = vk::ImageTiling::eOptimal;
 	imageInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eStorage;
-	imageInfo.initialLayout = data.colorBuffer.imageLayout;
+	imageInfo.initialLayout = imageData.imageLayout;
 	if (data.viewType == vk::ImageViewType::eCube)
 	{
 		imageInfo.flags = vk::ImageCreateFlagBits::eCubeCompatible;
 	}
-	data.colorBuffer.image = device.createImage(imageInfo);
+	imageData.image = device.createImage(imageInfo);
 
-	vk::MemoryRequirements memReqs = device.getImageMemoryRequirements(data.colorBuffer.image);
+	vk::MemoryRequirements memReqs = device.getImageMemoryRequirements(imageData.image);
 	vk::MemoryAllocateInfo memAlloc;
 	memAlloc.allocationSize = memReqs.size;
 	memAlloc.memoryTypeIndex = vulkan->find_memory_type(memReqs.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
-	data.colorBuffer.imageMemory = device.allocateMemory(memAlloc);
-	device.bindImageMemory(data.colorBuffer.image, data.colorBuffer.imageMemory, 0);
+	imageData.imageMemory = device.allocateMemory(memAlloc);
+	device.bindImageMemory(imageData.image, imageData.imageMemory, 0);
 
 	/* Transition to a usable format */
 	vk::ImageSubresourceRange subresourceRange;
 	subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
 	subresourceRange.baseMipLevel = 0;
 	subresourceRange.baseArrayLayer = 0;
-	subresourceRange.levelCount = data.colorBuffer.mipLevels;
+	subresourceRange.levelCount = imageData.mipLevels;
 	subresourceRange.layerCount = data.layers;
 
 	vk::CommandBuffer cmdBuffer = vulkan->begin_one_time_graphics_command();
 
 	if (attachment_optimal) {
-		setImageLayout(cmdBuffer, data.colorBuffer.image, vk::ImageLayout::eUndefined, vk::ImageLayout::eColorAttachmentOptimal, subresourceRange);
-		data.colorBuffer.imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
+		setImageLayout(cmdBuffer, imageData.image, vk::ImageLayout::eUndefined, vk::ImageLayout::eColorAttachmentOptimal, subresourceRange);
+		imageData.imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
 	} else {
-		setImageLayout(cmdBuffer, data.colorBuffer.image, vk::ImageLayout::eUndefined, vk::ImageLayout::eShaderReadOnlyOptimal, subresourceRange);
-		data.colorBuffer.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+		setImageLayout(cmdBuffer, imageData.image, vk::ImageLayout::eUndefined, vk::ImageLayout::eShaderReadOnlyOptimal, subresourceRange);
+		imageData.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
 	}
 
 	if (submit_immediately)
@@ -1420,38 +1420,28 @@ void Texture::create_color_image_resources(bool submit_immediately, bool attachm
 	/* Create the image view */
 	vk::ImageViewCreateInfo vInfo;
 	vInfo.viewType = data.viewType;
-	vInfo.format = data.colorBuffer.format;
+	vInfo.format = imageData.format;
 	vInfo.subresourceRange = subresourceRange;
-	vInfo.image = data.colorBuffer.image;
-	data.colorBuffer.imageView = device.createImageView(vInfo);
+	vInfo.image = imageData.image;
+	imageData.imageView = device.createImageView(vInfo);
 	
 	/* Create more image views */
-	data.colorBuffer.imageViewLayers.clear();
+	imageData.imageViewLayers.clear();
 	for(uint32_t i = 0; i < data.layers; i++) {
 		subresourceRange.baseMipLevel = 0;
 		subresourceRange.baseArrayLayer = i;
-		subresourceRange.levelCount = data.colorBuffer.mipLevels;
+		subresourceRange.levelCount = imageData.mipLevels;
 		subresourceRange.layerCount = 1;
 		
 		vInfo.viewType = vk::ImageViewType::e2D;
-		vInfo.format = data.colorBuffer.format;
+		vInfo.format = imageData.format;
 		vInfo.subresourceRange = subresourceRange;
-		vInfo.image = data.colorBuffer.image;
-		data.colorBuffer.imageViewLayers.push_back(device.createImageView(vInfo));
+		vInfo.image = imageData.image;
+		imageData.imageViewLayers.push_back(device.createImageView(vInfo));
 	}
 }
 
-void Texture::create_normal_image_resources(bool submit_immediately, bool attachment_optimal)
-{
-	
-}
-
-void Texture::create_position_image_resources(bool submit_immediately, bool attachment_optimal)
-{
-
-}
-
-void Texture::create_depth_stencil_resources(bool submit_immediately)
+void Texture::create_depth_stencil_resources(ImageData &imageData, bool submit_immediately)
 {
 	auto vulkan = Libraries::Vulkan::Get();
 	if (!vulkan->is_initialized())
@@ -1468,26 +1458,26 @@ void Texture::create_depth_stencil_resources(bool submit_immediately)
 	//     device.destroySampler(data.depthSampler);
 
 	/* Destroy Image Views */
-	if (data.depthBuffer.imageView)
-		device.destroyImageView(data.depthBuffer.imageView);
+	if (imageData.imageView)
+		device.destroyImageView(imageData.imageView);
 
 	/* Destroy Images */
-	if (data.depthBuffer.image)
-		device.destroyImage(data.depthBuffer.image);
+	if (imageData.image)
+		device.destroyImage(imageData.image);
 
 	/* Free Memory */
-	if (data.depthBuffer.imageMemory)
-		device.freeMemory(data.depthBuffer.imageMemory);
+	if (imageData.imageMemory)
+		device.freeMemory(imageData.imageMemory);
 
-	bool result = get_supported_depth_format(physicalDevice, &data.depthBuffer.format);
+	bool result = get_supported_depth_format(physicalDevice, &imageData.format);
 	if (!result)
 		throw std::runtime_error( std::string("Error: Unable to find a suitable depth format"));
 
-	data.depthBuffer.imageLayout = vk::ImageLayout::eUndefined;
+	imageData.imageLayout = vk::ImageLayout::eUndefined;
 	
 	vk::ImageCreateInfo imageInfo;
 	imageInfo.imageType = vk::ImageType::e2D;
-	imageInfo.format = data.depthBuffer.format;
+	imageInfo.format = imageData.format;
 	imageInfo.extent.width = data.width;
 	imageInfo.extent.height = data.height;
 	imageInfo.extent.depth = data.depth;
@@ -1496,19 +1486,19 @@ void Texture::create_depth_stencil_resources(bool submit_immediately)
 	imageInfo.samples = data.sampleCount;
 	imageInfo.tiling = vk::ImageTiling::eOptimal;
 	imageInfo.usage = vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc;
-	imageInfo.initialLayout = data.depthBuffer.imageLayout;
+	imageInfo.initialLayout = imageData.imageLayout;
 	if (data.viewType == vk::ImageViewType::eCube)
 	{
 		imageInfo.flags = vk::ImageCreateFlagBits::eCubeCompatible;
 	}
-	data.depthBuffer.image = device.createImage(imageInfo);
+	imageData.image = device.createImage(imageInfo);
 
-	vk::MemoryRequirements memReqs = device.getImageMemoryRequirements(data.depthBuffer.image);
+	vk::MemoryRequirements memReqs = device.getImageMemoryRequirements(imageData.image);
 	vk::MemoryAllocateInfo memAlloc;
 	memAlloc.allocationSize = memReqs.size;
 	memAlloc.memoryTypeIndex = vulkan->find_memory_type(memReqs.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
-	data.depthBuffer.imageMemory = device.allocateMemory(memAlloc);
-	device.bindImageMemory(data.depthBuffer.image, data.depthBuffer.imageMemory, 0);
+	imageData.imageMemory = device.allocateMemory(memAlloc);
+	device.bindImageMemory(imageData.image, imageData.imageMemory, 0);
 
 	/* Transition to a usable format */
 	vk::ImageSubresourceRange subresourceRange;
@@ -1519,8 +1509,8 @@ void Texture::create_depth_stencil_resources(bool submit_immediately)
 	subresourceRange.layerCount = data.layers;
 
 	vk::CommandBuffer cmdBuffer = vulkan->begin_one_time_graphics_command();
-	setImageLayout(cmdBuffer, data.depthBuffer.image, vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthStencilAttachmentOptimal, subresourceRange);
-	data.depthBuffer.imageLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+	setImageLayout(cmdBuffer, imageData.image, vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthStencilAttachmentOptimal, subresourceRange);
+	imageData.imageLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 	if (submit_immediately)
 		vulkan->end_one_time_graphics_command_immediately(cmdBuffer, "transition new depth image", true);
 	else
@@ -1529,13 +1519,13 @@ void Texture::create_depth_stencil_resources(bool submit_immediately)
 	/* Create the image view */
 	vk::ImageViewCreateInfo vInfo;
 	vInfo.viewType = data.viewType;
-	vInfo.format = data.depthBuffer.format;
+	vInfo.format = imageData.format;
 	vInfo.subresourceRange = subresourceRange;
-	vInfo.image = data.depthBuffer.image;
-	data.depthBuffer.imageView = device.createImageView(vInfo);
+	vInfo.image = imageData.image;
+	imageData.imageView = device.createImageView(vInfo);
 	
 	/* Create more image views */
-	data.depthBuffer.imageViewLayers.clear();
+	imageData.imageViewLayers.clear();
 	for(uint32_t i = 0; i < data.layers; i++) {
 		subresourceRange.baseMipLevel = 0;
 		subresourceRange.baseArrayLayer = i;
@@ -1543,10 +1533,10 @@ void Texture::create_depth_stencil_resources(bool submit_immediately)
 		subresourceRange.layerCount = 1;
 		
 		vInfo.viewType = vk::ImageViewType::e2D;
-		vInfo.format = data.depthBuffer.format;
+		vInfo.format = imageData.format;
 		vInfo.subresourceRange = subresourceRange;
-		vInfo.image = data.depthBuffer.image;
-		data.depthBuffer.imageViewLayers.push_back(device.createImageView(vInfo));
+		vInfo.image = imageData.image;
+		imageData.imageViewLayers.push_back(device.createImageView(vInfo));
 	}
 }
 
@@ -1740,8 +1730,8 @@ Texture* Texture::CreateCubemap(
 		tex->data.layers = 6;
 		tex->data.imageType = vk::ImageType::e2D;
 		tex->data.viewType  = vk::ImageViewType::eCube;
-		if (hasColor) tex->create_color_image_resources(submit_immediately);
-		if (hasDepth) tex->create_depth_stencil_resources(submit_immediately);
+		if (hasColor) tex->create_color_image_resources(tex->data.colorBuffer, submit_immediately);
+		if (hasDepth) tex->create_depth_stencil_resources(tex->data.depthBuffer, submit_immediately);
 		tex->texture_struct.sampler_id = 0;
 		return tex;
 	} catch (...) {
@@ -1772,10 +1762,10 @@ Texture* Texture::CreateCubemapGBuffers(
 			std::cout<<"Warning: provided sample count is larger than max supported sample count on the device. Using " 
 				<< vk::to_string(tex->data.sampleCount) << " instead."<<std::endl;
 
-		tex->create_color_image_resources(submit_immediately, false);
-		tex->create_normal_image_resources(submit_immediately, false); 
-		tex->create_position_image_resources(submit_immediately, false); 
-		tex->create_depth_stencil_resources(submit_immediately);
+		tex->create_color_image_resources(tex->data.colorBuffer, submit_immediately, false);
+		tex->create_color_image_resources(tex->data.normalBuffer, submit_immediately, false); 
+		tex->create_color_image_resources(tex->data.positionBuffer, submit_immediately, false); 
+		tex->create_depth_stencil_resources(tex->data.depthBuffer, submit_immediately);
 		tex->texture_struct.sampler_id = 0;
 		return tex;
 	} catch (...) {
@@ -1819,8 +1809,8 @@ Texture* Texture::Create2D(
 		if (tex->data.sampleCount != sampleFlag)
 			std::cout<<"Warning: provided sample count is larger than max supported sample count on the device. Using " 
 				<< vk::to_string(tex->data.sampleCount) << " instead."<<std::endl;
-		if (hasColor) tex->create_color_image_resources(submit_immediately, false); 
-		if (hasDepth) tex->create_depth_stencil_resources(submit_immediately);
+		if (hasColor) tex->create_color_image_resources(tex->data.colorBuffer, submit_immediately, false); 
+		if (hasDepth) tex->create_depth_stencil_resources(tex->data.depthBuffer, submit_immediately);
 
 		tex->texture_struct.sampler_id = 0;
 
@@ -1854,10 +1844,10 @@ Texture* Texture::Create2DGBuffers (
 			std::cout<<"Warning: provided sample count is larger than max supported sample count on the device. Using " 
 				<< vk::to_string(tex->data.sampleCount) << " instead."<<std::endl;
 
-		tex->create_color_image_resources(submit_immediately, false); 
-		tex->create_normal_image_resources(submit_immediately, false); 
-		tex->create_position_image_resources(submit_immediately, false); 
-		tex->create_depth_stencil_resources(submit_immediately);
+		tex->create_color_image_resources(tex->data.colorBuffer, submit_immediately, false); 
+		tex->create_color_image_resources(tex->data.normalBuffer, submit_immediately, false); 
+		tex->create_color_image_resources(tex->data.positionBuffer, submit_immediately, false); 
+		tex->create_depth_stencil_resources(tex->data.depthBuffer, submit_immediately);
 
 		tex->texture_struct.sampler_id = 0;
 
@@ -1888,7 +1878,7 @@ Texture* Texture::Create3D (
 		tex->data.imageType = vk::ImageType::e3D;
 		tex->data.sampleCount = vk::SampleCountFlagBits::e1;
 
-		tex->create_color_image_resources(submit_immediately, false);
+		tex->create_color_image_resources(tex->data.colorBuffer, submit_immediately, false);
 
 		tex->texture_struct.sampler_id = 0;
 
@@ -1911,7 +1901,7 @@ Texture* Texture::Create2DFromColorData (
 		tex->data.layers = 1;
 		tex->data.viewType  = vk::ImageViewType::e2D;
 		tex->data.imageType = vk::ImageType::e2D;
-		tex->create_color_image_resources(submit_immediately);
+		tex->create_color_image_resources(tex->data.colorBuffer, submit_immediately);
 		tex->upload_color_data(width, height, 1, data);
 
 		tex->texture_struct.sampler_id = 0;

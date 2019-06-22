@@ -250,16 +250,10 @@ class Texture : public StaticFactory
 		void cleanup();
 
 		/* Allocates vulkan resources required for a colored image */
-		void create_color_image_resources(bool submit_immediately = false, bool attachment_optimal = true);
-
-		/* Allocates vulkan resources required for a normal image */
-		void create_normal_image_resources(bool submit_immediately = false, bool attachment_optimal = true);
-
-		/* Allocates vulkan resources required for a position image */
-		void create_position_image_resources(bool submit_immediately = false, bool attachment_optimal = true);
+		void create_color_image_resources(ImageData &imageData, bool submit_immediately = false, bool attachment_optimal = true);
 
 		/* Allocates vulkan resources required for a depth/stencil image */
-		void create_depth_stencil_resources(bool submit_immediately = false);
+		void create_depth_stencil_resources(ImageData &imageData, bool submit_immediately = false);
 
 		/* Creates a color ImageView, which allows the color image resources to be interpreted for use in shaders, blits, etc */
 		void createColorImageView();
