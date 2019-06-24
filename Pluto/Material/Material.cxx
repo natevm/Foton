@@ -49,6 +49,8 @@ std::map<vk::RenderPass, Material::RasterPipelineResources> Material::fragmentde
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::fragmentposition;
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::vrmask;
 
+std::map<vk::RenderPass, Material::RasterPipelineResources> Material::gbuffers;
+
 std::map<vk::RenderPass, Material::RaytracingPipelineResources> Material::rttest;
 
 std::unordered_map<std::string, vk::ShaderModule> Material::shaderModuleCache;
@@ -295,8 +297,6 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			renderpass, 0, 
 			uniformColor[renderpass].pipelines, uniformColor[renderpass].pipelineLayout);
 
-		// device.destroyShaderModule(fragShaderModule);
-		// device.destroyShaderModule(vertShaderModule);
 	}
 
 
@@ -335,8 +335,6 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			renderpass, 0, 
 			blinn[renderpass].pipelines, blinn[renderpass].pipelineLayout);
 
-		// device.destroyShaderModule(fragShaderModule);
-		// device.destroyShaderModule(vertShaderModule);
 	}
 
 	/* ------ PBR  ------ */
@@ -382,8 +380,6 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			renderpass, 0, 
 			pbr[renderpass].pipelines, pbr[renderpass].pipelineLayout);
 
-		// device.destroyShaderModule(fragShaderModule);
-		// device.destroyShaderModule(vertShaderModule);
 	}
 
 	/* ------ NORMAL SURFACE ------ */
@@ -421,8 +417,6 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			renderpass, 0, 
 			normalsurface[renderpass].pipelines, normalsurface[renderpass].pipelineLayout);
 
-		// device.destroyShaderModule(fragShaderModule);
-		// device.destroyShaderModule(vertShaderModule);
 	}
 
 	/* ------ TEXCOORD SURFACE  ------ */
@@ -460,8 +454,6 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			renderpass, 0, 
 			texcoordsurface[renderpass].pipelines, texcoordsurface[renderpass].pipelineLayout);
 
-		// device.destroyShaderModule(fragShaderModule);
-		// device.destroyShaderModule(vertShaderModule);
 	}
 
 	/* ------ SKYBOX  ------ */
@@ -502,8 +494,6 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			renderpass, 0, 
 			skybox[renderpass].pipelines, skybox[renderpass].pipelineLayout);
 
-		// device.destroyShaderModule(fragShaderModule);
-		// device.destroyShaderModule(vertShaderModule);
 	}
 
 	/* ------ DEPTH  ------ */
@@ -549,8 +539,6 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			renderpass, 0, 
 			depth[renderpass].pipelines, depth[renderpass].pipelineLayout);
 
-		// device.destroyShaderModule(fragShaderModule);
-		// device.destroyShaderModule(vertShaderModule);
 	}
 
 	/* ------ Volume  ------ */
@@ -588,8 +576,6 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			renderpass, 0, 
 			volume[renderpass].pipelines, volume[renderpass].pipelineLayout);
 
-		// device.destroyShaderModule(fragShaderModule);
-		// device.destroyShaderModule(vertShaderModule);
 	}
 
 	/*  G BUFFERS  */
@@ -627,6 +613,99 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			fragmentdepth[renderpass].pipelines, fragmentdepth[renderpass].pipelineLayout);
 
 		// device.destroyShaderModule(vertShaderModule);
+	}
+
+	/* ------ All G Buffers  ------ */
+	{
+		gbuffers[renderpass] = RasterPipelineResources();
+
+		std::string ResourcePath = Options::GetResourcePath();
+		auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/vert.spv"));
+		auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/frag.spv"));
+
+		/* Create shader modules */
+		auto vertShaderModule = CreateShaderModule("gbuffers_vert", vertShaderCode);
+		auto fragShaderModule = CreateShaderModule("gbuffers_frag", fragShaderCode);
+
+		/* Info for shader stages */
+		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
+		vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
+		vertShaderStageInfo.module = vertShaderModule;
+		vertShaderStageInfo.pName = "main";
+
+		vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
+		fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
+		fragShaderStageInfo.module = fragShaderModule;
+		fragShaderStageInfo.pName = "main";
+
+		std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
+		
+		/* Account for possibly multiple samples */
+		gbuffers[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
+		gbuffers[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
+		gbuffers[renderpass].pipelineParameters.rasterizer.cullMode = vk::CullModeFlagBits::eNone;
+
+		/* Because we use a depth prepass */
+		if (use_depth_prepass) {
+			gbuffers[renderpass].pipelineParameters.depthStencil.depthTestEnable = true;
+			gbuffers[renderpass].pipelineParameters.depthStencil.depthWriteEnable = false; // not VK_TRUE since we have a depth prepass
+			gbuffers[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
+		}
+
+		/* Account for multiple color attachments */
+		std::array<vk::PipelineColorBlendAttachmentState, 3> blendAttachments;
+
+		/* G Buffer 0 */
+		blendAttachments[0].colorWriteMask = vk::ColorComponentFlagBits::eR | 
+											vk::ColorComponentFlagBits::eG | 
+											vk::ColorComponentFlagBits::eB | 
+											vk::ColorComponentFlagBits::eA;
+		blendAttachments[0].blendEnable = true;
+		blendAttachments[0].srcColorBlendFactor = vk::BlendFactor::eSrcAlpha; // Optional /* TRANSPARENCY STUFF HERE! */
+		blendAttachments[0].dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha; // Optional
+		blendAttachments[0].colorBlendOp = vk::BlendOp::eAdd; // Optional
+		blendAttachments[0].srcAlphaBlendFactor = vk::BlendFactor::eOne; // Optional
+		blendAttachments[0].dstAlphaBlendFactor = vk::BlendFactor::eZero; // Optional
+		blendAttachments[0].alphaBlendOp = vk::BlendOp::eAdd; // Optional
+
+		/* G Buffer 0 */
+		blendAttachments[1].colorWriteMask = vk::ColorComponentFlagBits::eR | 
+											vk::ColorComponentFlagBits::eG | 
+											vk::ColorComponentFlagBits::eB | 
+											vk::ColorComponentFlagBits::eA;
+		blendAttachments[1].blendEnable = true;
+		blendAttachments[1].srcColorBlendFactor = vk::BlendFactor::eSrcAlpha; // Optional /* TRANSPARENCY STUFF HERE! */
+		blendAttachments[1].dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha; // Optional
+		blendAttachments[1].colorBlendOp = vk::BlendOp::eAdd; // Optional
+		blendAttachments[1].srcAlphaBlendFactor = vk::BlendFactor::eOne; // Optional
+		blendAttachments[1].dstAlphaBlendFactor = vk::BlendFactor::eZero; // Optional
+		blendAttachments[1].alphaBlendOp = vk::BlendOp::eAdd; // Optional
+
+		/* G Buffer 2 */
+		blendAttachments[2].colorWriteMask = vk::ColorComponentFlagBits::eR | 
+											vk::ColorComponentFlagBits::eG | 
+											vk::ColorComponentFlagBits::eB | 
+											vk::ColorComponentFlagBits::eA;
+		blendAttachments[2].blendEnable = true;
+		blendAttachments[2].srcColorBlendFactor = vk::BlendFactor::eSrcAlpha; // Optional /* TRANSPARENCY STUFF HERE! */
+		blendAttachments[2].dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha; // Optional
+		blendAttachments[2].colorBlendOp = vk::BlendOp::eAdd; // Optional
+		blendAttachments[2].srcAlphaBlendFactor = vk::BlendFactor::eOne; // Optional
+		blendAttachments[2].dstAlphaBlendFactor = vk::BlendFactor::eZero; // Optional
+		blendAttachments[2].alphaBlendOp = vk::BlendOp::eAdd; // Optional
+
+		/* Default Color Blending State */
+		gbuffers[renderpass].pipelineParameters.colorBlending.logicOpEnable = false;
+		gbuffers[renderpass].pipelineParameters.colorBlending.logicOp = vk::LogicOp::eCopy; // Optional
+		gbuffers[renderpass].pipelineParameters.colorBlending.attachmentCount = blendAttachments.size();
+		gbuffers[renderpass].pipelineParameters.colorBlending.pAttachments = blendAttachments.data();
+
+		CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
+			gbuffers[renderpass].pipelineParameters, 
+			renderpass, 0, 
+			gbuffers[renderpass].pipelines, gbuffers[renderpass].pipelineLayout);
+
 	}
 
 	/* ------ SHADOWMAP  ------ */
@@ -673,8 +752,6 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			renderpass, 0, 
 			shadowmap[renderpass].pipelines, shadowmap[renderpass].pipelineLayout);
 
-		// device.destroyShaderModule(fragShaderModule);
-		// device.destroyShaderModule(vertShaderModule);
 	}
 
 	/* ------ FRAGMENT POSITION  ------ */
@@ -721,8 +798,6 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			renderpass, 0, 
 			fragmentposition[renderpass].pipelines, fragmentposition[renderpass].pipelineLayout);
 
-		// device.destroyShaderModule(fragShaderModule);
-		// device.destroyShaderModule(vertShaderModule);
 	}
 
 	/* ------ VR MASK ------ */

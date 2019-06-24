@@ -296,6 +296,8 @@ class Material : public StaticFactory
         static std::map<vk::RenderPass, RasterPipelineResources> fragmentdepth;
         static std::map<vk::RenderPass, RasterPipelineResources> fragmentposition;
         static std::map<vk::RenderPass, RasterPipelineResources> vrmask;
+        
+        static std::map<vk::RenderPass, RasterPipelineResources> gbuffers;
 
         static std::map<vk::RenderPass, RaytracingPipelineResources> rttest;
 
