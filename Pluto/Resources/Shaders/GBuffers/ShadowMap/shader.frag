@@ -5,6 +5,8 @@ layout(location = 0) in vec3 w_position;
 layout(location = 1) in vec3 c_position;
 
 layout(location = 0) out vec4 outFragColor;
+layout(location = 1) out vec4 outNormal;
+layout(location = 2) out vec4 outPosition;
 
 float LinearizeDepth(float depth, float near, float far)
 {

@@ -176,6 +176,40 @@ void Camera::create_render_passes(uint32_t layers, uint32_t sample_count)
         colorAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
         #pragma endregion
 
+		#pragma region PositionAttachment
+        // position attachment
+        vk::AttachmentDescription positionAttachment;
+        positionAttachment.format = renderTexture->get_color_format(); // TODO
+        positionAttachment.samples = sampleFlag;
+        positionAttachment.loadOp = vk::AttachmentLoadOp::eClear; // clears image to black
+        positionAttachment.storeOp = vk::AttachmentStoreOp::eStore;
+        positionAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+        positionAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+        positionAttachment.initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
+        positionAttachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
+
+        vk::AttachmentReference positionAttachmentRef;
+        positionAttachmentRef.attachment = 1;
+        positionAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
+        #pragma endregion
+
+		#pragma region NormalAttachment
+        // normal attachment
+        vk::AttachmentDescription normalAttachment;
+        normalAttachment.format = renderTexture->get_color_format(); // TODO
+        normalAttachment.samples = sampleFlag;
+        normalAttachment.loadOp = vk::AttachmentLoadOp::eClear; // clears image to black
+        normalAttachment.storeOp = vk::AttachmentStoreOp::eStore;
+        normalAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+        normalAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+        normalAttachment.initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
+        normalAttachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
+
+        vk::AttachmentReference normalAttachmentRef;
+        normalAttachmentRef.attachment = 2;
+        normalAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
+        #pragma endregion
+
         #pragma region CreateDepthAttachment
         vk::AttachmentDescription depthAttachment;
         depthAttachment.format = renderTexture->get_depth_format();
@@ -188,7 +222,7 @@ void Camera::create_render_passes(uint32_t layers, uint32_t sample_count)
         depthAttachment.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 
         vk::AttachmentReference depthAttachmentRef;
-        depthAttachmentRef.attachment = 1;
+        depthAttachmentRef.attachment = 3;
         depthAttachmentRef.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
         #pragma endregion
 
@@ -210,10 +244,11 @@ void Camera::create_render_passes(uint32_t layers, uint32_t sample_count)
         #pragma endregion
 
         #pragma region CreateSubpass
+		std::array<vk::AttachmentReference, 3> attachmentReferences = {colorAttachmentRef, positionAttachmentRef, normalAttachmentRef};
         vk::SubpassDescription subpass;
         subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
-        subpass.colorAttachmentCount = 1;
-        subpass.pColorAttachments = &colorAttachmentRef;
+        subpass.colorAttachmentCount = (uint32_t) attachmentReferences.size();
+        subpass.pColorAttachments = attachmentReferences.data();
         subpass.pDepthStencilAttachment = &depthAttachmentRef;
         if (msaa_samples != 1)
             subpass.pResolveAttachments = &colorAttachmentResolveRef;
@@ -230,10 +265,10 @@ void Camera::create_render_passes(uint32_t layers, uint32_t sample_count)
 
         dependencies[1].srcSubpass = 0;
         dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
-        dependencies[1].srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-        dependencies[1].srcAccessMask = vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
         dependencies[1].dstStageMask = vk::PipelineStageFlagBits::eBottomOfPipe;
         dependencies[1].dstAccessMask = vk::AccessFlagBits::eMemoryRead;
+        dependencies[1].srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+        dependencies[1].srcAccessMask = vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
         dependencies[1].dependencyFlags = vk::DependencyFlagBits::eByRegion;
         #pragma endregion
 
@@ -256,7 +291,7 @@ void Camera::create_render_passes(uint32_t layers, uint32_t sample_count)
         renderPassMultiviewInfo.pCorrelationMasks = correlationMasks;
 
         /* Create the render pass */
-        std::vector<vk::AttachmentDescription> attachments = {colorAttachment, depthAttachment};
+        std::vector<vk::AttachmentDescription> attachments = {colorAttachment, positionAttachment, normalAttachment, depthAttachment};
         if (msaa_samples != 1) attachments.push_back(colorAttachmentResolve);
         vk::RenderPassCreateInfo renderPassInfo;
         renderPassInfo.attachmentCount = (uint32_t) attachments.size();
@@ -271,11 +306,16 @@ void Camera::create_render_passes(uint32_t layers, uint32_t sample_count)
 			/* Depth prepass will transition from undefined to optimal now. */
 			attachments[0].initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
 			attachments[0].finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
-			attachments[1].initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-			attachments[1].finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+			attachments[1].initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
+			attachments[1].finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
+			attachments[2].initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
+			attachments[2].finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
 
-			attachments[1].loadOp = vk::AttachmentLoadOp::eDontCare;
-			attachments[1].storeOp = vk::AttachmentStoreOp::eDontCare;
+			/* Depth attachment stuff */
+			attachments[3].initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+			attachments[3].finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+			attachments[3].loadOp = vk::AttachmentLoadOp::eDontCare;
+			attachments[3].storeOp = vk::AttachmentStoreOp::eDontCare;
 			renderpasses.push_back(device.createRenderPass(renderPassInfo));
 			
 			/* Transition from undefined to attachment optimal in depth prepass. */
@@ -286,10 +326,25 @@ void Camera::create_render_passes(uint32_t layers, uint32_t sample_count)
 			attachments[0].initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
 			attachments[0].finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
 
-			attachments[1].initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-			attachments[1].finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-			attachments[1].loadOp = vk::AttachmentLoadOp::eClear;
-			attachments[1].storeOp = vk::AttachmentStoreOp::eStore;
+			attachments[1].loadOp = vk::AttachmentLoadOp::eDontCare; // dont clear
+			attachments[1].storeOp = vk::AttachmentStoreOp::eDontCare;
+			attachments[1].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+			attachments[1].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+			attachments[1].initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
+			attachments[1].finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
+
+			attachments[2].loadOp = vk::AttachmentLoadOp::eDontCare; // dont clear
+			attachments[2].storeOp = vk::AttachmentStoreOp::eDontCare;
+			attachments[2].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+			attachments[2].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+			attachments[2].initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
+			attachments[2].finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
+
+			/* Depth attachment stuff */
+			attachments[3].initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+			attachments[3].finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+			attachments[3].loadOp = vk::AttachmentLoadOp::eClear;
+			attachments[3].storeOp = vk::AttachmentStoreOp::eStore;
         	depthPrepasses.push_back(device.createRenderPass(renderPassInfo));
 		} else {
 			renderpasses.push_back(device.createRenderPass(renderPassInfo));
@@ -329,15 +384,17 @@ void Camera::create_frame_buffers(uint32_t layers) {
 	}
 	else {
 		for(uint32_t i = 0; i < layers; i++) {
-			vk::ImageView attachments[3];
+			vk::ImageView attachments[5];
 			attachments[0] = renderTexture->get_color_image_view_layers()[i];
-			attachments[1] = renderTexture->get_depth_image_view_layers()[i];
+			attachments[1] = renderTexture->get_position_image_view_layers()[i];
+			attachments[2] = renderTexture->get_normal_image_view_layers()[i];
+			attachments[3] = renderTexture->get_depth_image_view_layers()[i];
 			if (msaa_samples != 1)
-				attachments[2] = resolveTexture->get_color_image_view_layers()[i];
+				attachments[4] = resolveTexture->get_color_image_view_layers()[i];
 			
 			vk::FramebufferCreateInfo fbufCreateInfo;
 			fbufCreateInfo.renderPass = renderpasses[i];
-			fbufCreateInfo.attachmentCount = (msaa_samples == 1) ? 2 : 3;
+			fbufCreateInfo.attachmentCount = (msaa_samples == 1) ? 4 : 5;
 			fbufCreateInfo.pAttachments = attachments;
 			fbufCreateInfo.width = renderTexture->get_width();
 			fbufCreateInfo.height = renderTexture->get_height();
@@ -558,11 +615,15 @@ void Camera::begin_renderpass(vk::CommandBuffer command_buffer, uint32_t index)
 	std::vector<vk::ClearValue> clearValues;
 
 	clearValues.push_back(vk::ClearValue());
+	clearValues.push_back(vk::ClearValue());
+	clearValues.push_back(vk::ClearValue());
 	clearValues[0].color = vk::ClearColorValue(std::array<float, 4>{clearColor.r, clearColor.g, clearColor.b, clearColor.a});
+	clearValues[1].color = vk::ClearColorValue(std::array<float, 4>{clearColor.r, clearColor.g, clearColor.b, clearColor.a});
+	clearValues[2].color = vk::ClearColorValue(std::array<float, 4>{clearColor.r, clearColor.g, clearColor.b, clearColor.a});
 	
 	if (!use_depth_prepass){
 		clearValues.push_back(vk::ClearValue());
-		clearValues[1].depthStencil = vk::ClearDepthStencilValue(clearDepth, clearStencil);
+		clearValues[3].depthStencil = vk::ClearDepthStencilValue(clearDepth, clearStencil);
 	}
 
 	rpInfo.clearValueCount = (uint32_t)clearValues.size();
@@ -627,9 +688,11 @@ void Camera::begin_depth_prepass(vk::CommandBuffer command_buffer, uint32_t inde
     rpInfo.renderArea.offset = vk::Offset2D{0, 0};
 	rpInfo.renderArea.extent = vk::Extent2D{renderTexture->get_width(), renderTexture->get_height()};
 
-	std::array<vk::ClearValue, 2> clearValues = {};
+	std::array<vk::ClearValue, 4> clearValues = {};
 	clearValues[0].color = vk::ClearColorValue(std::array<float, 4>{clearColor.r, clearColor.g, clearColor.b, clearColor.a});
-	clearValues[1].depthStencil = vk::ClearDepthStencilValue(clearDepth, clearStencil);
+	clearValues[1].color = vk::ClearColorValue(std::array<float, 4>{clearColor.r, clearColor.g, clearColor.b, clearColor.a});
+	clearValues[2].color = vk::ClearColorValue(std::array<float, 4>{clearColor.r, clearColor.g, clearColor.b, clearColor.a});
+	clearValues[3].depthStencil = vk::ClearDepthStencilValue(clearDepth, clearStencil);
 
 	rpInfo.clearValueCount = (uint32_t)clearValues.size();
 	rpInfo.pClearValues = clearValues.data();

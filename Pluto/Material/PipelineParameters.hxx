@@ -7,7 +7,7 @@ struct PipelineParameters {
 	vk::PipelineViewportStateCreateInfo viewportState;
 	vk::PipelineMultisampleStateCreateInfo multisampling;
 	vk::PipelineDepthStencilStateCreateInfo depthStencil;
-	vk::PipelineColorBlendAttachmentState colorBlendAttachment;
+	std::array<vk::PipelineColorBlendAttachmentState, 3> blendAttachments;
 	vk::PipelineColorBlendStateCreateInfo colorBlending;
 	vk::PipelineDynamicStateCreateInfo dynamicState;
 
@@ -72,21 +72,52 @@ struct PipelineParameters {
 		depthStencil.front = vk::StencilOpState(); // Optional
 		depthStencil.back = vk::StencilOpState(); // Optional
 
-		/* Default Color Blending Attachment State */
-		colorBlendAttachment.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
-		colorBlendAttachment.blendEnable = true;
-		colorBlendAttachment.srcColorBlendFactor = vk::BlendFactor::eSrcAlpha; // Optional /* TRANSPARENCY STUFF HERE! */
-		colorBlendAttachment.dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha; // Optional
-		colorBlendAttachment.colorBlendOp = vk::BlendOp::eAdd; // Optional
-		colorBlendAttachment.srcAlphaBlendFactor = vk::BlendFactor::eOne; // Optional
-		colorBlendAttachment.dstAlphaBlendFactor = vk::BlendFactor::eZero; // Optional
-		colorBlendAttachment.alphaBlendOp = vk::BlendOp::eAdd; // Optional
+		/* Default Color Blending Attachment States */
+
+		/* G Buffer 0 */
+		blendAttachments[0].colorWriteMask = vk::ColorComponentFlagBits::eR | 
+											vk::ColorComponentFlagBits::eG | 
+											vk::ColorComponentFlagBits::eB | 
+											vk::ColorComponentFlagBits::eA;
+		blendAttachments[0].blendEnable = true;
+		blendAttachments[0].srcColorBlendFactor = vk::BlendFactor::eSrcAlpha; // Optional /* TRANSPARENCY STUFF HERE! */
+		blendAttachments[0].dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha; // Optional
+		blendAttachments[0].colorBlendOp = vk::BlendOp::eAdd; // Optional
+		blendAttachments[0].srcAlphaBlendFactor = vk::BlendFactor::eOne; // Optional
+		blendAttachments[0].dstAlphaBlendFactor = vk::BlendFactor::eZero; // Optional
+		blendAttachments[0].alphaBlendOp = vk::BlendOp::eAdd; // Optional
+
+		/* G Buffer 1 */
+		blendAttachments[1].colorWriteMask = vk::ColorComponentFlagBits::eR | 
+											vk::ColorComponentFlagBits::eG | 
+											vk::ColorComponentFlagBits::eB | 
+											vk::ColorComponentFlagBits::eA;
+		blendAttachments[1].blendEnable = true;
+		blendAttachments[1].srcColorBlendFactor = vk::BlendFactor::eSrcAlpha; // Optional /* TRANSPARENCY STUFF HERE! */
+		blendAttachments[1].dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha; // Optional
+		blendAttachments[1].colorBlendOp = vk::BlendOp::eAdd; // Optional
+		blendAttachments[1].srcAlphaBlendFactor = vk::BlendFactor::eOne; // Optional
+		blendAttachments[1].dstAlphaBlendFactor = vk::BlendFactor::eZero; // Optional
+		blendAttachments[1].alphaBlendOp = vk::BlendOp::eAdd; // Optional
+
+		/* G Buffer 2 */
+		blendAttachments[2].colorWriteMask = vk::ColorComponentFlagBits::eR | 
+											vk::ColorComponentFlagBits::eG | 
+											vk::ColorComponentFlagBits::eB | 
+											vk::ColorComponentFlagBits::eA;
+		blendAttachments[2].blendEnable = true;
+		blendAttachments[2].srcColorBlendFactor = vk::BlendFactor::eSrcAlpha; // Optional /* TRANSPARENCY STUFF HERE! */
+		blendAttachments[2].dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha; // Optional
+		blendAttachments[2].colorBlendOp = vk::BlendOp::eAdd; // Optional
+		blendAttachments[2].srcAlphaBlendFactor = vk::BlendFactor::eOne; // Optional
+		blendAttachments[2].dstAlphaBlendFactor = vk::BlendFactor::eZero; // Optional
+		blendAttachments[2].alphaBlendOp = vk::BlendOp::eAdd; // Optional
 
 		/* Default Color Blending State */
 		colorBlending.logicOpEnable = false;
 		colorBlending.logicOp = vk::LogicOp::eCopy; // Optional
-		colorBlending.attachmentCount = 1;
-		colorBlending.pAttachments = &colorBlendAttachment;
+		colorBlending.attachmentCount = blendAttachments.size();
+		colorBlending.pAttachments = blendAttachments.data();
 		colorBlending.blendConstants[0] = 0.0f; // Optional
 		colorBlending.blendConstants[1] = 0.0f; // Optional
 		colorBlending.blendConstants[2] = 0.0f; // Optional

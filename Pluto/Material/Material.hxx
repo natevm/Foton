@@ -284,17 +284,17 @@ class Material : public StaticFactory
         static vk::DescriptorSet raytracingDescriptorSet;
         
         /* The pipeline resources for each of the possible material types */
-        static std::map<vk::RenderPass, RasterPipelineResources> uniformColor;
-        static std::map<vk::RenderPass, RasterPipelineResources> blinn;
+        // static std::map<vk::RenderPass, RasterPipelineResources> uniformColor;
+        // static std::map<vk::RenderPass, RasterPipelineResources> blinn;
         static std::map<vk::RenderPass, RasterPipelineResources> pbr;
-        static std::map<vk::RenderPass, RasterPipelineResources> texcoordsurface;
-        static std::map<vk::RenderPass, RasterPipelineResources> normalsurface;
+        // static std::map<vk::RenderPass, RasterPipelineResources> texcoordsurface;
+        // static std::map<vk::RenderPass, RasterPipelineResources> normalsurface;
         static std::map<vk::RenderPass, RasterPipelineResources> skybox;
-        static std::map<vk::RenderPass, RasterPipelineResources> depth;
+        // static std::map<vk::RenderPass, RasterPipelineResources> depth;
         static std::map<vk::RenderPass, RasterPipelineResources> volume;
         static std::map<vk::RenderPass, RasterPipelineResources> shadowmap;
         static std::map<vk::RenderPass, RasterPipelineResources> fragmentdepth;
-        static std::map<vk::RenderPass, RasterPipelineResources> fragmentposition;
+        // static std::map<vk::RenderPass, RasterPipelineResources> fragmentposition;
         static std::map<vk::RenderPass, RasterPipelineResources> vrmask;
         
         static std::map<vk::RenderPass, RasterPipelineResources> gbuffers;

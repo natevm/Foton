@@ -135,6 +135,8 @@ class Texture : public StaticFactory
 		vk::ImageLayout get_color_image_layout();
 		vk::ImageView get_color_image_view();
         std::vector<vk::ImageView> get_color_image_view_layers();
+        std::vector<vk::ImageView> get_position_image_view_layers();
+        std::vector<vk::ImageView> get_normal_image_view_layers();
 		vk::Image get_color_image();
 		uint32_t get_color_mip_levels();
 		vk::Sampler get_color_sampler();

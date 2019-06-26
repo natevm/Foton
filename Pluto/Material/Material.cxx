@@ -35,18 +35,18 @@ vk::DescriptorSet Material::raytracingDescriptorSet;
 std::mutex Material::creation_mutex;
 bool Material::Initialized = false;
 
-std::map<vk::RenderPass, Material::RasterPipelineResources> Material::uniformColor;
-std::map<vk::RenderPass, Material::RasterPipelineResources> Material::blinn;
+// std::map<vk::RenderPass, Material::RasterPipelineResources> Material::uniformColor;
+// std::map<vk::RenderPass, Material::RasterPipelineResources> Material::blinn;
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::pbr;
-std::map<vk::RenderPass, Material::RasterPipelineResources> Material::texcoordsurface;
-std::map<vk::RenderPass, Material::RasterPipelineResources> Material::normalsurface;
+// std::map<vk::RenderPass, Material::RasterPipelineResources> Material::texcoordsurface;
+// std::map<vk::RenderPass, Material::RasterPipelineResources> Material::normalsurface;
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::skybox;
-std::map<vk::RenderPass, Material::RasterPipelineResources> Material::depth;
+// std::map<vk::RenderPass, Material::RasterPipelineResources> Material::depth;
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::volume;
 
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::shadowmap;
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::fragmentdepth;
-std::map<vk::RenderPass, Material::RasterPipelineResources> Material::fragmentposition;
+// std::map<vk::RenderPass, Material::RasterPipelineResources> Material::fragmentposition;
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::vrmask;
 
 std::map<vk::RenderPass, Material::RasterPipelineResources> Material::gbuffers;
@@ -263,79 +263,79 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 	/* RASTER GRAPHICS PIPELINES */
 
 	/* ------ UNIFORM COLOR  ------ */
-	{
-		uniformColor[renderpass] = RasterPipelineResources();
+	// {
+	// 	uniformColor[renderpass] = RasterPipelineResources();
 
-		std::string ResourcePath = Options::GetResourcePath();
-		auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/UniformColor/vert.spv"));
-		auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/UniformColor/frag.spv"));
+	// 	std::string ResourcePath = Options::GetResourcePath();
+	// 	auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/UniformColor/vert.spv"));
+	// 	auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/UniformColor/frag.spv"));
 
-		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule("uniform_color_vert", vertShaderCode);
-		auto fragShaderModule = CreateShaderModule("uniform_color_frag", fragShaderCode);
+	// 	/* Create shader modules */
+	// 	auto vertShaderModule = CreateShaderModule("uniform_color_vert", vertShaderCode);
+	// 	auto fragShaderModule = CreateShaderModule("uniform_color_frag", fragShaderCode);
 
-		/* Info for shader stages */
-		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
-		vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
-		vertShaderStageInfo.module = vertShaderModule;
-		vertShaderStageInfo.pName = "main";
+	// 	/* Info for shader stages */
+	// 	vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
+	// 	vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
+	// 	vertShaderStageInfo.module = vertShaderModule;
+	// 	vertShaderStageInfo.pName = "main";
 
-		vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
-		fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
-		fragShaderStageInfo.module = fragShaderModule;
-		fragShaderStageInfo.pName = "main";
+	// 	vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
+	// 	fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
+	// 	fragShaderStageInfo.module = fragShaderModule;
+	// 	fragShaderStageInfo.pName = "main";
 
-		std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
+	// 	std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
 		
-		/* Account for possibly multiple samples */
-		uniformColor[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
-		uniformColor[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
+	// 	/* Account for possibly multiple samples */
+	// 	uniformColor[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
+	// 	uniformColor[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
 
-		CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
-			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
-			uniformColor[renderpass].pipelineParameters, 
-			renderpass, 0, 
-			uniformColor[renderpass].pipelines, uniformColor[renderpass].pipelineLayout);
+	// 	CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+	// 		{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
+	// 		uniformColor[renderpass].pipelineParameters, 
+	// 		renderpass, 0, 
+	// 		uniformColor[renderpass].pipelines, uniformColor[renderpass].pipelineLayout);
 
-	}
+	// }
 
 
 	/* ------ BLINN GRAPHICS ------ */
-	{
-		blinn[renderpass] = RasterPipelineResources();
+	// {
+	// 	blinn[renderpass] = RasterPipelineResources();
 
-		std::string ResourcePath = Options::GetResourcePath();
-		auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Blinn/vert.spv"));
-		auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Blinn/frag.spv"));
+	// 	std::string ResourcePath = Options::GetResourcePath();
+	// 	auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Blinn/vert.spv"));
+	// 	auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Blinn/frag.spv"));
 
-		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule("blinn_vert", vertShaderCode);
-		auto fragShaderModule = CreateShaderModule("blinn_frag", fragShaderCode);
+	// 	/* Create shader modules */
+	// 	auto vertShaderModule = CreateShaderModule("blinn_vert", vertShaderCode);
+	// 	auto fragShaderModule = CreateShaderModule("blinn_frag", fragShaderCode);
 
-		/* Info for shader stages */
-		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
-		vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
-		vertShaderStageInfo.module = vertShaderModule;
-		vertShaderStageInfo.pName = "main";
+	// 	/* Info for shader stages */
+	// 	vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
+	// 	vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
+	// 	vertShaderStageInfo.module = vertShaderModule;
+	// 	vertShaderStageInfo.pName = "main";
 
-		vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
-		fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
-		fragShaderStageInfo.module = fragShaderModule;
-		fragShaderStageInfo.pName = "main";
+	// 	vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
+	// 	fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
+	// 	fragShaderStageInfo.module = fragShaderModule;
+	// 	fragShaderStageInfo.pName = "main";
 
-		std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
+	// 	std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
 		
-		/* Account for possibly multiple samples */
-		blinn[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
-		blinn[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
+	// 	/* Account for possibly multiple samples */
+	// 	blinn[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
+	// 	blinn[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
 
-		CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
-			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
-			blinn[renderpass].pipelineParameters, 
-			renderpass, 0, 
-			blinn[renderpass].pipelines, blinn[renderpass].pipelineLayout);
+	// 	CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+	// 		{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
+	// 		blinn[renderpass].pipelineParameters, 
+	// 		renderpass, 0, 
+	// 		blinn[renderpass].pipelines, blinn[renderpass].pipelineLayout);
 
-	}
+	// }
 
 	/* ------ PBR  ------ */
 	{
@@ -382,79 +382,79 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 
 	}
 
-	/* ------ NORMAL SURFACE ------ */
-	{
-		normalsurface[renderpass] = RasterPipelineResources();
+	// /* ------ NORMAL SURFACE ------ */
+	// {
+	// 	normalsurface[renderpass] = RasterPipelineResources();
 
-		std::string ResourcePath = Options::GetResourcePath();
-		auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/NormalSurface/vert.spv"));
-		auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/NormalSurface/frag.spv"));
+	// 	std::string ResourcePath = Options::GetResourcePath();
+	// 	auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/NormalSurface/vert.spv"));
+	// 	auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/NormalSurface/frag.spv"));
 
-		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule("normal_surf_vert", vertShaderCode);
-		auto fragShaderModule = CreateShaderModule("normal_surf_frag", fragShaderCode);
+	// 	/* Create shader modules */
+	// 	auto vertShaderModule = CreateShaderModule("normal_surf_vert", vertShaderCode);
+	// 	auto fragShaderModule = CreateShaderModule("normal_surf_frag", fragShaderCode);
 
-		/* Info for shader stages */
-		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
-		vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
-		vertShaderStageInfo.module = vertShaderModule;
-		vertShaderStageInfo.pName = "main";
+	// 	/* Info for shader stages */
+	// 	vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
+	// 	vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
+	// 	vertShaderStageInfo.module = vertShaderModule;
+	// 	vertShaderStageInfo.pName = "main";
 
-		vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
-		fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
-		fragShaderStageInfo.module = fragShaderModule;
-		fragShaderStageInfo.pName = "main";
+	// 	vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
+	// 	fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
+	// 	fragShaderStageInfo.module = fragShaderModule;
+	// 	fragShaderStageInfo.pName = "main";
 
-		std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
+	// 	std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
 		
-		/* Account for possibly multiple samples */
-		normalsurface[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
-		normalsurface[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
+	// 	/* Account for possibly multiple samples */
+	// 	normalsurface[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
+	// 	normalsurface[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
 
-		CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
-			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
-			normalsurface[renderpass].pipelineParameters, 
-			renderpass, 0, 
-			normalsurface[renderpass].pipelines, normalsurface[renderpass].pipelineLayout);
+	// 	CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+	// 		{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
+	// 		normalsurface[renderpass].pipelineParameters, 
+	// 		renderpass, 0, 
+	// 		normalsurface[renderpass].pipelines, normalsurface[renderpass].pipelineLayout);
 
-	}
+	// }
 
 	/* ------ TEXCOORD SURFACE  ------ */
-	{
-		texcoordsurface[renderpass] = RasterPipelineResources();
+	// {
+	// 	texcoordsurface[renderpass] = RasterPipelineResources();
 
-		std::string ResourcePath = Options::GetResourcePath();
-		auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/TexCoordSurface/vert.spv"));
-		auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/TexCoordSurface/frag.spv"));
+	// 	std::string ResourcePath = Options::GetResourcePath();
+	// 	auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/TexCoordSurface/vert.spv"));
+	// 	auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/TexCoordSurface/frag.spv"));
 
-		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule("texcoord_vert", vertShaderCode);
-		auto fragShaderModule = CreateShaderModule("texcoord_frag", fragShaderCode);
+	// 	/* Create shader modules */
+	// 	auto vertShaderModule = CreateShaderModule("texcoord_vert", vertShaderCode);
+	// 	auto fragShaderModule = CreateShaderModule("texcoord_frag", fragShaderCode);
 
-		/* Info for shader stages */
-		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
-		vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
-		vertShaderStageInfo.module = vertShaderModule;
-		vertShaderStageInfo.pName = "main";
+	// 	/* Info for shader stages */
+	// 	vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
+	// 	vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
+	// 	vertShaderStageInfo.module = vertShaderModule;
+	// 	vertShaderStageInfo.pName = "main";
 
-		vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
-		fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
-		fragShaderStageInfo.module = fragShaderModule;
-		fragShaderStageInfo.pName = "main";
+	// 	vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
+	// 	fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
+	// 	fragShaderStageInfo.module = fragShaderModule;
+	// 	fragShaderStageInfo.pName = "main";
 
-		std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
+	// 	std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
 		
-		/* Account for possibly multiple samples */
-		texcoordsurface[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
-		texcoordsurface[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
+	// 	/* Account for possibly multiple samples */
+	// 	texcoordsurface[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
+	// 	texcoordsurface[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
 
-		CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
-			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
-			texcoordsurface[renderpass].pipelineParameters, 
-			renderpass, 0, 
-			texcoordsurface[renderpass].pipelines, texcoordsurface[renderpass].pipelineLayout);
+	// 	CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+	// 		{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
+	// 		texcoordsurface[renderpass].pipelineParameters, 
+	// 		renderpass, 0, 
+	// 		texcoordsurface[renderpass].pipelines, texcoordsurface[renderpass].pipelineLayout);
 
-	}
+	// }
 
 	/* ------ SKYBOX  ------ */
 	{
@@ -497,49 +497,49 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 	}
 
 	/* ------ DEPTH  ------ */
-	{
-		depth[renderpass] = RasterPipelineResources();
+	// {
+	// 	depth[renderpass] = RasterPipelineResources();
 
-		std::string ResourcePath = Options::GetResourcePath();
-		auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Depth/vert.spv"));
-		auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Depth/frag.spv"));
+	// 	std::string ResourcePath = Options::GetResourcePath();
+	// 	auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Depth/vert.spv"));
+	// 	auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Depth/frag.spv"));
 
-		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule("depth_vert", vertShaderCode);
-		auto fragShaderModule = CreateShaderModule("depth_frag", fragShaderCode);
+	// 	/* Create shader modules */
+	// 	auto vertShaderModule = CreateShaderModule("depth_vert", vertShaderCode);
+	// 	auto fragShaderModule = CreateShaderModule("depth_frag", fragShaderCode);
 
-		/* Info for shader stages */
-		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
-		vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
-		vertShaderStageInfo.module = vertShaderModule;
-		vertShaderStageInfo.pName = "main";
+	// 	/* Info for shader stages */
+	// 	vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
+	// 	vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
+	// 	vertShaderStageInfo.module = vertShaderModule;
+	// 	vertShaderStageInfo.pName = "main";
 
-		vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
-		fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
-		fragShaderStageInfo.module = fragShaderModule;
-		fragShaderStageInfo.pName = "main";
+	// 	vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
+	// 	fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
+	// 	fragShaderStageInfo.module = fragShaderModule;
+	// 	fragShaderStageInfo.pName = "main";
 
-		std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
+	// 	std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
 		
-		/* Account for possibly multiple samples */
-		depth[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
-		depth[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
-		// depth[renderpass].pipelineParameters.rasterizer.cullMode = vk::CullModeFlagBits::eNone;
+	// 	/* Account for possibly multiple samples */
+	// 	depth[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
+	// 	depth[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
+	// 	// depth[renderpass].pipelineParameters.rasterizer.cullMode = vk::CullModeFlagBits::eNone;
 
-		/* Because we use a depth prepass */
-		if (use_depth_prepass) {
-			depth[renderpass].pipelineParameters.depthStencil.depthTestEnable = true;
-			depth[renderpass].pipelineParameters.depthStencil.depthWriteEnable = false; // not VK_TRUE since we have a depth prepass
-			depth[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
-		}
+	// 	/* Because we use a depth prepass */
+	// 	if (use_depth_prepass) {
+	// 		depth[renderpass].pipelineParameters.depthStencil.depthTestEnable = true;
+	// 		depth[renderpass].pipelineParameters.depthStencil.depthWriteEnable = false; // not VK_TRUE since we have a depth prepass
+	// 		depth[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
+	// 	}
 
-		CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
-			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
-			depth[renderpass].pipelineParameters, 
-			renderpass, 0, 
-			depth[renderpass].pipelines, depth[renderpass].pipelineLayout);
+	// 	CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+	// 		{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
+	// 		depth[renderpass].pipelineParameters, 
+	// 		renderpass, 0, 
+	// 		depth[renderpass].pipelines, depth[renderpass].pipelineLayout);
 
-	}
+	// }
 
 	/* ------ Volume  ------ */
 	{
@@ -652,54 +652,6 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 			gbuffers[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
 		}
 
-		/* Account for multiple color attachments */
-		std::array<vk::PipelineColorBlendAttachmentState, 3> blendAttachments;
-
-		/* G Buffer 0 */
-		blendAttachments[0].colorWriteMask = vk::ColorComponentFlagBits::eR | 
-											vk::ColorComponentFlagBits::eG | 
-											vk::ColorComponentFlagBits::eB | 
-											vk::ColorComponentFlagBits::eA;
-		blendAttachments[0].blendEnable = true;
-		blendAttachments[0].srcColorBlendFactor = vk::BlendFactor::eSrcAlpha; // Optional /* TRANSPARENCY STUFF HERE! */
-		blendAttachments[0].dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha; // Optional
-		blendAttachments[0].colorBlendOp = vk::BlendOp::eAdd; // Optional
-		blendAttachments[0].srcAlphaBlendFactor = vk::BlendFactor::eOne; // Optional
-		blendAttachments[0].dstAlphaBlendFactor = vk::BlendFactor::eZero; // Optional
-		blendAttachments[0].alphaBlendOp = vk::BlendOp::eAdd; // Optional
-
-		/* G Buffer 0 */
-		blendAttachments[1].colorWriteMask = vk::ColorComponentFlagBits::eR | 
-											vk::ColorComponentFlagBits::eG | 
-											vk::ColorComponentFlagBits::eB | 
-											vk::ColorComponentFlagBits::eA;
-		blendAttachments[1].blendEnable = true;
-		blendAttachments[1].srcColorBlendFactor = vk::BlendFactor::eSrcAlpha; // Optional /* TRANSPARENCY STUFF HERE! */
-		blendAttachments[1].dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha; // Optional
-		blendAttachments[1].colorBlendOp = vk::BlendOp::eAdd; // Optional
-		blendAttachments[1].srcAlphaBlendFactor = vk::BlendFactor::eOne; // Optional
-		blendAttachments[1].dstAlphaBlendFactor = vk::BlendFactor::eZero; // Optional
-		blendAttachments[1].alphaBlendOp = vk::BlendOp::eAdd; // Optional
-
-		/* G Buffer 2 */
-		blendAttachments[2].colorWriteMask = vk::ColorComponentFlagBits::eR | 
-											vk::ColorComponentFlagBits::eG | 
-											vk::ColorComponentFlagBits::eB | 
-											vk::ColorComponentFlagBits::eA;
-		blendAttachments[2].blendEnable = true;
-		blendAttachments[2].srcColorBlendFactor = vk::BlendFactor::eSrcAlpha; // Optional /* TRANSPARENCY STUFF HERE! */
-		blendAttachments[2].dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha; // Optional
-		blendAttachments[2].colorBlendOp = vk::BlendOp::eAdd; // Optional
-		blendAttachments[2].srcAlphaBlendFactor = vk::BlendFactor::eOne; // Optional
-		blendAttachments[2].dstAlphaBlendFactor = vk::BlendFactor::eZero; // Optional
-		blendAttachments[2].alphaBlendOp = vk::BlendOp::eAdd; // Optional
-
-		/* Default Color Blending State */
-		gbuffers[renderpass].pipelineParameters.colorBlending.logicOpEnable = false;
-		gbuffers[renderpass].pipelineParameters.colorBlending.logicOp = vk::LogicOp::eCopy; // Optional
-		gbuffers[renderpass].pipelineParameters.colorBlending.attachmentCount = blendAttachments.size();
-		gbuffers[renderpass].pipelineParameters.colorBlending.pAttachments = blendAttachments.data();
-
 		CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
 			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			gbuffers[renderpass].pipelineParameters, 
@@ -756,49 +708,49 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 
 	/* ------ FRAGMENT POSITION  ------ */
 
-	{
-		fragmentposition[renderpass] = RasterPipelineResources();
+	// {
+	// 	fragmentposition[renderpass] = RasterPipelineResources();
 
-		std::string ResourcePath = Options::GetResourcePath();
-		auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/FragmentPosition/vert.spv"));
-		auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/FragmentPosition/frag.spv"));
+	// 	std::string ResourcePath = Options::GetResourcePath();
+	// 	auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/FragmentPosition/vert.spv"));
+	// 	auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/FragmentPosition/frag.spv"));
 
-		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule("frag_pos_vert", vertShaderCode);
-		auto fragShaderModule = CreateShaderModule("frag_pos_frag", fragShaderCode);
+	// 	/* Create shader modules */
+	// 	auto vertShaderModule = CreateShaderModule("frag_pos_vert", vertShaderCode);
+	// 	auto fragShaderModule = CreateShaderModule("frag_pos_frag", fragShaderCode);
 
-		/* Info for shader stages */
-		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
-		vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
-		vertShaderStageInfo.module = vertShaderModule;
-		vertShaderStageInfo.pName = "main";
+	// 	/* Info for shader stages */
+	// 	vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
+	// 	vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
+	// 	vertShaderStageInfo.module = vertShaderModule;
+	// 	vertShaderStageInfo.pName = "main";
 
-		vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
-		fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
-		fragShaderStageInfo.module = fragShaderModule;
-		fragShaderStageInfo.pName = "main";
+	// 	vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
+	// 	fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
+	// 	fragShaderStageInfo.module = fragShaderModule;
+	// 	fragShaderStageInfo.pName = "main";
 
-		std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
+	// 	std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
 		
-		/* Account for possibly multiple samples */
-		fragmentposition[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
-		fragmentposition[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
-		fragmentposition[renderpass].pipelineParameters.rasterizer.cullMode = vk::CullModeFlagBits::eNone;
+	// 	/* Account for possibly multiple samples */
+	// 	fragmentposition[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
+	// 	fragmentposition[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
+	// 	fragmentposition[renderpass].pipelineParameters.rasterizer.cullMode = vk::CullModeFlagBits::eNone;
 
-		/* Because we use a depth prepass */
-		if (use_depth_prepass) {
-			fragmentposition[renderpass].pipelineParameters.depthStencil.depthTestEnable = true;
-			fragmentposition[renderpass].pipelineParameters.depthStencil.depthWriteEnable = false; // not VK_TRUE since we have a depth prepass
-			fragmentposition[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
-		}
+	// 	/* Because we use a depth prepass */
+	// 	if (use_depth_prepass) {
+	// 		fragmentposition[renderpass].pipelineParameters.depthStencil.depthTestEnable = true;
+	// 		fragmentposition[renderpass].pipelineParameters.depthStencil.depthWriteEnable = false; // not VK_TRUE since we have a depth prepass
+	// 		fragmentposition[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
+	// 	}
 
-		CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
-			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
-			fragmentposition[renderpass].pipelineParameters, 
-			renderpass, 0, 
-			fragmentposition[renderpass].pipelines, fragmentposition[renderpass].pipelineLayout);
+	// 	CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+	// 		{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
+	// 		fragmentposition[renderpass].pipelineParameters, 
+	// 		renderpass, 0, 
+	// 		fragmentposition[renderpass].pipelines, fragmentposition[renderpass].pipelineLayout);
 
-	}
+	// }
 
 	/* ------ VR MASK ------ */
 	{
@@ -1514,12 +1466,12 @@ void Material::CreateVertexAttributeDescriptions() {
 void Material::BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass) 
 {
 	std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet};
-	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, normalsurface[render_pass].pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
-	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, blinn[render_pass].pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
-	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, texcoordsurface[render_pass].pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
+	// command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, normalsurface[render_pass].pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
+	// command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, blinn[render_pass].pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
+	// command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, texcoordsurface[render_pass].pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pbr[render_pass].pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, skybox[render_pass].pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
-	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, depth[render_pass].pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
+	// command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, depth[render_pass].pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, volume[render_pass].pipelineLayout, 0, 2, descriptorSets.data(), 0, nullptr);
 }
 
@@ -1563,32 +1515,32 @@ void Material::DrawEntity(
 
 	if (rendermode == RENDER_MODE_HIDDEN) return;
 
-	if (rendermode == RENDER_MODE_NORMAL) {
-		command_buffer.pushConstants(normalsurface[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+	// if (rendermode == RENDER_MODE_NORMAL) {
+	// 	command_buffer.pushConstants(normalsurface[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
 		
-		if ((currentlyBoundRenderMode != RENDER_MODE_NORMAL) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
-			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, normalsurface[render_pass].pipelines[pipeline_type]);
-			currentlyBoundRenderMode = RENDER_MODE_NORMAL;
-			currentRenderpass = render_pass;
-		}
-	}
-	else if (rendermode == RENDER_MODE_BLINN) {
-		command_buffer.pushConstants(blinn[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-		if ((currentlyBoundRenderMode != RENDER_MODE_BLINN) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
-			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, blinn[render_pass].pipelines[pipeline_type]);
-			currentlyBoundRenderMode = RENDER_MODE_BLINN;
-			currentRenderpass = render_pass;
-		}
-	}
-	else if (rendermode == RENDER_MODE_TEXCOORD) {
-		command_buffer.pushConstants(texcoordsurface[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-		if ((currentlyBoundRenderMode != RENDER_MODE_TEXCOORD) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
-			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, texcoordsurface[render_pass].pipelines[pipeline_type]);
-			currentlyBoundRenderMode = RENDER_MODE_TEXCOORD;
-			currentRenderpass = render_pass;
-		}
-	}
-	else if (rendermode == RENDER_MODE_PBR) {
+	// 	if ((currentlyBoundRenderMode != RENDER_MODE_NORMAL) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
+	// 		command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, normalsurface[render_pass].pipelines[pipeline_type]);
+	// 		currentlyBoundRenderMode = RENDER_MODE_NORMAL;
+	// 		currentRenderpass = render_pass;
+	// 	}
+	// }
+	// else if (rendermode == RENDER_MODE_BLINN) {
+	// 	command_buffer.pushConstants(blinn[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+	// 	if ((currentlyBoundRenderMode != RENDER_MODE_BLINN) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
+	// 		command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, blinn[render_pass].pipelines[pipeline_type]);
+	// 		currentlyBoundRenderMode = RENDER_MODE_BLINN;
+	// 		currentRenderpass = render_pass;
+	// 	}
+	// }
+	// else if (rendermode == RENDER_MODE_TEXCOORD) {
+	// 	command_buffer.pushConstants(texcoordsurface[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+	// 	if ((currentlyBoundRenderMode != RENDER_MODE_TEXCOORD) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
+	// 		command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, texcoordsurface[render_pass].pipelines[pipeline_type]);
+	// 		currentlyBoundRenderMode = RENDER_MODE_TEXCOORD;
+	// 		currentRenderpass = render_pass;
+	// 	}
+	// }
+	/* else */ if (rendermode == RENDER_MODE_PBR) {
 		command_buffer.pushConstants(pbr[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
 		if ((currentlyBoundRenderMode != RENDER_MODE_PBR) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
 			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pbr[render_pass].pipelines[pipeline_type]);
@@ -1596,14 +1548,14 @@ void Material::DrawEntity(
 			currentRenderpass = render_pass;
 		}
 	}
-	else if (rendermode == RENDER_MODE_DEPTH) {
-		command_buffer.pushConstants(depth[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-		if ((currentlyBoundRenderMode != RENDER_MODE_DEPTH) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
-			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, depth[render_pass].pipelines[pipeline_type]);
-			currentlyBoundRenderMode = RENDER_MODE_DEPTH;
-			currentRenderpass = render_pass;
-		}
-	}
+	// else if (rendermode == RENDER_MODE_DEPTH) {
+	// 	command_buffer.pushConstants(depth[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+	// 	if ((currentlyBoundRenderMode != RENDER_MODE_DEPTH) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
+	// 		command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, depth[render_pass].pipelines[pipeline_type]);
+	// 		currentlyBoundRenderMode = RENDER_MODE_DEPTH;
+	// 		currentRenderpass = render_pass;
+	// 	}
+	// }
 	else if (rendermode == RENDER_MODE_SKYBOX) {
 		command_buffer.pushConstants(skybox[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
 		if ((currentlyBoundRenderMode != RENDER_MODE_SKYBOX) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
@@ -1620,14 +1572,14 @@ void Material::DrawEntity(
 			currentRenderpass = render_pass;
 		}
 	}
-	else if (rendermode == RENDER_MODE_FRAGMENTPOSITION) {
-		command_buffer.pushConstants(fragmentposition[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-		if ((currentlyBoundRenderMode != RENDER_MODE_FRAGMENTPOSITION) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
-			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, fragmentposition[render_pass].pipelines[pipeline_type]);
-			currentlyBoundRenderMode = RENDER_MODE_FRAGMENTPOSITION;
-			currentRenderpass = render_pass;
-		}
-	}
+	// else if (rendermode == RENDER_MODE_FRAGMENTPOSITION) {
+	// 	command_buffer.pushConstants(fragmentposition[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+	// 	if ((currentlyBoundRenderMode != RENDER_MODE_FRAGMENTPOSITION) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
+	// 		command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, fragmentposition[render_pass].pipelines[pipeline_type]);
+	// 		currentlyBoundRenderMode = RENDER_MODE_FRAGMENTPOSITION;
+	// 		currentRenderpass = render_pass;
+	// 	}
+	// }
 	else if (rendermode == RENDER_MODE_SHADOWMAP) {
 		command_buffer.pushConstants(shadowmap[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
 		if ((currentlyBoundRenderMode != RENDER_MODE_SHADOWMAP) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
@@ -1650,6 +1602,14 @@ void Material::DrawEntity(
 		if ((currentlyBoundRenderMode != RENDER_MODE_VOLUME) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
 			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, volume[render_pass].pipelines[pipeline_type]);
 			currentlyBoundRenderMode = RENDER_MODE_VOLUME;
+			currentRenderpass = render_pass;
+		}
+	}
+	else {
+		command_buffer.pushConstants(pbr[render_pass].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+		if ((currentlyBoundRenderMode != RENDER_MODE_PBR) || (currentRenderpass != render_pass) || (currentlyBoundPipelineType != pipeline_type)) {
+			command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pbr[render_pass].pipelines[pipeline_type]);
+			currentlyBoundRenderMode = RENDER_MODE_PBR;
 			currentRenderpass = render_pass;
 		}
 	}
