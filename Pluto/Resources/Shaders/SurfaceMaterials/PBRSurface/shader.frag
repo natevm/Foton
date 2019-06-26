@@ -70,4 +70,6 @@ void main() {
 	
 	// Handle emission here...
 	outColor = vec4(finalColor, alpha);
+	outPosition = vec4(w_position, 1);
+	outNormal = vec4(N, 1);
 }
