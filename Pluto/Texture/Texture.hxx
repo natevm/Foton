@@ -134,6 +134,8 @@ class Texture : public StaticFactory
 		vk::Format get_color_format();
 		vk::ImageLayout get_color_image_layout();
 		vk::ImageView get_color_image_view();
+		vk::ImageView get_position_image_view();
+		vk::ImageView get_normal_image_view();
         std::vector<vk::ImageView> get_color_image_view_layers();
         std::vector<vk::ImageView> get_position_image_view_layers();
         std::vector<vk::ImageView> get_normal_image_view_layers();

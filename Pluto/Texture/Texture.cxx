@@ -680,6 +680,8 @@ std::vector<vk::ImageView> Texture::GetImageViews(vk::ImageViewType view_type)
 
 vk::ImageView Texture::get_depth_image_view() { return data.depthBuffer.imageView; };
 vk::ImageView Texture::get_color_image_view() { return data.colorBuffer.imageView; };
+vk::ImageView Texture::get_position_image_view() { return data.positionBuffer.imageView; };
+vk::ImageView Texture::get_normal_image_view() { return data.normalBuffer.imageView; };
 std::vector<vk::ImageView> Texture::get_depth_image_view_layers() { return data.depthBuffer.imageViewLayers; };
 std::vector<vk::ImageView> Texture::get_color_image_view_layers() { return data.colorBuffer.imageViewLayers; };
 std::vector<vk::ImageView> Texture::get_position_image_view_layers() { return data.positionBuffer.imageViewLayers; };

@@ -28,6 +28,8 @@ void main()
     // texture2D test = texture_2Ds[texture_id];
 
     // layout(rgba8) image2D test = layout(rgba8) texture_2Ds[texture_id];
+    vec4 N = imageLoad(normal_image, ivec2(gl_LaunchIDNV.xy));
+    vec4 P = imageLoad(position_image, ivec2(gl_LaunchIDNV.xy));
 
-    imageStore(render_image, ivec2(gl_LaunchIDNV.xy), vec4(inUV.x, inUV.y, 0.0, 0.0));
+    imageStore(render_image, ivec2(gl_LaunchIDNV.xy),  N  + P * .0000001);
 }

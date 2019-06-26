@@ -33,6 +33,8 @@ layout(set = 1, binding = 4) uniform texture3D texture_3Ds[MAX_TEXTURES];
 #ifdef RAYTRACING
 layout(set = 2, binding = 0) uniform accelerationStructureNV topLevelAS;
 layout(set = 2, binding = 1, rgba16f) uniform image2D render_image;
+layout(set = 2, binding = 2, rgba16f) uniform image2D position_image;
+layout(set = 2, binding = 3, rgba16f) uniform image2D normal_image;
 #endif
 
 /* Push Constants */
