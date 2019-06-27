@@ -1052,6 +1052,7 @@ void RenderSystem::build_top_level_bvh(bool submit_immediately)
             || (!entities[i].mesh())
             || (!entities[i].transform())
             || (!entities[i].material())
+            || (entities[i].material()->get_name().compare("SkyboxMaterial") == 0)
             || (!entities[i].mesh()->get_low_level_bvh()))
         {
 
@@ -1064,9 +1065,9 @@ void RenderSystem::build_top_level_bvh(bool submit_immediately)
             auto llas = entities[i].mesh()->get_low_level_bvh();
             if (!llas) continue;
 
+            uint64_t handle = entities[i].mesh()->get_low_level_bvh_handle();
             /* Create Instance */
-            uint64_t accelerationStructureHandle;
-            device.getAccelerationStructureHandleNV(llas, sizeof(uint64_t), &accelerationStructureHandle, dldi);
+            
             auto local_to_world = entities[i].transform()->get_local_to_world_matrix();
             // Matches a working example
             float transform[12] = {
@@ -1080,7 +1081,7 @@ void RenderSystem::build_top_level_bvh(bool submit_immediately)
             instance.mask = 0xff;
             instance.instanceOffset = 0;
             instance.flags = (uint32_t) (vk::GeometryInstanceFlagBitsNV::eTriangleCullDisable | vk::GeometryInstanceFlagBitsNV::eTriangleFrontCounterclockwise);
-            instance.accelerationStructureHandle = accelerationStructureHandle;
+            instance.accelerationStructureHandle = handle;
         }
 	
 		instances[i] = instance;
@@ -1131,9 +1132,10 @@ void RenderSystem::build_top_level_bvh(bool submit_immediately)
 			vk::AccelerationStructureInfoNV asInfo;
 			asInfo.type = vk::AccelerationStructureTypeNV::eTopLevel;
 			asInfo.instanceCount = (uint32_t) instances.size();
-			asInfo.geometryCount = (uint32_t) geometries.size();
-			asInfo.pGeometries = geometries.data();
+			asInfo.geometryCount = 0;//(uint32_t) geometries.size();
+			// asInfo.pGeometries = geometries.data();
 
+            // TODO: change this to update instead of fresh build
 			cmd.buildAccelerationStructureNV(&asInfo, 
 				instanceBuffer, 0, VK_FALSE, 
 				topAS, vk::AccelerationStructureNV(),
@@ -1149,6 +1151,9 @@ void RenderSystem::build_top_level_bvh(bool submit_immediately)
 			vulkan->end_one_time_graphics_command_immediately(cmd, "build acceleration structure", true);
 		else
 			vulkan->end_one_time_graphics_command(cmd, "build acceleration structure", true);
+
+        /* Get a handle to the acceleration structure */
+	    device.getAccelerationStructureHandleNV(topAS, sizeof(uint64_t), &topASHandle, dldi);
 	}
 }
 

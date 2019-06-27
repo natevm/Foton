@@ -218,7 +218,7 @@ class Mesh : public StaticFactory
 
 		/* Computes the average of all vertex positions. (centroid) 
 			as well as min/max bounds and bounding sphere data. */
-		void compute_metadata();
+		void compute_metadata(bool submit_immediately = false);
 
 		/* TODO: Explain this */
 		void save_tetrahedralization(float quality_bound, float maximum_volume);
@@ -267,6 +267,8 @@ class Mesh : public StaticFactory
 
 		/* TODO */
 		vk::AccelerationStructureNV get_low_level_bvh();
+		
+		uint64_t get_low_level_bvh_handle();
 
 		vk::GeometryNV get_nv_geometry();
 
@@ -351,6 +353,7 @@ class Mesh : public StaticFactory
 		/* An RTX handle to the low level acceleration structure */
 		vk::AccelerationStructureNV lowAS;
 		vk::DeviceMemory lowASMemory;
+		uint64_t ASHandle;
 
 		/* True if the low level BVH was built. (TODO: make false if mesh edits were submitted) */
 		bool lowBVHBuilt = false;
@@ -430,11 +433,11 @@ class Mesh : public StaticFactory
 			allowEdits = allow_edits;
 
 			cleanup();
-			compute_metadata();
 			createPointBuffer(allow_edits, submit_immediately);
 			createColorBuffer(allow_edits, submit_immediately);
 			createNormalBuffer(allow_edits, submit_immediately);
 			createTexCoordBuffer(allow_edits, submit_immediately);
 			createTriangleIndexBuffer(allow_edits, submit_immediately);
+			compute_metadata(submit_immediately);
 		}
 };

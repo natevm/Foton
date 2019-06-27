@@ -198,7 +198,7 @@ uint32_t Mesh::get_index_bytes()
 	return sizeof(uint32_t);
 }
 
-void Mesh::compute_metadata()
+void Mesh::compute_metadata(bool submit_immediately)
 {
 	glm::vec4 s(0.0);
 	mesh_struct.bbmin = glm::vec4(std::numeric_limits<float>::max());
@@ -226,7 +226,7 @@ void Mesh::compute_metadata()
 	
 	auto vulkan = Libraries::Vulkan::Get();
 	if (vulkan->is_ray_tracing_enabled()) {
-		build_low_level_bvh();
+		build_low_level_bvh(submit_immediately);
 	}
 }
 
@@ -597,12 +597,12 @@ void Mesh::load_obj(std::string objPath, bool allow_edits, bool submit_immediate
 	}
 
 	cleanup();
-	compute_metadata();
 	createPointBuffer(allow_edits, submit_immediately);
 	createColorBuffer(allow_edits, submit_immediately);
 	createTriangleIndexBuffer(allow_edits, submit_immediately);
 	createNormalBuffer(allow_edits, submit_immediately);
 	createTexCoordBuffer(allow_edits, submit_immediately);
+	compute_metadata(submit_immediately);
 }
 
 
@@ -662,12 +662,12 @@ void Mesh::load_stl(std::string stlPath, bool allow_edits, bool submit_immediate
 	}
 
 	cleanup();
-	compute_metadata();
 	createPointBuffer(allow_edits, submit_immediately);
 	createColorBuffer(allow_edits, submit_immediately);
 	createTriangleIndexBuffer(allow_edits, submit_immediately);
 	createNormalBuffer(allow_edits, submit_immediately);
 	createTexCoordBuffer(allow_edits, submit_immediately);
+	compute_metadata(submit_immediately);
 }
 
 void Mesh::load_glb(std::string glbPath, bool allow_edits, bool submit_immediately)
@@ -782,12 +782,12 @@ void Mesh::load_glb(std::string glbPath, bool allow_edits, bool submit_immediate
 	}
 
 	cleanup();
-	compute_metadata();
 	createPointBuffer(allow_edits, submit_immediately);
 	createColorBuffer(allow_edits, submit_immediately);
 	createTriangleIndexBuffer(allow_edits, submit_immediately);
 	createNormalBuffer(allow_edits, submit_immediately);
 	createTexCoordBuffer(allow_edits, submit_immediately);
+	compute_metadata(submit_immediately);
 }
 
 struct Triangle {
@@ -936,12 +936,12 @@ void Mesh::load_tetgen(std::string path, bool allow_edits, bool submit_immediate
 	}
 
 	cleanup();
-	compute_metadata();
 	createPointBuffer(allow_edits, submit_immediately);
 	createColorBuffer(allow_edits, submit_immediately);
 	createTriangleIndexBuffer(allow_edits, submit_immediately);
 	createNormalBuffer(allow_edits, submit_immediately);
 	createTexCoordBuffer(allow_edits, submit_immediately);
+	compute_metadata(submit_immediately);
 }
 
 void Mesh::load_raw(
@@ -1036,12 +1036,12 @@ void Mesh::load_raw(
 	}
 
 	cleanup();
-	compute_metadata();
 	createPointBuffer(allow_edits, submit_immediately);
 	createColorBuffer(allow_edits, submit_immediately);
 	createTriangleIndexBuffer(allow_edits, submit_immediately);
 	createNormalBuffer(allow_edits, submit_immediately);
 	createTexCoordBuffer(allow_edits, submit_immediately);
+	compute_metadata(submit_immediately);
 }
 
 void Mesh::edit_position(uint32_t index, glm::vec3 new_position)
@@ -1297,11 +1297,15 @@ void Mesh::build_low_level_bvh(bool submit_immediately)
 		tris.vertexFormat = vk::Format::eR32G32B32Sfloat;
 		tris.indexData = this->triangleIndexBuffer;
 		tris.indexOffset = 0;
+		tris.indexCount = this->get_total_triangle_indices();
 		tris.indexType = vk::IndexType::eUint32;
+		tris.transformData = vk::Buffer();
+		tris.transformOffset = 0;
 
 		geoData.triangles = tris;
 		geometry.geometryType = vk::GeometryTypeNV::eTriangles;
 		geometry.geometry = geoData;
+		geometry.flags = vk::GeometryFlagBitsNV::eOpaque;
 	}
 	
 
@@ -1414,6 +1418,9 @@ void Mesh::build_low_level_bvh(bool submit_immediately)
 			vulkan->end_one_time_graphics_command(cmd, "build acceleration structure", true);
 	}
 
+	/* Get a handle to the acceleration structure */
+	device.getAccelerationStructureHandleNV(lowAS, sizeof(uint64_t), &ASHandle, dldi);
+
 	/* Might need a fence here */
 	lowBVHBuilt = true;
 }
@@ -1421,6 +1428,11 @@ void Mesh::build_low_level_bvh(bool submit_immediately)
 vk::AccelerationStructureNV Mesh::get_low_level_bvh()
 {
 	return lowAS;
+}
+
+uint64_t Mesh::get_low_level_bvh_handle()
+{
+	return ASHandle;
 }
 
 vk::GeometryNV Mesh::get_nv_geometry()

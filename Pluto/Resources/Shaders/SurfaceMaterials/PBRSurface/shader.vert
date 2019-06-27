@@ -28,7 +28,9 @@ void main() {
     #else
     int viewIndex = (is_multiview_enabled() == false) ? push.consts.viewIndex : gl_ViewIndex;
     #endif
-    w_cameraPos = vec3(camera.multiviews[viewIndex].viewinv[3]) + vec3(camera_transform.localToWorld[3]);
+    // Note, we cant account for view matrix translation using this: vec3(camera.multiviews[viewIndex].viewinv[3])
+    // Use RTX stuff for reflection debugging.
+    w_cameraPos = vec3(camera_transform.localToWorld[3]); 
 
     w_cameraDir = normalize(w_cameraPos - w_position);
 

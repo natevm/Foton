@@ -11,12 +11,26 @@ void main()
     const vec2 pixelCenter = vec2(gl_LaunchIDNV.xy) + vec2(0.5);
     const vec2 inUV = pixelCenter/vec2(gl_LaunchSizeNV.xy);
 
-    vec4 N = imageLoad(normal_image, ivec2(gl_LaunchIDNV.xy));
-    vec4 P = imageLoad(position_image, ivec2(gl_LaunchIDNV.xy));
-    vec4 C = imageLoad(render_image, ivec2(gl_LaunchIDNV.xy));
+    vec3 w_normal = imageLoad(normal_image, ivec2(gl_LaunchIDNV.xy)).xyz;
+    vec3 w_position = imageLoad(position_image, ivec2(gl_LaunchIDNV.xy)).xyz;
+    vec4 raster_contribution = imageLoad(render_image, ivec2(gl_LaunchIDNV.xy));
 
-    const vec3 origin = vec3(P.x, P.y, P.z);
-    const vec3 direction = vec3(N.x, N.y, N.z);
+    EntityStruct camera_entity = ebo.entities[push.consts.camera_id];
+    CameraStruct camera = cbo.cameras[camera_entity.camera_id];
+    TransformStruct camera_transform = tbo.transforms[camera_entity.transform_id];
+
+    /* Note, multiview not supported in rgen shaders */
+    vec3 w_cameraPos = vec3(camera_transform.localToWorld[3]);
+    vec3 w_cameraDir = normalize(w_cameraPos - w_position);
+
+    vec3 w_view = normalize(w_cameraDir);
+	vec3 w_refl = -normalize(reflect(w_view, w_normal));	
+
+    /* No object in view. TODO: change to entity*/
+    if (length(w_position) < .0001) return;
+
+
+
 
     // const uint cullMask = 0xFF;
     // const uint sbtRecordOffset = 0;
@@ -39,12 +53,15 @@ void main()
     //          payloadLocation);
 
     // uint rayFlags = gl_RayFlagsOpaqueNV;
-    uint rayFlags = gl_RayFlagsNoneNV;
+    // uint rayFlags = gl_RayFlagsCullBackFacingTrianglesNV ;
+    uint rayFlags = gl_RayFlagsNoneNV ;
     uint cullMask = 0xff;
-	float tmin = .001;
-    float tmax = 200000.0;
+	float tmin = .01;
+    float tmax = 10.0;
+    payload.color = vec4(0.0, 0.0, 0.0, 0.0);
 
-    traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, origin.xyz, tmin, direction.xyz, tmax, 0);
+    /* Trace reflections */
+    traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, w_position.xyz, tmin, w_refl.xyz, tmax, 0);
 
-    imageStore(render_image, ivec2(gl_LaunchIDNV.xy), C + payload.color);
+    imageStore(render_image, ivec2(gl_LaunchIDNV.xy), raster_contribution + payload.color);
 }

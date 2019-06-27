@@ -172,6 +172,7 @@ namespace Systems
             /* A handle to an RTX top level BVH */
             vk::AccelerationStructureNV topAS;
             vk::DeviceMemory topASMemory;
+            uint64_t topASHandle;
 
             vk::DeviceMemory accelerationStructureScratchMemory;
             vk::Buffer accelerationStructureScratchBuffer;

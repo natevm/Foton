@@ -963,7 +963,8 @@ void Material::CreateDescriptorSetLayouts()
 	eboLayoutBinding.binding = 0;
 	eboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
 	eboLayoutBinding.descriptorCount = 1;
-	eboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+	eboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 	eboLayoutBinding.pImmutableSamplers = nullptr; // Optional
 
 	// Transform SSBO
@@ -971,7 +972,8 @@ void Material::CreateDescriptorSetLayouts()
 	tboLayoutBinding.binding = 1;
 	tboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
 	tboLayoutBinding.descriptorCount = 1;
-	tboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+	tboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 	tboLayoutBinding.pImmutableSamplers = nullptr; // Optional
 
 	// Camera SSBO
@@ -979,7 +981,8 @@ void Material::CreateDescriptorSetLayouts()
 	cboLayoutBinding.binding = 2;
 	cboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
 	cboLayoutBinding.descriptorCount = 1;
-	cboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+	cboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 	cboLayoutBinding.pImmutableSamplers = nullptr; // Optional
 
 	// Material SSBO
@@ -988,7 +991,8 @@ void Material::CreateDescriptorSetLayouts()
 	mboLayoutBinding.descriptorCount = 1;
 	mboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
 	mboLayoutBinding.pImmutableSamplers = nullptr;
-	mboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+	mboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 
 	// Light SSBO
 	vk::DescriptorSetLayoutBinding lboLayoutBinding;
@@ -996,7 +1000,8 @@ void Material::CreateDescriptorSetLayouts()
 	lboLayoutBinding.descriptorCount = 1;
 	lboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
 	lboLayoutBinding.pImmutableSamplers = nullptr;
-	lboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+	lboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 
 	// Mesh SSBO
 	vk::DescriptorSetLayoutBinding meshssboLayoutBinding;
@@ -1004,7 +1009,8 @@ void Material::CreateDescriptorSetLayouts()
 	meshssboLayoutBinding.descriptorCount = 1;
 	meshssboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
 	meshssboLayoutBinding.pImmutableSamplers = nullptr;
-	meshssboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+	meshssboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 
 	std::array<vk::DescriptorSetLayoutBinding, 6> SSBObindings = { eboLayoutBinding, tboLayoutBinding, cboLayoutBinding, mboLayoutBinding, lboLayoutBinding, meshssboLayoutBinding};
 	vk::DescriptorSetLayoutCreateInfo SSBOLayoutInfo;
@@ -1018,7 +1024,8 @@ void Material::CreateDescriptorSetLayouts()
 	txboLayoutBinding.descriptorCount = 1;
 	txboLayoutBinding.binding = 0;
 	txboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-	txboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+	txboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 	txboLayoutBinding.pImmutableSamplers = 0;
 
 	// Texture samplers
@@ -1026,7 +1033,8 @@ void Material::CreateDescriptorSetLayouts()
 	samplerBinding.descriptorCount = MAX_SAMPLERS;
 	samplerBinding.binding = 1;
 	samplerBinding.descriptorType = vk::DescriptorType::eSampler;
-	samplerBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+	samplerBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 	samplerBinding.pImmutableSamplers = 0;
 
 	// 2D Textures
@@ -1034,7 +1042,8 @@ void Material::CreateDescriptorSetLayouts()
 	texture2DsBinding.descriptorCount = MAX_TEXTURES;
 	texture2DsBinding.binding = 2;
 	texture2DsBinding.descriptorType = vk::DescriptorType::eSampledImage;
-	texture2DsBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+	texture2DsBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 	texture2DsBinding.pImmutableSamplers = 0;
 
 	// Texture Cubes
@@ -1042,7 +1051,8 @@ void Material::CreateDescriptorSetLayouts()
 	textureCubesBinding.descriptorCount = MAX_TEXTURES;
 	textureCubesBinding.binding = 3;
 	textureCubesBinding.descriptorType = vk::DescriptorType::eSampledImage;
-	textureCubesBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+	textureCubesBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 	textureCubesBinding.pImmutableSamplers = 0;
 
 	// 3D Textures
@@ -1050,7 +1060,8 @@ void Material::CreateDescriptorSetLayouts()
 	texture3DsBinding.descriptorCount = MAX_TEXTURES;
 	texture3DsBinding.binding = 4;
 	texture3DsBinding.descriptorType = vk::DescriptorType::eSampledImage;
-	texture3DsBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+	texture3DsBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 	texture3DsBinding.pImmutableSamplers = 0;
 
 	std::array<vk::DescriptorSetLayoutBinding, 5> bindings = {txboLayoutBinding, samplerBinding, texture2DsBinding, textureCubesBinding, texture3DsBinding };
@@ -1067,28 +1078,28 @@ void Material::CreateDescriptorSetLayouts()
 		accelerationStructureLayoutBinding.binding = 0;
 		accelerationStructureLayoutBinding.descriptorType = vk::DescriptorType::eAccelerationStructureNV;
 		accelerationStructureLayoutBinding.descriptorCount = 1;
-		accelerationStructureLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV;
+		accelerationStructureLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 		accelerationStructureLayoutBinding.pImmutableSamplers = nullptr;
 
 		vk::DescriptorSetLayoutBinding outputImageLayoutBinding;
 		outputImageLayoutBinding.binding = 1;
 		outputImageLayoutBinding.descriptorType = vk::DescriptorType::eStorageImage;
 		outputImageLayoutBinding.descriptorCount = 1;
-		outputImageLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV;
+		outputImageLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 		outputImageLayoutBinding.pImmutableSamplers = nullptr;
 
 		vk::DescriptorSetLayoutBinding positionImageLayoutBinding;
 		positionImageLayoutBinding.binding = 2;
 		positionImageLayoutBinding.descriptorType = vk::DescriptorType::eStorageImage;
 		positionImageLayoutBinding.descriptorCount = 1;
-		positionImageLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV;
+		positionImageLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 		positionImageLayoutBinding.pImmutableSamplers = nullptr;
 
 		vk::DescriptorSetLayoutBinding normalImageLayoutBinding;
 		normalImageLayoutBinding.binding = 3;
 		normalImageLayoutBinding.descriptorType = vk::DescriptorType::eStorageImage;
 		normalImageLayoutBinding.descriptorCount = 1;
-		normalImageLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV;
+		normalImageLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 		normalImageLayoutBinding.pImmutableSamplers = nullptr;
 
 		std::vector<vk::DescriptorSetLayoutBinding> bindings({ accelerationStructureLayoutBinding, 
@@ -1464,7 +1475,7 @@ void Material::UpdateRaytracingDescriptorSets(vk::AccelerationStructureNV &tlas,
 	raytraceDescriptorWrites[1].descriptorType = vk::DescriptorType::eStorageImage;
 	raytraceDescriptorWrites[1].pImageInfo = &descriptorOutputImageInfo;
 
-	// G Buffer 1
+	// Position G Buffer
 	vk::DescriptorImageInfo descriptorPositionImageInfo;
 	descriptorPositionImageInfo.imageLayout = vk::ImageLayout::eGeneral;
 	descriptorPositionImageInfo.imageView = camera_entity.camera()->get_texture()->get_position_image_view();		
@@ -1477,7 +1488,7 @@ void Material::UpdateRaytracingDescriptorSets(vk::AccelerationStructureNV &tlas,
 	raytraceDescriptorWrites[2].descriptorType = vk::DescriptorType::eStorageImage;
 	raytraceDescriptorWrites[2].pImageInfo = &descriptorPositionImageInfo;
 
-	// G Buffer 2
+	// Normal G Buffer
 	vk::DescriptorImageInfo descriptorNormalImageInfo;
 	descriptorNormalImageInfo.imageLayout = vk::ImageLayout::eGeneral;
 	descriptorNormalImageInfo.imageView = camera_entity.camera()->get_texture()->get_normal_image_view();		
