@@ -177,6 +177,8 @@ set(SHADERS_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/GBuffers/shader.frag
 
     ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/RaytracedMaterials/TutorialShaders/shader.rgen
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/RaytracedMaterials/TutorialShaders/shader.rchit
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/RaytracedMaterials/TutorialShaders/shader.rmiss
 )
 
 set(spvfiles "")
@@ -185,6 +187,8 @@ foreach(shader_file ${SHADERS_SRC})
     string(REPLACE "shader.vert" "vert.spv" spv_file ${spv_file})
     string(REPLACE "shader.frag" "frag.spv" spv_file ${spv_file})
     string(REPLACE "shader.rgen" "rgen.spv" spv_file ${spv_file})
+    string(REPLACE "shader.rchit" "rchit.spv" spv_file ${spv_file})
+    string(REPLACE "shader.rmiss" "rmiss.spv" spv_file ${spv_file})
     set(extra_flags "")
     if(APPLE)
         set(extra_flags ${extra_flags} -DAPPLE=1)

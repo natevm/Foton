@@ -1294,7 +1294,7 @@ void Mesh::build_low_level_bvh(bool submit_immediately)
 		tris.vertexOffset = 0;
 		tris.vertexCount = (uint32_t) this->positions.size();
 		tris.vertexStride = sizeof(glm::vec3);
-		tris.vertexFormat = vk::Format::eR32G32B32A32Sfloat;
+		tris.vertexFormat = vk::Format::eR32G32B32Sfloat;
 		tris.indexData = this->triangleIndexBuffer;
 		tris.indexOffset = 0;
 		tris.indexType = vk::IndexType::eUint32;
@@ -1403,10 +1403,10 @@ void Mesh::build_low_level_bvh(bool submit_immediately)
 				accelerationStructureScratchBuffer, 0, dldi);
 		}
 		
-		// cmd.pipelineBarrier(
-		//     vk::PipelineStageFlagBits::eAccelerationStructureBuildNV, 
-		//     vk::PipelineStageFlagBits::eAccelerationStructureBuildNV, 
-		//     vk::DependencyFlags(), {memoryBarrier}, {}, {});
+		cmd.pipelineBarrier(
+		    vk::PipelineStageFlagBits::eAccelerationStructureBuildNV, 
+		    vk::PipelineStageFlagBits::eAccelerationStructureBuildNV, 
+		    vk::DependencyFlags(), {memoryBarrier}, {}, {});
 
 		if (submit_immediately)
 			vulkan->end_one_time_graphics_command_immediately(cmd, "build acceleration structure", true);

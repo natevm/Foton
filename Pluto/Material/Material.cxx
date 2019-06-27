@@ -797,9 +797,13 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		/* RAY GEN SHADERS */
 		std::string ResourcePath = Options::GetResourcePath();
 		auto raygenShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracedMaterials/TutorialShaders/rgen.spv"));
+		auto raychitShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracedMaterials/TutorialShaders/rchit.spv"));
+		auto raymissShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracedMaterials/TutorialShaders/rmiss.spv"));
 		
 		/* Create shader modules */
-		auto raygenShaderModule = CreateShaderModule("ray_tracing", raygenShaderCode);
+		auto raygenShaderModule = CreateShaderModule("ray_tracing_gen", raygenShaderCode);
+		auto raychitShaderModule = CreateShaderModule("ray_tracing_chit", raychitShaderCode);
+		auto raymissShaderModule = CreateShaderModule("ray_tracing_miss", raymissShaderCode);
 
 		/* Info for shader stages */
 		vk::PipelineShaderStageCreateInfo raygenShaderStageInfo;
@@ -807,7 +811,17 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		raygenShaderStageInfo.module = raygenShaderModule;
 		raygenShaderStageInfo.pName = "main"; 
 
-		std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { raygenShaderStageInfo };
+		vk::PipelineShaderStageCreateInfo raymissShaderStageInfo;
+		raymissShaderStageInfo.stage = vk::ShaderStageFlagBits::eMissNV;
+		raymissShaderStageInfo.module = raymissShaderModule;
+		raymissShaderStageInfo.pName = "main"; 
+
+		vk::PipelineShaderStageCreateInfo raychitShaderStageInfo;
+		raychitShaderStageInfo.stage = vk::ShaderStageFlagBits::eClosestHitNV;
+		raychitShaderStageInfo.module = raychitShaderModule;
+		raychitShaderStageInfo.pName = "main"; 
+
+		std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { raygenShaderStageInfo, raymissShaderStageInfo, raychitShaderStageInfo};
 		
 		vk::PushConstantRange range;
 		range.offset = 0;
@@ -825,6 +839,8 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		rttest[renderpass].pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
 
 		std::vector<vk::RayTracingShaderGroupCreateInfoNV> shaderGroups;
+		
+		// Ray gen group
 		vk::RayTracingShaderGroupCreateInfoNV rayGenGroupInfo;
 		rayGenGroupInfo.type = vk::RayTracingShaderGroupTypeNV::eGeneral;
 		rayGenGroupInfo.generalShader = 0;
@@ -832,13 +848,31 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		rayGenGroupInfo.anyHitShader = VK_SHADER_UNUSED_NV;
 		rayGenGroupInfo.intersectionShader = VK_SHADER_UNUSED_NV;
 		shaderGroups.push_back(rayGenGroupInfo);
+		
+		// Miss group
+		vk::RayTracingShaderGroupCreateInfoNV rayMissGroupInfo;
+		rayMissGroupInfo.type = vk::RayTracingShaderGroupTypeNV::eGeneral;
+		rayMissGroupInfo.generalShader = 1;
+		rayMissGroupInfo.closestHitShader = VK_SHADER_UNUSED_NV;
+		rayMissGroupInfo.anyHitShader = VK_SHADER_UNUSED_NV;
+		rayMissGroupInfo.intersectionShader = VK_SHADER_UNUSED_NV;
+		shaderGroups.push_back(rayMissGroupInfo);
+		
+		// Intersection group
+		vk::RayTracingShaderGroupCreateInfoNV rayCHitGroupInfo; //VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_NV
+		rayCHitGroupInfo.type = vk::RayTracingShaderGroupTypeNV::eTrianglesHitGroup;
+		rayCHitGroupInfo.generalShader = VK_SHADER_UNUSED_NV;
+		rayCHitGroupInfo.closestHitShader = 2;
+		rayCHitGroupInfo.anyHitShader = VK_SHADER_UNUSED_NV;
+		rayCHitGroupInfo.intersectionShader = VK_SHADER_UNUSED_NV;
+		shaderGroups.push_back(rayCHitGroupInfo);
 
 		vk::RayTracingPipelineCreateInfoNV rayPipelineInfo;
 		rayPipelineInfo.stageCount = (uint32_t) shaderStages.size();
 		rayPipelineInfo.pStages = shaderStages.data();
 		rayPipelineInfo.groupCount = (uint32_t) shaderGroups.size();
 		rayPipelineInfo.pGroups = shaderGroups.data();
-		rayPipelineInfo.maxRecursionDepth = 1;
+		rayPipelineInfo.maxRecursionDepth = 3;
 		rayPipelineInfo.layout = rttest[renderpass].pipelineLayout;
 		rayPipelineInfo.basePipelineHandle = vk::Pipeline();
 		rayPipelineInfo.basePipelineIndex = 0;
@@ -870,7 +904,7 @@ void Material::SetupRaytracingShaderBindingTable(vk::RenderPass renderpass)
 	/* Currently only works with rttest */
 
 	
-	const uint32_t groupNum = 1; // 1 group is listed in pGroupNumbers in VkRayTracingPipelineCreateInfoNV
+	const uint32_t groupNum = 3; // 1 group is listed in pGroupNumbers in VkRayTracingPipelineCreateInfoNV
 	const uint32_t shaderBindingTableSize = rayTracingProps.shaderGroupHandleSize * groupNum;
 
 	/* Create binding table buffer */
@@ -1698,9 +1732,9 @@ void Material::TraceRays(
     //     raygenShaderBindingTableBuffer, offset
 		rttest[render_pass].shaderBindingTable, 0,
     //     missShaderBindingTableBuffer, offset, stride
-		rttest[render_pass].shaderBindingTable, 0, rayTracingProps.shaderGroupHandleSize,
+		rttest[render_pass].shaderBindingTable, 1 * rayTracingProps.shaderGroupHandleSize, rayTracingProps.shaderGroupHandleSize,
     //     hitShaderBindingTableBuffer, offset, stride
-		rttest[render_pass].shaderBindingTable, 0, rayTracingProps.shaderGroupHandleSize,
+		rttest[render_pass].shaderBindingTable, 2 * rayTracingProps.shaderGroupHandleSize, rayTracingProps.shaderGroupHandleSize,
     //     callableShaderBindingTableBuffer, offset, stride
 		vk::Buffer(), 0, 0,
         // width, height, depth, 

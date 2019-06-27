@@ -51,3 +51,7 @@ bool is_reverse_z_enabled()
 {
     return ((push.consts.flags & (1 << 1)) == 0);
 }
+
+struct HitInfo {
+    vec4 color;
+};

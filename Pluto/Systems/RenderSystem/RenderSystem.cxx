@@ -1068,6 +1068,7 @@ void RenderSystem::build_top_level_bvh(bool submit_immediately)
             uint64_t accelerationStructureHandle;
             device.getAccelerationStructureHandleNV(llas, sizeof(uint64_t), &accelerationStructureHandle, dldi);
             auto local_to_world = entities[i].transform()->get_local_to_world_matrix();
+            // Matches a working example
             float transform[12] = {
                 local_to_world[0][0], local_to_world[1][0], local_to_world[2][0], local_to_world[3][0],
                 local_to_world[0][1], local_to_world[1][1], local_to_world[2][1], local_to_world[3][1],
@@ -1078,7 +1079,7 @@ void RenderSystem::build_top_level_bvh(bool submit_immediately)
             instance.instanceId = i;
             instance.mask = 0xff;
             instance.instanceOffset = 0;
-            instance.flags = (uint32_t) vk::GeometryInstanceFlagBitsNV::eTriangleCullDisable;
+            instance.flags = (uint32_t) (vk::GeometryInstanceFlagBitsNV::eTriangleCullDisable | vk::GeometryInstanceFlagBitsNV::eTriangleFrontCounterclockwise);
             instance.accelerationStructureHandle = accelerationStructureHandle;
         }
 	
