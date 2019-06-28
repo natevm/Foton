@@ -261,6 +261,13 @@ class Material : public StaticFactory
         /* The descriptor set layout describing where the array of textures are bound */
         static vk::DescriptorSetLayout textureDescriptorSetLayout;
 
+        /* The descriptor set layout describing per vertex information for all meshes */
+        static vk::DescriptorSetLayout positionsDescriptorSetLayout;
+        static vk::DescriptorSetLayout normalsDescriptorSetLayout;
+        static vk::DescriptorSetLayout colorsDescriptorSetLayout;
+        static vk::DescriptorSetLayout texcoordsDescriptorSetLayout;
+        static vk::DescriptorSetLayout indexDescriptorSetLayout;
+
         /* The descriptor set layout describing where acceleration structures and 
             raytracing related data are bound */
         static vk::DescriptorSetLayout raytracingDescriptorSetLayout;
@@ -271,6 +278,13 @@ class Material : public StaticFactory
         /* The descriptor pool used to allocate the texture descriptor set. */
         static vk::DescriptorPool textureDescriptorPool;
 
+        /* The descriptor pool used to allocate the vertex descriptor set. */
+        static vk::DescriptorPool positionsDescriptorPool;
+        static vk::DescriptorPool normalsDescriptorPool;
+        static vk::DescriptorPool colorsDescriptorPool;
+        static vk::DescriptorPool texcoordsDescriptorPool;
+        static vk::DescriptorPool indexDescriptorPool;
+
         /* The descriptor pool used to allocate the raytracing descriptor set */
         static vk::DescriptorPool raytracingDescriptorPool;
 
@@ -279,6 +293,13 @@ class Material : public StaticFactory
 
         /* The descriptor set containing references to all array of textues to be used as uniforms. */
         static vk::DescriptorSet textureDescriptorSet;
+
+        /* The descriptor set containing references to all vertices of all mesh components */
+        static vk::DescriptorSet positionsDescriptorSet;
+        static vk::DescriptorSet normalsDescriptorSet;
+        static vk::DescriptorSet colorsDescriptorSet;
+        static vk::DescriptorSet texcoordsDescriptorSet;
+        static vk::DescriptorSet indexDescriptorSet;
 
         /* The descriptor set containing references to acceleration structures and textures to trace onto. */
         static vk::DescriptorSet raytracingDescriptorSet;

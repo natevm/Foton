@@ -193,9 +193,9 @@ namespace Pluto {
             {
                 mat_offset++;
 
-                std::vector<glm::vec3> positions; 
+                std::vector<glm::vec4> positions; 
                 std::vector<glm::vec4> colors; 
-                std::vector<glm::vec3> normals; 
+                std::vector<glm::vec4> normals; 
                 std::vector<glm::vec2> texcoords; 
 
                 /* For each face */
@@ -212,10 +212,11 @@ namespace Pluto {
                     // Loop over vertices in the face.
                     for (size_t v = 0; v < fv; v++) {
                         auto index = shapes[i].mesh.indices[index_offset + v];
-                        positions.push_back(glm::vec3(
+                        positions.push_back(glm::vec4(
                             attrib.vertices[3 * index.vertex_index + 0],
                             attrib.vertices[3 * index.vertex_index + 1],
-                            attrib.vertices[3 * index.vertex_index + 2]
+                            attrib.vertices[3 * index.vertex_index + 2],
+                            1.0f
                         ));
 
                         if (attrib.colors.size() != 0) {
@@ -228,10 +229,11 @@ namespace Pluto {
                         }
 
                         if (attrib.normals.size() != 0) {
-                            normals.push_back(glm::vec3(
+                            normals.push_back(glm::vec4(
                                 attrib.normals[3 * index.normal_index + 0],
                                 attrib.normals[3 * index.normal_index + 1],
-                                attrib.normals[3 * index.normal_index + 2]
+                                attrib.normals[3 * index.normal_index + 2],
+                                0.0f
                             ));
                         }
 

@@ -30,11 +30,31 @@ layout(set = 1, binding = 2) uniform texture2D texture_2Ds[MAX_TEXTURES];
 layout(set = 1, binding = 3) uniform textureCube texture_cubes[MAX_TEXTURES];
 layout(set = 1, binding = 4) uniform texture3D texture_3Ds[MAX_TEXTURES];
 
+layout(set = 2, binding = 0, std430) readonly buffer PositionBuffer {
+    vec4 positions[];
+} PositionBuffers[];
+
+layout(set = 3, binding = 0, std430) readonly buffer NormalBuffer {
+    vec4 normals[];
+} NormalBuffers[];
+
+layout(set = 4, binding = 0, std430) readonly buffer ColorBuffer {
+    vec4 colors[];
+} ColorBuffers[];
+
+layout(set = 5, binding = 0, std430) readonly buffer TexCoordBuffer {
+    vec2 texcoords[];
+} TexCoordBuffers[];
+
+layout(set = 6, binding = 0, std430) readonly buffer IndexBuffer {
+    int indices[];
+} IndexBuffers[];
+
 #ifdef RAYTRACING
-layout(set = 2, binding = 0) uniform accelerationStructureNV topLevelAS;
-layout(set = 2, binding = 1, rgba16f) uniform image2D render_image;
-layout(set = 2, binding = 2, rgba16f) uniform image2D position_image;
-layout(set = 2, binding = 3, rgba16f) uniform image2D normal_image;
+layout(set = 7, binding = 0) uniform accelerationStructureNV topLevelAS;
+layout(set = 7, binding = 1, rgba16f) uniform image2D render_image;
+layout(set = 7, binding = 2, rgba16f) uniform image2D position_image;
+layout(set = 7, binding = 3, rgba16f) uniform image2D normal_image;
 #endif
 
 /* Push Constants */

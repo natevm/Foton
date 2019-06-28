@@ -909,11 +909,11 @@ Mesh* OpenVR::get_left_eye_hidden_area_mesh()
 	vr::HiddenAreaMesh_t hidden_area_mesh = system->GetHiddenAreaMesh(vr::Hmd_Eye::Eye_Left);
 	if (hidden_area_mesh.unTriangleCount == 0) return nullptr;
 
-	std::vector<glm::vec3> positions(hidden_area_mesh.unTriangleCount * 3);
+	std::vector<glm::vec4> positions(hidden_area_mesh.unTriangleCount * 3);
 	for (uint32_t i = 0; i < hidden_area_mesh.unTriangleCount; ++i) {
-		positions[i * 3 + 0] = glm::vec3( hidden_area_mesh.pVertexData[i * 3 + 0].v[0] * 2.0 - 1.0, hidden_area_mesh.pVertexData[i * 3 + 0].v[1] * 2.0 - 1.0, 0.0);
-		positions[i * 3 + 1] = glm::vec3( hidden_area_mesh.pVertexData[i * 3 + 1].v[0] * 2.0 - 1.0, hidden_area_mesh.pVertexData[i * 3 + 1].v[1] * 2.0 - 1.0, 0.0);
-		positions[i * 3 + 2] = glm::vec3( hidden_area_mesh.pVertexData[i * 3 + 2].v[0] * 2.0 - 1.0, hidden_area_mesh.pVertexData[i * 3 + 2].v[1] * 2.0 - 1.0, 0.0);
+		positions[i * 3 + 0] = glm::vec4( hidden_area_mesh.pVertexData[i * 3 + 0].v[0] * 2.0 - 1.0, hidden_area_mesh.pVertexData[i * 3 + 0].v[1] * 2.0 - 1.0, 0.0, 1.0);
+		positions[i * 3 + 1] = glm::vec4( hidden_area_mesh.pVertexData[i * 3 + 1].v[0] * 2.0 - 1.0, hidden_area_mesh.pVertexData[i * 3 + 1].v[1] * 2.0 - 1.0, 0.0, 1.0);
+		positions[i * 3 + 2] = glm::vec4( hidden_area_mesh.pVertexData[i * 3 + 2].v[0] * 2.0 - 1.0, hidden_area_mesh.pVertexData[i * 3 + 2].v[1] * 2.0 - 1.0, 0.0, 1.0);
 	}
 	left_eye_hidden_area_mesh = Mesh::CreateFromRaw("ovr_left_eye_hidden_area_mesh", positions);
 	return left_eye_hidden_area_mesh;
@@ -927,11 +927,11 @@ Mesh* OpenVR::get_right_eye_hidden_area_mesh()
 	vr::HiddenAreaMesh_t hidden_area_mesh = system->GetHiddenAreaMesh(vr::Hmd_Eye::Eye_Right);
 	if (hidden_area_mesh.unTriangleCount == 0) return nullptr;
 
-	std::vector<glm::vec3> positions(hidden_area_mesh.unTriangleCount * 3);
+	std::vector<glm::vec4> positions(hidden_area_mesh.unTriangleCount * 3);
 	for (uint32_t i = 0; i < hidden_area_mesh.unTriangleCount; ++i) {
-		positions[i * 3 + 0] = glm::vec3( hidden_area_mesh.pVertexData[i * 3 + 0].v[0] * 2.0 - 1.0, hidden_area_mesh.pVertexData[i * 3 + 0].v[1] * 2.0 - 1.0, 0.0);
-		positions[i * 3 + 1] = glm::vec3( hidden_area_mesh.pVertexData[i * 3 + 1].v[0] * 2.0 - 1.0, hidden_area_mesh.pVertexData[i * 3 + 1].v[1] * 2.0 - 1.0, 0.0);
-		positions[i * 3 + 2] = glm::vec3( hidden_area_mesh.pVertexData[i * 3 + 2].v[0] * 2.0 - 1.0, hidden_area_mesh.pVertexData[i * 3 + 2].v[1] * 2.0 - 1.0, 0.0);
+		positions[i * 3 + 0] = glm::vec4( hidden_area_mesh.pVertexData[i * 3 + 0].v[0] * 2.0 - 1.0, hidden_area_mesh.pVertexData[i * 3 + 0].v[1] * 2.0 - 1.0, 0.0, 1.0);
+		positions[i * 3 + 1] = glm::vec4( hidden_area_mesh.pVertexData[i * 3 + 1].v[0] * 2.0 - 1.0, hidden_area_mesh.pVertexData[i * 3 + 1].v[1] * 2.0 - 1.0, 0.0, 1.0);
+		positions[i * 3 + 2] = glm::vec4( hidden_area_mesh.pVertexData[i * 3 + 2].v[0] * 2.0 - 1.0, hidden_area_mesh.pVertexData[i * 3 + 2].v[1] * 2.0 - 1.0, 0.0, 1.0);
 	}
 	right_eye_hidden_area_mesh = Mesh::CreateFromRaw("ovr_right_eye_hidden_area_mesh", positions);
 	return right_eye_hidden_area_mesh;

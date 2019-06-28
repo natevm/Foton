@@ -21,7 +21,7 @@ void main() {
     }
     else w_position = vec3(target_transform.localToWorld * vec4(point.xyz, 1.0));
 
-    w_normal = (transpose(target_transform.worldToLocal) * vec4(normal, 0.0)).xyz;
+    w_normal = (transpose(target_transform.worldToLocal) * vec4(normal.xyz, 0.0)).xyz;
 
     #ifdef DISABLE_MULTIVIEW
     int viewIndex = push.consts.viewIndex;
@@ -38,6 +38,6 @@ void main() {
     
     gl_Position = camera.multiviews[viewIndex].viewproj * camera_transform.worldToLocal * vec4(w_position, 1.0);
 
-    m_position = point;
+    m_position = point.xyz;
     vert_color = color;
 }

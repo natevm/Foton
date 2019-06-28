@@ -119,8 +119,8 @@ class Mesh : public StaticFactory
 			supplied per vertex data must be a multiple of 3 in length. */
 		static Mesh* CreateFromRaw(
 			std::string name,
-			std::vector<glm::vec3> positions, 
-			std::vector<glm::vec3> normals = std::vector<glm::vec3>(), 
+			std::vector<glm::vec4> positions, 
+			std::vector<glm::vec4> normals = std::vector<glm::vec4>(), 
 			std::vector<glm::vec4> colors = std::vector<glm::vec4>(), 
 			std::vector<glm::vec2> texcoords = std::vector<glm::vec2>(), 
 			std::vector<uint32_t> indices = std::vector<uint32_t>(),
@@ -161,18 +161,48 @@ class Mesh : public StaticFactory
 
         /* Returns the size in bytes of the current mesh SSBO */
         static uint32_t GetSSBOSize();
+		
+		/* TODO EXPLAIN THIS*/
+		static std::vector<vk::Buffer> GetPositionSSBOs();
+		
+		/* TODO EXPLAIN THIS*/
+		static std::vector<uint32_t> GetPositionSSBOSizes();
+		
+		/* TODO EXPLAIN THIS*/
+		static std::vector<vk::Buffer> GetNormalSSBOs();
+		
+		/* TODO EXPLAIN THIS*/
+		static std::vector<uint32_t> GetNormalSSBOSizes();
+		
+		/* TODO EXPLAIN THIS*/
+		static std::vector<vk::Buffer> GetColorSSBOs();
+		
+		/* TODO EXPLAIN THIS*/
+		static std::vector<uint32_t> GetColorSSBOSizes();
+		
+		/* TODO EXPLAIN THIS*/
+		static std::vector<vk::Buffer> GetTexCoordSSBOs();
+		
+		/* TODO EXPLAIN THIS*/
+		static std::vector<uint32_t> GetTexCoordSSBOSizes();
+		
+		/* TODO EXPLAIN THIS*/
+		static std::vector<vk::Buffer> GetIndexSSBOs();
+		
+		/* TODO EXPLAIN THIS*/
+		static std::vector<uint32_t> GetIndexSSBOSizes();
 
 		/* Returns a json string summarizing the mesh */
 		std::string to_string();
 		
 		/* If editing is enabled, returns a list of per vertex positions */
-		std::vector<glm::vec3> get_positions();;
+		std::vector<glm::vec4> get_positions();;
 
 		/* If editing is enabled, returns a list of per vertex colors */
 		std::vector<glm::vec4> get_colors();
 
 		/* If editing is enabled, returns a list of per vertex normals */
-		std::vector<glm::vec3> get_normals();
+		std::vector<glm::vec4> get_normals();
 
 		/* If editing is enabled, returns a list of per vertex texture coordinates */
 		std::vector<glm::vec2> get_texcoords();
@@ -236,16 +266,16 @@ class Mesh : public StaticFactory
 		float get_bounding_sphere_radius();
 
 		/* If mesh editing is enabled, replaces the position at the given index with a new position */
-		void edit_position(uint32_t index, glm::vec3 new_position);
+		void edit_position(uint32_t index, glm::vec4 new_position);
 
 		/* If mesh editing is enabled, replaces the set of positions starting at the given index with a new set of positions */
-		void edit_positions(uint32_t index, std::vector<glm::vec3> new_positions);
+		void edit_positions(uint32_t index, std::vector<glm::vec4> new_positions);
 
 		/* If mesh editing is enabled, replaces the normal at the given index with a new normal */
-		void edit_normal(uint32_t index, glm::vec3 new_normal);
+		void edit_normal(uint32_t index, glm::vec4 new_normal);
 
 		/* If mesh editing is enabled, replaces the set of normals starting at the given index with a new set of normals */
-		void edit_normals(uint32_t index, std::vector<glm::vec3> new_normals);
+		void edit_normals(uint32_t index, std::vector<glm::vec4> new_normals);
 
 		/* TODO: EXPLAIN THIS */
 		void compute_smooth_normals(bool upload = true);
@@ -316,8 +346,8 @@ class Mesh : public StaticFactory
         MeshStruct mesh_struct;
 
 		/* Lists of per vertex data. These might not match GPU memory if editing is disabled. */
-		std::vector<glm::vec3> positions;
-		std::vector<glm::vec3> normals;
+		std::vector<glm::vec4> positions;
+		std::vector<glm::vec4> normals;
 		std::vector<glm::vec4> colors;
 		std::vector<glm::vec2> texcoords;
 		std::vector<uint32_t> tetrahedra_indices;
@@ -330,22 +360,27 @@ class Mesh : public StaticFactory
 		/* A handle to the buffer containing per vertex positions */
 		vk::Buffer pointBuffer;
 		vk::DeviceMemory pointBufferMemory;
+		uint32_t pointBufferSize;
 
 		/* A handle to the buffer containing per vertex colors */
 		vk::Buffer colorBuffer;
 		vk::DeviceMemory colorBufferMemory;
+		uint32_t colorBufferSize;
 
 		/* A handle to the buffer containing per vertex normals */
 		vk::Buffer normalBuffer;
 		vk::DeviceMemory normalBufferMemory;
+		uint32_t normalBufferSize;
 
 		/* A handle to the buffer containing per vertex texture coordinates */
 		vk::Buffer texCoordBuffer;
 		vk::DeviceMemory texCoordBufferMemory;
+		uint32_t texCoordBufferSize;
 
 		/* A handle to the buffer containing triangle indices */		
 		vk::Buffer triangleIndexBuffer;
 		vk::DeviceMemory triangleIndexBufferMemory;
+		uint32_t triangleIndexBufferSize;
 
 		/* An RTX geometry handle */
 		vk::GeometryNV geometry;
@@ -365,7 +400,7 @@ class Mesh : public StaticFactory
 		void cleanup();
 
 		/* Creates a generic vertex buffer object */
-		void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer &buffer, vk::DeviceMemory &bufferMemory);
+		uint64_t createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer &buffer, vk::DeviceMemory &bufferMemory);
 
 		/* Creates a position buffer, and uploads position data stored in the positions list */
 		void createPointBuffer(bool allow_edits, bool submit_immediately);
@@ -396,8 +431,8 @@ class Mesh : public StaticFactory
 
 		/* Copies per vertex data to the GPU */
 		void load_raw (
-			std::vector<glm::vec3> &positions, 
-			std::vector<glm::vec3> &normals, 
+			std::vector<glm::vec4> &positions, 
+			std::vector<glm::vec4> &normals, 
 			std::vector<glm::vec4> &colors, 
 			std::vector<glm::vec2> &texcoords,
 			std::vector<uint32_t> indices,
@@ -414,8 +449,8 @@ class Mesh : public StaticFactory
 			auto genVerts = mesh.vertices();
 			while (!genVerts.done()) {
 				auto vertex = genVerts.generate();
-				positions.push_back(vertex.position);
-				normals.push_back(vertex.normal);
+				positions.push_back(glm::vec4(vertex.position.x, vertex.position.y, vertex.position.z, 1.0f));
+				normals.push_back(glm::vec4(vertex.normal.x, vertex.normal.y, vertex.normal.z, 0.0f));
 				texcoords.push_back(vertex.texCoord);
 				colors.push_back(glm::vec4(0.0, 0.0, 0.0, 0.0));
 				genVerts.next();

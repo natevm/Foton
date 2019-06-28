@@ -52,12 +52,12 @@ bool Mesh::Initialized = false;
 class Vertex
 {
 	public:
-	glm::vec3 point = glm::vec3(0.0);
+	glm::vec4 point = glm::vec4(0.0);
 	glm::vec4 color = glm::vec4(1, 0, 1, 1);
-	glm::vec3 normal = glm::vec3(0.0);
+	glm::vec4 normal = glm::vec4(0.0);
 	glm::vec2 texcoord = glm::vec2(0.0);
 
-	std::vector<glm::vec3> wnormals = {}; // For computing normals
+	std::vector<glm::vec4> wnormals = {}; // For computing normals
 
 	bool operator==(const Vertex &other) const
 	{
@@ -125,7 +125,7 @@ std::string Mesh::to_string() {
 }
 
 
-std::vector<glm::vec3> Mesh::get_positions() {
+std::vector<glm::vec4> Mesh::get_positions() {
 	return positions;
 }
 
@@ -133,7 +133,7 @@ std::vector<glm::vec4> Mesh::get_colors() {
 	return colors;
 }
 
-std::vector<glm::vec3> Mesh::get_normals() {
+std::vector<glm::vec4> Mesh::get_normals() {
 	return normals;
 }
 
@@ -208,8 +208,8 @@ void Mesh::compute_metadata(bool submit_immediately)
 	for (int i = 0; i < positions.size(); i += 1)
 	{
 		s += glm::vec4(positions[i].x, positions[i].y, positions[i].z, 0.0f);
-		mesh_struct.bbmin = glm::vec4(glm::min(positions[i], glm::vec3(mesh_struct.bbmin)), 0.0);
-		mesh_struct.bbmax = glm::vec4(glm::max(positions[i], glm::vec3(mesh_struct.bbmax)), 0.0);
+		mesh_struct.bbmin = glm::vec4(glm::min(glm::vec3(positions[i]), glm::vec3(mesh_struct.bbmin)), 0.0);
+		mesh_struct.bbmax = glm::vec4(glm::max(glm::vec3(positions[i]), glm::vec3(mesh_struct.bbmax)), 0.0);
 	}
 	s /= (float)positions.size();
 	mesh_struct.center = s;
@@ -485,6 +485,106 @@ uint32_t Mesh::GetSSBOSize()
     return MAX_MESHES * sizeof(MeshStruct);
 }
 
+std::vector<vk::Buffer> Mesh::GetPositionSSBOs()
+{
+	Mesh *DefaultMesh = Get("DefaultMesh");
+	std::vector<vk::Buffer> ssbos(MAX_MESHES);
+	for (int i = 0; i < MAX_MESHES; ++i) {
+		ssbos[i] = (meshes[i].initialized) ? meshes[i].pointBuffer : DefaultMesh->pointBuffer;
+	}
+	return ssbos;
+}
+
+std::vector<uint32_t> Mesh::GetPositionSSBOSizes()
+{
+	Mesh *DefaultMesh = Get("DefaultMesh");
+	std::vector<uint32_t> ssbo_sizes(MAX_MESHES);
+	for (int i = 0; i < MAX_MESHES; ++i) {
+		ssbo_sizes[i] = (meshes[i].initialized) ? meshes[i].pointBufferSize : DefaultMesh->pointBufferSize;
+	}
+	return ssbo_sizes;
+}
+
+std::vector<vk::Buffer> Mesh::GetNormalSSBOs()
+{
+	Mesh *DefaultMesh = Get("DefaultMesh");
+	std::vector<vk::Buffer> ssbos(MAX_MESHES);
+	for (int i = 0; i < MAX_MESHES; ++i) {
+		ssbos[i] = (meshes[i].initialized) ? meshes[i].normalBuffer : DefaultMesh->normalBuffer;
+	}
+	return ssbos;
+}
+
+std::vector<uint32_t> Mesh::GetNormalSSBOSizes()
+{
+	Mesh *DefaultMesh = Get("DefaultMesh");
+	std::vector<uint32_t> ssbo_sizes(MAX_MESHES);
+	for (int i = 0; i < MAX_MESHES; ++i) {
+		ssbo_sizes[i] = (meshes[i].initialized) ? meshes[i].normalBufferSize : DefaultMesh->normalBufferSize;
+	}
+	return ssbo_sizes;
+}
+
+std::vector<vk::Buffer> Mesh::GetColorSSBOs()
+{
+	Mesh *DefaultMesh = Get("DefaultMesh");
+	std::vector<vk::Buffer> ssbos(MAX_MESHES);
+	for (int i = 0; i < MAX_MESHES; ++i) {
+		ssbos[i] = (meshes[i].initialized) ? meshes[i].colorBuffer : DefaultMesh->colorBuffer;
+	}
+	return ssbos;
+}
+
+std::vector<uint32_t> Mesh::GetColorSSBOSizes()
+{
+	Mesh *DefaultMesh = Get("DefaultMesh");
+	std::vector<uint32_t> ssbo_sizes(MAX_MESHES);
+	for (int i = 0; i < MAX_MESHES; ++i) {
+		ssbo_sizes[i] = (meshes[i].initialized) ? meshes[i].colorBufferSize : DefaultMesh->colorBufferSize;
+	}
+	return ssbo_sizes;
+}
+
+std::vector<vk::Buffer> Mesh::GetTexCoordSSBOs()
+{
+	Mesh *DefaultMesh = Get("DefaultMesh");
+	std::vector<vk::Buffer> ssbos(MAX_MESHES);
+	for (int i = 0; i < MAX_MESHES; ++i) {
+		ssbos[i] = (meshes[i].initialized) ? meshes[i].texCoordBuffer : DefaultMesh->texCoordBuffer;
+	}
+	return ssbos;
+}
+
+std::vector<uint32_t> Mesh::GetTexCoordSSBOSizes()
+{
+	Mesh *DefaultMesh = Get("DefaultMesh");
+	std::vector<uint32_t> ssbo_sizes(MAX_MESHES);
+	for (int i = 0; i < MAX_MESHES; ++i) {
+		ssbo_sizes[i] = (meshes[i].initialized) ? meshes[i].texCoordBufferSize : DefaultMesh->texCoordBufferSize;
+	}
+	return ssbo_sizes;
+}
+
+std::vector<vk::Buffer> Mesh::GetIndexSSBOs()
+{
+	Mesh *DefaultMesh = Get("DefaultMesh");
+	std::vector<vk::Buffer> ssbos(MAX_MESHES);
+	for (int i = 0; i < MAX_MESHES; ++i) {
+		ssbos[i] = (meshes[i].initialized) ? meshes[i].triangleIndexBuffer : DefaultMesh->triangleIndexBuffer;
+	}
+	return ssbos;
+}
+
+std::vector<uint32_t> Mesh::GetIndexSSBOSizes()
+{
+	Mesh *DefaultMesh = Get("DefaultMesh");
+	std::vector<uint32_t> ssbo_sizes(MAX_MESHES);
+	for (int i = 0; i < MAX_MESHES; ++i) {
+		ssbo_sizes[i] = (meshes[i].initialized) ? meshes[i].triangleIndexBufferSize : DefaultMesh->triangleIndexBufferSize;
+	}
+	return ssbo_sizes;
+}
+
 void Mesh::load_obj(std::string objPath, bool allow_edits, bool submit_immediately)
 {
 	allowEdits = allow_edits;
@@ -515,7 +615,8 @@ void Mesh::load_obj(std::string objPath, bool allow_edits, bool submit_immediate
 				vertex.point = {
 					attrib.vertices[3 * index.vertex_index + 0],
 					attrib.vertices[3 * index.vertex_index + 1],
-					attrib.vertices[3 * index.vertex_index + 2]};
+					attrib.vertices[3 * index.vertex_index + 2],
+					1.0f};
 				if (attrib.colors.size() != 0)
 				{
 					vertex.color = {
@@ -529,7 +630,8 @@ void Mesh::load_obj(std::string objPath, bool allow_edits, bool submit_immediate
 					vertex.normal = {
 						attrib.normals[3 * index.normal_index + 0],
 						attrib.normals[3 * index.normal_index + 1],
-						attrib.normals[3 * index.normal_index + 2]};
+						attrib.normals[3 * index.normal_index + 2],
+						0.0f};
 					has_normals = true;
 				}
 				if (attrib.texcoords.size() != 0)
@@ -549,15 +651,15 @@ void Mesh::load_obj(std::string objPath, bool allow_edits, bool submit_immediate
 		for (int idx = 0; idx < attrib.vertices.size() / 3; ++idx)
 		{
 			Vertex v = Vertex();
-			v.point = glm::vec3(attrib.vertices[(idx * 3)], attrib.vertices[(idx * 3) + 1], attrib.vertices[(idx * 3) + 2]);
+			v.point = glm::vec4(attrib.vertices[(idx * 3)], attrib.vertices[(idx * 3) + 1], attrib.vertices[(idx * 3) + 2], 1.0f);
 			if (attrib.normals.size() != 0)
 			{
-				v.normal = glm::vec3(attrib.normals[(idx * 3)], attrib.normals[(idx * 3) + 1], attrib.normals[(idx * 3) + 2]);
+				v.normal = glm::vec4(attrib.normals[(idx * 3)], attrib.normals[(idx * 3) + 1], attrib.normals[(idx * 3) + 2], 0.0f);
 				has_normals = true;
 			}
 			if (attrib.colors.size() != 0)
 			{
-				v.normal = glm::vec3(attrib.colors[(idx * 3)], attrib.colors[(idx * 3) + 1], attrib.colors[(idx * 3) + 2]);
+				v.normal = glm::vec4(attrib.colors[(idx * 3)], attrib.colors[(idx * 3) + 1], attrib.colors[(idx * 3) + 2], 0.0f);
 			}
 			if (attrib.texcoords.size() != 0)
 			{
@@ -628,11 +730,13 @@ void Mesh::load_stl(std::string stlPath, bool allow_edits, bool submit_immediate
 			p[i * 3 + 0],
 			p[i * 3 + 1],
 			p[i * 3 + 2],
+			1.0f
 		};
 		vertex.normal = {
 			n[i * 3 + 0],
 			n[i * 3 + 1],
 			n[i * 3 + 2],
+			0.0f
 		};
 		vertices.push_back(vertex);
 	}
@@ -741,12 +845,14 @@ void Mesh::load_glb(std::string glbPath, bool allow_edits, bool submit_immediate
 				vertex.point = {
 					pos[3 * index + 0],
 					pos[3 * index + 1],
-					pos[3 * index + 2]};
+					pos[3 * index + 2],
+					1.0f};
 
 				vertex.normal = {
 					nrm[3 * index + 0],
 					nrm[3 * index + 1],
-					nrm[3 * index + 2]};
+					nrm[3 * index + 2],
+					0.0f};
 
 				vertex.texcoord = {
 					tex[2 * index + 0],
@@ -866,10 +972,10 @@ void Mesh::load_tetgen(std::string path, bool allow_edits, bool submit_immediate
 		uint32_t i4 = in.tetrahedronlist[i * 4 + 3] - 1;
 
 		Vertex v1, v2, v3, v4;
-		v1.point = glm::vec3(in.pointlist[i1 * 3 + 0], in.pointlist[i1 * 3 + 1], in.pointlist[i1 * 3 + 2]);
-		v2.point = glm::vec3(in.pointlist[i2 * 3 + 0], in.pointlist[i2 * 3 + 1], in.pointlist[i2 * 3 + 2]);
-		v3.point = glm::vec3(in.pointlist[i3 * 3 + 0], in.pointlist[i3 * 3 + 1], in.pointlist[i3 * 3 + 2]);
-		v4.point = glm::vec3(in.pointlist[i4 * 3 + 0], in.pointlist[i4 * 3 + 1], in.pointlist[i4 * 3 + 2]);
+		v1.point = glm::vec4(in.pointlist[i1 * 3 + 0], in.pointlist[i1 * 3 + 1], in.pointlist[i1 * 3 + 2], 1.0f);
+		v2.point = glm::vec4(in.pointlist[i2 * 3 + 0], in.pointlist[i2 * 3 + 1], in.pointlist[i2 * 3 + 2], 1.0f);
+		v3.point = glm::vec4(in.pointlist[i3 * 3 + 0], in.pointlist[i3 * 3 + 1], in.pointlist[i3 * 3 + 2], 1.0f);
+		v4.point = glm::vec4(in.pointlist[i4 * 3 + 0], in.pointlist[i4 * 3 + 1], in.pointlist[i4 * 3 + 2], 1.0f);
 
 		tri_vertices.push_back(v1); tri_vertices.push_back(v4); tri_vertices.push_back(v3);
 		tri_vertices.push_back(v1); tri_vertices.push_back(v2); tri_vertices.push_back(v4);
@@ -945,8 +1051,8 @@ void Mesh::load_tetgen(std::string path, bool allow_edits, bool submit_immediate
 }
 
 void Mesh::load_raw(
-	std::vector<glm::vec3> &positions_, 
-	std::vector<glm::vec3> &normals_, 
+	std::vector<glm::vec4> &positions_, 
+	std::vector<glm::vec4> &normals_, 
 	std::vector<glm::vec4> &colors_, 
 	std::vector<glm::vec2> &texcoords_, 
 	std::vector<uint32_t> indices_,
@@ -1044,7 +1150,7 @@ void Mesh::load_raw(
 	compute_metadata(submit_immediately);
 }
 
-void Mesh::edit_position(uint32_t index, glm::vec3 new_position)
+void Mesh::edit_position(uint32_t index, glm::vec4 new_position)
 {
 	auto vulkan = Libraries::Vulkan::Get();
 	if (!vulkan->is_initialized())
@@ -1061,12 +1167,12 @@ void Mesh::edit_position(uint32_t index, glm::vec3 new_position)
 	positions[index] = new_position;
 	compute_metadata();
 
-	void *data = device.mapMemory(pointBufferMemory, (index * sizeof(glm::vec3)), sizeof(glm::vec3), vk::MemoryMapFlags());
-	memcpy(data, &new_position, sizeof(glm::vec3));
+	void *data = device.mapMemory(pointBufferMemory, (index * sizeof(glm::vec4)), sizeof(glm::vec4), vk::MemoryMapFlags());
+	memcpy(data, &new_position, sizeof(glm::vec4));
 	device.unmapMemory(pointBufferMemory);
 }
 
-void Mesh::edit_positions(uint32_t index, std::vector<glm::vec3> new_positions)
+void Mesh::edit_positions(uint32_t index, std::vector<glm::vec4> new_positions)
 {
 	auto vulkan = Libraries::Vulkan::Get();
 	if (!vulkan->is_initialized())
@@ -1083,15 +1189,15 @@ void Mesh::edit_positions(uint32_t index, std::vector<glm::vec3> new_positions)
 	if ((index + new_positions.size()) > this->positions.size())
 		throw std::runtime_error("Error: too many positions for given index, out of bounds. Max index is " + std::to_string(this->positions.size() - 1));
 	
-	memcpy(&positions[index], new_positions.data(), new_positions.size() * sizeof(glm::vec3));
+	memcpy(&positions[index], new_positions.data(), new_positions.size() * sizeof(glm::vec4));
 	compute_metadata();
 
-	void *data = device.mapMemory(pointBufferMemory, (index * sizeof(glm::vec3)), sizeof(glm::vec3) * new_positions.size(), vk::MemoryMapFlags());
-	memcpy(data, new_positions.data(), sizeof(glm::vec3) * new_positions.size());
+	void *data = device.mapMemory(pointBufferMemory, (index * sizeof(glm::vec4)), sizeof(glm::vec4) * new_positions.size(), vk::MemoryMapFlags());
+	memcpy(data, new_positions.data(), sizeof(glm::vec4) * new_positions.size());
 	device.unmapMemory(pointBufferMemory);
 }
 
-void Mesh::edit_normal(uint32_t index, glm::vec3 new_normal)
+void Mesh::edit_normal(uint32_t index, glm::vec4 new_normal)
 {
 	auto vulkan = Libraries::Vulkan::Get();
 	if (!vulkan->is_initialized())
@@ -1105,12 +1211,12 @@ void Mesh::edit_normal(uint32_t index, glm::vec3 new_normal)
 	if (index >= this->normals.size())
 		throw std::runtime_error("Error: index out of bounds. Max index is " + std::to_string(this->normals.size() - 1));
 	
-	void *data = device.mapMemory(normalBufferMemory, (index * sizeof(glm::vec3)), sizeof(glm::vec3), vk::MemoryMapFlags());
-	memcpy(data, &new_normal, sizeof(glm::vec3));
+	void *data = device.mapMemory(normalBufferMemory, (index * sizeof(glm::vec4)), sizeof(glm::vec4), vk::MemoryMapFlags());
+	memcpy(data, &new_normal, sizeof(glm::vec4));
 	device.unmapMemory(normalBufferMemory);
 }
 
-void Mesh::edit_normals(uint32_t index, std::vector<glm::vec3> new_normals)
+void Mesh::edit_normals(uint32_t index, std::vector<glm::vec4> new_normals)
 {
 	auto vulkan = Libraries::Vulkan::Get();
 	if (!vulkan->is_initialized())
@@ -1127,14 +1233,14 @@ void Mesh::edit_normals(uint32_t index, std::vector<glm::vec3> new_normals)
 	if ((index + new_normals.size()) > this->normals.size())
 		throw std::runtime_error("Error: too many normals for given index, out of bounds. Max index is " + std::to_string(this->normals.size() - 1));
 	
-	void *data = device.mapMemory(normalBufferMemory, (index * sizeof(glm::vec3)), sizeof(glm::vec3) * new_normals.size(), vk::MemoryMapFlags());
-	memcpy(data, new_normals.data(), sizeof(glm::vec3) * new_normals.size());
+	void *data = device.mapMemory(normalBufferMemory, (index * sizeof(glm::vec4)), sizeof(glm::vec4) * new_normals.size(), vk::MemoryMapFlags());
+	memcpy(data, new_normals.data(), sizeof(glm::vec4) * new_normals.size());
 	device.unmapMemory(normalBufferMemory);
 }
 
 void Mesh::compute_smooth_normals(bool upload)
 {
-	std::vector<std::vector<glm::vec3>> w_normals(positions.size());
+	std::vector<std::vector<glm::vec4>> w_normals(positions.size());
 
 	for (uint32_t f = 0; f < triangle_indices.size(); f += 3)
 	{
@@ -1143,13 +1249,13 @@ void Mesh::compute_smooth_normals(bool upload)
 		uint32_t i3 = triangle_indices[f + 2];
 
 		// p1, p2 and p3 are the positions in the face (f)
-		auto &p1 = positions[i1];
-		auto &p2 = positions[i2];
-		auto &p3 = positions[i3];
+		auto &p1 = glm::vec3(positions[i1]);
+		auto &p2 = glm::vec3(positions[i2]);
+		auto &p3 = glm::vec3(positions[i3]);
 
 		// calculate facet normal of the triangle  using cross product;
 		// both components are "normalized" against a common point chosen as the base
-		glm::vec3 n = glm::cross((p2 - p1), (p3 - p1));    // p1 is the 'base' here
+		auto n = glm::cross((p2 - p1), (p3 - p1));    // p1 is the 'base' here
 
 		// get the angle between the two other positions for each point;
 		// the starting point will be the 'base' and the two adjacent positions will be normalized against it
@@ -1164,13 +1270,16 @@ void Mesh::compute_smooth_normals(bool upload)
 		// }
 
 		// store the weighted normal in an structured array
-		w_normals[i1].push_back(n * a1);
-		w_normals[i2].push_back(n * a2);
-		w_normals[i3].push_back(n * a3);
+		auto wn1 = n * a1;
+		auto wn2 = n * a2;
+		auto wn3 = n * a3;
+		w_normals[i1].push_back(glm::vec4(wn1.x, wn1.y, wn1.z, 0.f));
+		w_normals[i2].push_back(glm::vec4(wn2.x, wn2.y, wn2.z, 0.f));
+		w_normals[i3].push_back(glm::vec4(wn3.x, wn3.y, wn3.z, 0.f));
 	}
 	for (uint32_t v = 0; v < w_normals.size(); v++)
 	{
-		glm::vec3 N = glm::vec3(0.0);
+		glm::vec4 N = glm::vec4(0.0);
 
 		// run through the normals in each vertex's array and interpolate them
 		// vertex(v) here fetches the data of the vertex at index 'v'
@@ -1180,7 +1289,7 @@ void Mesh::compute_smooth_normals(bool upload)
 		}
 
 		// normalize the final normal
-		normals[v] = glm::normalize(glm::vec3(N.x, N.y, N.z));
+		normals[v] = glm::normalize(glm::vec4(N.x, N.y, N.z, 0.0f));
 	}
 
 	if (upload) {
@@ -1293,8 +1402,8 @@ void Mesh::build_low_level_bvh(bool submit_immediately)
 		tris.vertexData = this->pointBuffer;
 		tris.vertexOffset = 0;
 		tris.vertexCount = (uint32_t) this->positions.size();
-		tris.vertexStride = sizeof(glm::vec3);
-		tris.vertexFormat = vk::Format::eR32G32B32Sfloat;
+		tris.vertexStride = sizeof(glm::vec4);
+		tris.vertexFormat = vk::Format::eR32G32B32A32Sfloat;
 		tris.indexData = this->triangleIndexBuffer;
 		tris.indexOffset = 0;
 		tris.indexCount = this->get_total_triangle_indices();
@@ -1990,8 +2099,8 @@ Mesh* Mesh::CreateFromTetgen(std::string name, std::string path, bool allow_edit
 
 Mesh* Mesh::CreateFromRaw (
 	std::string name,
-	std::vector<glm::vec3> positions, 
-	std::vector<glm::vec3> normals, 
+	std::vector<glm::vec4> positions, 
+	std::vector<glm::vec4> normals, 
 	std::vector<glm::vec4> colors, 
 	std::vector<glm::vec2> texcoords, 
 	std::vector<uint32_t> indices, 
@@ -2025,7 +2134,7 @@ uint32_t Mesh::GetCount() {
 	return MAX_MESHES;
 }
 
-void Mesh::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer &buffer, vk::DeviceMemory &bufferMemory)
+uint64_t Mesh::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer &buffer, vk::DeviceMemory &bufferMemory)
 {
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
@@ -2052,6 +2161,8 @@ void Mesh::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::Mem
 
 	/* Associate the allocated memory with the VBO handle */
 	device.bindBufferMemory(buffer, bufferMemory, 0);
+
+	return memRequirements.size;
 }
 
 void Mesh::createPointBuffer(bool allow_edits, bool submit_immediately)
@@ -2059,7 +2170,8 @@ void Mesh::createPointBuffer(bool allow_edits, bool submit_immediately)
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
 
-	vk::DeviceSize bufferSize = positions.size() * sizeof(glm::vec3);
+	vk::DeviceSize bufferSize = positions.size() * sizeof(glm::vec4);
+	pointBufferSize = bufferSize;
 	vk::Buffer stagingBuffer;
 	vk::DeviceMemory stagingBufferMemory;
 	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, stagingBuffer, stagingBufferMemory);
@@ -2077,7 +2189,7 @@ void Mesh::createPointBuffer(bool allow_edits, bool submit_immediately)
 		memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible;
 		memoryProperties |= vk::MemoryPropertyFlagBits::eHostCoherent;
 	}
-	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, memoryProperties, pointBuffer, pointBufferMemory);
+	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, memoryProperties, pointBuffer, pointBufferMemory);
 	
 	auto cmd = vulkan->begin_one_time_graphics_command();
 	vk::BufferCopy copyRegion;
@@ -2100,6 +2212,7 @@ void Mesh::createColorBuffer(bool allow_edits, bool submit_immediately)
 	auto device = vulkan->get_device();
 
 	vk::DeviceSize bufferSize = colors.size() * sizeof(glm::vec4);
+	colorBufferSize = bufferSize;
 	vk::Buffer stagingBuffer;
 	vk::DeviceMemory stagingBufferMemory;
 	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, stagingBuffer, stagingBufferMemory);
@@ -2117,7 +2230,7 @@ void Mesh::createColorBuffer(bool allow_edits, bool submit_immediately)
 		memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible;
 		memoryProperties |= vk::MemoryPropertyFlagBits::eHostCoherent;
 	}
-	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, memoryProperties, colorBuffer, colorBufferMemory);
+	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, memoryProperties, colorBuffer, colorBufferMemory);
 	
 	auto cmd = vulkan->begin_one_time_graphics_command();
 	vk::BufferCopy copyRegion;
@@ -2140,6 +2253,7 @@ void Mesh::createTriangleIndexBuffer(bool allow_edits, bool submit_immediately)
 	auto device = vulkan->get_device();
 
 	vk::DeviceSize bufferSize = triangle_indices.size() * sizeof(uint32_t);
+	triangleIndexBufferSize = bufferSize;
 	vk::Buffer stagingBuffer;
 	vk::DeviceMemory stagingBufferMemory;
 	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, stagingBuffer, stagingBufferMemory);
@@ -2155,7 +2269,7 @@ void Mesh::createTriangleIndexBuffer(bool allow_edits, bool submit_immediately)
 		memoryProperties |= vk::MemoryPropertyFlagBits::eHostCoherent;
 	// }
 	// Why cant I create a device local index buffer?..
-	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, memoryProperties, triangleIndexBuffer, triangleIndexBufferMemory);
+	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, memoryProperties, triangleIndexBuffer, triangleIndexBufferMemory);
 	
 	auto cmd = vulkan->begin_one_time_graphics_command();
 	vk::BufferCopy copyRegion;
@@ -2176,7 +2290,8 @@ void Mesh::createNormalBuffer(bool allow_edits, bool submit_immediately)
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
 
-	vk::DeviceSize bufferSize = normals.size() * sizeof(glm::vec3);
+	vk::DeviceSize bufferSize = normals.size() * sizeof(glm::vec4);
+	normalBufferSize = bufferSize;
 	vk::Buffer stagingBuffer;
 	vk::DeviceMemory stagingBufferMemory;
 	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, stagingBuffer, stagingBufferMemory);
@@ -2194,7 +2309,7 @@ void Mesh::createNormalBuffer(bool allow_edits, bool submit_immediately)
 		memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible;
 		memoryProperties |= vk::MemoryPropertyFlagBits::eHostCoherent;
 	}
-	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, memoryProperties, normalBuffer, normalBufferMemory);
+	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, memoryProperties, normalBuffer, normalBufferMemory);
 	
 	auto cmd = vulkan->begin_one_time_graphics_command();
 	vk::BufferCopy copyRegion;
@@ -2217,6 +2332,7 @@ void Mesh::createTexCoordBuffer(bool allow_edits, bool submit_immediately)
 	auto device = vulkan->get_device();
 
 	vk::DeviceSize bufferSize = texcoords.size() * sizeof(glm::vec2);
+	texCoordBufferSize = bufferSize;
 	vk::Buffer stagingBuffer;
 	vk::DeviceMemory stagingBufferMemory;
 	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, stagingBuffer, stagingBufferMemory);
@@ -2234,7 +2350,7 @@ void Mesh::createTexCoordBuffer(bool allow_edits, bool submit_immediately)
 		memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible;
 		memoryProperties |= vk::MemoryPropertyFlagBits::eHostCoherent;
 	}
-	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, memoryProperties, texCoordBuffer, texCoordBufferMemory);
+	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, memoryProperties, texCoordBuffer, texCoordBufferMemory);
 	
 	auto cmd = vulkan->begin_one_time_graphics_command();
 	vk::BufferCopy copyRegion;

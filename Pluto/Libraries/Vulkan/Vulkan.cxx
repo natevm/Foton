@@ -263,7 +263,9 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
     }
     if (surface)
         deviceExtensions.insert(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-    
+
+    deviceExtensions.insert(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
+
     std::string devicename;
 
     /* If we're using OpenVR, we need to select the physical device that OpenVR requires us to use. */
@@ -347,6 +349,12 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
             swapChainAdequate = extensionsSupported = queuesFound = false;
             deviceProperties = device.getProperties();
             auto supportedFeatures = device.getFeatures();
+            
+            vk::PhysicalDeviceFeatures2 supportedFeatures2;
+            vk::PhysicalDeviceDescriptorIndexingFeaturesEXT descriptorIndexing;
+            supportedFeatures2.pNext = &descriptorIndexing;
+
+            device.getFeatures2(&supportedFeatures2);
             auto queueFamilyProperties = device.getQueueFamilyProperties();
             std::cout<<"\tAvailable device: " << deviceProperties.deviceName <<std::endl;
 
@@ -398,6 +406,7 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
             if (queuesFound && extensionsSupported && featuresSupported && ((!surface) || swapChainAdequate))
             {
                 deviceFeatures = supportedFeatures;
+                deviceFeatures2 = supportedFeatures2;
                 physicalDevice = device;
                 devicename = deviceProperties.deviceName;
                 supportedMSAASamples = min(deviceProperties.limits.framebufferColorSampleCounts, deviceProperties.limits.framebufferDepthSampleCounts);
@@ -470,7 +479,8 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
     /* Add pointers to the device features and queue creation structs */
     createInfo.queueCreateInfoCount = (uint32_t)queueCreateInfos.size();
     createInfo.pQueueCreateInfos = queueCreateInfos.data();
-    createInfo.pEnabledFeatures = &deviceFeatures;
+    createInfo.pEnabledFeatures = nullptr;//&deviceFeatures; // requires null if using deviceFeatures2
+    createInfo.pNext = &deviceFeatures2;
 
     /* We can specify device specific extensions, like "VK_KHR_swapchain", which may not be
     available for particular compute only devices. */
@@ -479,6 +489,7 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
         ext.push_back(string.c_str());
     createInfo.enabledExtensionCount = (uint32_t)(ext.size());
     createInfo.ppEnabledExtensionNames = ext.data();
+
 
     /* Now create the logical device! */
     device = physicalDevice.createDevice(createInfo);

@@ -143,6 +143,7 @@ namespace Libraries {
         vk::PhysicalDeviceProperties deviceProperties;
         vk::PhysicalDeviceRayTracingPropertiesNV deviceRaytracingProperties;
         vk::PhysicalDeviceFeatures deviceFeatures;
+        vk::PhysicalDeviceFeatures2 deviceFeatures2;
         
         vk::Device device;
         std::vector<vk::Queue> graphicsQueues;

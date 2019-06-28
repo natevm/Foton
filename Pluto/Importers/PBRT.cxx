@@ -468,11 +468,11 @@ namespace Pluto {
                                 indices[prim_idx * 3 + 2] = triangle_mesh->index[prim_idx].z;
                             }
                             
-                            std::vector<glm::vec3> positions(triangle_mesh->vertex.size());
+                            std::vector<glm::vec4> positions(triangle_mesh->vertex.size());
                             for (uint32_t pos_idx = 0; pos_idx < triangle_mesh->vertex.size(); ++pos_idx)
                             {
                                 auto pos = triangle_mesh->vertex[pos_idx];
-                                positions[pos_idx] = glm::vec3(pos.x * scale.x, pos.y * scale.y, pos.z * scale.z);
+                                positions[pos_idx] = glm::vec4(pos.x * scale.x, pos.y * scale.y, pos.z * scale.z, 1.0f);
                             }
 
                             /* In order for Pluto lights to work, the transform must be roughly in the center of the mesh.
@@ -481,24 +481,24 @@ namespace Pluto {
                             glm::vec3 centroid(0.0);
                             for (int pos_idx = 0; pos_idx < positions.size(); pos_idx += 1)
                             {
-                                centroid += positions[pos_idx];
+                                centroid += glm::vec3(positions[pos_idx]);
                             }
                             centroid /= positions.size();
 
                             for (uint32_t pos_idx = 0; pos_idx < triangle_mesh->vertex.size(); ++pos_idx)
                             {
-                                positions[pos_idx] -= centroid;
+                                positions[pos_idx] -= glm::vec4(centroid.x, centroid.y, centroid.z, 0.0);
                             }
                             auto local_to_world = tfm->get_local_to_world_matrix();
                             auto additional_pos = local_to_world * glm::vec4(centroid.x, centroid.y, centroid.z, 1.0);
 
                             tfm->add_position(additional_pos.x, additional_pos.y, additional_pos.z);
 
-                            std::vector<glm::vec3> normals(triangle_mesh->normal.size());
+                            std::vector<glm::vec4> normals(triangle_mesh->normal.size());
                             for (uint32_t norm_idx = 0; norm_idx < triangle_mesh->normal.size(); ++norm_idx)
                             {
                                 auto norm = triangle_mesh->normal[norm_idx];
-                                normals[norm_idx] = glm::vec3(norm.x, norm.y, norm.z);
+                                normals[norm_idx] = glm::vec4(norm.x, norm.y, norm.z, 0.0f);
                             }
 
                             std::vector<glm::vec2> texcoords(triangle_mesh->texcoord.size());

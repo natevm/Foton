@@ -54,10 +54,10 @@ void main()
 
     // uint rayFlags = gl_RayFlagsOpaqueNV;
     // uint rayFlags = gl_RayFlagsCullBackFacingTrianglesNV ;
-    uint rayFlags = gl_RayFlagsNoneNV ;
+    uint rayFlags = gl_RayFlagsCullBackFacingTrianglesNV ;
     uint cullMask = 0xff;
-	float tmin = .01;
-    float tmax = 10.0;
+	float tmin = .1;
+    float tmax = 100.0;
     payload.color = vec4(0.0, 0.0, 0.0, 0.0);
 
     /* Trace reflections */
