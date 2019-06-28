@@ -2,6 +2,7 @@
 #include "Pluto/Resources/Shaders/Descriptors.hxx"
 #include "Pluto/Resources/Shaders/FragmentVaryings.hxx"
 #include "Pluto/Resources/Shaders/FragmentCommon.hxx"
+#include "Pluto/Resources/Shaders/ShaderCommon.hxx"
 
 bool IntersectBox(Ray r, AABB aabb, out float t0, out float t1) 
 {
@@ -65,7 +66,9 @@ void main() {
 	float travel = distance(ray_stop, ray_start);
 	for (int i=0; i < samples && travel > 0.0; ++i, pos += step, travel -= step_size) {
 		vec4 currentSample = (use_transfer_function) ? 
-			texture(sampler2D(texture_2Ds[material.transfer_function_texture_id], samplers[0]), vec2(sampleVolume(pos, 1.0).r, 0.5) ) : sampleVolume(pos, 1.0);
+			texture(sampler2D(texture_2Ds[material.transfer_function_texture_id], samplers[0]), 
+				vec2(sample_texture_3D(vec4(1.0, 1.0, 1.0, 1.0), material.volume_texture_id, pos, 1.0).r, 0.5) ) : 
+					sample_texture_3D(vec4(1.0, 1.0, 1.0, 1.0), material.volume_texture_id, pos, 1.0);
 		
 		// color = color + (1.0 - alpha) * cx.rgb * cx.a;
 		// alpha = alpha + cx.a * (1 - alpha);

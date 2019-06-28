@@ -1414,7 +1414,7 @@ void Mesh::build_low_level_bvh(bool submit_immediately)
 		geoData.triangles = tris;
 		geometry.geometryType = vk::GeometryTypeNV::eTriangles;
 		geometry.geometry = geoData;
-		geometry.flags = vk::GeometryFlagBitsNV::eOpaque;
+		// geometry.flags = vk::GeometryFlagBitsNV::eOpaque;
 	}
 	
 

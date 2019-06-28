@@ -1080,7 +1080,7 @@ void RenderSystem::build_top_level_bvh(bool submit_immediately)
             instance.instanceId = i;
             instance.mask = 0xff;
             instance.instanceOffset = 0;
-            instance.flags = (uint32_t) (vk::GeometryInstanceFlagBitsNV::eTriangleCullDisable | vk::GeometryInstanceFlagBitsNV::eTriangleFrontCounterclockwise);
+            // instance.flags = (uint32_t) (vk::GeometryInstanceFlagBitsNV::e);
             instance.accelerationStructureHandle = handle;
         }
 	

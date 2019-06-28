@@ -73,5 +73,10 @@ bool is_reverse_z_enabled()
 }
 
 struct HitInfo {
-    vec4 color;
+    vec4 N;
+    vec4 P;
+    vec4 C;
+    vec2 UV;
+    float distance;
+    uint entity_id; 
 };

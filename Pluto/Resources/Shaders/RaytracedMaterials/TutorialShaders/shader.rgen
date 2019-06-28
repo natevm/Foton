@@ -3,9 +3,11 @@
 #define RAYTRACING
 
 #include "Pluto/Resources/Shaders/Descriptors.hxx"
+#include "Pluto/Resources/Shaders/ShaderCommon.hxx"
 
 layout(location = 0) rayPayloadNV HitInfo payload;
 
+#define MAX_RECURSION 1
 void main() 
 {
     const vec2 pixelCenter = vec2(gl_LaunchIDNV.xy) + vec2(0.5);
@@ -28,6 +30,48 @@ void main()
 
     /* No object in view. TODO: change to entity*/
     if (length(w_position) < .0001) return;
+
+    /* Initialize payload */
+    // payload.N = vec4(0.);
+    // payload.P = vec4(0.);
+    // payload.C = vec4(0.);
+    // payload.UV = vec2(0.);
+    // payload.entity_id = -1;
+    // payload.distance = -1;
+
+    vec4 finalColor = raster_contribution;
+    for (int i = 0; i < MAX_RECURSION; i++) {
+        /* Trace reflections */
+        uint rayFlags = gl_RayFlagsCullBackFacingTrianglesNV ;
+        uint cullMask = 0xff;
+        float tmin = .01;
+        float tmax = 100.0;
+        vec3 dir = w_refl.xyz;
+        traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, w_position.xyz - w_normal * .01, tmin, dir, tmax, 0);
+        
+        if ((payload.distance < 0.0)
+            || (payload.entity_id < 0) || (payload.entity_id >= MAX_ENTITIES)
+        ) break;
+        EntityStruct entity = ebo.entities[payload.entity_id];
+
+        if (entity.material_id < 0 || entity.material_id >= MAX_MATERIALS) break;
+        MaterialStruct material = mbo.materials[entity.material_id];
+
+        if (entity.transform_id < 0 || entity.transform_id >= MAX_TRANSFORMS) break;
+        TransformStruct transform = tbo.transforms[entity.transform_id];
+
+        /* TODO: Handle alpha compositing */
+        vec3 MP = (payload.P).xyz;
+        vec3 WP = (transform.localToWorld * vec4(payload.P.xyz, 1.0)).xyz;
+        vec3 WN = normalize((transpose(transform.worldToLocal) * vec4(payload.N.xyz, 0.0)).xyz);
+        vec3 V = -dir;
+        finalColor += vec4(get_color_contribution(material, WN, V, WP, MP, payload.UV, payload.C).rgb, 0.0) * .5;
+        // finalColor = vec4(WN, 1.0);
+        /* Temporary */
+        break;
+    }
+
+    imageStore(render_image, ivec2(gl_LaunchIDNV.xy), finalColor);
 
 
 
@@ -54,14 +98,9 @@ void main()
 
     // uint rayFlags = gl_RayFlagsOpaqueNV;
     // uint rayFlags = gl_RayFlagsCullBackFacingTrianglesNV ;
-    uint rayFlags = gl_RayFlagsCullBackFacingTrianglesNV ;
-    uint cullMask = 0xff;
-	float tmin = .1;
-    float tmax = 100.0;
-    payload.color = vec4(0.0, 0.0, 0.0, 0.0);
 
-    /* Trace reflections */
-    traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, w_position.xyz, tmin, w_refl.xyz, tmax, 0);
+	// MaterialStruct material = mbo.materials[entity.material_id];
+    
+    
 
-    imageStore(render_image, ivec2(gl_LaunchIDNV.xy), raster_contribution + payload.color);
 }
