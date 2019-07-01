@@ -26,7 +26,7 @@ Light::Light(std::string name, uint32_t id)
     this->id = id;
     this->light_struct.coneAngle = 0.0;
     this->light_struct.coneSoftness = 0.5;
-    this->light_struct.type = 0;
+    this->light_struct.type = 1;
     this->light_struct.ambient = glm::vec4(1.0, 1.0, 1.0, 1.0);
     this->light_struct.color = glm::vec4(1.0, 1.0, 1.0, 1.0);
     this->light_struct.intensity = 1.0;

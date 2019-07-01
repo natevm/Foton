@@ -3,104 +3,371 @@
 #define RAYTRACING
 
 #include "Pluto/Resources/Shaders/Descriptors.hxx"
+layout(location = 0) rayPayloadNV HitInfo payload;
 #include "Pluto/Resources/Shaders/ShaderCommon.hxx"
 
-layout(location = 0) rayPayloadNV HitInfo payload;
 
-#define MAX_RECURSION 1
+#define MAX_RECURSION 3
 void main() 
 {
+    /* These are required for shading purposes. Wait until they're ready. */
+    if ((push.consts.ltc_mat_lut_id < 0) || (push.consts.ltc_mat_lut_id >= MAX_TEXTURES)) return;
+    if ((push.consts.ltc_amp_lut_id < 0) || (push.consts.ltc_amp_lut_id >= MAX_TEXTURES)) return;
+
+    vec3 final_color = vec3(0.0);
+    
+    /* Read from G Buffers*/
     const vec2 pixelCenter = vec2(gl_LaunchIDNV.xy) + vec2(0.5);
-    const vec2 inUV = pixelCenter/vec2(gl_LaunchSizeNV.xy);
+    int entity_id = int(imageLoad(render_image, ivec2(gl_LaunchIDNV.xy)).r) - 1;
+    vec3 m_normal = imageLoad(normal_image, ivec2(gl_LaunchIDNV.xy)).xyz;
+    if (entity_id < 0) return;
+    
+    vec3 m_position = imageLoad(position_image, ivec2(gl_LaunchIDNV.xy)).xyz;
+    vec2 uv = imageLoad(render_image, ivec2(gl_LaunchIDNV.xy)).yz;
 
-    vec3 w_normal = imageLoad(normal_image, ivec2(gl_LaunchIDNV.xy)).xyz;
-    vec3 w_position = imageLoad(position_image, ivec2(gl_LaunchIDNV.xy)).xyz;
-    vec4 raster_contribution = imageLoad(render_image, ivec2(gl_LaunchIDNV.xy));
 
+    /* Load camera information */
+    /* Note, multiview not supported in rgen shaders */
     EntityStruct camera_entity = ebo.entities[push.consts.camera_id];
     CameraStruct camera = cbo.cameras[camera_entity.camera_id];
     TransformStruct camera_transform = tbo.transforms[camera_entity.transform_id];
+    EntityStruct target_entity = ebo.entities[entity_id];
+    if (target_entity.transform_id < 0 || target_entity.transform_id >= MAX_TRANSFORMS) vec3(0.0);
+    TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
+    if (target_entity.material_id < 0 || target_entity.material_id >= MAX_MATERIALS) return;
+    MaterialStruct target_material = mbo.materials[target_entity.material_id];
+    vec3 w_camera_position = vec3(camera_transform.localToWorld[3]);
+    vec3 w_position = vec3(target_transform.localToWorld * vec4(m_position.xyz, 1.0));
+    vec3 w_incoming = normalize(w_position - w_camera_position);
 
-    /* Note, multiview not supported in rgen shaders */
-    vec3 w_cameraPos = vec3(camera_transform.localToWorld[3]);
-    vec3 w_cameraDir = normalize(w_cameraPos - w_position);
+    /* Trace a ray to get a color */
+    PBRInfo info;
+    info.bounce_count = 0;
+    info.entity_id = entity_id;
+    info.w_incoming = vec4(w_incoming, 0.0);
+    info.m_position = vec4(m_position, 0.0);
+    info.m_normal = vec4(m_normal, 0.0);
+    info.uv = uv;
 
-    vec3 w_view = normalize(w_cameraDir);
-	vec3 w_refl = -normalize(reflect(w_view, w_normal));	
+    final_color = get_ray_traced_contribution(info);
+    
+    /* Tone mapping */
+    final_color = Uncharted2Tonemap(final_color * push.consts.exposure);
+    final_color = final_color * (1.0f / Uncharted2Tonemap(vec3(11.2f)));
 
-    /* No object in view. TODO: change to entity*/
-    if (length(w_position) < .0001) return;
+    /* Gamma correction */
+    final_color = pow(final_color, vec3(1.0f / push.consts.gamma));
+    
+    /* Store the resulting color */
+    imageStore(render_image, ivec2(gl_LaunchIDNV.xy), vec4(final_color, 1.0));
 
-    /* Initialize payload */
-    // payload.N = vec4(0.);
-    // payload.P = vec4(0.);
-    // payload.C = vec4(0.);
-    // payload.UV = vec2(0.);
-    // payload.entity_id = -1;
-    // payload.distance = -1;
 
-    vec4 finalColor = raster_contribution;
-    for (int i = 0; i < MAX_RECURSION; i++) {
-        /* Trace reflections */
-        uint rayFlags = gl_RayFlagsCullBackFacingTrianglesNV ;
-        uint cullMask = 0xff;
-        float tmin = .01;
-        float tmax = 100.0;
-        vec3 dir = w_refl.xyz;
-        traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, w_position.xyz - w_normal * .01, tmin, dir, tmax, 0);
+
+
+
+    /* Load target entity information */
+    // EntityStruct target_entity = ebo.entities[entity_id];
+    // if (target_entity.transform_id < 0 || target_entity.transform_id >= MAX_TRANSFORMS) return;
+    // TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
+    
+    // const vec4 albedo = getAlbedo(target_material, vec4(0.0), uv, m_position);
+    // const float metallic = clamp(target_material.metallic, 0.0, 1.0);
+    // const float transmission = clamp(target_material.transmission, 0.0, 1.0);
+    // const float roughness = clamp(getRoughness(target_material, uv, m_position), 0.05, 0.9);
+    // const float transmission_roughness = clamp(getTransmissionRoughness(target_material), 0.0, 0.9);
+
+    /* Compute some common vectors and interpolants */
+    
+    
+    // float eta = 1.0 / target_material.ior;
+    // vec3 w_refl = normalize(reflect(w_incoming, w_normal));	
+    // vec3 w_refr = normalize(refract(w_incoming, w_normal, eta));	
+    // vec3 w_view = -w_incoming;
+    // float NdotV = clamp(dot(w_normal, w_view), 0.0, 1.0);
+	// float schlick = pow(1.0 - NdotV, 5.0);
+
+    
+
+    
+
+    
+    // /* PBR Shading */
+    // vec3 dielectric_specular = vec3(.04);
+    // vec3 dielectric_diffuse = albedo.rgb;
+    // vec3 metallic_transmissive_specular = albedo.rgb;
+    // vec3 metallic_transmissive_diffuse = vec3(0.0);
+	// vec3 specular = mix(dielectric_specular, metallic_transmissive_specular, max(metallic, transmission));
+    // vec3 diffuse = mix(dielectric_diffuse, metallic_transmissive_diffuse, max(metallic, transmission));
+
+    // /* Compute indirect specular contribution from IBL */
+    // float KRefr = min(transmission, (1.0 - metallic));
+    // vec3 specular_reflective_irradiance = getPrefilteredReflection(w_refl, roughness);
+    // vec3 specular_refractive_irradiance = getPrefilteredReflection(w_refr, min(transmission_roughness + roughness, 1.0) );
+    // vec2 specular_brdf = sampleBRDF(w_normal, w_view, roughness);
+    // float reflective_schlick_influence = (mix(schlick, 1.0, metallic));
+    // float refractive_schlick_influence =  1.0 - reflective_schlick_influence;
+	// vec3 indirectSpecularReflectionContribution = reflective_schlick_influence * specular_reflective_irradiance * (specular * specular_brdf.x + specular_brdf.y);
+	// vec3 indirectSpecularRefractionContribution = KRefr * refractive_schlick_influence * specular_refractive_irradiance * specular;
+
+    // /* Compute indirect diffuse contribution from IBL */
+    // vec3 diffuse_irradiance = sampleIrradiance(w_normal);
+    // vec3 indirectDiffuse = diffuse * diffuse_irradiance;
+    // float KD = (1.0 - metallic);
+    // vec3 indirectDiffuseContribution = KD * indirectDiffuse;
+
+    // /* Compute direct specular and diffuse contribution from LTC area lights */
+    // vec2 LTC_UV = vec2(roughness, sqrt(1.0 - NdotV))*LUT_SCALE + LUT_BIAS;
+    // vec4 t1 = texture(sampler2D(texture_2Ds[push.consts.ltc_mat_lut_id], samplers[0]), LTC_UV);
+    // vec4 t2 = texture(sampler2D(texture_2Ds[push.consts.ltc_amp_lut_id], samplers[0]), LTC_UV);
+    // mat3 m_inv = mat3(
+    //     vec3(t1.x, 0, t1.y),
+    //     vec3(  0,  1,    0),
+    //     vec3(t1.z, 0, t1.w)
+    // );
+
+    // vec3 directDiffuseContribution = vec3(0.0);
+    // vec3 directSpecularContribution = vec3(0.0);
+    // vec3 emissiveContribution = vec3(0.0);
+    // for (int i = 0; i < MAX_LIGHTS; ++i) {
+    //     /* Skip unused lights */
+    //     int light_entity_id = push.consts.light_entity_ids[i];
+    //     if (light_entity_id == -1) continue;
+
+    //     /* Skip lights without a transform */
+    //     EntityStruct light_entity = ebo.entities[light_entity_id];
+    //     if ( (light_entity.initialized != 1) || (light_entity.transform_id == -1)) continue;
+    //     LightStruct light = lbo.lights[light_entity.light_id];
+
+    //     /* If the drawn object is the light component (fake emission) */
+    //     if (light_entity_id == entity_id) {
+    //         emissiveContribution += light.color.rgb * light.intensity;
+    //         continue;
+    //     }
+
+    //     TransformStruct light_transform = tbo.transforms[light_entity.transform_id];
+    //     vec3 w_light_right =    light_transform.localToWorld[0].xyz;
+    //     vec3 w_light_forward =  light_transform.localToWorld[1].xyz;
+    //     vec3 w_light_up =       light_transform.localToWorld[2].xyz;
+    //     vec3 w_light_position = light_transform.localToWorld[3].xyz;
+    //     vec3 w_light_dir = normalize(w_light_position - w_position);
+
+    //     // Precalculate vectors and dot products	
+    //     vec3 w_half = normalize(w_view + w_light_dir);
+    //     float dotNH = clamp(dot(w_normal, w_half), 0.0, 1.0);
+    //     float dotNL = clamp(dot(w_normal, w_light_dir), 0.0, 1.0);
+    //     if (dotNL < 0.0) continue;
+
+    //     /* Some info for geometric terms */
+    //     float dun = dot(normalize(w_light_up), w_normal);
+    //     float drn = dot(normalize(w_light_right), w_normal);
+    //     float dfn = dot(normalize(w_light_forward), w_normal);
+
+    //     vec3 lcol = vec3(light.intensity * light.color.rgb);
+    //     bool double_sided = bool(light.flags & (1 << 0));
+    //     bool show_end_caps = bool(light.flags & (1 << 1));
+
+    //     float light_angle = 1.0 - (acos(abs( dot(normalize(w_light_up), w_light_dir))) / PI);
+    //     float cone_angle_difference = clamp((light.coneAngle - light_angle) / ( max(light.coneAngle, .001) ), 0.0, 1.0);
+    //     float cone_term = (light.coneAngle == 0.0) ? 1.0 : max((2.0 / (1.0 + exp( 6.0 * ((cone_angle_difference / max(light.coneSoftness, .01)) - 1.0)) )) - 1.0, 0.0);
+
+    //     /* If casting shadows is disabled */
+    //     float shadow_term = 1.0;
+    //     if ((light.flags & (1 << 2)) != 0) {
+    //         shadow_term = get_shadow_contribution(light_entity, light, w_light_position, w_position);
+    //     }
+
+    //     shadow_term *= cone_term;
         
-        if ((payload.distance < 0.0)
-            || (payload.entity_id < 0) || (payload.entity_id >= MAX_ENTITIES)
-        ) break;
-        EntityStruct entity = ebo.entities[payload.entity_id];
+    //     float over_dist_squared = 1.0 / max(sqr(length(w_light_position - w_position)), 1.0);
+        
+    //     /* Point light */
+    //     if (light.type == 0) {
+    //         // // D = Normal distribution (Distribution of the microfacets)
+    //         // float D = D_GGX(dotNH, roughness); 
+    //         // // G = Geometric shadowing term (Microfacets shadowing)
+    //         // float G = G_SchlicksmithGGX(dotNL, NdotV, roughness);
+    //         // // F = Fresnel factor (Reflectance depending on angle of incidence)
+    //         // vec3 F = F_Schlick(NdotV, F0);		
+            
+    //         // vec3 spec = (D * F * G / (4.0 * dotNL * NdotV + 0.001));
+    //         // directDiffuseContribution += shadow_term * lcol * dotNL * KD * diffuse;
+    //         // directSpecularContribution += shadow_term * lcol * dotNL * spec;
+    //         // // final_color += shadow_term * over_dist_squared * lcol * dotNL * (kD * albedo + spec);
+    //     }
+        
+    //     /* Rectangle light */
+    //     else if (light.type == 1)
+    //     {
+    //         /* Verify the area light isn't degenerate */
+    //         if (distance(w_light_right, w_light_forward) < .01) continue;
 
-        if (entity.material_id < 0 || entity.material_id >= MAX_MATERIALS) break;
-        MaterialStruct material = mbo.materials[entity.material_id];
+    //         /* Compute geometric term */
+    //         vec3 dr = w_light_right * drn + w_light_forward * dfn;
+    //         float geometric_term = dot( normalize((w_light_position + dr) - w_position), w_normal);
+    //         if (geometric_term < 0.0) continue;
 
-        if (entity.transform_id < 0 || entity.transform_id >= MAX_TRANSFORMS) break;
-        TransformStruct transform = tbo.transforms[entity.transform_id];
+    //         /* Create points for area light polygon */
+    //         vec3 points[4];
+    //         points[0] = w_light_position - w_light_right - w_light_forward;
+    //         points[1] = w_light_position + w_light_right - w_light_forward;
+    //         points[2] = w_light_position + w_light_right + w_light_forward;
+    //         points[3] = w_light_position - w_light_right + w_light_forward;
 
-        /* TODO: Handle alpha compositing */
-        vec3 MP = (payload.P).xyz;
-        vec3 WP = (transform.localToWorld * vec4(payload.P.xyz, 1.0)).xyz;
-        vec3 WN = normalize((transpose(transform.worldToLocal) * vec4(payload.N.xyz, 0.0)).xyz);
-        vec3 V = -dir;
-        finalColor += vec4(get_color_contribution(material, WN, V, WP, MP, payload.UV, payload.C).rgb, 0.0) * .5;
-        // finalColor = vec4(WN, 1.0);
-        /* Temporary */
-        break;
-    }
+    //         // Get Specular
+    //         vec3 lspec = LTC_Evaluate_Rect_Clipped(w_normal, w_view, w_position, m_inv, points, double_sided);
+            
+    //         // BRDF shadowing and Fresnel
+    //         lspec *= specular*t2.x + (1.0 - specular)*t2.y;
 
-    imageStore(render_image, ivec2(gl_LaunchIDNV.xy), finalColor);
+    //         // Get diffuse
+    //         vec3 ldiff = LTC_Evaluate_Rect_Clipped(w_normal, w_view, w_position, mat3(1), points, double_sided); 
 
+    //         directDiffuseContribution += shadow_term * geometric_term * lcol * (lspec);
+    //         directSpecularContribution += shadow_term * geometric_term * lcol * (KD*diffuse*ldiff);
+    //         // final_color += shadow_term * geometric_term * lcol * (spec + diffuse*diff);
+    //     }
 
+    //     /* Disk Light */
+    //     else if (light.type == 2)
+    //     {
+    //         /* Verify the area light isn't degenerate */
+    //         if (distance(w_light_right, w_light_forward) < .1) continue;
 
+    //         /* Compute geometric term */
+    //         vec3 dr = w_light_right * drn + w_light_forward * dfn;
+    //         float geometric_term = dot( normalize((w_light_position + dr) - w_position), w_normal);
+    //         if (geometric_term < 0.0) continue;
 
-    // const uint cullMask = 0xFF;
-    // const uint sbtRecordOffset = 0;
-    // const uint sbtRecordStride = 0;
-    // const uint missIndex = 0;
-    // const float tmin = 0.0f;
-    // const float tmax = 10000.0f;
-    // const int payloadLocation = 0;
+    //         vec3 points[4];
+    //         points[0] = w_light_position - w_light_right - w_light_forward;
+    //         points[1] = w_light_position + w_light_right - w_light_forward;
+    //         points[2] = w_light_position + w_light_right + w_light_forward;
+    //         points[3] = w_light_position - w_light_right + w_light_forward;
 
-    // traceNV(topLevelAS,
-    //          rayFlags,
-    //          cullMask,
-    //          sbtRecordOffset,
-    //          sbtRecordStride,
-    //          missIndex,
-    //          origin,
-    //          tmin,
-    //          direction,
-    //          tmax,
-    //          payloadLocation);
+    //         // Get Specular
+    //         vec3 lspec = LTC_Evaluate_Disk(w_normal, w_view, w_position, m_inv, points, double_sided);
 
-    // uint rayFlags = gl_RayFlagsOpaqueNV;
-    // uint rayFlags = gl_RayFlagsCullBackFacingTrianglesNV ;
+    //         // BRDF shadowing and Fresnel
+    //         lspec *= specular*t2.x + (1.0 - specular)*t2.y;
+            
+    //         // Get diffuse
+    //         vec3 ldiff = LTC_Evaluate_Disk(w_normal, w_view, w_position, mat3(1), points, double_sided); 
 
-	// MaterialStruct material = mbo.materials[entity.material_id];
-    
-    
+    //         directDiffuseContribution += shadow_term * geometric_term * lcol * (lspec);
+    //         directSpecularContribution += shadow_term * geometric_term * lcol * (KD*diffuse*ldiff);
+    //         // final_color += shadow_term * geometric_term * lcol * (spec + diffuse*diff);
+    //     }
+        
+    //     /* Rod light */
+    //     else if (light.type == 3) {
+    //         vec3 points[2];
+    //         points[0] = w_light_position - w_light_up;
+    //         points[1] = w_light_position + w_light_up;
+    //         float radius = .1;//max(length(w_light_up), length(ex));
 
+    //         /* Verify the area light isn't degenerate */
+    //         if (length(w_light_up) < .1) continue;
+    //         if (radius < .1) continue;
+
+    //         /* Compute geometric term */
+    //         vec3 dr = dun * w_light_up;
+    //         float geometric_term = dot( normalize((w_light_position + dr) - w_position), w_normal);
+    //         if (geometric_term <= 0) continue;
+            
+    //         // Get Specular
+    //         vec3 lspec = LTC_Evaluate_Rod(w_normal, w_view, w_position, m_inv, points, radius, show_end_caps);
+
+    //         // BRDF shadowing and Fresnel
+    //         lspec *= specular*t2.x + (1.0 - specular)*t2.y;
+            
+    //         // Get diffuse
+    //         vec3 ldiff = LTC_Evaluate_Rod(w_normal, w_view, w_position, mat3(1), points, radius, show_end_caps); 
+    //         // diff /= (PI);
+
+    //         directDiffuseContribution += shadow_term * geometric_term * lcol * (lspec);
+    //         directSpecularContribution += shadow_term * geometric_term * lcol * (KD*diffuse*ldiff);
+    //         // final_color += shadow_term * geometric_term * lcol * (spec + diffuse*diff);
+    //     }
+        
+    //     /* Sphere light */
+    //     else if (light.type == 4)
+    //     {
+    //         /* construct orthonormal basis around L */
+    //         vec3 T1, T2;
+    //         generate_basis(w_light_dir, T1, T2);
+    //         T1 = normalize(T1);
+    //         T2 = normalize(T2);
+
+    //         float s1 = length(w_light_right);
+    //         float s2 = length(w_light_forward);
+    //         float s3 = length(w_light_up);
+
+    //         float maxs = max(max(abs(s1), abs(s2) ), abs(s3) );
+
+    //         vec3 ex, ey;
+    //         ex = T1 * maxs;
+    //         ey = T2 * maxs;
+
+    //         float temp = dot(ex, ey);
+    //         if (temp < 0.0)
+    //             ey *= -1;
+            
+    //         /* Verify the area light isn't degenerate */
+    //         if (distance(ex, ey) < .01) continue;
+
+    //         float geometric_term = dot( normalize((w_light_position + maxs * w_normal) - w_position), w_normal);
+    //         if (geometric_term <= 0) continue;
+
+    //         /* Create points for the area light around the light center */
+    //         vec3 points[4];
+    //         points[0] = w_light_position - ex - ey;
+    //         points[1] = w_light_position + ex - ey;
+    //         points[2] = w_light_position + ex + ey;
+    //         points[3] = w_light_position - ex + ey;
+            
+    //         // Get Specular
+    //         vec3 lspec = LTC_Evaluate_Disk(w_normal, w_view, w_position, m_inv, points, true);
+
+    //         // BRDF shadowing and Fresnel
+    //         lspec *= specular*t2.x + (1.0 - specular)*t2.y;
+
+    //         // Get diffuse
+    //         vec3 ldiff = LTC_Evaluate_Disk(w_normal, w_view, w_position, mat3(1), points, true); 
+
+    //         directDiffuseContribution += shadow_term * geometric_term * lcol * (lspec);
+    //         directSpecularContribution += shadow_term * geometric_term * lcol * (KD*diffuse*ldiff);
+    //         // final_color += shadow_term * geometric_term * lcol * (spec + diffuse*diff);
+    //     }
+    // }
+
+    // /* Ray trace reflections (glossy surfaces not yet supported) */
+    // {
+    //     uint rayFlags = gl_RayFlagsCullBackFacingTrianglesNV ;
+    //     uint cullMask = 0xff;
+    //     float tmin = .01;
+    //     float tmax = 100.0;
+    //     vec3 dir = w_refl.xyz;
+
+    //     traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, w_position.xyz/* - w_normal * .1*/, tmin, dir, tmax, 0);
+    //     if ((payload.distance < 0.0) || (payload.entity_id < 0) || (payload.entity_id >= MAX_ENTITIES) || (payload.entity_id == entity_id)) {
+    //         final_color += indirectSpecularReflectionContribution;
+    //         final_color += indirectSpecularRefractionContribution;
+    //     } 
+    //     else {
+    //         // entity_id = payload.entity_id;
+    //         m_position = payload.P.xyz;
+    //         // m_normal = payload.N.xyz;
+    //         uv = payload.UV;
+    //         EntityStruct hit_entity = ebo.entities[payload.entity_id];
+    //         MaterialStruct hit_material = mbo.materials[hit_entity.material_id];
+
+    //         /* Temporary. This somehow needs to be made recursive... */
+    //         directSpecularContribution += hit_material.base_color.rgb;
+    //     }
+    // }
+
+    // final_color += indirectDiffuseContribution;
+    // final_color += directSpecularContribution;
+    // final_color += directDiffuseContribution;
+    // final_color += emissiveContribution;
 }

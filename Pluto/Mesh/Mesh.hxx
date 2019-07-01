@@ -442,7 +442,7 @@ class Mesh : public StaticFactory
 		
 		/* Creates a procedural mesh from the given mesh generator, and copies per vertex to the GPU */
 		template <class Generator>
-		void make_primitive(Generator &mesh, bool allow_edits, bool submit_immediately)
+		void make_primitive(Generator &mesh, bool allow_edits, bool flip_z, bool submit_immediately)
 		{
 			std::vector<Vertex> vertices;
 
@@ -450,7 +450,10 @@ class Mesh : public StaticFactory
 			while (!genVerts.done()) {
 				auto vertex = genVerts.generate();
 				positions.push_back(glm::vec4(vertex.position.x, vertex.position.y, vertex.position.z, 1.0f));
-				normals.push_back(glm::vec4(vertex.normal.x, vertex.normal.y, vertex.normal.z, 0.0f));
+				if (flip_z)
+					normals.push_back(glm::vec4(-vertex.normal.x, -vertex.normal.y, -vertex.normal.z, 0.0f));
+				else
+					normals.push_back(glm::vec4(vertex.normal.x, vertex.normal.y, vertex.normal.z, 0.0f));
 				texcoords.push_back(vertex.texCoord);
 				colors.push_back(glm::vec4(0.0, 0.0, 0.0, 0.0));
 				genVerts.next();

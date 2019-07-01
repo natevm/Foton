@@ -21,7 +21,8 @@ void main() {
     }
     else w_position = vec3(target_transform.localToWorld * vec4(point.xyz, 1.0));
 
-    w_normal = (transpose(target_transform.worldToLocal) * vec4(normal.xyz, 0.0)).xyz;
+    w_normal = normalize((transpose(target_transform.worldToLocal) * vec4(normal.xyz, 0.0)).xyz);
+    m_normal = normalize(normal.xyz);
 
     #ifdef DISABLE_MULTIVIEW
     int viewIndex = push.consts.viewIndex;

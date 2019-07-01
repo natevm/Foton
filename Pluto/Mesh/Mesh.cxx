@@ -1564,7 +1564,7 @@ Mesh* Mesh::CreateBox(std::string name, bool allow_edits, bool submit_immediatel
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		generator::BoxMesh gen_mesh{{1, 1, 1}, {1, 1, 1}};
-		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1578,7 +1578,7 @@ Mesh* Mesh::CreateCappedCone(std::string name, bool allow_edits, bool submit_imm
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		generator::CappedConeMesh gen_mesh{radius, height * .5};
-		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1592,7 +1592,7 @@ Mesh* Mesh::CreateCappedCylinder(std::string name, float radius, float size, int
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {		
 		generator::CappedCylinderMesh gen_mesh{radius, size, slices, segments, rings, start, sweep};
-		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1606,7 +1606,7 @@ Mesh* Mesh::CreateCappedTube(std::string name, bool allow_edits, bool submit_imm
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		generator::CappedTubeMesh gen_mesh{};
-		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1620,7 +1620,7 @@ Mesh* Mesh::CreateCapsule(std::string name, float radius, float size, int slices
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		generator::CapsuleMesh gen_mesh{radius, size, slices, segments, rings, start, sweep};
-		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1634,7 +1634,7 @@ Mesh* Mesh::CreateCone(std::string name, bool allow_edits, bool submit_immediate
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		generator::ConeMesh gen_mesh{radius, height * .5};
-		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1648,7 +1648,7 @@ Mesh* Mesh::CreatePentagon(std::string name, bool allow_edits, bool submit_immed
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		generator::ConvexPolygonMesh gen_mesh{};
-		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1662,7 +1662,7 @@ Mesh* Mesh::CreateCylinder(std::string name, bool allow_edits, bool submit_immed
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		generator::CylinderMesh gen_mesh{};
-		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1676,7 +1676,7 @@ Mesh* Mesh::CreateDisk(std::string name, bool allow_edits, bool submit_immediate
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		generator::DiskMesh gen_mesh{};
-		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1690,7 +1690,7 @@ Mesh* Mesh::CreateDodecahedron(std::string name, bool allow_edits, bool submit_i
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		generator::DodecahedronMesh gen_mesh{};
-		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1704,7 +1704,7 @@ Mesh* Mesh::CreatePlane(std::string name, bool allow_edits, bool submit_immediat
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		generator::PlaneMesh gen_mesh{{1, 1}, {1, 1}};
-		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1718,7 +1718,7 @@ Mesh* Mesh::CreateIcosahedron(std::string name, bool allow_edits, bool submit_im
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		generator::IcosahedronMesh gen_mesh{};
-		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1732,7 +1732,7 @@ Mesh* Mesh::CreateIcosphere(std::string name, bool allow_edits, bool submit_imme
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		generator::IcoSphereMesh gen_mesh{};
-		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1746,7 +1746,7 @@ Mesh* Mesh::CreateIcosphere(std::string name, bool allow_edits, bool submit_imme
 //     auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 //     if (!mesh) return nullptr;
 //     auto gen_mesh = generator::ParametricMesh( , glm::ivec2(x_segments, y_segments));
-//     mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+//     mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 //     return mesh;
 // }
 
@@ -1758,7 +1758,7 @@ Mesh* Mesh::CreateRoundedBox(std::string name, float radius, glm::vec3 size, int
 		generator::RoundedBoxMesh gen_mesh{
 			radius, size, slices, segments
 		};
-		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1772,7 +1772,7 @@ Mesh* Mesh::CreateSphere(std::string name, float radius, int slices, int segment
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		generator::SphereMesh gen_mesh{radius, slices, segments, slice_start, slice_sweep, segment_start, segment_sweep};
-		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1786,7 +1786,7 @@ Mesh* Mesh::CreateSphericalCone(std::string name, bool allow_edits, bool submit_
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		generator::SphericalConeMesh gen_mesh{};
-		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1800,7 +1800,7 @@ Mesh* Mesh::CreateSphericalTriangle(std::string name, bool allow_edits, bool sub
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		generator::SphericalTriangleMesh gen_mesh{};
-		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1814,7 +1814,7 @@ Mesh* Mesh::CreateSpring(std::string name, bool allow_edits, bool submit_immedia
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		generator::SpringMesh gen_mesh{};
-		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1828,7 +1828,7 @@ Mesh* Mesh::CreateTeapotahedron(std::string name, uint32_t segments, bool allow_
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		generator::TeapotMesh gen_mesh(segments);
-		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1842,7 +1842,7 @@ Mesh* Mesh::CreateTorus(std::string name, bool allow_edits, bool submit_immediat
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		generator::TorusMesh gen_mesh{};
-		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1856,7 +1856,7 @@ Mesh* Mesh::CreateTorusKnot(std::string name, bool allow_edits, bool submit_imme
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		generator::TorusKnotMesh gen_mesh{};
-		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1870,7 +1870,7 @@ Mesh* Mesh::CreateTriangle(std::string name, bool allow_edits, bool submit_immed
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		generator::TriangleMesh gen_mesh{};
-		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1884,7 +1884,7 @@ Mesh* Mesh::CreateTube(std::string name, bool allow_edits, bool submit_immediate
 	auto mesh = StaticFactory::Create(name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		generator::TubeMesh gen_mesh{};
-		mesh->make_primitive(gen_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1935,7 +1935,7 @@ Mesh* Mesh::CreateTubeFromPolyline(std::string name, std::vector<glm::vec3> posi
 		} ;
 		CircleShape circle_shape(radius, segments);
 		ExtrudeMesh extrude_mesh(circle_shape, parametricPath);
-		mesh->make_primitive(extrude_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(extrude_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1986,7 +1986,7 @@ Mesh* Mesh::CreateRoundedRectangleTubeFromPolyline(std::string name, std::vector
 		} ;
 		RoundedRectangleShape rounded_rectangle_shape(radius, {size_x, size_y}, 4, {1, 1});
 		ExtrudeMesh extrude_mesh(rounded_rectangle_shape, parametricPath);
-		mesh->make_primitive(extrude_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(extrude_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -2036,7 +2036,7 @@ Mesh* Mesh::CreateRectangleTubeFromPolyline(std::string name, std::vector<glm::v
 		} ;
 		RectangleShape rectangle_shape({size_x, size_y}, {1, 1});
 		ExtrudeMesh extrude_mesh(rectangle_shape, parametricPath);
-		mesh->make_primitive(extrude_mesh, allow_edits, submit_immediately);
+		mesh->make_primitive(extrude_mesh, allow_edits, false, submit_immediately);
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(name, "Mesh", lookupTable, meshes, MAX_MESHES);

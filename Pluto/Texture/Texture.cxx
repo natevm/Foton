@@ -555,7 +555,7 @@ void Texture::Initialize()
 	sInfo.maxAnisotropy = vulkan->get_max_anisotropy();
 	sInfo.anisotropyEnable = (sInfo.maxAnisotropy > 0.0) ? VK_TRUE : VK_FALSE;
 	sInfo.minLod = 0.0;
-	sInfo.maxLod = 12.0;
+	sInfo.maxLod = 8.0;
 	sInfo.borderColor = vk::BorderColor::eFloatTransparentBlack;
 	samplers[0] = device.createSampler(sInfo);
 

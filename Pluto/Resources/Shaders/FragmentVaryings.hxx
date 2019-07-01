@@ -6,3 +6,4 @@ layout(location = 3) in vec3 w_cameraPos;
 layout(location = 4) in vec4 vert_color;
 layout(location = 5) in vec3 m_position;
 layout(location = 6) in vec3 w_cameraDir;
+layout(location = 7) in vec3 m_normal;

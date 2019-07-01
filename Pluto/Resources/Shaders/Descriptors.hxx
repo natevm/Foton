@@ -77,6 +77,7 @@ struct HitInfo {
     vec4 P;
     vec4 C;
     vec2 UV;
+    vec4 color;
     float distance;
-    uint entity_id; 
+    int entity_id; 
 };

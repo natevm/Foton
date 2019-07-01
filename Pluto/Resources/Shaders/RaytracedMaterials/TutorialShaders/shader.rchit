@@ -3,10 +3,13 @@
 #extension GL_EXT_nonuniform_qualifier : enable
 #define RAYTRACING
 
+
 #include "Pluto/Resources/Shaders/Descriptors.hxx"
-//#include "Pluto/Resources/Shaders/ShaderCommon.hxx"
 
 layout(location = 0) rayPayloadInNV HitInfo payload;
+
+#include "Pluto/Resources/Shaders/ShaderCommon.hxx"
+
 hitAttributeNV vec2 bary;
 
 void main() {
@@ -44,4 +47,13 @@ void main() {
 
 	payload.entity_id = gl_InstanceID;
 	payload.distance = gl_RayTmaxNV;
+
+	PBRInfo info;
+    info.bounce_count = 1;
+    info.entity_id = gl_InstanceID;
+    info.w_incoming = vec4(gl_WorldRayDirectionNV, 0.0);
+    info.m_position = payload.P;
+    info.m_normal = payload.N;
+    info.uv = payload.UV;
+	payload.color = vec4(get_ray_traced_contribution(info), 0.0);
 }
