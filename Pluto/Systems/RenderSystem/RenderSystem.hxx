@@ -48,11 +48,14 @@ namespace Systems
 
             /* If RTX Raytracing is enabled, builds a top level BVH for all created meshes. (TODO, account for mesh transformations) */
 		    void build_top_level_bvh(bool submit_immediately = false);
+
+            void enable_ray_tracing(bool enable);
+
         private:
             PushConsts push_constants;            
             bool using_openvr = false;
             bool using_vr_hidden_area_masks = true;
-
+            bool ray_tracing_enabled = false;
             double lastTime, currentTime;
 
             struct ComputeNode
@@ -193,7 +196,7 @@ namespace Systems
 
             bool update_push_constants();
             void record_render_commands();
-            void record_ray_trace_pass(Entity &camera_entity, std::vector<std::vector<VisibleEntityInfo>> &visible_entities);
+            void record_ray_trace_pass(Entity &camera_entity);
             void record_raster_renderpass(Entity &camera_entity, std::vector<std::vector<VisibleEntityInfo>> &visible_entities);
             void record_depth_prepass(Entity &camera_entity, std::vector<std::vector<VisibleEntityInfo>> &visible_entities);
             void record_blit_camera(Entity &camera_entity, std::map<std::string, std::pair<Camera *, uint32_t>> &window_to_cam);

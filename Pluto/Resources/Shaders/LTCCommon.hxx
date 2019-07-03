@@ -108,11 +108,11 @@ vec3 SolveCubic(vec4 Coefficient)
         xsc = vec2(-D, xs + C);
     }
 
-    float E =  xlc.y*xsc.y;
+    float E_ =  xlc.y*xsc.y;
     float F = -xlc.x*xsc.y - xlc.y*xsc.x;
     float G =  xlc.x*xsc.x;
 
-    vec2 xmc = vec2(C*F - B*G, -B*F + C*E);
+    vec2 xmc = vec2(C*F - B*G, -B*F + C*E_);
 
     vec3 Root = vec3(xsc.x/xsc.y, xmc.x/xmc.y, xlc.x/xlc.y);
 

@@ -9,9 +9,9 @@ void main()
 	vec3 color = vec3(0.00, 0.00, 0.00);
 
 	vec3 dir = normalize(w_position - w_cameraPos);
-	vec3 adjusted = vec3(dir.x, dir.z, dir.y);
+	// vec3 adjusted = vec3(dir.x, dir.z, dir.y);
 	
-	color = get_environment_color(adjusted);
+	color = get_environment_color(dir);
 
 	// Tone mapping
 	color = Uncharted2Tonemap(color * push.consts.exposure);

@@ -13,6 +13,14 @@ layout(location = 0) rayPayloadInNV HitInfo payload;
 hitAttributeNV vec2 bary;
 
 void main() {
+	
+	if (payload.is_shadow_ray)
+	{
+		payload.distance = gl_RayTmaxNV;
+		payload.entity_id = gl_InstanceID;
+		return;
+	}
+
 	if (gl_InstanceID < 0 || gl_InstanceID >= MAX_ENTITIES) {
 		payload.entity_id = -1;
 		return;
@@ -28,32 +36,38 @@ void main() {
 	vec4 N0 = NormalBuffers[nonuniformEXT(entity.mesh_id)].normals[I0];
 	vec4 N1 = NormalBuffers[nonuniformEXT(entity.mesh_id)].normals[I1];
 	vec4 N2 = NormalBuffers[nonuniformEXT(entity.mesh_id)].normals[I2];
-	payload.N = N0 * barycentrics.x + N1 * barycentrics.y + N2 * barycentrics.z;
+	vec4 N = N0 * barycentrics.x + N1 * barycentrics.y + N2 * barycentrics.z;
 
 	vec4 P0 = PositionBuffers[nonuniformEXT(entity.mesh_id)].positions[I0];
 	vec4 P1 = PositionBuffers[nonuniformEXT(entity.mesh_id)].positions[I1];
 	vec4 P2 = PositionBuffers[nonuniformEXT(entity.mesh_id)].positions[I2];
-	payload.P = P0 * barycentrics.x + P1 * barycentrics.y + P2 * barycentrics.z;
+	vec4 P = P0 * barycentrics.x + P1 * barycentrics.y + P2 * barycentrics.z;
 
 	vec4 C0 = ColorBuffers[nonuniformEXT(entity.mesh_id)].colors[I0];
 	vec4 C1 = ColorBuffers[nonuniformEXT(entity.mesh_id)].colors[I1];
 	vec4 C2 = ColorBuffers[nonuniformEXT(entity.mesh_id)].colors[I2];
-	payload.C = C0 * barycentrics.x + C1 * barycentrics.y + C2 * barycentrics.z;
+	vec4 C = C0 * barycentrics.x + C1 * barycentrics.y + C2 * barycentrics.z;
 
 	vec2 UV0 = TexCoordBuffers[nonuniformEXT(entity.mesh_id)].texcoords[I0].xy;
 	vec2 UV1 = TexCoordBuffers[nonuniformEXT(entity.mesh_id)].texcoords[I1].xy;
 	vec2 UV2 = TexCoordBuffers[nonuniformEXT(entity.mesh_id)].texcoords[I2].xy;
-	payload.UV = UV0 * barycentrics.x + UV1 * barycentrics.y + UV2 * barycentrics.z;
+	vec2 UV = UV0 * barycentrics.x + UV1 * barycentrics.y + UV2 * barycentrics.z;
 
-	payload.entity_id = gl_InstanceID;
-	payload.distance = gl_RayTmaxNV;
-
+	int bounce_count = payload.bounce_count;
 	PBRInfo info;
-    info.bounce_count = 1;
+    info.bounce_count = bounce_count;
     info.entity_id = gl_InstanceID;
     info.w_incoming = vec4(gl_WorldRayDirectionNV, 0.0);
-    info.m_position = payload.P;
-    info.m_normal = payload.N;
-    info.uv = payload.UV;
-	payload.color = vec4(get_ray_traced_contribution(info), 0.0);
+    info.m_position = P;
+    info.m_normal = N;
+    info.uv = UV;
+
+	payload.color = get_ray_traced_contribution(info);
+	payload.UV = UV;
+	payload.C = C;
+	payload.N = N;
+	payload.P = P;
+	payload.entity_id = gl_InstanceID;
+	payload.distance = gl_RayTmaxNV;
+	payload.bounce_count = bounce_count;
 }

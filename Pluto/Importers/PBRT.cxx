@@ -186,7 +186,7 @@ namespace Pluto {
                     mat->set_base_color(translucent_mat->kd.x * max_reflection, 
                         translucent_mat->kd.y * max_reflection, 
                         translucent_mat->kd.z * max_reflection, 
-                        max_transparency);
+                        1.0);
 
                     if (translucent_mat->map_kd) {
                         Texture* tex = get_texture_from_pbrt(texture_map, basePath, translucent_mat->map_kd, mat_name + "_kd", false);
@@ -306,7 +306,7 @@ namespace Pluto {
                     auto glass_mat = pbrt_material->as<pbrt::GlassMaterial>();
                     mat->set_ior(glass_mat->index);
                     float max_kt = std::max(std::max(glass_mat->kt.x, glass_mat->kt.y), glass_mat->kt.z);
-                    mat->set_base_color(glass_mat->kt.x, glass_mat->kt.y, glass_mat->kt.z, 1.0 - max_kt);
+                    mat->set_base_color(glass_mat->kt.x, glass_mat->kt.y, glass_mat->kt.z, 1.0);
                     mat->set_roughness(0.0);
                     mat->set_metallic(.2f); // Makes the glass shiny
                     mat->set_transmission(1.0);
@@ -395,7 +395,7 @@ namespace Pluto {
 
         /* Setup Cameras */
         auto pbrt_camera = scene->cameras[0]; // TODO: Add support for more cameras
-        auto camera_prefab = Prefabs::CreatePrefabCamera("fps", scene->film->resolution.x, scene->film->resolution.y, glm::radians(pbrt_camera->fov), 1, 1.0, true, name);
+        auto camera_prefab = Prefabs::CreatePrefabCamera("fps", scene->film->resolution.x * 1.5, scene->film->resolution.y * 1.5, glm::radians(pbrt_camera->fov), 1, 1.0, true, name);
         
         auto frame = pbrt_camera->frame;
         glm::mat4 cam_xfm = pbrt_frame_to_glm(frame);

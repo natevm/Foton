@@ -900,7 +900,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		rayPipelineInfo.pStages = shaderStages.data();
 		rayPipelineInfo.groupCount = (uint32_t) shaderGroups.size();
 		rayPipelineInfo.pGroups = shaderGroups.data();
-		rayPipelineInfo.maxRecursionDepth = 3;
+		rayPipelineInfo.maxRecursionDepth = 5;
 		rayPipelineInfo.layout = rttest[renderpass].pipelineLayout;
 		rayPipelineInfo.basePipelineHandle = vk::Pipeline();
 		rayPipelineInfo.basePipelineIndex = 0;
@@ -2400,49 +2400,62 @@ void Material::clear_transfer_function_texture()
 
 void Material::show_pbr() {
 	renderMode = RENDER_MODE_PBR;
+	this->material_struct.flags &= ~(1 << 1);
 }
 
 void Material::show_normals () {
 	renderMode = RENDER_MODE_NORMAL;
+	this->material_struct.flags &= ~(1 << 1);
 }
 
 void Material::show_base_color() {
 	renderMode = RENDER_MODE_BASECOLOR;
+	this->material_struct.flags &= ~(1 << 1);
 }
 
 void Material::show_texcoords() {
 	renderMode = RENDER_MODE_TEXCOORD;
+	this->material_struct.flags &= ~(1 << 1);
 }
 
 void Material::show_blinn() {
 	renderMode = RENDER_MODE_BLINN;
+	this->material_struct.flags &= ~(1 << 1);
 }
 
 void Material::show_depth() {
 	renderMode = RENDER_MODE_DEPTH;
+	this->material_struct.flags &= ~(1 << 1);
 }
 
 void Material::show_fragment_depth() {
 	renderMode = RENDER_MODE_FRAGMENTDEPTH;
+	this->material_struct.flags &= ~(1 << 1);
 }
 
 void Material::show_vr_mask() {
 	renderMode = RENDER_MODE_VRMASK;
+	this->material_struct.flags &= ~(1 << 1);
 }
 
 void Material::show_position() {
 	renderMode = RENDER_MODE_FRAGMENTPOSITION;
+	this->material_struct.flags &= ~(1 << 1);
 }
 
 void Material::show_volume() {
 	renderMode = RENDER_MODE_VOLUME;
+	this->material_struct.flags &= ~(1 << 1);
 }
 
 void Material::show_environment() {
 	renderMode = RENDER_MODE_SKYBOX;
+	this->material_struct.flags &= ~(1 << 1);
+
 }
 
 void Material::hide() {
+	this->material_struct.flags |= (1 << 1);
 	renderMode = RENDER_MODE_HIDDEN;
 }
 
@@ -2496,6 +2509,7 @@ void Material::set_ior(float ior) {
 
 bool Material::contains_transparency() {
 	/* We can expand this to other transparency cases if needed */
+	if ((this->material_struct.flags & (1 << 1)) != 0) return true;
 	if (this->material_struct.alpha_texture_id != -1) return true;
 	if (this->material_struct.base_color.a < 1.0f) return true;
 	if (this->renderMode == RENDER_MODE_VOLUME) return true;

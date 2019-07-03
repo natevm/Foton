@@ -335,7 +335,7 @@ void RenderSystem::record_raster_renderpass(Entity &camera_entity, std::vector<s
     }
 }
 
-void RenderSystem::record_ray_trace_pass(Entity &camera_entity, std::vector<std::vector<VisibleEntityInfo>> &visible_entities)
+void RenderSystem::record_ray_trace_pass(Entity &camera_entity)
 {
     auto vulkan = Vulkan::Get();
     auto device = vulkan->get_device();
@@ -457,15 +457,15 @@ void RenderSystem::record_cameras()
         beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
         command_buffer.begin(beginInfo);
 
-        auto visible_entities = camera->get_visible_entities(entity_id);
-
-        record_depth_prepass(entities[entity_id], visible_entities);
-
-        record_raster_renderpass(entities[entity_id], visible_entities);
-
-        if (entities[entity_id].get_light() == nullptr)
+        if (ray_tracing_enabled && vulkan->is_ray_tracing_enabled() && (entities[entity_id].get_light() == nullptr))
         {
-            record_ray_trace_pass(entities[entity_id], visible_entities);
+            record_ray_trace_pass(entities[entity_id]);
+        }
+        else if (!ray_tracing_enabled)
+        {
+            auto visible_entities = camera->get_visible_entities(entity_id);
+            record_depth_prepass(entities[entity_id], visible_entities);
+            record_raster_renderpass(entities[entity_id], visible_entities);
         }
 
         record_blit_camera(entities[entity_id], window_to_cam);
@@ -552,7 +552,6 @@ void RenderSystem::update_openvr_transforms()
             camera->set_view(ovr->get_right_view_matrix(), 1);
             camera->set_custom_projection(ovr->get_right_projection_matrix(.1f), .1f, 1);
         }
-        
 
         /* Set transform information */
         auto left_hand_transform = ovr->get_connected_left_hand_transform();
@@ -1147,6 +1146,8 @@ void RenderSystem::build_top_level_bvh(bool submit_immediately)
 		//     vk::PipelineStageFlagBits::eRayTracingShaderNV, 
 		//     vk::DependencyFlags(), {memoryBarrier}, {}, {});
 
+        // vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, 0, 1, &memoryBarrier, 0, 0, 0, 0);
+
 		if (submit_immediately)
 			vulkan->end_one_time_graphics_command_immediately(cmd, "build acceleration structure", true);
 		else
@@ -1303,5 +1304,6 @@ void RenderSystem::set_bottom_sky_color(float r, float g, float b) { set_bottom_
 void RenderSystem::set_sky_transition(float transition) { push_constants.sky_transition = transition; }
 void RenderSystem::use_openvr(bool useOpenVR) { this->using_openvr = useOpenVR; }
 void RenderSystem::use_openvr_hidden_area_masks(bool use_masks) {this->using_vr_hidden_area_masks = use_masks;};
+void RenderSystem::enable_ray_tracing(bool enable) {this->ray_tracing_enabled = enable;};
 
 } // namespace Systems

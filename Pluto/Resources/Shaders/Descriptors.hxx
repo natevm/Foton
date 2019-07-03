@@ -80,4 +80,6 @@ struct HitInfo {
     vec4 color;
     float distance;
     int entity_id; 
+    int bounce_count;
+    bool is_shadow_ray;
 };

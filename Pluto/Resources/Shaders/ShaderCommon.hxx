@@ -13,9 +13,9 @@ vec3 Uncharted2Tonemap(vec3 x)
 	float B = 0.50;
 	float C = 0.10;
 	float D = 0.20;
-	float E = 0.02;
+	float E_ = 0.02;
 	float F = 0.30;
-	return max(vec3(0.0f), ((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F);
+	return max(vec3(0.0f), ((x*(A*x+C*B)+D*E_)/(x*(A*x+B)+D*F))-E_/F);
 }
 
 // Texture Lookups --------------------------------------
@@ -29,13 +29,13 @@ float checkersTexture( in vec3 p )
 // From GPU gems
 float filterwidth(in vec3 v)
 {
-    #ifndef RAYTRACING
-    vec3 fw = max(abs(dFdxFine(v)), abs(dFdyFine(v)));
-    return max(max(fw.x, fw.y), fw.z);
-    #else
+    // #ifndef RAYTRACING
+    // vec3 fw = max(abs(dFdxFine(v)), abs(dFdyFine(v)));
+    // return max(max(fw.x, fw.y), fw.z);
+    // #else
+    // #endif
     vec3 q = floor(v);
     return mod( q.x+q.y+q.z, 2.0 );            // xor pattern
-    #endif
 }
 
 float checker(in vec3 uvw, float scale)
@@ -328,7 +328,7 @@ vec3 getSun(vec3 dir){
 }
 
 vec3 get_environment_color(vec3 dir) {
-	
+	vec3 adjusted = vec3(dir.x, dir.z, dir.y);
 	if (push.consts.environment_id != -1) {
 		TextureStruct tex = txbo.textures[push.consts.environment_id];
 
@@ -338,16 +338,16 @@ vec3 get_environment_color(vec3 dir) {
 		
 		vec3 a = textureLod(
 			samplerCube(texture_cubes[push.consts.environment_id], samplers[tex.sampler_id]), 
-			dir, lodf).rgb;
+			adjusted, lodf).rgb;
 
 		vec3 b = textureLod(
 			samplerCube(texture_cubes[push.consts.environment_id], samplers[tex.sampler_id]), 
-			dir, lodc).rgb;
+			adjusted, lodc).rgb;
 
 		return mix(a, b, lod - lodf);
 	}
 
-    return getSky(dir);
+    return getSky(adjusted);
 
 
 	// vec3 up = vec3(0.0, 1.0, 0.0);
@@ -641,7 +641,7 @@ vec4 get_color_contribution(inout MaterialStruct material, vec3 N, vec3 V, vec3 
 	vec3 Refr = normalize(refract(-V, N, eta));
 
     float metallic = material.metallic;
-	float transmission = material.transmission;
+	float transmission = 1.0;//material.transmission;
 	float roughness = getRoughness(material, UV, MP);
 	float transmission_roughness = getTransmissionRoughness(material);
 	vec4 albedo = getAlbedo(material, VC, UV, MP);
@@ -710,9 +710,9 @@ struct PBRInfo
     vec4 m_position;
 };
 
-vec3 get_ray_traced_contribution(PBRInfo info)
+vec4 get_ray_traced_contribution(PBRInfo info)
 {
-    vec3 final_color = vec3(0.0);
+    vec4 final_color = vec4(0.0);
 
     /* Load target entity information */
     EntityStruct target_entity = ebo.entities[info.entity_id];
@@ -720,6 +720,9 @@ vec3 get_ray_traced_contribution(PBRInfo info)
     TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
     if (target_entity.material_id < 0 || target_entity.material_id >= MAX_MATERIALS) vec3(0.0);
     MaterialStruct target_material = mbo.materials[target_entity.material_id];
+
+    /* Hidden flag */
+    if ((target_material.flags & (1 << 1)) != 0) return vec4(0.0);
 
     /* Compute some material properties */
     const vec4 albedo = getAlbedo(target_material, vec4(0.0), info.uv, info.m_position.xyz);
@@ -735,15 +738,37 @@ vec3 get_ray_traced_contribution(PBRInfo info)
 	vec3 specular = mix(dielectric_specular, metallic_transmissive_specular, max(metallic, transmission));
     vec3 diffuse = mix(dielectric_diffuse, metallic_transmissive_diffuse, max(metallic, transmission));
     float KD = (1.0 - metallic);
-    float eta = 1.0 / target_material.ior;
+
+    float alphaMask = getAlphaMask(target_material, info.uv, info.m_position.xyz);
+    float alpha = (alphaMask < 1.0) ? alphaMask : albedo.a; // todo: move alpha out of albedo. 
+    
+    /* TODO: Add support for ray tracing */
+	if (alpha == 0.0)
+    #ifndef RAYTRACING
+    discard;
+    #else
+    return vec4(0.0);
+    #endif
 
     /* Compute some common vectors and interpolants */
     vec3 w_position = vec3(target_transform.localToWorld * vec4(info.m_position.xyz, 1.0));
     vec3 w_normal = normalize((transpose(target_transform.worldToLocal) * vec4(info.m_normal.xyz, 0.0)).xyz);
     vec3 w_incoming = info.w_incoming.xyz;
+	if (dot(w_normal, info.w_incoming.xyz) >= 0.0) w_normal *= -1.0;    // This seems to mess up refractive surfaces
+    bool inside = (dot(w_normal, info.w_incoming.xyz) >= 0.0);
+    vec3 w_refr, w_refl;
+    // w_refl = normalize(reflect(w_incoming, w_normal));	
+    float eta = (inside) ? target_material.ior / 1.0 : 1.0 / target_material.ior;
+    w_refr = normalize(refract(w_incoming, w_normal, eta));
+    w_refl = normalize(reflect(w_incoming, w_normal));	
+    // if (inside) {
+    //     w_refr = normalize(refract(w_incoming, -w_normal, eta));
+    //     w_refl = normalize(reflect(w_incoming, -w_normal));	
+    // }
+    // else {
+    // }
+    // vec3 w_refl = normalize(reflect(w_incoming, w_normal));	
     vec3 w_view = -info.w_incoming.xyz;
-    vec3 w_refl = normalize(reflect(w_incoming, w_normal));	
-    vec3 w_refr = normalize(refract(w_incoming, w_normal, eta));	
     float NdotV = clamp(dot(w_normal, w_view), 0.0, 1.0);
 	float schlick = pow(1.0 - NdotV, 5.0);
 
@@ -806,7 +831,32 @@ vec3 get_ray_traced_contribution(PBRInfo info)
         /* If casting shadows is disabled */
         float shadow_term = 1.0;
         if ((light.flags & (1 << 2)) != 0) {
+            #ifndef RAYTRACING
             shadow_term = get_shadow_contribution(light_entity, light, w_light_position, w_position);
+            #else
+            if (info.bounce_count < 2) {
+
+            float dist = distance(w_light_position, w_position);
+
+            /* Trace a single shadow ray */
+            uint rayFlags = gl_RayFlagsNoneNV;
+            uint cullMask = 0xff;
+            float tmin = .01;
+            float tmax = dist + 1.0;
+            // uint rayFlags = gl_RayFlagsCullBackFacingTrianglesNV ;
+            vec3 dir = w_light_dir;
+
+            payload.is_shadow_ray = true; 
+            traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, w_position.xyz + w_normal * .01, tmin, dir, tmax, 0);
+            if ((payload.distance < 0.0) || (payload.entity_id < 0) || (payload.entity_id >= MAX_ENTITIES) || (payload.entity_id == light_entity_id)) 
+            {
+                shadow_term = 1.0;
+            } else if (payload.distance < dist) {                
+                    shadow_term = 0.0;
+                // final_color += (1.0 - roughness) * vec4(specular * payload.color.rgb, 0.0);
+            }
+            }
+            #endif
         }
 
         shadow_term *= cone_term;
@@ -981,67 +1031,87 @@ vec3 get_ray_traced_contribution(PBRInfo info)
     /* Compute indirect specular contribution from IBL */
     float KRefr = min(transmission, (1.0 - metallic));
     vec3 specular_reflective_irradiance = getPrefilteredReflection(w_refl, roughness);
-    vec3 specular_refractive_irradiance = getPrefilteredReflection(w_refr, min(transmission_roughness + roughness, 1.0) );
+    vec3 specular_refractive_irradiance = getPrefilteredReflection(w_refr, max(transmission_roughness , roughness) );
     vec2 specular_brdf = sampleBRDF(w_normal, w_view, roughness);
     float reflective_schlick_influence = (mix(schlick, 1.0, metallic));
     float refractive_schlick_influence =  1.0 - reflective_schlick_influence;
 	vec3 indirectSpecularReflectionContribution = reflective_schlick_influence * specular_reflective_irradiance * (specular * specular_brdf.x + specular_brdf.y);
 	vec3 indirectSpecularRefractionContribution = KRefr * refractive_schlick_influence * specular_refractive_irradiance * specular;
 
+
+    int bounce_count = info.bounce_count;
+
     #ifdef RAYTRACING
     /* Ray trace reflections (glossy surfaces not yet supported) */
-    if ((info.bounce_count == 0) && (roughness < .5)) {
-        uint rayFlags = gl_RayFlagsCullBackFacingTrianglesNV ;
+    if ((bounce_count < 2) && (roughness < .9)) {
+        uint rayFlags = gl_RayFlagsNoneNV;
         uint cullMask = 0xff;
         float tmin = .01;
         float tmax = 100.0;
+        // uint rayFlags = gl_RayFlagsCullBackFacingTrianglesNV ;
         vec3 dir = w_refl.xyz;
 
-        traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, w_position.xyz/* - w_normal * .1*/, tmin, dir, tmax, 0);
-        if ((payload.distance < 0.0) || (payload.entity_id < 0) || (payload.entity_id >= MAX_ENTITIES) || (payload.entity_id == info.entity_id)) {
-            final_color += indirectSpecularReflectionContribution;
-            final_color += indirectSpecularRefractionContribution;
+        payload.bounce_count = bounce_count + 1;
+        payload.color = vec4(0.0);
+        payload.is_shadow_ray = false;
+        traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, w_position.xyz + w_normal * .01, tmin, dir, tmax, 0);
+        if ((payload.distance < 0.0) || (payload.entity_id < 0) || (payload.entity_id >= MAX_ENTITIES)) {
+            final_color += vec4(indirectSpecularReflectionContribution, 0.0);
         } 
         else {
-            // entity_id = payload.entity_id;
-            // m_position = payload.P.xyz;
-            // m_normal = payload.N.xyz;
-            // uv = payload.UV;
-            // EntityStruct hit_entity = ebo.entities[payload.entity_id];
-            // MaterialStruct hit_material = mbo.materials[hit_entity.material_id];
-
-            /* Temporary. This somehow needs to be made recursive... */
-            // directSpecularContribution += hit_material.base_color.rgb;
-
-            vec3 w_half = normalize(w_view + w_refl.xyz);
-            float dotNH = clamp(dot(w_normal, w_half), 0.0, 1.0);
-            float dotNL = clamp(dot(w_normal, w_refl.xyz), 0.0, 1.0);
-
-            // D = Normal distribution (Distribution of the microfacets)
-            float D = D_GGX(dotNH, roughness); 
-            // G = Geometric shadowing term (Microfacets shadowing)
-            float G = G_SchlicksmithGGX(dotNL, NdotV, roughness);
-            // F = Fresnel factor (Reflectance depending on angle of incidence)
-            vec3 F = F_Schlick(NdotV, specular);		
-            
-            vec3 spec = (D * F * G / (4.0 * dotNL * NdotV + 0.001));
-            
-            final_color += specular * payload.color.rgb;
+            final_color += (1.0 - roughness) * vec4(specular * payload.color.rgb, 0.0);
         }
-    }
-    else {
-        final_color += indirectSpecularReflectionContribution;
-        final_color += indirectSpecularRefractionContribution;
-    }
+    } else
     #endif
+    {
+        final_color += vec4(indirectSpecularReflectionContribution, 0.0);
+    }
 
-    final_color += indirectDiffuseContribution;
-    // final_color += indirectSpecularReflectionContribution;
-    // final_color += indirectSpecularRefractionContribution;
-    final_color += directSpecularContribution;
-    final_color += directDiffuseContribution;
-    final_color += emissiveContribution;
+    /* Ray trace refractions (glossy surfaces not yet supported) */
+    #ifdef RAYTRACING
+    if ((bounce_count < 2) && (transmission > .1)) {
+        vec3 absorption = vec3(0.0);//clamp(vec3(1.0) - albedo.rgb, vec3(0.0), vec3(1.0)) * 2.0;
 
+        uint rayFlags = gl_RayFlagsNoneNV;
+        uint cullMask = 0xff;
+        float tmin = .01;
+        float tmax = 100.0;
+        int bounce_count = info.bounce_count;
+
+        // uint rayFlags = gl_RayFlagsCullBackFacingTrianglesNV ;
+        vec3 dir = w_refr.xyz;
+
+        payload.bounce_count = bounce_count + 1;
+        payload.color = vec4(0.0);
+        payload.is_shadow_ray = false;
+        // float sign = (inside) ? -1.0 : 1.0;
+        traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, w_position.xyz/*  + w_normal * .1*/, tmin, dir, tmax, 0);
+        if ((payload.distance < 0.0) || (payload.entity_id < 0) || (payload.entity_id >= MAX_ENTITIES)) {
+            final_color += vec4(indirectSpecularRefractionContribution, 0.0);
+        } 
+        else {
+            vec3 absorped;
+            absorped.r = pow(E, -payload.distance * absorption.r);
+            absorped.g = pow(E, -payload.distance * absorption.g);
+            absorped.b = pow(E, -payload.distance * absorption.b);
+
+            final_color += vec4(absorped * specular * payload.color.rgb, 0.0);
+        }
+    } else
+    #endif
+    {
+        final_color +=  vec4( indirectSpecularRefractionContribution, 0.0);
+    }
+
+
+    final_color += vec4(indirectDiffuseContribution, 0.0);
+    final_color += vec4(directSpecularContribution, 0.0);
+    final_color += vec4(directDiffuseContribution, 0.0);
+    final_color += vec4(emissiveContribution, 0.0);
+
+
+    // final_color = vec4(w_normal, 1.0);
+    final_color.a = alpha;
     return final_color;
 }
 
