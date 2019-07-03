@@ -1776,7 +1776,7 @@ void Material::UpdateRaytracingDescriptorSets(vk::AccelerationStructureNV &tlas,
 		raytracingDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
 	}
 
-	std::array<vk::WriteDescriptorSet, 4> raytraceDescriptorWrites = {};
+	std::array<vk::WriteDescriptorSet, 2 + MAX_G_BUFFERS> raytraceDescriptorWrites = {};
 
 	vk::WriteDescriptorSetAccelerationStructureNV descriptorAccelerationStructureInfo;
 	descriptorAccelerationStructureInfo.accelerationStructureCount = 1;
@@ -1802,32 +1802,22 @@ void Material::UpdateRaytracingDescriptorSets(vk::AccelerationStructureNV &tlas,
 	raytraceDescriptorWrites[1].descriptorType = vk::DescriptorType::eStorageImage;
 	raytraceDescriptorWrites[1].pImageInfo = &descriptorOutputImageInfo;
 
-	// Position G Buffer
-	vk::DescriptorImageInfo descriptorPositionImageInfo;
-	descriptorPositionImageInfo.imageLayout = vk::ImageLayout::eGeneral;
-	descriptorPositionImageInfo.imageView = camera_entity.camera()->get_texture()->get_position_image_view();		
+	// G Buffers
+	std::vector<vk::DescriptorImageInfo> descriptorGBufferImageInfos(MAX_G_BUFFERS);
 
-	raytraceDescriptorWrites[2].dstSet = raytracingDescriptorSet;
-	raytraceDescriptorWrites[2].pNext = &descriptorAccelerationStructureInfo;
-	raytraceDescriptorWrites[2].dstBinding = 2;
-	raytraceDescriptorWrites[2].dstArrayElement = 0;
-	raytraceDescriptorWrites[2].descriptorCount = 1;
-	raytraceDescriptorWrites[2].descriptorType = vk::DescriptorType::eStorageImage;
-	raytraceDescriptorWrites[2].pImageInfo = &descriptorPositionImageInfo;
+	for (uint32_t g_idx = 0; g_idx < MAX_G_BUFFERS; ++g_idx) {
+		descriptorGBufferImageInfos[g_idx].imageLayout = vk::ImageLayout::eGeneral;
+		descriptorGBufferImageInfos[g_idx].imageView = camera_entity.camera()->get_texture()->get_g_buffer_image_view(g_idx);
 
-	// Normal G Buffer
-	vk::DescriptorImageInfo descriptorNormalImageInfo;
-	descriptorNormalImageInfo.imageLayout = vk::ImageLayout::eGeneral;
-	descriptorNormalImageInfo.imageView = camera_entity.camera()->get_texture()->get_normal_image_view();		
-
-	raytraceDescriptorWrites[3].dstSet = raytracingDescriptorSet;
-	raytraceDescriptorWrites[3].pNext = &descriptorAccelerationStructureInfo;
-	raytraceDescriptorWrites[3].dstBinding = 3;
-	raytraceDescriptorWrites[3].dstArrayElement = 0;
-	raytraceDescriptorWrites[3].descriptorCount = 1;
-	raytraceDescriptorWrites[3].descriptorType = vk::DescriptorType::eStorageImage;
-	raytraceDescriptorWrites[3].pImageInfo = &descriptorNormalImageInfo;
-
+		raytraceDescriptorWrites[2 + g_idx].dstSet = raytracingDescriptorSet;
+		raytraceDescriptorWrites[2 + g_idx].pNext = &descriptorAccelerationStructureInfo;
+		raytraceDescriptorWrites[2 + g_idx].dstBinding = 2 + g_idx;
+		raytraceDescriptorWrites[2 + g_idx].dstArrayElement = 0;
+		raytraceDescriptorWrites[2 + g_idx].descriptorCount = 1;
+		raytraceDescriptorWrites[2 + g_idx].descriptorType = vk::DescriptorType::eStorageImage;
+		raytraceDescriptorWrites[2 + g_idx].pImageInfo = &descriptorGBufferImageInfos[g_idx];
+	}
+	
 	device.updateDescriptorSets((uint32_t)raytraceDescriptorWrites.size(), raytraceDescriptorWrites.data(), 0, nullptr);
 }
 
