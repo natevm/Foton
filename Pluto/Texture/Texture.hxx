@@ -10,6 +10,10 @@
 #include "Pluto/Tools/StaticFactory.hxx"
 #include "Pluto/Texture/TextureStruct.hxx"
 
+#ifndef MAX_G_BUFFERS  
+#define MAX_G_BUFFERS 2
+#endif
+
 class Texture : public StaticFactory
 {
 	friend class StaticFactory;
@@ -31,15 +35,8 @@ class Texture : public StaticFactory
 		{
 			ImageData colorBuffer;
 			ImageData depthBuffer;
-			ImageData normalBuffer;
-			ImageData positionBuffer;
+			std::array<ImageData, MAX_G_BUFFERS> gBuffers;
 
-			// vk::Image colorImage, depthImage, normalImage, positionImage;
-			// vk::Format colorFormat, depthFormat, normalFormat, positionFormat;
-			// vk::DeviceMemory colorImageMemory, depthImageMemory, normalImageMemory, depthImageMemory;
-            // vk::ImageView colorImageView, depthImageView, normalImageView, positionImageView;
-            // std::vector<vk::ImageView> colorImageViewLayers, depthImageViewLayers;
-			// vk::ImageLayout colorImageLayout, depthImageLayout, normalImageLayout, positionImageLayout;
 			uint32_t width = 1, height = 1, depth = 1, layers = 1;
 			vk::ImageViewType viewType;
 			vk::ImageType imageType;
@@ -131,14 +128,19 @@ class Texture : public StaticFactory
 		static void CleanUp();
 
 		/* Accessors / Mutators */
+		vk::ImageView get_g_buffer_image_view(uint32_t index);
+		std::vector<vk::ImageView> get_g_buffer_image_view_layers(uint32_t index);
+		vk::Sampler get_g_buffer_sampler(uint32_t index);
+		vk::ImageLayout get_g_buffer_image_layout(uint32_t index);
+		vk::Image get_g_buffer_image(uint32_t index);
+		vk::Format get_g_buffer_format(uint32_t index);
+
 		vk::Format get_color_format();
 		vk::ImageLayout get_color_image_layout();
 		vk::ImageView get_color_image_view();
 		vk::ImageView get_position_image_view();
 		vk::ImageView get_normal_image_view();
         std::vector<vk::ImageView> get_color_image_view_layers();
-        std::vector<vk::ImageView> get_position_image_view_layers();
-        std::vector<vk::ImageView> get_normal_image_view_layers();
 		vk::Image get_color_image();
 		uint32_t get_color_mip_levels();
 		vk::Sampler get_color_sampler();
