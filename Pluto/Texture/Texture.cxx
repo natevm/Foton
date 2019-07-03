@@ -680,19 +680,23 @@ std::vector<vk::ImageView> Texture::GetImageViews(vk::ImageViewType view_type)
 
 vk::ImageView Texture::get_depth_image_view() { return data.depthBuffer.imageView; };
 vk::ImageView Texture::get_color_image_view() { return data.colorBuffer.imageView; };
+vk::ImageView Texture::get_g_buffer_image_view(uint32_t index) { return data.gBuffers[index].imageView; };
 std::vector<vk::ImageView> Texture::get_depth_image_view_layers() { return data.depthBuffer.imageViewLayers; };
 std::vector<vk::ImageView> Texture::get_color_image_view_layers() { return data.colorBuffer.imageViewLayers; };
-std::vector<vk::ImageView> Texture::get_position_image_view_layers() { return data.positionBuffer.imageViewLayers; };
-std::vector<vk::ImageView> Texture::get_normal_image_view_layers() { return data.normalBuffer.imageViewLayers; };
+std::vector<vk::ImageView> Texture::get_g_buffer_image_view_layers(uint32_t index) { return data.gBuffers[index].imageViewLayers; };
 vk::Sampler Texture::get_color_sampler() { return samplers[data.colorBuffer.samplerId]; };
 vk::Sampler Texture::get_depth_sampler() { return samplers[data.depthBuffer.samplerId]; };
+vk::Sampler Texture::get_g_buffer_sampler(uint32_t index) { return samplers[data.gBuffers[index].samplerId]; };
 vk::ImageLayout Texture::get_color_image_layout() { return data.colorBuffer.imageLayout; };
 vk::ImageLayout Texture::get_depth_image_layout() { return data.depthBuffer.imageLayout; };
+vk::ImageLayout Texture::get_g_buffer_image_layout(uint32_t index) { return data.gBuffers[index].imageLayout; };
 vk::Image Texture::get_color_image() { return data.colorBuffer.image; };
 vk::Image Texture::get_depth_image() { return data.depthBuffer.image; };
+vk::Image Texture::get_g_buffer_image(uint32_t index) { return data.gBuffers[index].image; };
 uint32_t Texture::get_color_mip_levels() { return data.colorBuffer.mipLevels; };
 vk::Format Texture::get_color_format() { return data.colorBuffer.format; };
 vk::Format Texture::get_depth_format() { return data.depthBuffer.format; };
+vk::Format Texture::get_g_buffer_format(uint32_t index) { return data.gBuffers[index].format; };
 uint32_t Texture::get_width() { return data.width; }
 uint32_t Texture::get_height() { return data.height; }
 uint32_t Texture::get_depth() { return data.depth; }
@@ -1765,8 +1769,9 @@ Texture* Texture::CreateCubemapGBuffers(
 				<< vk::to_string(tex->data.sampleCount) << " instead."<<std::endl;
 
 		tex->create_color_image_resources(tex->data.colorBuffer, submit_immediately, false);
-		tex->create_color_image_resources(tex->data.normalBuffer, submit_immediately, false); 
-		tex->create_color_image_resources(tex->data.positionBuffer, submit_immediately, false); 
+		for (uint32_t i = 0; i < tex->data.gBuffers.size(); ++i) {
+			tex->create_color_image_resources(tex->data.gBuffers[i], submit_immediately, false); 
+		}
 		tex->create_depth_stencil_resources(tex->data.depthBuffer, submit_immediately);
 		tex->texture_struct.sampler_id = 0;
 		return tex;
@@ -1847,8 +1852,9 @@ Texture* Texture::Create2DGBuffers (
 				<< vk::to_string(tex->data.sampleCount) << " instead."<<std::endl;
 
 		tex->create_color_image_resources(tex->data.colorBuffer, submit_immediately, false); 
-		tex->create_color_image_resources(tex->data.normalBuffer, submit_immediately, false); 
-		tex->create_color_image_resources(tex->data.positionBuffer, submit_immediately, false); 
+		for (uint32_t i = 0; i < tex->data.gBuffers.size(); ++i) {
+			tex->create_color_image_resources(tex->data.gBuffers[i], submit_immediately, false); 
+		}
 		tex->create_depth_stencil_resources(tex->data.depthBuffer, submit_immediately);
 
 		tex->texture_struct.sampler_id = 0;
@@ -1978,42 +1984,25 @@ void Texture::make_renderable(vk::CommandBuffer commandBuffer, vk::PipelineStage
 		this->data.colorBuffer.imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
 	}
 
-	if (this->data.positionBuffer.imageLayout != vk::ImageLayout::eColorAttachmentOptimal)
-	{
-		/* Transition destination image to transfer destination optimal */
-		vk::ImageSubresourceRange subresourceRange;
-		subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-		subresourceRange.baseMipLevel = 0;
-		subresourceRange.baseMipLevel = 0;
-		subresourceRange.levelCount = this->data.positionBuffer.mipLevels;
-		subresourceRange.layerCount = this->data.layers;
+	for (uint32_t i = 0; i < this->data.gBuffers.size(); ++i) {
+		if (this->data.gBuffers[i].imageLayout != vk::ImageLayout::eColorAttachmentOptimal)
+		{
+			/* Transition destination image to transfer destination optimal */
+			vk::ImageSubresourceRange subresourceRange;
+			subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+			subresourceRange.baseMipLevel = 0;
+			subresourceRange.baseMipLevel = 0;
+			subresourceRange.levelCount = this->data.gBuffers[i].mipLevels;
+			subresourceRange.layerCount = this->data.layers;
 
-		setImageLayout(
-			commandBuffer,
-			this->data.positionBuffer.image,
-			this->data.positionBuffer.imageLayout,
-			vk::ImageLayout::eColorAttachmentOptimal,
-			subresourceRange, srcStageMask, dstStageMask);
-		this->data.positionBuffer.imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
-	}
-
-	if (this->data.normalBuffer.imageLayout != vk::ImageLayout::eColorAttachmentOptimal)
-	{
-		/* Transition destination image to transfer destination optimal */
-		vk::ImageSubresourceRange subresourceRange;
-		subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-		subresourceRange.baseMipLevel = 0;
-		subresourceRange.baseMipLevel = 0;
-		subresourceRange.levelCount = this->data.normalBuffer.mipLevels;
-		subresourceRange.layerCount = this->data.layers;
-
-		setImageLayout(
-			commandBuffer,
-			this->data.normalBuffer.image,
-			this->data.normalBuffer.imageLayout,
-			vk::ImageLayout::eColorAttachmentOptimal,
-			subresourceRange, srcStageMask, dstStageMask);
-		this->data.normalBuffer.imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
+			setImageLayout(
+				commandBuffer,
+				this->data.gBuffers[i].image,
+				this->data.gBuffers[i].imageLayout,
+				vk::ImageLayout::eColorAttachmentOptimal,
+				subresourceRange, srcStageMask, dstStageMask);
+			this->data.gBuffers[i].imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
+		}
 	}
 
 	if (this->data.depthBuffer.imageLayout != vk::ImageLayout::eDepthStencilAttachmentOptimal)
@@ -2058,40 +2047,25 @@ void Texture::make_samplable(vk::CommandBuffer commandBuffer,
 		this->data.colorBuffer.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
 	}
 
-	if (this->data.positionBuffer.imageLayout != vk::ImageLayout::eShaderReadOnlyOptimal) {
-		/* Transition destination image to transfer destination optimal */
-		vk::ImageSubresourceRange subresourceRange;
-		subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-		subresourceRange.baseMipLevel = 0;
-		subresourceRange.baseMipLevel = 0;
-		subresourceRange.levelCount = this->data.positionBuffer.mipLevels;
-		subresourceRange.layerCount = this->data.layers;
+	for (uint32_t i = 0; i < this->data.gBuffers.size(); ++i) {
+		if (this->data.gBuffers[i].imageLayout != vk::ImageLayout::eShaderReadOnlyOptimal)
+		{
+			/* Transition destination image to transfer destination optimal */
+			vk::ImageSubresourceRange subresourceRange;
+			subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+			subresourceRange.baseMipLevel = 0;
+			subresourceRange.baseMipLevel = 0;
+			subresourceRange.levelCount = this->data.gBuffers[i].mipLevels;
+			subresourceRange.layerCount = this->data.layers;
 
-		setImageLayout(
-			commandBuffer,
-			this->data.positionBuffer.image,
-			this->data.positionBuffer.imageLayout,
-			vk::ImageLayout::eShaderReadOnlyOptimal,
-			subresourceRange, srcStageMask, dstStageMask);
-		this->data.positionBuffer.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-	}
-
-	if (this->data.normalBuffer.imageLayout != vk::ImageLayout::eShaderReadOnlyOptimal) {
-		/* Transition destination image to transfer destination optimal */
-		vk::ImageSubresourceRange subresourceRange;
-		subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-		subresourceRange.baseMipLevel = 0;
-		subresourceRange.baseMipLevel = 0;
-		subresourceRange.levelCount = this->data.normalBuffer.mipLevels;
-		subresourceRange.layerCount = this->data.layers;
-
-		setImageLayout(
-			commandBuffer,
-			this->data.normalBuffer.image,
-			this->data.normalBuffer.imageLayout,
-			vk::ImageLayout::eShaderReadOnlyOptimal,
-			subresourceRange, srcStageMask, dstStageMask);
-		this->data.normalBuffer.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+			setImageLayout(
+				commandBuffer,
+				this->data.gBuffers[i].image,
+				this->data.gBuffers[i].imageLayout,
+				vk::ImageLayout::eShaderReadOnlyOptimal,
+				subresourceRange, srcStageMask, dstStageMask);
+			this->data.gBuffers[i].imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+		}
 	}
 }
 
@@ -2117,39 +2091,24 @@ void Texture::make_general(vk::CommandBuffer commandBuffer,
 		this->data.colorBuffer.imageLayout = vk::ImageLayout::eGeneral;
 	}
 
-	if (this->data.positionBuffer.imageLayout != vk::ImageLayout::eGeneral) {
-		/* Transition destination image to transfer destination optimal */
-		vk::ImageSubresourceRange subresourceRange;
-		subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-		subresourceRange.baseMipLevel = 0;
-		subresourceRange.baseMipLevel = 0;
-		subresourceRange.levelCount = this->data.positionBuffer.mipLevels;
-		subresourceRange.layerCount = this->data.layers;
+	for (uint32_t i = 0; i < this->data.gBuffers.size(); ++i) {
+		if (this->data.gBuffers[i].imageLayout != vk::ImageLayout::eGeneral)
+		{
+			/* Transition destination image to transfer destination optimal */
+			vk::ImageSubresourceRange subresourceRange;
+			subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+			subresourceRange.baseMipLevel = 0;
+			subresourceRange.baseMipLevel = 0;
+			subresourceRange.levelCount = this->data.gBuffers[i].mipLevels;
+			subresourceRange.layerCount = this->data.layers;
 
-		setImageLayout(
-			commandBuffer,
-			this->data.positionBuffer.image,
-			this->data.positionBuffer.imageLayout,
-			vk::ImageLayout::eGeneral,
-			subresourceRange, srcStageMask, dstStageMask);
-		this->data.positionBuffer.imageLayout = vk::ImageLayout::eGeneral;
-	}
-
-	if (this->data.normalBuffer.imageLayout != vk::ImageLayout::eGeneral) {
-		/* Transition destination image to transfer destination optimal */
-		vk::ImageSubresourceRange subresourceRange;
-		subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-		subresourceRange.baseMipLevel = 0;
-		subresourceRange.baseMipLevel = 0;
-		subresourceRange.levelCount = this->data.normalBuffer.mipLevels;
-		subresourceRange.layerCount = this->data.layers;
-
-		setImageLayout(
-			commandBuffer,
-			this->data.normalBuffer.image,
-			this->data.normalBuffer.imageLayout,
-			vk::ImageLayout::eGeneral,
-			subresourceRange, srcStageMask, dstStageMask);
-		this->data.normalBuffer.imageLayout = vk::ImageLayout::eGeneral;
+			setImageLayout(
+				commandBuffer,
+				this->data.gBuffers[i].image,
+				this->data.gBuffers[i].imageLayout,
+				vk::ImageLayout::eGeneral,
+				subresourceRange, srcStageMask, dstStageMask);
+			this->data.gBuffers[i].imageLayout = vk::ImageLayout::eGeneral;
+		}
 	}
 }

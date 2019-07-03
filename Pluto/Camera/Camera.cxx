@@ -1,4 +1,4 @@
-// #pragma optimize("", off)
+//#pragma optimize("", off)
 
 #include "./Camera.hxx"
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
@@ -176,38 +176,23 @@ void Camera::create_render_passes(uint32_t layers, uint32_t sample_count)
         colorAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
         #pragma endregion
 
-		#pragma region PositionAttachment
-        // position attachment
-        vk::AttachmentDescription positionAttachment;
-        positionAttachment.format = renderTexture->get_color_format(); // TODO
-        positionAttachment.samples = sampleFlag;
-        positionAttachment.loadOp = vk::AttachmentLoadOp::eClear; // clears image to black
-        positionAttachment.storeOp = vk::AttachmentStoreOp::eStore;
-        positionAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-        positionAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-        positionAttachment.initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
-        positionAttachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
+		#pragma region GBufferAttachment
+		std::array<vk::AttachmentDescription, MAX_G_BUFFERS> gbufferAttachments;
+        std::array<vk::AttachmentReference, MAX_G_BUFFERS> gbufferAttachmentRefs;
 
-        vk::AttachmentReference positionAttachmentRef;
-        positionAttachmentRef.attachment = 1;
-        positionAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
-        #pragma endregion
+		for (uint32_t g_idx = 0; g_idx < MAX_G_BUFFERS; ++g_idx) {
+			gbufferAttachments[g_idx].format = renderTexture->get_color_format(); // TODO
+			gbufferAttachments[g_idx].samples = sampleFlag;
+			gbufferAttachments[g_idx].loadOp = vk::AttachmentLoadOp::eDontCare; // Dont clear g buffers
+			gbufferAttachments[g_idx].storeOp = vk::AttachmentStoreOp::eStore;
+			gbufferAttachments[g_idx].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+			gbufferAttachments[g_idx].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+			gbufferAttachments[g_idx].initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
+			gbufferAttachments[g_idx].finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
 
-		#pragma region NormalAttachment
-        // normal attachment
-        vk::AttachmentDescription normalAttachment;
-        normalAttachment.format = renderTexture->get_color_format(); // TODO
-        normalAttachment.samples = sampleFlag;
-        normalAttachment.loadOp = vk::AttachmentLoadOp::eClear; // clears image to black
-        normalAttachment.storeOp = vk::AttachmentStoreOp::eStore;
-        normalAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-        normalAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-        normalAttachment.initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
-        normalAttachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
-
-        vk::AttachmentReference normalAttachmentRef;
-        normalAttachmentRef.attachment = 2;
-        normalAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
+			gbufferAttachmentRefs[g_idx].attachment = g_idx + 1;
+			gbufferAttachmentRefs[g_idx].layout = vk::ImageLayout::eColorAttachmentOptimal;
+		}
         #pragma endregion
 
         #pragma region CreateDepthAttachment
@@ -222,7 +207,7 @@ void Camera::create_render_passes(uint32_t layers, uint32_t sample_count)
         depthAttachment.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 
         vk::AttachmentReference depthAttachmentRef;
-        depthAttachmentRef.attachment = 3;
+        depthAttachmentRef.attachment = 1 + MAX_G_BUFFERS;
         depthAttachmentRef.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
         #pragma endregion
 
@@ -244,7 +229,11 @@ void Camera::create_render_passes(uint32_t layers, uint32_t sample_count)
         #pragma endregion
 
         #pragma region CreateSubpass
-		std::array<vk::AttachmentReference, 3> attachmentReferences = {colorAttachmentRef, positionAttachmentRef, normalAttachmentRef};
+		std::vector<vk::AttachmentReference> attachmentReferences;
+		attachmentReferences.push_back(colorAttachmentRef);
+		for (uint32_t g_idx = 0; g_idx < MAX_G_BUFFERS; ++g_idx) {
+			attachmentReferences.push_back(gbufferAttachmentRefs[g_idx]);
+		}
         vk::SubpassDescription subpass;
         subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
         subpass.colorAttachmentCount = (uint32_t) attachmentReferences.size();
@@ -291,7 +280,12 @@ void Camera::create_render_passes(uint32_t layers, uint32_t sample_count)
         renderPassMultiviewInfo.pCorrelationMasks = correlationMasks;
 
         /* Create the render pass */
-        std::vector<vk::AttachmentDescription> attachments = {colorAttachment, positionAttachment, normalAttachment, depthAttachment};
+        std::vector<vk::AttachmentDescription> attachments;
+		attachments.push_back(colorAttachment);
+		for (uint32_t g_idx = 0; g_idx < MAX_G_BUFFERS; ++g_idx) {
+			attachments.push_back(gbufferAttachments[g_idx]);
+		}
+		attachments.push_back(depthAttachment);
         if (msaa_samples != 1) attachments.push_back(colorAttachmentResolve);
         vk::RenderPassCreateInfo renderPassInfo;
         renderPassInfo.attachmentCount = (uint32_t) attachments.size();
@@ -360,15 +354,17 @@ void Camera::create_frame_buffers(uint32_t layers) {
 	auto device = vulkan->get_device();
 
 	if (use_multiview) {
-		vk::ImageView attachments[3];
+		vk::ImageView attachments[3 + MAX_G_BUFFERS];
 		attachments[0] = renderTexture->get_color_image_view();
-		attachments[1] = renderTexture->get_depth_image_view();
+		for (uint g_idx = 0; g_idx < MAX_G_BUFFERS; g_idx++)
+			attachments[g_idx + 1] = renderTexture->get_g_buffer_image_view(g_idx);
+		attachments[1 + MAX_G_BUFFERS] = renderTexture->get_depth_image_view();
 		if (msaa_samples != 1)
-			attachments[2] = resolveTexture->get_color_image_view();
+			attachments[2 + MAX_G_BUFFERS] = resolveTexture->get_color_image_view();
 
 		vk::FramebufferCreateInfo fbufCreateInfo;
 		fbufCreateInfo.renderPass = renderpasses[0];
-		fbufCreateInfo.attachmentCount = (msaa_samples == 1) ? 2 : 3;
+		fbufCreateInfo.attachmentCount = (msaa_samples == 1) ? 2 + MAX_G_BUFFERS : 3 + MAX_G_BUFFERS;
 		fbufCreateInfo.pAttachments = attachments;
 		fbufCreateInfo.width = renderTexture->get_width();
 		fbufCreateInfo.height = renderTexture->get_height();
@@ -384,17 +380,18 @@ void Camera::create_frame_buffers(uint32_t layers) {
 	}
 	else {
 		for(uint32_t i = 0; i < layers; i++) {
-			vk::ImageView attachments[5];
+			/* Attachments for color, depth, all g buffers, and resolve buffers */
+			vk::ImageView attachments[3 + MAX_G_BUFFERS];
 			attachments[0] = renderTexture->get_color_image_view_layers()[i];
-			attachments[1] = renderTexture->get_position_image_view_layers()[i];
-			attachments[2] = renderTexture->get_normal_image_view_layers()[i];
-			attachments[3] = renderTexture->get_depth_image_view_layers()[i];
+			for (uint g_idx = 0; g_idx < MAX_G_BUFFERS; g_idx++)
+				attachments[g_idx + 1] = renderTexture->get_g_buffer_image_view_layers(g_idx)[i];
+			attachments[1 + MAX_G_BUFFERS] = renderTexture->get_depth_image_view_layers()[i];
 			if (msaa_samples != 1)
-				attachments[4] = resolveTexture->get_color_image_view_layers()[i];
+				attachments[2 + MAX_G_BUFFERS] = resolveTexture->get_color_image_view_layers()[i];
 			
 			vk::FramebufferCreateInfo fbufCreateInfo;
 			fbufCreateInfo.renderPass = renderpasses[i];
-			fbufCreateInfo.attachmentCount = (msaa_samples == 1) ? 4 : 5;
+			fbufCreateInfo.attachmentCount = (msaa_samples == 1) ? 2 + MAX_G_BUFFERS : 3 + MAX_G_BUFFERS;
 			fbufCreateInfo.pAttachments = attachments;
 			fbufCreateInfo.width = renderTexture->get_width();
 			fbufCreateInfo.height = renderTexture->get_height();
