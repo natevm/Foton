@@ -71,7 +71,7 @@ class Transform : public StaticFactory
     // float interpolation = 1.0;
 
     /* TODO */
-	static std::mutex creation_mutex;
+	static std::shared_ptr<std::mutex> creation_mutex;
     static bool Initialized;
 
     static Transform transforms[MAX_TRANSFORMS];

@@ -125,7 +125,7 @@ class Constraint : public StaticFactory
 	Constraint(std::string name, uint32_t id);
 
 	/* TODO */
-	static std::mutex creation_mutex;
+	static std::shared_ptr<std::mutex> creation_mutex;
 	
 	/* TODO */
 	static bool Initialized;

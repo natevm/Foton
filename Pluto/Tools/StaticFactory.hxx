@@ -22,6 +22,7 @@
 #include <typeindex>
 
 #include <exception>
+#include <mutex>
 
 class StaticFactory {
     public:
@@ -59,8 +60,10 @@ class StaticFactory {
     
     /* Reserves a location in items and adds an entry in the lookup table */
     template<class T>
-    static T* Create(std::string name, std::string type, std::map<std::string, uint32_t> &lookupTable, T* items, uint32_t maxItems) 
+    static T* Create(std::shared_ptr<std::mutex> factory_mutex, std::string name, std::string type, std::map<std::string, uint32_t> &lookupTable, T* items, uint32_t maxItems) 
     {
+        auto mutex = factory_mutex.get();
+        std::lock_guard<std::mutex> lock(*mutex);
         if (DoesItemExist(lookupTable, name))
             throw std::runtime_error(std::string("Error: " + type + " \"" + name + "\" already exists."));
 
@@ -80,10 +83,13 @@ class StaticFactory {
 
     /* Retrieves an element with a lookup table indirection */
     template<class T>
-    static T* Get(std::string name, std::string type, std::map<std::string, uint32_t> &lookupTable, T* items, uint32_t maxItems) 
+    static T* Get(std::shared_ptr<std::mutex> factory_mutex, std::string name, std::string type, std::map<std::string, uint32_t> &lookupTable, T* items, uint32_t maxItems) 
     {
+        auto mutex = factory_mutex.get();
+        std::lock_guard<std::mutex> lock(*mutex);
         if (DoesItemExist(lookupTable, name)) {
             uint32_t id = lookupTable[name];
+            if (!items[id].initialized) return nullptr;
             return &items[id];
         }
 
@@ -93,21 +99,25 @@ class StaticFactory {
 
     /* Retrieves an element by ID directly */
     template<class T>
-    static T* Get(uint32_t id, std::string type, std::map<std::string, uint32_t> &lookupTable, T* items, uint32_t maxItems) 
+    static T* Get(std::shared_ptr<std::mutex> factory_mutex, uint32_t id, std::string type, std::map<std::string, uint32_t> &lookupTable, T* items, uint32_t maxItems) 
     {
+        auto mutex = factory_mutex.get();
+        std::lock_guard<std::mutex> lock(*mutex);
         if (id >= maxItems) 
             throw std::runtime_error(std::string("Error: id greater than max " + type));
 
-        else if (!items[id].initialized) 
-            throw std::runtime_error(std::string("Error: " + type + " with id " + std::to_string(id) + " does not exist"));
+        else if (!items[id].initialized) return nullptr;
+            //throw std::runtime_error(std::string("Error: " + type + " with id " + std::to_string(id) + " does not exist"));
          
         return &items[id];
     }
 
     /* Removes an element with a lookup table indirection, removing from both items and the lookup table */
     template<class T>
-    static void Delete(std::string name, std::string type, std::map<std::string, uint32_t> &lookupTable, T* items, uint32_t maxItems)
+    static void Delete(std::shared_ptr<std::mutex> factory_mutex, std::string name, std::string type, std::map<std::string, uint32_t> &lookupTable, T* items, uint32_t maxItems)
     {
+        auto mutex = factory_mutex.get();
+        std::lock_guard<std::mutex> lock(*mutex);
         if (!DoesItemExist(lookupTable, name))
             throw std::runtime_error(std::string("Error: " + type + " \"" + name + "\" does not exist."));
 
@@ -117,8 +127,10 @@ class StaticFactory {
 
     /* If it exists, removes an element with a lookup table indirection, removing from both items and the lookup table */
     template<class T>
-    static void DeleteIfExists(std::string name, std::string type, std::map<std::string, uint32_t> &lookupTable, T* items, uint32_t maxItems)
+    static void DeleteIfExists(std::shared_ptr<std::mutex> factory_mutex, std::string name, std::string type, std::map<std::string, uint32_t> &lookupTable, T* items, uint32_t maxItems)
     {
+        auto mutex = factory_mutex.get();
+        std::lock_guard<std::mutex> lock(*mutex);
         if (!DoesItemExist(lookupTable, name)) return;
         items[lookupTable[name]] = T();
         lookupTable.erase(name);
@@ -126,8 +138,10 @@ class StaticFactory {
 
     /* Removes an element by ID directly, removing from both items and the lookup table */
     template<class T>
-    static void Delete(uint32_t id, std::string type, std::map<std::string, uint32_t> &lookupTable, T* items, uint32_t maxItems)
+    static void Delete(std::shared_ptr<std::mutex> factory_mutex, uint32_t id, std::string type, std::map<std::string, uint32_t> &lookupTable, T* items, uint32_t maxItems)
     {
+        auto mutex = factory_mutex.get();
+        std::lock_guard<std::mutex> lock(*mutex);
         if (id >= maxItems)
             throw std::runtime_error(std::string("Error: id greater than max " + type));
 

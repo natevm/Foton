@@ -3,7 +3,7 @@
 
 RigidBody RigidBody::rigidbodies[MAX_RIGIDBODIES];
 std::map<std::string, uint32_t> RigidBody::lookupTable;
-std::mutex RigidBody::creation_mutex;
+std::shared_ptr<std::mutex> RigidBody::creation_mutex;
 bool RigidBody::Initialized = false;
 
 RigidBody::RigidBody()
@@ -36,25 +36,24 @@ std::string RigidBody::to_string()
 }
 
 RigidBody *RigidBody::Create(std::string name) {
-	std::lock_guard<std::mutex> lock(creation_mutex);
-	auto rigidbody = StaticFactory::Create(name, "RigidBody", lookupTable, rigidbodies, MAX_RIGIDBODIES);
+	auto rigidbody = StaticFactory::Create(creation_mutex, name, "RigidBody", lookupTable, rigidbodies, MAX_RIGIDBODIES);
 	return rigidbody;
 }
 
 RigidBody *RigidBody::Get(std::string name) {
-	return StaticFactory::Get(name, "RigidBody", lookupTable, rigidbodies, MAX_RIGIDBODIES);
+	return StaticFactory::Get(creation_mutex, name, "RigidBody", lookupTable, rigidbodies, MAX_RIGIDBODIES);
 }
 
 RigidBody *RigidBody::Get(uint32_t id) {
-	return StaticFactory::Get(id, "RigidBody", lookupTable, rigidbodies, MAX_RIGIDBODIES);
+	return StaticFactory::Get(creation_mutex, id, "RigidBody", lookupTable, rigidbodies, MAX_RIGIDBODIES);
 }
 
 void RigidBody::Delete(std::string name) {
-	StaticFactory::Delete(name, "RigidBody", lookupTable, rigidbodies, MAX_RIGIDBODIES);
+	StaticFactory::Delete(creation_mutex, name, "RigidBody", lookupTable, rigidbodies, MAX_RIGIDBODIES);
 }
 
 void RigidBody::Delete(uint32_t id) {
-	StaticFactory::Delete(id, "RigidBody", lookupTable, rigidbodies, MAX_RIGIDBODIES);
+	StaticFactory::Delete(creation_mutex, id, "RigidBody", lookupTable, rigidbodies, MAX_RIGIDBODIES);
 }
 
 RigidBody* RigidBody::GetFront() {
@@ -67,6 +66,7 @@ uint32_t RigidBody::GetCount() {
 
 void RigidBody::Initialize()
 {
+	creation_mutex = std::make_shared<std::mutex>();
 	Initialized = true;
 }
 

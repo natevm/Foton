@@ -943,6 +943,7 @@ bool Vulkan::end_one_time_graphics_command_immediately(vk::CommandBuffer command
     }
     device.destroyFence(one_time_graphics_command_fence_immediately);
 
+    // Occasionally crashing here for some reason...
     if (free_after_use) device.freeCommandBuffers(get_command_pool(), {command_buffer});
     return true;
 }

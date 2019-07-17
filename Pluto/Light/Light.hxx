@@ -14,7 +14,7 @@ class Light : public StaticFactory
     private:
 
         /* TODO */
-		static std::mutex creation_mutex;
+		static std::shared_ptr<std::mutex> creation_mutex;
         static bool Initialized;
 
         /* Factory fields */

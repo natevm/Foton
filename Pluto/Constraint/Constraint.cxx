@@ -4,7 +4,7 @@
 
 Constraint Constraint::constraints[MAX_CONSTRAINTS];
 std::map<std::string, uint32_t> Constraint::lookupTable;
-std::mutex Constraint::creation_mutex;
+std::shared_ptr<std::mutex> Constraint::creation_mutex;
 bool Constraint::Initialized = false;
 
 Constraint::Constraint()
@@ -51,25 +51,24 @@ std::string Constraint::to_string()
 }
 
 Constraint *Constraint::Create(std::string name) {
-	std::lock_guard<std::mutex> lock(creation_mutex);
-	auto constraint = StaticFactory::Create(name, "Constraint", lookupTable, constraints, MAX_CONSTRAINTS);
+	auto constraint = StaticFactory::Create(creation_mutex, name, "Constraint", lookupTable, constraints, MAX_CONSTRAINTS);
 	return constraint;
 }
 
 Constraint *Constraint::Get(std::string name) {
-	return StaticFactory::Get(name, "Constraint", lookupTable, constraints, MAX_CONSTRAINTS);
+	return StaticFactory::Get(creation_mutex, name, "Constraint", lookupTable, constraints, MAX_CONSTRAINTS);
 }
 
 Constraint *Constraint::Get(uint32_t id) {
-	return StaticFactory::Get(id, "Constraint", lookupTable, constraints, MAX_CONSTRAINTS);
+	return StaticFactory::Get(creation_mutex, id, "Constraint", lookupTable, constraints, MAX_CONSTRAINTS);
 }
 
 void Constraint::Delete(std::string name) {
-	StaticFactory::Delete(name, "Constraint", lookupTable, constraints, MAX_CONSTRAINTS);
+	StaticFactory::Delete(creation_mutex, name, "Constraint", lookupTable, constraints, MAX_CONSTRAINTS);
 }
 
 void Constraint::Delete(uint32_t id) {
-	StaticFactory::Delete(id, "Constraint", lookupTable, constraints, MAX_CONSTRAINTS);
+	StaticFactory::Delete(creation_mutex, id, "Constraint", lookupTable, constraints, MAX_CONSTRAINTS);
 }
 
 Constraint* Constraint::GetFront() {
@@ -82,6 +81,7 @@ uint32_t Constraint::GetCount() {
 
 void Constraint::Initialize()
 {
+	creation_mutex = std::make_shared<std::mutex>();
 	Initialized = true;
 }
 

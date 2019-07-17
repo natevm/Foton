@@ -2,7 +2,7 @@
 #include "Pluto/Systems/PhysicsSystem/PhysicsSystem.hxx"
 Collider Collider::colliders[MAX_COLLIDERS];
 std::map<std::string, uint32_t> Collider::lookupTable;
-std::mutex Collider::creation_mutex;
+std::shared_ptr<std::mutex> Collider::creation_mutex;
 bool Collider::Initialized = false;
 
 Collider::Collider()
@@ -28,79 +28,74 @@ std::string Collider::to_string()
 }
 
 Collider *Collider::CreateBox(std::string name, float size_x, float size_y, float size_z) {
-	std::lock_guard<std::mutex> lock(creation_mutex);
-	auto collider = StaticFactory::Create(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
+	auto collider = StaticFactory::Create(creation_mutex, name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 	try {
 		collider->colliderShape = std::make_shared<btBoxShape>(btVector3(btScalar(size_x), btScalar(size_y), btScalar(size_z)));
 		return collider;
 	} catch (...) {
-		StaticFactory::DeleteIfExists(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
+		StaticFactory::DeleteIfExists(creation_mutex, name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 		throw;
 	}
 }
 
 Collider *Collider::CreateSphere(std::string name, float radius) {
-	std::lock_guard<std::mutex> lock(creation_mutex);
-	auto collider = StaticFactory::Create(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
+	auto collider = StaticFactory::Create(creation_mutex, name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 	try {
 		collider->colliderShape = std::make_shared<btSphereShape>(btScalar(radius));
 		return collider;
 	} catch (...) {
-		StaticFactory::DeleteIfExists(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
+		StaticFactory::DeleteIfExists(creation_mutex, name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 		throw;
 	}
 }
 
 Collider *Collider::CreateCapsule(std::string name, float radius, float height) {
-	std::lock_guard<std::mutex> lock(creation_mutex);
-	auto collider = StaticFactory::Create(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
+	auto collider = StaticFactory::Create(creation_mutex, name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 	try {
 		collider->colliderShape = std::make_shared<btCapsuleShapeZ>(btScalar(radius), btScalar(height));
 		return collider;
 	} catch (...) {
-		StaticFactory::DeleteIfExists(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
+		StaticFactory::DeleteIfExists(creation_mutex, name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 		throw;
 	}
 }
 
 Collider *Collider::CreateCylinder(std::string name, float radius, float height) {
-	std::lock_guard<std::mutex> lock(creation_mutex);
-	auto collider = StaticFactory::Create(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
+	auto collider = StaticFactory::Create(creation_mutex, name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 	try {
 		collider->colliderShape = std::make_shared<btCylinderShapeZ>(btVector3(radius, radius, height / 2.f));
 		return collider;
 	} catch (...) {
-		StaticFactory::DeleteIfExists(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
+		StaticFactory::DeleteIfExists(creation_mutex, name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 		throw;
 	}
 }
 
 Collider *Collider::CreateCone(std::string name, float radius, float height) {
-	std::lock_guard<std::mutex> lock(creation_mutex);
-	auto collider = StaticFactory::Create(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
+	auto collider = StaticFactory::Create(creation_mutex, name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 	try {
 		collider->colliderShape = std::make_shared<btConeShapeZ>(btScalar(radius), btScalar(height));
 		return collider;
 	} catch (...) {
-		StaticFactory::DeleteIfExists(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
+		StaticFactory::DeleteIfExists(creation_mutex, name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 		throw;
 	}
 }
 
 Collider *Collider::Get(std::string name) {
-	return StaticFactory::Get(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
+	return StaticFactory::Get(creation_mutex, name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 }
 
 Collider *Collider::Get(uint32_t id) {
-	return StaticFactory::Get(id, "Collider", lookupTable, colliders, MAX_COLLIDERS);
+	return StaticFactory::Get(creation_mutex, id, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 }
 
 void Collider::Delete(std::string name) {
-	StaticFactory::Delete(name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
+	StaticFactory::Delete(creation_mutex, name, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 }
 
 void Collider::Delete(uint32_t id) {
-	StaticFactory::Delete(id, "Collider", lookupTable, colliders, MAX_COLLIDERS);
+	StaticFactory::Delete(creation_mutex, id, "Collider", lookupTable, colliders, MAX_COLLIDERS);
 }
 
 Collider* Collider::GetFront() {
@@ -113,6 +108,7 @@ uint32_t Collider::GetCount() {
 
 void Collider::Initialize()
 {
+	creation_mutex = std::make_shared<std::mutex>();
 	Initialized = true;
 }
 

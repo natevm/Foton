@@ -85,7 +85,7 @@ class Collider : public StaticFactory
     std::shared_ptr<btCollisionShape> colliderShape;
 
     /* TODO */
-    static std::mutex creation_mutex;
+    static std::shared_ptr<std::mutex> creation_mutex;
     
     /* TODO */
     static bool Initialized;

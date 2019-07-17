@@ -1,3 +1,5 @@
+// #pragma optimize("", off)
+
 #include "./Material.hxx"
 #include "Pluto/Tools/Options.hxx"
 #include "Pluto/Tools/FileReader.hxx"
@@ -51,7 +53,7 @@ vk::DescriptorSet Material::texcoordsDescriptorSet;
 vk::DescriptorSet Material::indexDescriptorSet;
 vk::DescriptorSet Material::raytracingDescriptorSet;
 
-std::mutex Material::creation_mutex;
+std::shared_ptr<std::mutex> Material::creation_mutex;
 bool Material::Initialized = false;
 
 // std::map<vk::RenderPass, Material::RasterPipelineResources> Material::uniformColor;
@@ -962,6 +964,8 @@ void Material::Initialize()
 {
 	if (IsInitialized()) return;
 
+	creation_mutex = std::make_shared<std::mutex>();
+
 	Material::CreateDescriptorSetLayouts();
 	Material::CreateDescriptorPools();
 	Material::CreateVertexInputBindingDescriptions();
@@ -1189,22 +1193,15 @@ void Material::CreateDescriptorSetLayouts()
 		outputImageLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 		outputImageLayoutBinding.pImmutableSamplers = nullptr;
 
-		vk::DescriptorSetLayoutBinding positionImageLayoutBinding;
-		positionImageLayoutBinding.binding = 2;
-		positionImageLayoutBinding.descriptorType = vk::DescriptorType::eStorageImage;
-		positionImageLayoutBinding.descriptorCount = 1;
-		positionImageLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
-		positionImageLayoutBinding.pImmutableSamplers = nullptr;
-
-		vk::DescriptorSetLayoutBinding normalImageLayoutBinding;
-		normalImageLayoutBinding.binding = 3;
-		normalImageLayoutBinding.descriptorType = vk::DescriptorType::eStorageImage;
-		normalImageLayoutBinding.descriptorCount = 1;
-		normalImageLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
-		normalImageLayoutBinding.pImmutableSamplers = nullptr;
+		vk::DescriptorSetLayoutBinding gbufferImageLayoutBinding;
+		gbufferImageLayoutBinding.binding = 2;
+		gbufferImageLayoutBinding.descriptorType = vk::DescriptorType::eStorageImage;
+		gbufferImageLayoutBinding.descriptorCount = MAX_G_BUFFERS;
+		gbufferImageLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
+		gbufferImageLayoutBinding.pImmutableSamplers = nullptr;
 
 		std::vector<vk::DescriptorSetLayoutBinding> bindings({ accelerationStructureLayoutBinding, 
-			outputImageLayoutBinding, positionImageLayoutBinding, normalImageLayoutBinding});
+			outputImageLayoutBinding, gbufferImageLayoutBinding});
 
 		vk::DescriptorSetLayoutCreateInfo layoutInfo;
 		layoutInfo.bindingCount = (uint32_t)(bindings.size());
@@ -1342,7 +1339,7 @@ void Material::CreateDescriptorPools()
 	indexPoolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 	
 	/* Raytrace Descriptor Pool Info */
-	std::array<vk::DescriptorPoolSize, 4> raytracingPoolSizes = {};
+	std::array<vk::DescriptorPoolSize, 3> raytracingPoolSizes = {};
 	
 	// Acceleration Structure
 	raytracingPoolSizes[0].type = vk::DescriptorType::eAccelerationStructureNV;
@@ -1352,12 +1349,9 @@ void Material::CreateDescriptorPools()
 	raytracingPoolSizes[1].type = vk::DescriptorType::eStorageImage;
 	raytracingPoolSizes[1].descriptorCount = 1;
 
+	// G Buffers
 	raytracingPoolSizes[2].type = vk::DescriptorType::eStorageImage;
-	raytracingPoolSizes[2].descriptorCount = 1;
-
-	raytracingPoolSizes[3].type = vk::DescriptorType::eStorageImage;
-	raytracingPoolSizes[3].descriptorCount = 1;
-	
+	raytracingPoolSizes[2].descriptorCount = MAX_G_BUFFERS;
 	
 	vk::DescriptorPoolCreateInfo raytracingPoolInfo;
 	raytracingPoolInfo.poolSizeCount = (uint32_t)raytracingPoolSizes.size();
@@ -1776,7 +1770,7 @@ void Material::UpdateRaytracingDescriptorSets(vk::AccelerationStructureNV &tlas,
 		raytracingDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
 	}
 
-	std::array<vk::WriteDescriptorSet, 2 + MAX_G_BUFFERS> raytraceDescriptorWrites = {};
+	std::array<vk::WriteDescriptorSet, 3> raytraceDescriptorWrites = {};
 
 	vk::WriteDescriptorSetAccelerationStructureNV descriptorAccelerationStructureInfo;
 	descriptorAccelerationStructureInfo.accelerationStructureCount = 1;
@@ -1795,7 +1789,7 @@ void Material::UpdateRaytracingDescriptorSets(vk::AccelerationStructureNV &tlas,
 	descriptorOutputImageInfo.imageView = camera_entity.camera()->get_texture()->get_color_image_view();		
 
 	raytraceDescriptorWrites[1].dstSet = raytracingDescriptorSet;
-	raytraceDescriptorWrites[1].pNext = &descriptorAccelerationStructureInfo;
+	// raytraceDescriptorWrites[1].pNext = &descriptorAccelerationStructureInfo;
 	raytraceDescriptorWrites[1].dstBinding = 1;
 	raytraceDescriptorWrites[1].dstArrayElement = 0;
 	raytraceDescriptorWrites[1].descriptorCount = 1;
@@ -1808,15 +1802,15 @@ void Material::UpdateRaytracingDescriptorSets(vk::AccelerationStructureNV &tlas,
 	for (uint32_t g_idx = 0; g_idx < MAX_G_BUFFERS; ++g_idx) {
 		descriptorGBufferImageInfos[g_idx].imageLayout = vk::ImageLayout::eGeneral;
 		descriptorGBufferImageInfos[g_idx].imageView = camera_entity.camera()->get_texture()->get_g_buffer_image_view(g_idx);
-
-		raytraceDescriptorWrites[2 + g_idx].dstSet = raytracingDescriptorSet;
-		raytraceDescriptorWrites[2 + g_idx].pNext = &descriptorAccelerationStructureInfo;
-		raytraceDescriptorWrites[2 + g_idx].dstBinding = 2 + g_idx;
-		raytraceDescriptorWrites[2 + g_idx].dstArrayElement = 0;
-		raytraceDescriptorWrites[2 + g_idx].descriptorCount = 1;
-		raytraceDescriptorWrites[2 + g_idx].descriptorType = vk::DescriptorType::eStorageImage;
-		raytraceDescriptorWrites[2 + g_idx].pImageInfo = &descriptorGBufferImageInfos[g_idx];
 	}
+	
+	raytraceDescriptorWrites[2].dstSet = raytracingDescriptorSet;
+	// raytraceDescriptorWrites[2].pNext = &descriptorAccelerationStructureInfo;
+	raytraceDescriptorWrites[2].dstBinding = 2;
+	raytraceDescriptorWrites[2].dstArrayElement = 0;
+	raytraceDescriptorWrites[2].descriptorCount = descriptorGBufferImageInfos.size();
+	raytraceDescriptorWrites[2].descriptorType = vk::DescriptorType::eStorageImage;
+	raytraceDescriptorWrites[2].pImageInfo = descriptorGBufferImageInfos.data();
 	
 	device.updateDescriptorSets((uint32_t)raytraceDescriptorWrites.size(), raytraceDescriptorWrites.data(), 0, nullptr);
 }
@@ -2247,24 +2241,23 @@ void Material::CleanUp()
 
 /* Static Factory Implementations */
 Material* Material::Create(std::string name) {
-	std::lock_guard<std::mutex> lock(creation_mutex);
-	return StaticFactory::Create(name, "Material", lookupTable, materials, MAX_MATERIALS);
+	return StaticFactory::Create(creation_mutex, name, "Material", lookupTable, materials, MAX_MATERIALS);
 }
 
 Material* Material::Get(std::string name) {
-	return StaticFactory::Get(name, "Material", lookupTable, materials, MAX_MATERIALS);
+	return StaticFactory::Get(creation_mutex, name, "Material", lookupTable, materials, MAX_MATERIALS);
 }
 
 Material* Material::Get(uint32_t id) {
-	return StaticFactory::Get(id, "Material", lookupTable, materials, MAX_MATERIALS);
+	return StaticFactory::Get(creation_mutex, id, "Material", lookupTable, materials, MAX_MATERIALS);
 }
 
 void Material::Delete(std::string name) {
-	StaticFactory::Delete(name, "Material", lookupTable, materials, MAX_MATERIALS);
+	StaticFactory::Delete(creation_mutex, name, "Material", lookupTable, materials, MAX_MATERIALS);
 }
 
 void Material::Delete(uint32_t id) {
-	StaticFactory::Delete(id, "Material", lookupTable, materials, MAX_MATERIALS);
+	StaticFactory::Delete(creation_mutex, id, "Material", lookupTable, materials, MAX_MATERIALS);
 }
 
 Material* Material::GetFront() {

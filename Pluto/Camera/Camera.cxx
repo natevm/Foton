@@ -1,6 +1,7 @@
 //#pragma optimize("", off)
 
 #include "./Camera.hxx"
+#include "Pluto/Material/PipelineParameters.hxx"
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
 #include "Pluto/Texture/Texture.hxx"
 #include "Pluto/Material/Material.hxx"
@@ -21,7 +22,7 @@ vk::Buffer Camera::SSBO;
 vk::DeviceMemory Camera::SSBOMemory;
 vk::Buffer Camera::stagingSSBO;
 vk::DeviceMemory Camera::stagingSSBOMemory;
-std::mutex Camera::creation_mutex;
+std::shared_ptr<std::mutex> Camera::creation_mutex;
 bool Camera::Initialized = false;
 int32_t Camera::minRenderOrder = 0;
 int32_t Camera::maxRenderOrder = 0;
@@ -177,10 +178,10 @@ void Camera::create_render_passes(uint32_t layers, uint32_t sample_count)
         #pragma endregion
 
 		#pragma region GBufferAttachment
-		std::array<vk::AttachmentDescription, MAX_G_BUFFERS> gbufferAttachments;
-        std::array<vk::AttachmentReference, MAX_G_BUFFERS> gbufferAttachmentRefs;
+		std::array<vk::AttachmentDescription, USED_G_BUFFERS> gbufferAttachments;
+        std::array<vk::AttachmentReference, USED_G_BUFFERS> gbufferAttachmentRefs;
 
-		for (uint32_t g_idx = 0; g_idx < MAX_G_BUFFERS; ++g_idx) {
+		for (uint32_t g_idx = 0; g_idx < USED_G_BUFFERS; ++g_idx) {
 			gbufferAttachments[g_idx].format = renderTexture->get_color_format(); // TODO
 			gbufferAttachments[g_idx].samples = sampleFlag;
 			gbufferAttachments[g_idx].loadOp = vk::AttachmentLoadOp::eDontCare; // Dont clear g buffers
@@ -207,7 +208,7 @@ void Camera::create_render_passes(uint32_t layers, uint32_t sample_count)
         depthAttachment.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 
         vk::AttachmentReference depthAttachmentRef;
-        depthAttachmentRef.attachment = 1 + MAX_G_BUFFERS;
+        depthAttachmentRef.attachment = 1 + USED_G_BUFFERS;
         depthAttachmentRef.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
         #pragma endregion
 
@@ -231,7 +232,7 @@ void Camera::create_render_passes(uint32_t layers, uint32_t sample_count)
         #pragma region CreateSubpass
 		std::vector<vk::AttachmentReference> attachmentReferences;
 		attachmentReferences.push_back(colorAttachmentRef);
-		for (uint32_t g_idx = 0; g_idx < MAX_G_BUFFERS; ++g_idx) {
+		for (uint32_t g_idx = 0; g_idx < USED_G_BUFFERS; ++g_idx) {
 			attachmentReferences.push_back(gbufferAttachmentRefs[g_idx]);
 		}
         vk::SubpassDescription subpass;
@@ -282,7 +283,7 @@ void Camera::create_render_passes(uint32_t layers, uint32_t sample_count)
         /* Create the render pass */
         std::vector<vk::AttachmentDescription> attachments;
 		attachments.push_back(colorAttachment);
-		for (uint32_t g_idx = 0; g_idx < MAX_G_BUFFERS; ++g_idx) {
+		for (uint32_t g_idx = 0; g_idx < USED_G_BUFFERS; ++g_idx) {
 			attachments.push_back(gbufferAttachments[g_idx]);
 		}
 		attachments.push_back(depthAttachment);
@@ -300,16 +301,16 @@ void Camera::create_render_passes(uint32_t layers, uint32_t sample_count)
 			/* Depth prepass will transition from undefined to optimal now. */
 			attachments[0].initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
 			attachments[0].finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
-			attachments[1].initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
-			attachments[1].finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
-			attachments[2].initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
-			attachments[2].finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
-
+			for (uint32_t g_idx = 0; g_idx < USED_G_BUFFERS; ++g_idx) {
+				attachments[1 + g_idx].initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
+				attachments[1 + g_idx].finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
+			}
+	
 			/* Depth attachment stuff */
-			attachments[3].initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-			attachments[3].finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-			attachments[3].loadOp = vk::AttachmentLoadOp::eDontCare;
-			attachments[3].storeOp = vk::AttachmentStoreOp::eDontCare;
+			attachments[USED_G_BUFFERS + 1].initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+			attachments[USED_G_BUFFERS + 1].finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+			attachments[USED_G_BUFFERS + 1].loadOp = vk::AttachmentLoadOp::eDontCare;
+			attachments[USED_G_BUFFERS + 1].storeOp = vk::AttachmentStoreOp::eDontCare;
 			renderpasses.push_back(device.createRenderPass(renderPassInfo));
 			
 			/* Transition from undefined to attachment optimal in depth prepass. */
@@ -320,25 +321,20 @@ void Camera::create_render_passes(uint32_t layers, uint32_t sample_count)
 			attachments[0].initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
 			attachments[0].finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
 
-			attachments[1].loadOp = vk::AttachmentLoadOp::eDontCare; // dont clear
-			attachments[1].storeOp = vk::AttachmentStoreOp::eDontCare;
-			attachments[1].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-			attachments[1].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-			attachments[1].initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
-			attachments[1].finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
-
-			attachments[2].loadOp = vk::AttachmentLoadOp::eDontCare; // dont clear
-			attachments[2].storeOp = vk::AttachmentStoreOp::eDontCare;
-			attachments[2].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-			attachments[2].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-			attachments[2].initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
-			attachments[2].finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
+			for (uint32_t g_idx = 0; g_idx < USED_G_BUFFERS; ++g_idx) {
+				attachments[1 + g_idx].loadOp = vk::AttachmentLoadOp::eDontCare; // dont clear
+				attachments[1 + g_idx].storeOp = vk::AttachmentStoreOp::eDontCare;
+				attachments[1 + g_idx].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+				attachments[1 + g_idx].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+				attachments[1 + g_idx].initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
+				attachments[1 + g_idx].finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
+			}
 
 			/* Depth attachment stuff */
-			attachments[3].initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-			attachments[3].finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-			attachments[3].loadOp = vk::AttachmentLoadOp::eClear;
-			attachments[3].storeOp = vk::AttachmentStoreOp::eStore;
+			attachments[USED_G_BUFFERS + 1].initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+			attachments[USED_G_BUFFERS + 1].finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+			attachments[USED_G_BUFFERS + 1].loadOp = vk::AttachmentLoadOp::eClear;
+			attachments[USED_G_BUFFERS + 1].storeOp = vk::AttachmentStoreOp::eStore;
         	depthPrepasses.push_back(device.createRenderPass(renderPassInfo));
 		} else {
 			renderpasses.push_back(device.createRenderPass(renderPassInfo));
@@ -354,17 +350,17 @@ void Camera::create_frame_buffers(uint32_t layers) {
 	auto device = vulkan->get_device();
 
 	if (use_multiview) {
-		vk::ImageView attachments[3 + MAX_G_BUFFERS];
+		vk::ImageView attachments[3 + USED_G_BUFFERS];
 		attachments[0] = renderTexture->get_color_image_view();
-		for (uint g_idx = 0; g_idx < MAX_G_BUFFERS; g_idx++)
+		for (uint g_idx = 0; g_idx < USED_G_BUFFERS; g_idx++)
 			attachments[g_idx + 1] = renderTexture->get_g_buffer_image_view(g_idx);
-		attachments[1 + MAX_G_BUFFERS] = renderTexture->get_depth_image_view();
+		attachments[1 + USED_G_BUFFERS] = renderTexture->get_depth_image_view();
 		if (msaa_samples != 1)
-			attachments[2 + MAX_G_BUFFERS] = resolveTexture->get_color_image_view();
+			attachments[2 + USED_G_BUFFERS] = resolveTexture->get_color_image_view();
 
 		vk::FramebufferCreateInfo fbufCreateInfo;
 		fbufCreateInfo.renderPass = renderpasses[0];
-		fbufCreateInfo.attachmentCount = (msaa_samples == 1) ? 2 + MAX_G_BUFFERS : 3 + MAX_G_BUFFERS;
+		fbufCreateInfo.attachmentCount = (msaa_samples == 1) ? 2 + USED_G_BUFFERS : 3 + USED_G_BUFFERS;
 		fbufCreateInfo.pAttachments = attachments;
 		fbufCreateInfo.width = renderTexture->get_width();
 		fbufCreateInfo.height = renderTexture->get_height();
@@ -381,17 +377,17 @@ void Camera::create_frame_buffers(uint32_t layers) {
 	else {
 		for(uint32_t i = 0; i < layers; i++) {
 			/* Attachments for color, depth, all g buffers, and resolve buffers */
-			vk::ImageView attachments[3 + MAX_G_BUFFERS];
+			vk::ImageView attachments[3 + USED_G_BUFFERS];
 			attachments[0] = renderTexture->get_color_image_view_layers()[i];
-			for (uint g_idx = 0; g_idx < MAX_G_BUFFERS; g_idx++)
+			for (uint g_idx = 0; g_idx < USED_G_BUFFERS; g_idx++)
 				attachments[g_idx + 1] = renderTexture->get_g_buffer_image_view_layers(g_idx)[i];
-			attachments[1 + MAX_G_BUFFERS] = renderTexture->get_depth_image_view_layers()[i];
+			attachments[1 + USED_G_BUFFERS] = renderTexture->get_depth_image_view_layers()[i];
 			if (msaa_samples != 1)
-				attachments[2 + MAX_G_BUFFERS] = resolveTexture->get_color_image_view_layers()[i];
+				attachments[2 + USED_G_BUFFERS] = resolveTexture->get_color_image_view_layers()[i];
 			
 			vk::FramebufferCreateInfo fbufCreateInfo;
 			fbufCreateInfo.renderPass = renderpasses[i];
-			fbufCreateInfo.attachmentCount = (msaa_samples == 1) ? 2 + MAX_G_BUFFERS : 3 + MAX_G_BUFFERS;
+			fbufCreateInfo.attachmentCount = (msaa_samples == 1) ? 2 + USED_G_BUFFERS : 3 + USED_G_BUFFERS;
 			fbufCreateInfo.pAttachments = attachments;
 			fbufCreateInfo.width = renderTexture->get_width();
 			fbufCreateInfo.height = renderTexture->get_height();
@@ -991,6 +987,8 @@ void Camera::Initialize()
 		device.bindBufferMemory(SSBO, SSBOMemory, 0);
 	}
 
+	creation_mutex = std::make_shared<std::mutex>();
+
 	Initialized = true;
 }
 
@@ -1074,31 +1072,30 @@ void Camera::CleanUp()
 /* Static Factory Implementations */
 Camera* Camera::Create(std::string name,uint32_t tex_width, uint32_t tex_height, uint32_t msaa_samples, uint32_t max_views, bool use_depth_prepass, bool use_multiview)
 {
-	std::lock_guard<std::mutex> lock(creation_mutex);
-	auto camera = StaticFactory::Create(name, "Camera", lookupTable, cameras, MAX_CAMERAS);
+	auto camera = StaticFactory::Create(creation_mutex, name, "Camera", lookupTable, cameras, MAX_CAMERAS);
 	try {
 		camera->setup(tex_width, tex_height, msaa_samples, max_views, use_depth_prepass, use_multiview);
 		return camera;
 	} catch (...) {
-		StaticFactory::DeleteIfExists(name, "Camera", lookupTable, cameras, MAX_CAMERAS);
+		StaticFactory::DeleteIfExists(creation_mutex, name, "Camera", lookupTable, cameras, MAX_CAMERAS);
 		throw;
 	}
 }
 
 Camera* Camera::Get(std::string name) {
-	return StaticFactory::Get(name, "Camera", lookupTable, cameras, MAX_CAMERAS);
+	return StaticFactory::Get(creation_mutex, name, "Camera", lookupTable, cameras, MAX_CAMERAS);
 }
 
 Camera* Camera::Get(uint32_t id) {
-	return StaticFactory::Get(id, "Camera", lookupTable, cameras, MAX_CAMERAS);
+	return StaticFactory::Get(creation_mutex, id, "Camera", lookupTable, cameras, MAX_CAMERAS);
 }
 
 void Camera::Delete(std::string name) {
-	StaticFactory::Delete(name, "Camera", lookupTable, cameras, MAX_CAMERAS);
+	StaticFactory::Delete(creation_mutex, name, "Camera", lookupTable, cameras, MAX_CAMERAS);
 }
 
 void Camera::Delete(uint32_t id) {
-	StaticFactory::Delete(id, "Camera", lookupTable, cameras, MAX_CAMERAS);
+	StaticFactory::Delete(creation_mutex, id, "Camera", lookupTable, cameras, MAX_CAMERAS);
 }
 
 Camera* Camera::GetFront() {

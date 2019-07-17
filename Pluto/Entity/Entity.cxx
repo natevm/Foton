@@ -19,7 +19,7 @@ vk::Buffer Entity::SSBO;
 vk::DeviceMemory Entity::SSBOMemory;
 vk::Buffer Entity::stagingSSBO;
 vk::DeviceMemory Entity::stagingSSBOMemory;
-std::mutex Entity::creation_mutex;
+std::shared_ptr<std::mutex> Entity::creation_mutex;
 bool Entity::Initialized = false;
 
 Entity::Entity() {
@@ -420,6 +420,8 @@ void Entity::Initialize()
 		device.bindBufferMemory(SSBO, SSBOMemory, 0);
 	}
 
+	creation_mutex = std::make_shared<std::mutex>();
+
 	Initialized = true;
 
 }
@@ -516,8 +518,7 @@ Entity* Entity::Create(
 	RigidBody* rigid_body,
 	Collider* collider)
 {
-	std::lock_guard<std::mutex> lock(creation_mutex);
-	auto entity =  StaticFactory::Create(name, "Entity", lookupTable, entities, MAX_ENTITIES);
+	auto entity =  StaticFactory::Create(creation_mutex, name, "Entity", lookupTable, entities, MAX_ENTITIES);
 	try {
 		if (transform) entity->set_transform(transform);
 		if (camera) entity->set_camera(camera);
@@ -528,25 +529,25 @@ Entity* Entity::Create(
 		if (collider) entity->set_collider(collider);
 		return entity;
 	} catch (...) {
-		StaticFactory::DeleteIfExists(name, "Entity", lookupTable, entities, MAX_ENTITIES);
+		StaticFactory::DeleteIfExists(creation_mutex, name, "Entity", lookupTable, entities, MAX_ENTITIES);
 		throw;
 	}
 }
 
 Entity* Entity::Get(std::string name) {
-	return StaticFactory::Get(name, "Entity", lookupTable, entities, MAX_ENTITIES);
+	return StaticFactory::Get(creation_mutex, name, "Entity", lookupTable, entities, MAX_ENTITIES);
 }
 
 Entity* Entity::Get(uint32_t id) {
-	return StaticFactory::Get(id, "Entity", lookupTable, entities, MAX_ENTITIES);
+	return StaticFactory::Get(creation_mutex, id, "Entity", lookupTable, entities, MAX_ENTITIES);
 }
 
 void Entity::Delete(std::string name) {
-	StaticFactory::Delete(name, "Entity", lookupTable, entities, MAX_ENTITIES);
+	StaticFactory::Delete(creation_mutex, name, "Entity", lookupTable, entities, MAX_ENTITIES);
 }
 
 void Entity::Delete(uint32_t id) {
-	StaticFactory::Delete(id, "Entity", lookupTable, entities, MAX_ENTITIES);
+	StaticFactory::Delete(creation_mutex, id, "Entity", lookupTable, entities, MAX_ENTITIES);
 }
 
 Entity* Entity::GetFront() {

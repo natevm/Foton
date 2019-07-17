@@ -20,7 +20,7 @@ vk::Buffer Texture::SSBO;
 vk::DeviceMemory Texture::SSBOMemory;
 vk::Buffer Texture::stagingSSBO;
 vk::DeviceMemory Texture::stagingSSBOMemory;
-std::mutex Texture::creation_mutex;
+std::shared_ptr<std::mutex> Texture::creation_mutex;
 bool Texture::Initialized = false;
 
 Texture::Texture()
@@ -485,6 +485,8 @@ void Texture::record_blit_to(vk::CommandBuffer command_buffer, Texture * other, 
 void Texture::Initialize()
 {
 	if (IsInitialized()) return;
+
+	creation_mutex = std::make_shared<std::mutex>();
 
 	// Create the default texture here
 	std::string resource_path = Options::GetResourcePath();
@@ -1685,42 +1687,39 @@ std::vector<vk::ImageLayout> Texture::GetLayouts(vk::ImageViewType view_type)
 /* Static Factory Implementations */
 Texture *Texture::CreateFromKTX(std::string name, std::string filepath, bool submit_immediately)
 {
-	std::lock_guard<std::mutex> lock(creation_mutex);
-	auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+	auto tex = StaticFactory::Create(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 	try {
 		tex->loadKTX(filepath, submit_immediately);
 		tex->texture_struct.sampler_id = 0;
 		return tex;
 	} catch (...) {
-		StaticFactory::DeleteIfExists(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 		throw;
 	}
 }
 
 Texture *Texture::CreateFromPNG(std::string name, std::string filepath, bool submit_immediately)
 {
-	std::lock_guard<std::mutex> lock(creation_mutex);
-	auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+	auto tex = StaticFactory::Create(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 	try {
 		tex->loadPNG(filepath, false, submit_immediately);
 		tex->texture_struct.sampler_id = 0;
 		return tex;
 	} catch (...) {
-		StaticFactory::DeleteIfExists(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 		throw;
 	}
 }
 
 Texture *Texture::CreateFromBumpPNG(std::string name, std::string filepath, bool submit_immediately)
 {
-	std::lock_guard<std::mutex> lock(creation_mutex);
-	auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+	auto tex = StaticFactory::Create(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 	try {
 		tex->loadPNG(filepath, true, submit_immediately);
 		tex->texture_struct.sampler_id = 0;
 		return tex;
 	} catch (...) {
-		StaticFactory::DeleteIfExists(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 		throw;
 	}
 }
@@ -1728,8 +1727,7 @@ Texture *Texture::CreateFromBumpPNG(std::string name, std::string filepath, bool
 Texture* Texture::CreateCubemap(
 	std::string name, uint32_t width, uint32_t height, bool hasColor, bool hasDepth, bool submit_immediately) 
 {
-	std::lock_guard<std::mutex> lock(creation_mutex);
-	auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+	auto tex = StaticFactory::Create(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 	try {		
 		tex->data.width = width;
 		tex->data.height = height;
@@ -1741,7 +1739,7 @@ Texture* Texture::CreateCubemap(
 		tex->texture_struct.sampler_id = 0;
 		return tex;
 	} catch (...) {
-		StaticFactory::DeleteIfExists(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 		throw;
 	}
 }
@@ -1749,8 +1747,7 @@ Texture* Texture::CreateCubemap(
 Texture* Texture::CreateCubemapGBuffers(
 	std::string name, uint32_t width, uint32_t height, uint32_t sampleCount, bool submit_immediately) 
 {
-	std::lock_guard<std::mutex> lock(creation_mutex);
-	auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+	auto tex = StaticFactory::Create(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 	try {
 		auto vulkan = Libraries::Vulkan::Get();
 		if (!vulkan->is_initialized())
@@ -1776,15 +1773,14 @@ Texture* Texture::CreateCubemapGBuffers(
 		tex->texture_struct.sampler_id = 0;
 		return tex;
 	} catch (...) {
-		StaticFactory::DeleteIfExists(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 		throw;
 	}
 }
 
 Texture* Texture::CreateChecker(std::string name, bool submit_immediately)
 {
-	std::lock_guard<std::mutex> lock(creation_mutex);
-	auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+	auto tex = StaticFactory::Create(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 
 	tex->texture_struct.type = 1;
 	tex->texture_struct.mip_levels = 0;
@@ -1797,8 +1793,7 @@ Texture* Texture::Create2D(
 	bool hasColor, bool hasDepth, uint32_t sampleCount, uint32_t layers, 
 	bool submit_immediately)
 {
-	std::lock_guard<std::mutex> lock(creation_mutex);
-	auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+	auto tex = StaticFactory::Create(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 	
 	try {
 		auto vulkan = Libraries::Vulkan::Get();
@@ -1823,7 +1818,7 @@ Texture* Texture::Create2D(
 
 		return tex;
 	} catch (...) {
-		StaticFactory::DeleteIfExists(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 		throw;
 	}
 }
@@ -1832,8 +1827,7 @@ Texture* Texture::Create2DGBuffers (
 	std::string name, uint32_t width, uint32_t height, uint32_t sampleCount, uint32_t layers, bool submit_immediately
 )
 {
-	std::lock_guard<std::mutex> lock(creation_mutex);
-	auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+	auto tex = StaticFactory::Create(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 	
 	try {
 		auto vulkan = Libraries::Vulkan::Get();
@@ -1861,7 +1855,7 @@ Texture* Texture::Create2DGBuffers (
 
 		return tex;
 	} catch (...) {
-		StaticFactory::DeleteIfExists(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 		throw;
 	}
 }
@@ -1870,8 +1864,7 @@ Texture* Texture::Create3D (
 	std::string name, uint32_t width, uint32_t height, uint32_t depth, 
 	uint32_t layers, bool submit_immediately)
 {
-	std::lock_guard<std::mutex> lock(creation_mutex);
-	auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+	auto tex = StaticFactory::Create(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 	
 	try {
 		auto vulkan = Libraries::Vulkan::Get();
@@ -1892,7 +1885,7 @@ Texture* Texture::Create3D (
 
 		return tex;
 	} catch (...) {
-		StaticFactory::DeleteIfExists(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 		throw;
 	}
 }
@@ -1900,8 +1893,7 @@ Texture* Texture::Create3D (
 Texture* Texture::Create2DFromColorData (
 	std::string name, uint32_t width, uint32_t height, std::vector<float> data, bool submit_immediately)
 {
-	std::lock_guard<std::mutex> lock(creation_mutex);
-	auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+	auto tex = StaticFactory::Create(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 	
 	try {
 		tex->data.width = width;
@@ -1915,22 +1907,21 @@ Texture* Texture::Create2DFromColorData (
 		tex->texture_struct.sampler_id = 0;
 		return tex;
 	} catch (...) {
-		StaticFactory::DeleteIfExists(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 		throw;
 	}
 }
 
 Texture* Texture::CreateFromExternalData(std::string name, Data data)
 {
-	std::lock_guard<std::mutex> lock(creation_mutex);
-	auto tex = StaticFactory::Create(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+	auto tex = StaticFactory::Create(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 	
 	try {
 		tex->setData(data);
 		tex->texture_struct.sampler_id = 0;
 		return tex;
 	} catch (...) {
-		StaticFactory::DeleteIfExists(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 		throw;
 	}
 }
@@ -1940,19 +1931,19 @@ bool Texture::DoesItemExist(std::string name) {
 }
 
 Texture* Texture::Get(std::string name) {
-	return StaticFactory::Get(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+	return StaticFactory::Get(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 }
 
 Texture* Texture::Get(uint32_t id) {
-	return StaticFactory::Get(id, "Texture", lookupTable, textures, MAX_TEXTURES);
+	return StaticFactory::Get(creation_mutex, id, "Texture", lookupTable, textures, MAX_TEXTURES);
 }
 
 void Texture::Delete(std::string name) {
-	StaticFactory::Delete(name, "Texture", lookupTable, textures, MAX_TEXTURES);
+	StaticFactory::Delete(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 }
 
 void Texture::Delete(uint32_t id) {
-	StaticFactory::Delete(id, "Texture", lookupTable, textures, MAX_TEXTURES);
+	StaticFactory::Delete(creation_mutex, id, "Texture", lookupTable, textures, MAX_TEXTURES);
 }
 
 Texture* Texture::GetFront() {

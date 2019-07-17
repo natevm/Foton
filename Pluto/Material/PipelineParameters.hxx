@@ -1,13 +1,15 @@
 #pragma once
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
 
+#define USED_G_BUFFERS 0
+
 struct PipelineParameters {
 	vk::PipelineInputAssemblyStateCreateInfo inputAssembly;
 	vk::PipelineRasterizationStateCreateInfo rasterizer;
 	vk::PipelineViewportStateCreateInfo viewportState;
 	vk::PipelineMultisampleStateCreateInfo multisampling;
 	vk::PipelineDepthStencilStateCreateInfo depthStencil;
-	std::array<vk::PipelineColorBlendAttachmentState, 3> blendAttachments;
+	std::array<vk::PipelineColorBlendAttachmentState, 1 + USED_G_BUFFERS> blendAttachments;
 	vk::PipelineColorBlendStateCreateInfo colorBlending;
 	vk::PipelineDynamicStateCreateInfo dynamicState;
 
@@ -74,45 +76,21 @@ struct PipelineParameters {
 
 		/* Default Color Blending Attachment States */
 
-		/* G Buffer 0 */
-		blendAttachments[0].colorWriteMask = vk::ColorComponentFlagBits::eR | 
-											vk::ColorComponentFlagBits::eG | 
-											vk::ColorComponentFlagBits::eB | 
-											vk::ColorComponentFlagBits::eA;
-		blendAttachments[0].blendEnable = true;
-		blendAttachments[0].srcColorBlendFactor = vk::BlendFactor::eSrcAlpha; // Optional /* TRANSPARENCY STUFF HERE! */
-		blendAttachments[0].dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha; // Optional
-		blendAttachments[0].colorBlendOp = vk::BlendOp::eAdd; // Optional
-		blendAttachments[0].srcAlphaBlendFactor = vk::BlendFactor::eOne; // Optional
-		blendAttachments[0].dstAlphaBlendFactor = vk::BlendFactor::eZero; // Optional
-		blendAttachments[0].alphaBlendOp = vk::BlendOp::eAdd; // Optional
-
-		/* G Buffer 1 */
-		blendAttachments[1].colorWriteMask = vk::ColorComponentFlagBits::eR | 
-											vk::ColorComponentFlagBits::eG | 
-											vk::ColorComponentFlagBits::eB | 
-											vk::ColorComponentFlagBits::eA;
-		blendAttachments[1].blendEnable = true;
-		blendAttachments[1].srcColorBlendFactor = vk::BlendFactor::eSrcAlpha; // Optional /* TRANSPARENCY STUFF HERE! */
-		blendAttachments[1].dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha; // Optional
-		blendAttachments[1].colorBlendOp = vk::BlendOp::eAdd; // Optional
-		blendAttachments[1].srcAlphaBlendFactor = vk::BlendFactor::eOne; // Optional
-		blendAttachments[1].dstAlphaBlendFactor = vk::BlendFactor::eZero; // Optional
-		blendAttachments[1].alphaBlendOp = vk::BlendOp::eAdd; // Optional
-
-		/* G Buffer 2 */
-		blendAttachments[2].colorWriteMask = vk::ColorComponentFlagBits::eR | 
-											vk::ColorComponentFlagBits::eG | 
-											vk::ColorComponentFlagBits::eB | 
-											vk::ColorComponentFlagBits::eA;
-		blendAttachments[2].blendEnable = true;
-		blendAttachments[2].srcColorBlendFactor = vk::BlendFactor::eSrcAlpha; // Optional /* TRANSPARENCY STUFF HERE! */
-		blendAttachments[2].dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha; // Optional
-		blendAttachments[2].colorBlendOp = vk::BlendOp::eAdd; // Optional
-		blendAttachments[2].srcAlphaBlendFactor = vk::BlendFactor::eOne; // Optional
-		blendAttachments[2].dstAlphaBlendFactor = vk::BlendFactor::eZero; // Optional
-		blendAttachments[2].alphaBlendOp = vk::BlendOp::eAdd; // Optional
-
+		/* G Buffers */
+		for (uint32_t g_idx = 0; g_idx < 1 + USED_G_BUFFERS; ++g_idx) {
+			blendAttachments[g_idx].colorWriteMask = vk::ColorComponentFlagBits::eR | 
+												vk::ColorComponentFlagBits::eG | 
+												vk::ColorComponentFlagBits::eB | 
+												vk::ColorComponentFlagBits::eA;
+			blendAttachments[g_idx].blendEnable = true;
+			blendAttachments[g_idx].srcColorBlendFactor = vk::BlendFactor::eSrcAlpha; // Optional /* TRANSPARENCY STUFF HERE! */
+			blendAttachments[g_idx].dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha; // Optional
+			blendAttachments[g_idx].colorBlendOp = vk::BlendOp::eAdd; // Optional
+			blendAttachments[g_idx].srcAlphaBlendFactor = vk::BlendFactor::eOne; // Optional
+			blendAttachments[g_idx].dstAlphaBlendFactor = vk::BlendFactor::eZero; // Optional
+			blendAttachments[g_idx].alphaBlendOp = vk::BlendOp::eAdd; // Optional
+		}
+		
 		/* Default Color Blending State */
 		colorBlending.logicOpEnable = false;
 		colorBlending.logicOp = vk::LogicOp::eCopy; // Optional

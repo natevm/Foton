@@ -7,7 +7,7 @@ vk::Buffer Transform::stagingSSBO;
 vk::Buffer Transform::SSBO;
 vk::DeviceMemory Transform::stagingSSBOMemory;
 vk::DeviceMemory Transform::SSBOMemory;
-std::mutex Transform::creation_mutex;
+std::shared_ptr<std::mutex> Transform::creation_mutex;
 bool Transform::Initialized = false;
 
 void Transform::Initialize()
@@ -55,6 +55,8 @@ void Transform::Initialize()
 		SSBOMemory = device.allocateMemory(allocInfo);
 		device.bindBufferMemory(SSBO, SSBOMemory, 0);
 	}
+
+	creation_mutex = std::make_shared<std::mutex>();
 
 	Initialized = true;
 }
@@ -144,24 +146,23 @@ void Transform::CleanUp()
 
 /* Static Factory Implementations */
 Transform* Transform::Create(std::string name) {
-	std::lock_guard<std::mutex> lock(creation_mutex);
-	return StaticFactory::Create(name, "Transform", lookupTable, transforms, MAX_TRANSFORMS);
+	return StaticFactory::Create(creation_mutex, name, "Transform", lookupTable, transforms, MAX_TRANSFORMS);
 }
 
 Transform* Transform::Get(std::string name) {
-	return StaticFactory::Get(name, "Transform", lookupTable, transforms, MAX_TRANSFORMS);
+	return StaticFactory::Get(creation_mutex, name, "Transform", lookupTable, transforms, MAX_TRANSFORMS);
 }
 
 Transform* Transform::Get(uint32_t id) {
-	return StaticFactory::Get(id, "Transform", lookupTable, transforms, MAX_TRANSFORMS);
+	return StaticFactory::Get(creation_mutex, id, "Transform", lookupTable, transforms, MAX_TRANSFORMS);
 }
 
 void Transform::Delete(std::string name) {
-	StaticFactory::Delete(name, "Transform", lookupTable, transforms, MAX_TRANSFORMS);
+	StaticFactory::Delete(creation_mutex, name, "Transform", lookupTable, transforms, MAX_TRANSFORMS);
 }
 
 void Transform::Delete(uint32_t id) {
-	StaticFactory::Delete(id, "Transform", lookupTable, transforms, MAX_TRANSFORMS);
+	StaticFactory::Delete(creation_mutex, id, "Transform", lookupTable, transforms, MAX_TRANSFORMS);
 }
 
 Transform* Transform::GetFront() {

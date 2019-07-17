@@ -121,12 +121,13 @@ bool RenderSystem::update_push_constants()
 
     /* Find shadow maps */
     std::vector<Camera*> shadowCams;
-    try {
-        for (uint32_t i = 0; i < MAX_LIGHTS; ++i) {
-            shadowCams.push_back(Camera::Get("ShadowCam_" + std::to_string(i)));
-        }
-    } catch (...) {}
-    if (shadowCams.size() < MAX_LIGHTS) return false;
+    Camera* cameras = Camera::GetFront();
+    for (uint32_t c_id = 0; c_id < Camera::GetCount(); ++c_id) {
+        if (!cameras[c_id].is_initialized()) continue;
+        if (cameras[c_id].get_name().find("ShadowCam_") != std::string::npos)
+            shadowCams.push_back(&cameras[c_id]);
+    }
+    // if (shadowCams.size() < MAX_LIGHTS) return false;
 
     /* Update some push constants */
     auto brdf_id = brdf->get_id();
@@ -145,9 +146,11 @@ bool RenderSystem::update_push_constants()
     {
         if (entities[i].is_initialized() && (entities[i].get_light() != nullptr))
         {
-            entities[i].set_camera(shadowCams[light_count]);
-            light_entity_ids[light_count] = i;
-            light_count++;
+            if (shadowCams.size() > light_count) {
+                entities[i].set_camera(shadowCams[light_count]);
+                light_entity_ids[light_count] = i;
+                light_count++;
+            }
         }
         if (light_count == MAX_LIGHTS)
             break;
@@ -352,6 +355,8 @@ void RenderSystem::record_ray_trace_pass(Entity &camera_entity)
 
     /* Camera needs a texture */
     if (!texture) return;
+    
+    if (!Material::IsInitialized()) return;
 
     texture->make_general(command_buffer);
 
@@ -526,10 +531,12 @@ void RenderSystem::record_render_commands()
     
 	vulkan->end_one_time_graphics_command_immediately(upload_command, "Upload SSBO Data", true);
 
-    Material::UpdateRasterDescriptorSets();
-    
-    if (update_push_constants() == true) {
-        record_cameras();
+    if (Material::IsInitialized()) {
+        Material::UpdateRasterDescriptorSets();
+        
+        if (update_push_constants() == true) {
+            record_cameras();
+        }
     }
     
     record_blit_textures();

@@ -53,8 +53,7 @@ layout(set = 6, binding = 0, std430) readonly buffer IndexBuffer {
 #ifdef RAYTRACING
 layout(set = 7, binding = 0) uniform accelerationStructureNV topLevelAS;
 layout(set = 7, binding = 1, rgba16f) uniform image2D render_image;
-layout(set = 7, binding = 2, rgba16f) uniform image2D position_image;
-layout(set = 7, binding = 3, rgba16f) uniform image2D normal_image;
+layout(set = 7, binding = 2, rgba16f) uniform image2D gbuffers[7];
 #endif
 
 /* Push Constants */

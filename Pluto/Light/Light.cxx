@@ -11,7 +11,7 @@ vk::DeviceMemory Light::SSBOMemory;
 vk::Buffer Light::stagingSSBO;
 vk::DeviceMemory Light::stagingSSBOMemory;
 std::vector<Camera*> Light::shadowCameras;
-std::mutex Light::creation_mutex;
+std::shared_ptr<std::mutex> Light::creation_mutex;
 bool Light::Initialized = false;
 
 Light::Light()
@@ -235,6 +235,8 @@ void Light::Initialize()
         device.bindBufferMemory(SSBO, SSBOMemory, 0);
     }
 
+    creation_mutex = std::make_shared<std::mutex>();
+
     Initialized = true;
 }
 
@@ -245,26 +247,30 @@ bool Light::IsInitialized()
 
 void Light::CreateShadowCameras()
 {
-    // Right, Left, Up, Down, Far, Near
-    /* Create shadow map textures */
-    for (uint32_t i = 0; i < MAX_LIGHTS; ++i) {
-        auto cam = Camera::Create("ShadowCam_" + std::to_string(i), 512, 512, 1, 6, true, false);
-        cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 0);
-        cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 1);
-        cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 2);
-        cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 3);
-        cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 4);
-        cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 5);
-        cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3(-1,  0,  0), glm::vec3(0.0, 0.0, 1.0)), 0);
-        cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 1,  0,  0), glm::vec3(0.0, 0.0, 1.0)), 1);
-        cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0,  0,  1), glm::vec3(0.0, 1.0, 0.0)), 2);
-        cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0, 0,  -1), glm::vec3(0.0, -1.0, 0.0)), 3);
-        cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0,  -1,  0), glm::vec3(0.0, 0.0, 1.0)), 4);
-        cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0,  1,  0), glm::vec3(0.0, 0.0, 1.0)), 5);
-        cam->set_render_order(-1);
-        cam->force_render_mode(RenderMode::RENDER_MODE_SHADOWMAP);
-        shadowCameras.push_back(cam);
-    }
+    std::thread t([](){
+        // Right, Left, Up, Down, Far, Near
+        /* Create shadow map textures */
+        for (uint32_t i = 0; i < MAX_LIGHTS; ++i) {
+            auto cam = Camera::Create("ShadowCam_" + std::to_string(i), 512, 512, 1, 6, true, false);
+            cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 0);
+            cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 1);
+            cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 2);
+            cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 3);
+            cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 4);
+            cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 5);
+            cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3(-1,  0,  0), glm::vec3(0.0, 0.0, 1.0)), 0);
+            cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 1,  0,  0), glm::vec3(0.0, 0.0, 1.0)), 1);
+            cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0,  0,  1), glm::vec3(0.0, 1.0, 0.0)), 2);
+            cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0, 0,  -1), glm::vec3(0.0, -1.0, 0.0)), 3);
+            cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0,  -1,  0), glm::vec3(0.0, 0.0, 1.0)), 4);
+            cam->set_view(glm::lookAt(glm::vec3(0.0, 0, 0), glm::vec3( 0,  1,  0), glm::vec3(0.0, 0.0, 1.0)), 5);
+            cam->set_render_order(-1);
+            cam->force_render_mode(RenderMode::RENDER_MODE_SHADOWMAP);
+            shadowCameras.push_back(cam);
+        }
+    });
+
+    t.detach();
 }
 
 void Light::UploadSSBO(vk::CommandBuffer command_buffer)
@@ -343,24 +349,23 @@ void Light::CleanUp()
 
 /* Static Factory Implementations */
 Light* Light::Create(std::string name) {
-    std::lock_guard<std::mutex> lock(creation_mutex);
-    return StaticFactory::Create(name, "Light", lookupTable, lights, MAX_LIGHTS);
+    return StaticFactory::Create(creation_mutex, name, "Light", lookupTable, lights, MAX_LIGHTS);
 }
 
 Light* Light::Get(std::string name) {
-    return StaticFactory::Get(name, "Light", lookupTable, lights, MAX_LIGHTS);
+    return StaticFactory::Get(creation_mutex, name, "Light", lookupTable, lights, MAX_LIGHTS);
 }
 
 Light* Light::Get(uint32_t id) {
-    return StaticFactory::Get(id, "Light", lookupTable, lights, MAX_LIGHTS);
+    return StaticFactory::Get(creation_mutex, id, "Light", lookupTable, lights, MAX_LIGHTS);
 }
 
 void Light::Delete(std::string name) {
-    StaticFactory::Delete(name, "Light", lookupTable, lights, MAX_LIGHTS);
+    StaticFactory::Delete(creation_mutex, name, "Light", lookupTable, lights, MAX_LIGHTS);
 }
 
 void Light::Delete(uint32_t id) {
-    StaticFactory::Delete(id, "Light", lookupTable, lights, MAX_LIGHTS);
+    StaticFactory::Delete(creation_mutex, id, "Light", lookupTable, lights, MAX_LIGHTS);
 }
 
 Light* Light::GetFront() {
