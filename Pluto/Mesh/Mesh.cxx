@@ -393,8 +393,7 @@ void Mesh::Initialize() {
 	
 	CreateTeapotahedron("DefaultMesh"); // TODO: substitute this with the error mesh model.
 	CreateBox("BoundingBox");
-	t.detach();
-
+	
 	auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
     if (device == vk::Device())

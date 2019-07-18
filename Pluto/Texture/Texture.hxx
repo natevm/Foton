@@ -251,6 +251,13 @@ class Texture : public StaticFactory
 			be freed internally. */
 		bool madeExternally = false;
 
+		/* Textures might not be immediately ready after creation, as resources are allocated asyncronously.
+		This flag indicates the texture is ready for use. */
+		bool ready = false;
+
+		/* Returns the flag indicating that the texture is ready for use */
+		bool is_ready();
+
 		/* Frees the current texture's vulkan resources*/
 		void cleanup();
 

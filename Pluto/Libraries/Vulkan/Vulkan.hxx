@@ -25,7 +25,6 @@ namespace Libraries {
             bool use_openvr = false );
         bool destroy_instance();
 
-
         bool create_device(
             set<string> device_extensions = set<string>(),
             set<string> device_features = set<string>(),
@@ -37,10 +36,11 @@ namespace Libraries {
 
         void register_main_thread();
 
-
+        /* Accessors */
         vk::Instance get_instance() const;
         vk::PhysicalDevice get_physical_device() const;
         vk::PhysicalDeviceProperties get_physical_device_properties() const;
+        vk::PhysicalDeviceLimits get_physical_device_limits() const;
         vk::PhysicalDeviceRayTracingPropertiesNV get_physical_device_ray_tracing_properties() const;
         vk::Device get_device() const;
         uint32_t get_graphics_family() const;
@@ -49,9 +49,12 @@ namespace Libraries {
         vk::Queue get_graphics_queue(uint32_t index = 0) const;
         vk::Queue get_present_queue(uint32_t index = 0) const;
         vk::DispatchLoaderDynamic get_dispatch_loader_dynamic() const;
+        vk::DispatchLoaderDynamic get_dldi();
         
+        /* Memory type search */
         uint32_t find_memory_type(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
+        /* Command queues */
         struct CommandQueueItem {
             std::string hint;
             std::vector<vk::SwapchainKHR> swapchains;
@@ -81,9 +84,14 @@ namespace Libraries {
             std::vector<uint32_t> swapchain_indices, 
             std::vector<vk::Semaphore> waitSemaphores
         );
+        vk::CommandBuffer begin_one_time_graphics_command();
+        bool end_one_time_graphics_command(vk::CommandBuffer command_buffer, std::string hint, bool free_after_use = true, uint32_t queue_idx = 0);
+        bool end_one_time_graphics_command_immediately(vk::CommandBuffer command_buffer, std::string hint, bool free_after_use = true, uint32_t queue_idx = 0);
         bool submit_graphics_commands();
         bool submit_present_commands();
         bool flush_queues();
+
+        /* Common queries */
         bool is_ray_tracing_enabled();
         bool is_ASTC_supported();
         bool is_ETC2_supported();
@@ -95,14 +103,8 @@ namespace Libraries {
         vk::SampleCountFlagBits highest(vk::SampleCountFlags flags);
         vk::SampleCountFlagBits get_closest_sample_count_flag(uint32_t samples);
         vk::SampleCountFlags get_msaa_sample_flags();
-        
         float get_max_anisotropy();
-
-        vk::CommandBuffer begin_one_time_graphics_command();
-        bool end_one_time_graphics_command(vk::CommandBuffer command_buffer, std::string hint, bool free_after_use = true, uint32_t queue_idx = 0);
-        bool end_one_time_graphics_command_immediately(vk::CommandBuffer command_buffer, std::string hint, bool free_after_use = true, uint32_t queue_idx = 0);
         
-        vk::DispatchLoaderDynamic get_dldi();
     private:
         uint32_t registered_main_thread = -1;
         uint32_t registered_threads = 0; 

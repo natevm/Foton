@@ -488,14 +488,23 @@ void Texture::Initialize()
 
 	creation_mutex = std::make_shared<std::mutex>();
 
-	// Create the default texture here
 	std::string resource_path = Options::GetResourcePath();
-	CreateFromKTX("BRDF", resource_path + "/Defaults/brdf-lut.ktx");
-	CreateFromKTX("LTCMAT", resource_path + "/Defaults/ltc1-lut.ktx");
-	CreateFromKTX("LTCAMP", resource_path + "/Defaults/ltc2-lut.ktx");
 	CreateFromKTX("DefaultTex2D", resource_path + "/Defaults/missing-texture.ktx");
 	CreateFromKTX("DefaultTexCube", resource_path + "/Defaults/missing-texcube.ktx");
-	CreateFromKTX("DefaultTex3D", resource_path + "/Defaults/missing-volume.ktx");    
+	CreateFromKTX("DefaultTex3D", resource_path + "/Defaults/missing-volume.ktx");
+
+	// Create the default texture here
+	std::thread t([](){
+		std::string resource_path = Options::GetResourcePath();
+		CreateFromKTX("BRDF", resource_path + "/Defaults/brdf-lut.ktx");
+		CreateFromKTX("LTCMAT", resource_path + "/Defaults/ltc1-lut.ktx");
+		CreateFromKTX("LTCAMP", resource_path + "/Defaults/ltc2-lut.ktx");
+		CreateFromKTX("RANKINGTILE", resource_path + "/Defaults/rankingTile_128_128_8.ktx");
+		CreateFromKTX("SCRAMBLETILE", resource_path + "/Defaults/scrambleTile_128_128_8.ktx");
+		CreateFromKTX("SOBELTILE", resource_path + "/Defaults/sobelTile.ktx");
+	});
+
+    t.detach();
 	// fatal error here if result is nullptr...
 
 	auto vulkan = Libraries::Vulkan::Get();
@@ -569,6 +578,10 @@ bool Texture::IsInitialized()
 	return Initialized;
 }
 
+bool Texture::is_ready()
+{
+	return ready;
+}
 
 void Texture::UploadSSBO(vk::CommandBuffer command_buffer)
 {
@@ -654,10 +667,14 @@ std::vector<vk::ImageView> Texture::GetImageViews(vk::ImageViewType view_type)
 {
 	// Get the default texture
 	Texture *DefaultTex;
-	if (view_type == vk::ImageViewType::e2D) DefaultTex = Get("DefaultTex2D");
-	else if (view_type == vk::ImageViewType::e3D) DefaultTex = Get("DefaultTex3D");
-	else if (view_type == vk::ImageViewType::eCube) DefaultTex = Get("DefaultTexCube");
-	else return {};
+	try {
+		if (view_type == vk::ImageViewType::e2D) DefaultTex = Get("DefaultTex2D");
+		else if (view_type == vk::ImageViewType::e3D) DefaultTex = Get("DefaultTex3D");
+		else if (view_type == vk::ImageViewType::eCube) DefaultTex = Get("DefaultTexCube");
+		else return {};
+	} catch (...) {
+		return {};
+	}
 
 	std::vector<vk::ImageView> image_views(MAX_TEXTURES);
 
@@ -1104,6 +1121,8 @@ void Texture::loadKTX(std::string imagePath, bool submit_immediately)
 	vInfo.subresourceRange = subresourceRange;
 	vInfo.image = data.colorBuffer.image;
 	data.colorBuffer.imageView = device.createImageView(vInfo);
+
+	ready = true;
 }
 
 
@@ -1341,6 +1360,8 @@ void Texture::loadPNG(std::string imagePath, bool convert_bump, bool submit_imme
 
 	/* Clean up original image array */
 	stbi_image_free(pixels);
+
+	ready = true;
 }
 
 void Texture::create_color_image_resources(ImageData &imageData, bool submit_immediately, bool attachment_optimal)
@@ -1638,7 +1659,12 @@ void Texture::cleanup()
 std::vector<vk::Sampler> Texture::GetSamplers() 
 {
 	// Get the default texture (for now, just use the default 2D texture)
-	auto DefaultTex = Get("DefaultTex2D");
+	Texture* DefaultTex;
+	try {
+		DefaultTex = Get("DefaultTex2D");
+	} catch (...) {
+		return {};
+	}
 	
 	std::vector<vk::Sampler> samplers_(MAX_SAMPLERS);
 
@@ -1658,10 +1684,14 @@ std::vector<vk::ImageLayout> Texture::GetLayouts(vk::ImageViewType view_type)
 {
 	// Get the default texture
 	Texture *DefaultTex;
-	if (view_type == vk::ImageViewType::e2D) DefaultTex = Get("DefaultTex2D");
-	else if (view_type == vk::ImageViewType::e3D) DefaultTex = Get("DefaultTex3D");
-	else if (view_type == vk::ImageViewType::eCube) DefaultTex = Get("DefaultTexCube");
-	else return {};
+	try {
+		if (view_type == vk::ImageViewType::e2D) DefaultTex = Get("DefaultTex2D");
+		else if (view_type == vk::ImageViewType::e3D) DefaultTex = Get("DefaultTex3D");
+		else if (view_type == vk::ImageViewType::eCube) DefaultTex = Get("DefaultTexCube");
+		else return {};
+	} catch (...) {
+		return {};
+	}
 
 	std::vector<vk::ImageLayout> layouts(MAX_TEXTURES);
 
@@ -1737,6 +1767,7 @@ Texture* Texture::CreateCubemap(
 		if (hasColor) tex->create_color_image_resources(tex->data.colorBuffer, submit_immediately);
 		if (hasDepth) tex->create_depth_stencil_resources(tex->data.depthBuffer, submit_immediately);
 		tex->texture_struct.sampler_id = 0;
+		tex->ready = true;
 		return tex;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
@@ -1771,6 +1802,7 @@ Texture* Texture::CreateCubemapGBuffers(
 		}
 		tex->create_depth_stencil_resources(tex->data.depthBuffer, submit_immediately);
 		tex->texture_struct.sampler_id = 0;
+		tex->ready = true;
 		return tex;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
@@ -1785,6 +1817,7 @@ Texture* Texture::CreateChecker(std::string name, bool submit_immediately)
 	tex->texture_struct.type = 1;
 	tex->texture_struct.mip_levels = 0;
 	tex->texture_struct.sampler_id = 0;
+	tex->ready = true;
 	return tex;
 }
 
@@ -1813,7 +1846,7 @@ Texture* Texture::Create2D(
 				<< vk::to_string(tex->data.sampleCount) << " instead."<<std::endl;
 		if (hasColor) tex->create_color_image_resources(tex->data.colorBuffer, submit_immediately, false); 
 		if (hasDepth) tex->create_depth_stencil_resources(tex->data.depthBuffer, submit_immediately);
-
+		tex->ready = true;
 		tex->texture_struct.sampler_id = 0;
 
 		return tex;
@@ -1852,7 +1885,7 @@ Texture* Texture::Create2DGBuffers (
 		tex->create_depth_stencil_resources(tex->data.depthBuffer, submit_immediately);
 
 		tex->texture_struct.sampler_id = 0;
-
+		tex->ready = true;
 		return tex;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
@@ -1882,6 +1915,7 @@ Texture* Texture::Create3D (
 		tex->create_color_image_resources(tex->data.colorBuffer, submit_immediately, false);
 
 		tex->texture_struct.sampler_id = 0;
+		tex->ready = true;
 
 		return tex;
 	} catch (...) {
@@ -1905,6 +1939,7 @@ Texture* Texture::Create2DFromColorData (
 		tex->upload_color_data(width, height, 1, data);
 
 		tex->texture_struct.sampler_id = 0;
+		tex->ready = true;
 		return tex;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
@@ -1919,6 +1954,7 @@ Texture* Texture::CreateFromExternalData(std::string name, Data data)
 	try {
 		tex->setData(data);
 		tex->texture_struct.sampler_id = 0;
+		tex->ready = true;
 		return tex;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
@@ -1931,11 +1967,15 @@ bool Texture::DoesItemExist(std::string name) {
 }
 
 Texture* Texture::Get(std::string name) {
-	return StaticFactory::Get(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
+	auto tex = StaticFactory::Get(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
+	if (!tex->is_ready()) throw std::runtime_error("Error, texture not yet ready for use");
+	return tex;
 }
 
 Texture* Texture::Get(uint32_t id) {
-	return StaticFactory::Get(creation_mutex, id, "Texture", lookupTable, textures, MAX_TEXTURES);
+	auto tex = StaticFactory::Get(creation_mutex, id, "Texture", lookupTable, textures, MAX_TEXTURES);
+	if (!tex->is_ready()) throw std::runtime_error("Error, texture not yet ready for use");
+	return tex;
 }
 
 void Texture::Delete(std::string name) {

@@ -1502,6 +1502,10 @@ void Material::UpdateRasterDescriptorSets()
 	auto texture3DViews = Texture::GetImageViews(vk::ImageViewType::e3D);
 	auto samplers = Texture::GetSamplers();
 
+	if (texture3DLayouts.size() <= 0) return;
+	if (texture2DLayouts.size() <= 0) return;
+	if (textureCubeLayouts.size() <= 0) return;
+
 	// Texture SSBO
 	vk::DescriptorBufferInfo textureBufferInfo;
 	textureBufferInfo.buffer = Texture::GetSSBO();

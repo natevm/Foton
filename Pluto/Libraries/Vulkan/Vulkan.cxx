@@ -438,6 +438,7 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
     }
 
     cout << "\tChoosing device " << std::string(deviceProperties.deviceName) << endl;
+    cout << "\tMax bound descriptor sets " << std::to_string(deviceProperties.limits.maxBoundDescriptorSets) << std::endl;
 
     /* If we're using raytracing, query raytracing properties */
     if (rayTracingEnabled) {
@@ -449,7 +450,6 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
     /* We now need to create a logical device, which is like an instance of a physical device */
     std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
     
-    std::cout<<"TEMPORARY4"<<std::endl;
     numGraphicsQueues = 1;
     numPresentQueues = 1;
     
@@ -497,7 +497,6 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
     /* Queues are implicitly created when creating device. This just gets handles. */
     for (uint32_t i = 0; i < numGraphicsQueues; ++i) {
         graphicsQueues.push_back(device.getQueue(graphicsFamilyIndex, i));
-        std::cout<<"TEMPORARY1"<<std::endl;
         numGraphicsQueues = 1;
         break;
     }
@@ -505,7 +504,6 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
         for (uint32_t i = 0; i < numPresentQueues; ++i)
         {
             presentQueues.push_back(device.getQueue(presentFamilyIndex, i));
-            std::cout<<"TEMPORARY2"<<std::endl;
             numPresentQueues = 1;
             break;
         }
@@ -1105,6 +1103,11 @@ uint32_t Vulkan::get_thread_id() {
         registered_threads++;
     }
     return thread_id;
+}
+
+vk::PhysicalDeviceLimits Vulkan::get_physical_device_limits() const
+{
+    return deviceProperties.limits;
 }
 
 bool Vulkan::is_ray_tracing_enabled() {
