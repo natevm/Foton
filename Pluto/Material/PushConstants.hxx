@@ -18,7 +18,6 @@ using namespace glm;
 
     Limit currently imposed by Radeon RX 560
 */
-
 struct PushConsts
 {
     int32_t target_id;
@@ -30,7 +29,7 @@ struct PushConsts
     int32_t diffuse_environment_id;
     int32_t specular_environment_id;
     int32_t viewIndex;
-    int32_t light_entity_ids [MAX_LIGHTS];
+    int32_t placeholders [8];
     int32_t flags;
     int32_t show_bounding_box;
     

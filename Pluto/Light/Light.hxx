@@ -12,19 +12,25 @@ class Light : public StaticFactory
 {
     friend class StaticFactory;
     private:
-
-        /* TODO */
-		static std::shared_ptr<std::mutex> creation_mutex;
+    
+        /* Factory fields */
+        static std::shared_ptr<std::mutex> creation_mutex;
         static bool Initialized;
 
-        /* Factory fields */
         static Light lights[MAX_LIGHTS];
         static LightStruct* pinnedMemory;
         static std::map<std::string, uint32_t> lookupTable;
+
         static vk::Buffer SSBO;
         static vk::DeviceMemory SSBOMemory;
         static vk::Buffer stagingSSBO;
         static vk::DeviceMemory stagingSSBOMemory;
+        
+        static vk::Buffer LightEntitiesSSBO;
+        static vk::DeviceMemory LightEntitiesSSBOMemory;
+        static vk::Buffer stagingLightEntitiesSSBO;
+        static vk::DeviceMemory stagingLightEntitiesSSBOMemory;
+
         static std::vector<Camera*> shadowCameras;
         
         /* Instance fields*/
@@ -43,7 +49,7 @@ class Light : public StaticFactory
         static Light* Get(std::string name);
         static Light* Get(uint32_t id);
         static Light* GetFront();
-	    static uint32_t GetCount();
+        static uint32_t GetCount();
         static void Delete(std::string name);
         static void Delete(uint32_t id);
     
@@ -53,6 +59,8 @@ class Light : public StaticFactory
         static void UploadSSBO(vk::CommandBuffer command_buffer);
         static vk::Buffer GetSSBO();
         static uint32_t GetSSBOSize();
+        static vk::Buffer GetLightEntitiesSSBO();
+        static uint32_t GetLightEntitiesSSBOSize();
         static void CleanUp();
 
 

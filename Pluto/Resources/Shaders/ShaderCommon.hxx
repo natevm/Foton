@@ -424,7 +424,7 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
     /* For each light */
     for (int i = 0; i < MAX_LIGHTS; ++i) {
         /* Skip unused lights */
-        int light_entity_id = push.consts.light_entity_ids[i];
+        int light_entity_id = lidbo.lightIDs[i];
         if (light_entity_id == -1) continue;
         
         /* Skip lights without a transform */
@@ -788,7 +788,7 @@ vec4 get_ray_traced_contribution(PBRInfo info)
 
     for (int i = 0; i < MAX_LIGHTS; ++i) {
         /* Skip unused lights */
-        int light_entity_id = push.consts.light_entity_ids[i];
+        int light_entity_id = lidbo.lightIDs[i];
         if (light_entity_id == -1) continue;
 
         /* Skip lights without a transform */

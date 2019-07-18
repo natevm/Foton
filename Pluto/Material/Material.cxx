@@ -1044,7 +1044,16 @@ void Material::CreateDescriptorSetLayouts()
 	meshssboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
 		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 
-	std::array<vk::DescriptorSetLayoutBinding, 6> SSBObindings = { eboLayoutBinding, tboLayoutBinding, cboLayoutBinding, mboLayoutBinding, lboLayoutBinding, meshssboLayoutBinding};
+	// Light Entity SSBO
+	vk::DescriptorSetLayoutBinding lidboLayoutBinding;
+	lidboLayoutBinding.binding = 6;
+	lidboLayoutBinding.descriptorCount = 1;
+	lidboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
+	lidboLayoutBinding.pImmutableSamplers = nullptr;
+	lidboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
+
+	std::array<vk::DescriptorSetLayoutBinding, 7> SSBObindings = { eboLayoutBinding, tboLayoutBinding, cboLayoutBinding, mboLayoutBinding, lboLayoutBinding, meshssboLayoutBinding, lidboLayoutBinding};
 	vk::DescriptorSetLayoutCreateInfo SSBOLayoutInfo;
 	SSBOLayoutInfo.bindingCount = (uint32_t)SSBObindings.size();
 	SSBOLayoutInfo.pBindings = SSBObindings.data();
@@ -1380,7 +1389,7 @@ void Material::UpdateRasterDescriptorSets()
 	
 	/* ------ Component Descriptor Set  ------ */
 	vk::DescriptorSetLayout SSBOLayouts[] = { componentDescriptorSetLayout };
-	std::array<vk::WriteDescriptorSet, 6> SSBODescriptorWrites = {};
+	std::array<vk::WriteDescriptorSet, 7> SSBODescriptorWrites = {};
 	if (componentDescriptorSet == vk::DescriptorSet())
 	{
 		vk::DescriptorSetAllocateInfo allocInfo;
@@ -1477,6 +1486,21 @@ void Material::UpdateRasterDescriptorSets()
 	SSBODescriptorWrites[5].descriptorType = vk::DescriptorType::eStorageBuffer;
 	SSBODescriptorWrites[5].descriptorCount = 1;
 	SSBODescriptorWrites[5].pBufferInfo = &meshBufferInfo;
+
+	// Light Entities SSBO
+	vk::DescriptorBufferInfo lightEntityBufferInfo;
+	lightEntityBufferInfo.buffer = Light::GetLightEntitiesSSBO();
+	lightEntityBufferInfo.offset = 0;
+	lightEntityBufferInfo.range = Light::GetLightEntitiesSSBOSize();
+
+	if (lightEntityBufferInfo.buffer == vk::Buffer()) return;
+
+	SSBODescriptorWrites[6].dstSet = componentDescriptorSet;
+	SSBODescriptorWrites[6].dstBinding = 6;
+	SSBODescriptorWrites[6].dstArrayElement = 0;
+	SSBODescriptorWrites[6].descriptorType = vk::DescriptorType::eStorageBuffer;
+	SSBODescriptorWrites[6].descriptorCount = 1;
+	SSBODescriptorWrites[6].pBufferInfo = &lightEntityBufferInfo;
 	
 	device.updateDescriptorSets((uint32_t)SSBODescriptorWrites.size(), SSBODescriptorWrites.data(), 0, nullptr);
 	

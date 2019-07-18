@@ -1,15 +1,23 @@
 #include "./Light.hxx"
 #include "Pluto/Camera/Camera.hxx"
 #include "Pluto/Material/Material.hxx"
+#include "Pluto/Entity/Entity.hxx"
 #include <math.h>
 
 Light Light::lights[MAX_LIGHTS];
 LightStruct* Light::pinnedMemory;
 std::map<std::string, uint32_t> Light::lookupTable;
+
 vk::Buffer Light::SSBO;
 vk::DeviceMemory Light::SSBOMemory;
 vk::Buffer Light::stagingSSBO;
 vk::DeviceMemory Light::stagingSSBOMemory;
+
+vk::Buffer Light::LightEntitiesSSBO;
+vk::DeviceMemory Light::LightEntitiesSSBOMemory;
+vk::Buffer Light::stagingLightEntitiesSSBO;
+vk::DeviceMemory Light::stagingLightEntitiesSSBOMemory;
+
 std::vector<Camera*> Light::shadowCameras;
 std::shared_ptr<std::mutex> Light::creation_mutex;
 bool Light::Initialized = false;
@@ -235,6 +243,44 @@ void Light::Initialize()
         device.bindBufferMemory(SSBO, SSBOMemory, 0);
     }
 
+    {
+        vk::BufferCreateInfo bufferInfo = {};
+        bufferInfo.size = MAX_LIGHTS * sizeof(int32_t);
+        bufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+        bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+        stagingLightEntitiesSSBO = device.createBuffer(bufferInfo);
+
+        vk::MemoryRequirements memReqs = device.getBufferMemoryRequirements(stagingLightEntitiesSSBO);
+        vk::MemoryAllocateInfo allocInfo = {};
+        allocInfo.allocationSize = memReqs.size;
+
+        vk::PhysicalDeviceMemoryProperties memProperties = physical_device.getMemoryProperties();
+        vk::MemoryPropertyFlags properties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+        allocInfo.memoryTypeIndex = vulkan->find_memory_type(memReqs.memoryTypeBits, properties);
+
+        stagingLightEntitiesSSBOMemory = device.allocateMemory(allocInfo);
+        device.bindBufferMemory(stagingLightEntitiesSSBO, stagingLightEntitiesSSBOMemory, 0);
+    }
+
+    {
+        vk::BufferCreateInfo bufferInfo = {};
+        bufferInfo.size = MAX_LIGHTS * sizeof(int32_t);
+        bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst;
+        bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+        LightEntitiesSSBO = device.createBuffer(bufferInfo);
+
+        vk::MemoryRequirements memReqs = device.getBufferMemoryRequirements(LightEntitiesSSBO);
+        vk::MemoryAllocateInfo allocInfo = {};
+        allocInfo.allocationSize = memReqs.size;
+
+        vk::PhysicalDeviceMemoryProperties memProperties = physical_device.getMemoryProperties();
+        vk::MemoryPropertyFlags properties = vk::MemoryPropertyFlagBits::eDeviceLocal;
+        allocInfo.memoryTypeIndex = vulkan->find_memory_type(memReqs.memoryTypeBits, properties);
+
+        LightEntitiesSSBOMemory = device.allocateMemory(allocInfo);
+        device.bindBufferMemory(LightEntitiesSSBO, LightEntitiesSSBOMemory, 0);
+    }
+
     creation_mutex = std::make_shared<std::mutex>();
 
     Initialized = true;
@@ -303,6 +349,45 @@ void Light::UploadSSBO(vk::CommandBuffer command_buffer)
     vk::BufferCopy copyRegion;
 	copyRegion.size = bufferSize;
     command_buffer.copyBuffer(stagingSSBO, SSBO, copyRegion);
+
+
+    /* Get light list */
+
+    /* Find shadow maps */
+    std::vector<Camera*> shadowCams;
+    Camera* cameras = Camera::GetFront();
+    for (uint32_t c_id = 0; c_id < Camera::GetCount(); ++c_id) {
+        if (!cameras[c_id].is_initialized()) continue;
+        if (cameras[c_id].get_name().find("ShadowCam_") != std::string::npos)
+            shadowCams.push_back(&cameras[c_id]);
+    }
+    // if (shadowCams.size() < MAX_LIGHTS) return false;
+
+    int32_t light_count = 0;
+    auto entities = Entity::GetFront();
+    std::vector<int32_t> light_entity_ids(MAX_LIGHTS, -1);
+    for (uint32_t i = 0; i < Entity::GetCount(); ++i)
+    {
+        if (entities[i].is_initialized() && (entities[i].get_light() != nullptr))
+        {
+            if (shadowCams.size() > light_count) {
+                entities[i].set_camera(shadowCams[light_count]);
+                light_entity_ids[light_count] = i;
+                light_count++;
+            }
+        }
+        if (light_count == MAX_LIGHTS)
+            break;
+    }
+    {
+        int32_t* pinnedMemory = (int32_t*) device.mapMemory(stagingLightEntitiesSSBOMemory, 0, light_entity_ids.size() * sizeof(int32_t));
+        memcpy(pinnedMemory, light_entity_ids.data(), light_entity_ids.size() * sizeof(int32_t));
+        device.unmapMemory(stagingLightEntitiesSSBOMemory);
+
+        vk::BufferCopy copyRegion;
+        copyRegion.size = light_entity_ids.size() * sizeof(int32_t);
+        command_buffer.copyBuffer(stagingLightEntitiesSSBO, LightEntitiesSSBO, copyRegion);
+    }
 }
 
 vk::Buffer Light::GetSSBO()
@@ -315,6 +400,18 @@ vk::Buffer Light::GetSSBO()
 uint32_t Light::GetSSBOSize()
 {
     return MAX_LIGHTS * sizeof(LightStruct);
+}
+
+vk::Buffer Light::GetLightEntitiesSSBO()
+{
+    if ((LightEntitiesSSBO != vk::Buffer()) && (LightEntitiesSSBOMemory != vk::DeviceMemory()))
+        return LightEntitiesSSBO;
+    else return vk::Buffer();
+}
+
+uint32_t Light::GetLightEntitiesSSBOSize()
+{
+    return MAX_LIGHTS * sizeof(uint32_t);
 }
 
 void Light::CleanUp()

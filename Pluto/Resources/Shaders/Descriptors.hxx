@@ -23,6 +23,7 @@ layout(std430, set = 0, binding = 2) readonly buffer CameraSSBO    { CameraStruc
 layout(std430, set = 0, binding = 3) readonly buffer MaterialSSBO  { MaterialStruct materials[]; } mbo;
 layout(std430, set = 0, binding = 4) readonly buffer LightSSBO     { LightStruct lights[]; } lbo;
 layout(std430, set = 0, binding = 5) readonly buffer MeshSSBO      { MeshStruct meshes[]; } mesh_ssbo;
+layout(std430, set = 0, binding = 6) readonly buffer LightIDBuffer  { int lightIDs[]; } lidbo;
 
 layout(std430, set = 1, binding = 0) readonly buffer TextureSSBO           { TextureStruct textures[]; } txbo;
 layout(set = 1, binding = 1) uniform sampler samplers[MAX_SAMPLERS];

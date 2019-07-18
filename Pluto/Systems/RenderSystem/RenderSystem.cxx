@@ -89,7 +89,6 @@ bool RenderSystem::initialize()
     push_constants.environment_id = -1;
     push_constants.diffuse_environment_id = -1;
     push_constants.specular_environment_id = -1;
-    for(int i = 0; i < MAX_LIGHTS; i++) push_constants.light_entity_ids[i] = -1;
     push_constants.viewIndex = -1;
 
     push_constants.flags = 0;
@@ -119,16 +118,6 @@ bool RenderSystem::update_push_constants()
     } catch (...) {}
     if ((!brdf) || (!ltc_mat) || (!ltc_amp)) return false;
 
-    /* Find shadow maps */
-    std::vector<Camera*> shadowCams;
-    Camera* cameras = Camera::GetFront();
-    for (uint32_t c_id = 0; c_id < Camera::GetCount(); ++c_id) {
-        if (!cameras[c_id].is_initialized()) continue;
-        if (cameras[c_id].get_name().find("ShadowCam_") != std::string::npos)
-            shadowCams.push_back(&cameras[c_id]);
-    }
-    // if (shadowCams.size() < MAX_LIGHTS) return false;
-
     /* Update some push constants */
     auto brdf_id = brdf->get_id();
     auto ltc_mat_id = ltc_mat->get_id();
@@ -137,25 +126,6 @@ bool RenderSystem::update_push_constants()
     push_constants.ltc_mat_lut_id = ltc_mat_id;
     push_constants.ltc_amp_lut_id = ltc_amp_id;
     push_constants.time = (float) glfwGetTime();
-
-    int32_t light_count = 0;
-    /* Get light list */
-    auto entities = Entity::GetFront();
-    std::vector<int32_t> light_entity_ids(MAX_LIGHTS, -1);
-    for (uint32_t i = 0; i < Entity::GetCount(); ++i)
-    {
-        if (entities[i].is_initialized() && (entities[i].get_light() != nullptr))
-        {
-            if (shadowCams.size() > light_count) {
-                entities[i].set_camera(shadowCams[light_count]);
-                light_entity_ids[light_count] = i;
-                light_count++;
-            }
-        }
-        if (light_count == MAX_LIGHTS)
-            break;
-    }
-    memcpy(push_constants.light_entity_ids, light_entity_ids.data(), sizeof(push_constants.light_entity_ids));
     return true;
 }
 
@@ -528,7 +498,7 @@ void RenderSystem::record_render_commands()
     Entity::UploadSSBO(upload_command);
     Texture::UploadSSBO(upload_command);
     Mesh::UploadSSBO(upload_command);
-    
+
 	vulkan->end_one_time_graphics_command_immediately(upload_command, "Upload SSBO Data", true);
 
     if (Material::IsInitialized()) {
