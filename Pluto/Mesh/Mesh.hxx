@@ -1,20 +1,30 @@
+// ┌───────────────────────────────────────────────────────────────────────────┐
+// │  Mesh Component                                                           │
+// │                                                                           │
+// └───────────────────────────────────────────────────────────────────────────┘
+/* A mesh contains vertex information that has been loaded to the GPU. */
+
 #pragma once
 
+/* System includes */
 #include <iostream>
-#include <glm/glm.hpp>
-#include <tiny_obj_loader.h>
 #include <map>
 #include <mutex>
 
+/* External includes */
+#include <glm/glm.hpp>
+#include <tiny_obj_loader.h>
+
+/* Project includes */
 #include "Pluto/Tools/Options.hxx"
-#include "Pluto/Libraries/Vulkan/Vulkan.hxx"
 #include "Pluto/Tools/StaticFactory.hxx"
+#include "Pluto/Libraries/Vulkan/Vulkan.hxx"
+#include "Pluto/Mesh/MeshStruct.hxx"
 
-#include "./MeshStruct.hxx"
-
-/* A mesh contains vertex information that has been loaded to the GPU. */
+/* Forward declarations */
 class Vertex;
 
+/* Class declaration */
 class Mesh : public StaticFactory
 {
 	friend class StaticFactory;
@@ -147,7 +157,7 @@ class Mesh : public StaticFactory
 		/* Initializes static resources */
 		static void Initialize();
 
-		/* TODO: Explain this */
+		/* Returns true only if static resources are initialized */
 		static bool IsInitialized();
 
 		/* TODO: Explain this */

@@ -449,6 +449,20 @@ Light* Light::Create(std::string name) {
     return StaticFactory::Create(creation_mutex, name, "Light", lookupTable, lights, MAX_LIGHTS);
 }
 
+Light* Light::CreateTemperature(std::string name, float kelvin, float intensity) {
+    auto light = StaticFactory::Create(creation_mutex, name, "Light", lookupTable, lights, MAX_LIGHTS);
+    light->set_temperature(kelvin);
+    light->set_intensity(intensity);
+    return light;
+}
+
+Light* Light::CreateRGB(std::string name, float r, float g, float b, float intensity) {
+    auto light = StaticFactory::Create(creation_mutex, name, "Light", lookupTable, lights, MAX_LIGHTS);
+    light->set_color(r, g, b);
+    light->set_intensity(intensity);
+    return light;
+}
+
 Light* Light::Get(std::string name) {
     return StaticFactory::Get(creation_mutex, name, "Light", lookupTable, lights, MAX_LIGHTS);
 }
