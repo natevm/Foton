@@ -15,7 +15,6 @@
 #include "Pluto/Texture/TextureStruct.hxx"
 #include "Pluto/Mesh/MeshStruct.hxx"
 
-
 /* Descriptor Sets */
 layout(std430, set = 0, binding = 0) readonly buffer EntitySSBO    { EntityStruct entities[]; } ebo;
 layout(std430, set = 0, binding = 1) readonly buffer TransformSSBO { TransformStruct transforms[]; } tbo;
@@ -31,6 +30,7 @@ layout(set = 1, binding = 2) uniform texture2D texture_2Ds[MAX_TEXTURES];
 layout(set = 1, binding = 3) uniform textureCube texture_cubes[MAX_TEXTURES];
 layout(set = 1, binding = 4) uniform texture3D texture_3Ds[MAX_TEXTURES];
 
+#ifdef RAYTRACING
 layout(set = 2, binding = 0, std430) readonly buffer PositionBuffer {
     vec4 positions[];
 } PositionBuffers[];
@@ -51,7 +51,6 @@ layout(set = 6, binding = 0, std430) readonly buffer IndexBuffer {
     int indices[];
 } IndexBuffers[];
 
-#ifdef RAYTRACING
 layout(set = 7, binding = 0) uniform accelerationStructureNV topLevelAS;
 layout(set = 7, binding = 1, rgba16f) uniform image2D render_image;
 layout(set = 7, binding = 2, rgba16f) uniform image2D gbuffers[7];

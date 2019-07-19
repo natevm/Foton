@@ -396,8 +396,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		// depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL; //not VK_COMPARE_OP_LESS since we have a depth prepass;
 		
 		CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
-			{ componentDescriptorSetLayout, textureDescriptorSetLayout,
-				positionsDescriptorSetLayout, normalsDescriptorSetLayout, colorsDescriptorSetLayout, texcoordsDescriptorSetLayout, indexDescriptorSetLayout, }, 
+			{ componentDescriptorSetLayout, textureDescriptorSetLayout}, 
 			pbr[renderpass].pipelineParameters, 
 			renderpass, 0, 
 			pbr[renderpass].pipelines, pbr[renderpass].pipelineLayout);
@@ -511,8 +510,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		skybox[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
 
 		CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
-			{ componentDescriptorSetLayout, textureDescriptorSetLayout,
-				positionsDescriptorSetLayout, normalsDescriptorSetLayout, colorsDescriptorSetLayout, texcoordsDescriptorSetLayout, indexDescriptorSetLayout, }, 
+			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			skybox[renderpass].pipelineParameters, 
 			renderpass, 0, 
 			skybox[renderpass].pipelines, skybox[renderpass].pipelineLayout);
@@ -594,8 +592,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		volume[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
 
 		CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
-			{ componentDescriptorSetLayout, textureDescriptorSetLayout,
-				positionsDescriptorSetLayout, normalsDescriptorSetLayout, colorsDescriptorSetLayout, texcoordsDescriptorSetLayout, indexDescriptorSetLayout, }, 
+			{ componentDescriptorSetLayout, textureDescriptorSetLayout}, 
 			volume[renderpass].pipelineParameters, 
 			renderpass, 0, 
 			volume[renderpass].pipelines, volume[renderpass].pipelineLayout);
@@ -631,8 +628,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		fragmentdepth[renderpass].pipelineParameters.rasterizer.cullMode = vk::CullModeFlagBits::eNone;
 
 		CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
-			{ componentDescriptorSetLayout, textureDescriptorSetLayout,
-				positionsDescriptorSetLayout, normalsDescriptorSetLayout, colorsDescriptorSetLayout, texcoordsDescriptorSetLayout, indexDescriptorSetLayout, }, 
+			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			fragmentdepth[renderpass].pipelineParameters, 
 			renderpass, 0, 
 			fragmentdepth[renderpass].pipelines, fragmentdepth[renderpass].pipelineLayout);
@@ -678,8 +674,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		}
 
 		CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
-			{ componentDescriptorSetLayout, textureDescriptorSetLayout,
-				positionsDescriptorSetLayout, normalsDescriptorSetLayout, colorsDescriptorSetLayout, texcoordsDescriptorSetLayout, indexDescriptorSetLayout, }, 
+			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			gbuffers[renderpass].pipelineParameters, 
 			renderpass, 0, 
 			gbuffers[renderpass].pipelines, gbuffers[renderpass].pipelineLayout);
@@ -725,8 +720,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		}
 
 		CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
-			{ componentDescriptorSetLayout, textureDescriptorSetLayout,
-				positionsDescriptorSetLayout, normalsDescriptorSetLayout, colorsDescriptorSetLayout, texcoordsDescriptorSetLayout, indexDescriptorSetLayout, }, 
+			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			shadowmap[renderpass].pipelineParameters, 
 			renderpass, 0, 
 			shadowmap[renderpass].pipelines, shadowmap[renderpass].pipelineLayout);
@@ -806,8 +800,7 @@ void Material::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sample
 		vrmask[renderpass].pipelineParameters.rasterizer.cullMode = vk::CullModeFlagBits::eNone;
 		
 		CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
-			{ componentDescriptorSetLayout, textureDescriptorSetLayout,
-			positionsDescriptorSetLayout, normalsDescriptorSetLayout, colorsDescriptorSetLayout, texcoordsDescriptorSetLayout, indexDescriptorSetLayout }, 
+			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			vrmask[renderpass].pipelineParameters, 
 			renderpass, 0, 
 			vrmask[renderpass].pipelines, vrmask[renderpass].pipelineLayout);
@@ -1156,38 +1149,37 @@ void Material::CreateDescriptorSetLayouts()
 		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 	
 	// std::array<vk::DescriptorSetLayoutBinding, 5> vertexBindings = {positionBinding, normalBinding, colorBinding, texcoordBinding, indexBinding };
-
-	vk::DescriptorSetLayoutCreateInfo positionLayoutInfo;
-	positionLayoutInfo.bindingCount = 1;
-	positionLayoutInfo.pBindings = &positionBinding;
-    positionLayoutInfo.pNext = &bindingFlags;
-	positionsDescriptorSetLayout = device.createDescriptorSetLayout(positionLayoutInfo);
-
-	vk::DescriptorSetLayoutCreateInfo normalLayoutInfo;
-	normalLayoutInfo.bindingCount = 1;
-	normalLayoutInfo.pBindings = &normalBinding;
-    normalLayoutInfo.pNext = &bindingFlags;
-	normalsDescriptorSetLayout = device.createDescriptorSetLayout(normalLayoutInfo);
-
-	vk::DescriptorSetLayoutCreateInfo colorLayoutInfo;
-	colorLayoutInfo.bindingCount = 1;
-	colorLayoutInfo.pBindings = &colorBinding;
-    colorLayoutInfo.pNext = &bindingFlags;
-	colorsDescriptorSetLayout = device.createDescriptorSetLayout(colorLayoutInfo);
-
-	vk::DescriptorSetLayoutCreateInfo texcoordLayoutInfo;
-	texcoordLayoutInfo.bindingCount = 1;
-	texcoordLayoutInfo.pBindings = &texcoordBinding;
-    texcoordLayoutInfo.pNext = &bindingFlags;
-	texcoordsDescriptorSetLayout = device.createDescriptorSetLayout(texcoordLayoutInfo);
-
-	vk::DescriptorSetLayoutCreateInfo indexLayoutInfo;
-	indexLayoutInfo.bindingCount = 1;
-	indexLayoutInfo.pBindings = &indexBinding;
-    indexLayoutInfo.pNext = &bindingFlags;
-	indexDescriptorSetLayout = device.createDescriptorSetLayout(indexLayoutInfo);
-
 	if (vulkan->is_ray_tracing_enabled()) {
+		vk::DescriptorSetLayoutCreateInfo positionLayoutInfo;
+		positionLayoutInfo.bindingCount = 1;
+		positionLayoutInfo.pBindings = &positionBinding;
+		positionLayoutInfo.pNext = &bindingFlags;
+		positionsDescriptorSetLayout = device.createDescriptorSetLayout(positionLayoutInfo);
+
+		vk::DescriptorSetLayoutCreateInfo normalLayoutInfo;
+		normalLayoutInfo.bindingCount = 1;
+		normalLayoutInfo.pBindings = &normalBinding;
+		normalLayoutInfo.pNext = &bindingFlags;
+		normalsDescriptorSetLayout = device.createDescriptorSetLayout(normalLayoutInfo);
+
+		vk::DescriptorSetLayoutCreateInfo colorLayoutInfo;
+		colorLayoutInfo.bindingCount = 1;
+		colorLayoutInfo.pBindings = &colorBinding;
+		colorLayoutInfo.pNext = &bindingFlags;
+		colorsDescriptorSetLayout = device.createDescriptorSetLayout(colorLayoutInfo);
+
+		vk::DescriptorSetLayoutCreateInfo texcoordLayoutInfo;
+		texcoordLayoutInfo.bindingCount = 1;
+		texcoordLayoutInfo.pBindings = &texcoordBinding;
+		texcoordLayoutInfo.pNext = &bindingFlags;
+		texcoordsDescriptorSetLayout = device.createDescriptorSetLayout(texcoordLayoutInfo);
+
+		vk::DescriptorSetLayoutCreateInfo indexLayoutInfo;
+		indexLayoutInfo.bindingCount = 1;
+		indexLayoutInfo.pBindings = &indexBinding;
+		indexLayoutInfo.pNext = &bindingFlags;
+		indexDescriptorSetLayout = device.createDescriptorSetLayout(indexLayoutInfo);
+
 		vk::DescriptorSetLayoutBinding accelerationStructureLayoutBinding;
 		accelerationStructureLayoutBinding.binding = 0;
 		accelerationStructureLayoutBinding.descriptorType = vk::DescriptorType::eAccelerationStructureNV;
@@ -1371,14 +1363,15 @@ void Material::CreateDescriptorPools()
 	// Create the pools
 	componentDescriptorPool = device.createDescriptorPool(SSBOPoolInfo);
 	textureDescriptorPool = device.createDescriptorPool(texturePoolInfo);
-	positionsDescriptorPool = device.createDescriptorPool(positionsPoolInfo);
-	normalsDescriptorPool = device.createDescriptorPool(normalsPoolInfo);
-	colorsDescriptorPool = device.createDescriptorPool(colorsPoolInfo);
-	texcoordsDescriptorPool = device.createDescriptorPool(texcoordsPoolInfo);
-	indexDescriptorPool = device.createDescriptorPool(indexPoolInfo);
 
-	if (vulkan->is_ray_tracing_enabled())
+	if (vulkan->is_ray_tracing_enabled()) {
+		positionsDescriptorPool = device.createDescriptorPool(positionsPoolInfo);
+		normalsDescriptorPool = device.createDescriptorPool(normalsPoolInfo);
+		colorsDescriptorPool = device.createDescriptorPool(colorsPoolInfo);
+		texcoordsDescriptorPool = device.createDescriptorPool(texcoordsPoolInfo);
+		indexDescriptorPool = device.createDescriptorPool(indexPoolInfo);
 		raytracingDescriptorPool = device.createDescriptorPool(raytracingPoolInfo);
+	}
 }
 
 void Material::UpdateRasterDescriptorSets()
@@ -1591,7 +1584,6 @@ void Material::UpdateRasterDescriptorSets()
 	textureDescriptorWrites[3].descriptorCount = MAX_TEXTURES;
 	textureDescriptorWrites[3].pImageInfo = textureCubeDescriptorInfos;
 
-
 	// 3D Textures
 	vk::DescriptorImageInfo texture3DDescriptorInfos[MAX_TEXTURES];
 	for (int i = 0; i < MAX_TEXTURES; ++i) 
@@ -1610,169 +1602,171 @@ void Material::UpdateRasterDescriptorSets()
 	
 	device.updateDescriptorSets((uint32_t)textureDescriptorWrites.size(), textureDescriptorWrites.data(), 0, nullptr);
 
-	/* ------ Vertex Descriptor Set  ------ */
-	vk::DescriptorSetLayout positionsLayouts[] = { positionsDescriptorSetLayout };
-	vk::DescriptorSetLayout normalsLayouts[] = { normalsDescriptorSetLayout };
-	vk::DescriptorSetLayout colorsLayouts[] = { colorsDescriptorSetLayout };
-	vk::DescriptorSetLayout texcoordsLayouts[] = { texcoordsDescriptorSetLayout };
-	vk::DescriptorSetLayout indexLayouts[] = { indexDescriptorSetLayout };
-	std::array<vk::WriteDescriptorSet, 1> positionsDescriptorWrites = {};
-	std::array<vk::WriteDescriptorSet, 1> normalsDescriptorWrites = {};
-	std::array<vk::WriteDescriptorSet, 1> colorsDescriptorWrites = {};
-	std::array<vk::WriteDescriptorSet, 1> texcoordsDescriptorWrites = {};
-	std::array<vk::WriteDescriptorSet, 1> indexDescriptorWrites = {};
-	
-	if (positionsDescriptorSet == vk::DescriptorSet())
-	{
-		vk::DescriptorSetAllocateInfo allocInfo;
-		allocInfo.descriptorPool = positionsDescriptorPool;
-		allocInfo.descriptorSetCount = 1;
-		allocInfo.pSetLayouts = positionsLayouts;
+	if (vulkan->is_ray_tracing_enabled()) {
+		/* ------ Vertex Descriptor Set  ------ */
+		vk::DescriptorSetLayout positionsLayouts[] = { positionsDescriptorSetLayout };
+		vk::DescriptorSetLayout normalsLayouts[] = { normalsDescriptorSetLayout };
+		vk::DescriptorSetLayout colorsLayouts[] = { colorsDescriptorSetLayout };
+		vk::DescriptorSetLayout texcoordsLayouts[] = { texcoordsDescriptorSetLayout };
+		vk::DescriptorSetLayout indexLayouts[] = { indexDescriptorSetLayout };
+		std::array<vk::WriteDescriptorSet, 1> positionsDescriptorWrites = {};
+		std::array<vk::WriteDescriptorSet, 1> normalsDescriptorWrites = {};
+		std::array<vk::WriteDescriptorSet, 1> colorsDescriptorWrites = {};
+		std::array<vk::WriteDescriptorSet, 1> texcoordsDescriptorWrites = {};
+		std::array<vk::WriteDescriptorSet, 1> indexDescriptorWrites = {};
+		
+		if (positionsDescriptorSet == vk::DescriptorSet())
+		{
+			vk::DescriptorSetAllocateInfo allocInfo;
+			allocInfo.descriptorPool = positionsDescriptorPool;
+			allocInfo.descriptorSetCount = 1;
+			allocInfo.pSetLayouts = positionsLayouts;
 
-		positionsDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
+			positionsDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
+		}
+
+		if (normalsDescriptorSet == vk::DescriptorSet())
+		{
+			vk::DescriptorSetAllocateInfo allocInfo;
+			allocInfo.descriptorPool = normalsDescriptorPool;
+			allocInfo.descriptorSetCount = 1;
+			allocInfo.pSetLayouts = normalsLayouts;
+
+			normalsDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
+		}
+
+		if (colorsDescriptorSet == vk::DescriptorSet())
+		{
+			vk::DescriptorSetAllocateInfo allocInfo;
+			allocInfo.descriptorPool = colorsDescriptorPool;
+			allocInfo.descriptorSetCount = 1;
+			allocInfo.pSetLayouts = colorsLayouts;
+
+			colorsDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
+		}
+
+		if (texcoordsDescriptorSet == vk::DescriptorSet())
+		{
+			vk::DescriptorSetAllocateInfo allocInfo;
+			allocInfo.descriptorPool = texcoordsDescriptorPool;
+			allocInfo.descriptorSetCount = 1;
+			allocInfo.pSetLayouts = texcoordsLayouts;
+
+			texcoordsDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
+		}
+
+		if (indexDescriptorSet == vk::DescriptorSet())
+		{
+			vk::DescriptorSetAllocateInfo allocInfo;
+			allocInfo.descriptorPool = indexDescriptorPool;
+			allocInfo.descriptorSetCount = 1;
+			allocInfo.pSetLayouts = indexLayouts;
+
+			indexDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
+		}
+
+		auto positionSSBOs = Mesh::GetPositionSSBOs();
+		auto positionSSBOSizes = Mesh::GetPositionSSBOSizes();
+		auto normalSSBOs = Mesh::GetNormalSSBOs();
+		auto normalSSBOSizes = Mesh::GetNormalSSBOSizes();
+		auto colorSSBOs = Mesh::GetColorSSBOs();
+		auto colorSSBOSizes = Mesh::GetColorSSBOSizes();
+		auto texcoordSSBOs = Mesh::GetTexCoordSSBOs();
+		auto texcoordSSBOSizes = Mesh::GetTexCoordSSBOSizes();
+		auto indexSSBOs = Mesh::GetIndexSSBOs();
+		auto indexSSBOSizes = Mesh::GetIndexSSBOSizes();
+		
+		// Positions SSBO
+		vk::DescriptorBufferInfo positionBufferInfos[MAX_MESHES];
+		for (int i = 0; i < MAX_MESHES; ++i) 
+		{
+			if (positionSSBOs[i] == vk::Buffer()) return;
+			positionBufferInfos[i].buffer = positionSSBOs[i];
+			positionBufferInfos[i].offset = 0;
+			positionBufferInfos[i].range = positionSSBOSizes[i];
+		}
+
+		positionsDescriptorWrites[0].dstSet = positionsDescriptorSet;
+		positionsDescriptorWrites[0].dstBinding = 0;
+		positionsDescriptorWrites[0].dstArrayElement = 0;
+		positionsDescriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
+		positionsDescriptorWrites[0].descriptorCount = MAX_MESHES;
+		positionsDescriptorWrites[0].pBufferInfo = positionBufferInfos;
+
+		// Normals SSBO
+		vk::DescriptorBufferInfo normalBufferInfos[MAX_MESHES];
+		for (int i = 0; i < MAX_MESHES; ++i) 
+		{
+			if (normalSSBOs[i] == vk::Buffer()) return;
+			normalBufferInfos[i].buffer = normalSSBOs[i];
+			normalBufferInfos[i].offset = 0;
+			normalBufferInfos[i].range = normalSSBOSizes[i];
+		}
+
+		normalsDescriptorWrites[0].dstSet = normalsDescriptorSet;
+		normalsDescriptorWrites[0].dstBinding = 0;
+		normalsDescriptorWrites[0].dstArrayElement = 0;
+		normalsDescriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
+		normalsDescriptorWrites[0].descriptorCount = MAX_MESHES;
+		normalsDescriptorWrites[0].pBufferInfo = normalBufferInfos;
+
+		// Colors SSBO
+		vk::DescriptorBufferInfo colorBufferInfos[MAX_MESHES];
+		for (int i = 0; i < MAX_MESHES; ++i) 
+		{
+			if (colorSSBOs[i] == vk::Buffer()) return;
+			colorBufferInfos[i].buffer = colorSSBOs[i];
+			colorBufferInfos[i].offset = 0;
+			colorBufferInfos[i].range = colorSSBOSizes[i];
+		}
+
+		colorsDescriptorWrites[0].dstSet = colorsDescriptorSet;
+		colorsDescriptorWrites[0].dstBinding = 0;
+		colorsDescriptorWrites[0].dstArrayElement = 0;
+		colorsDescriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
+		colorsDescriptorWrites[0].descriptorCount = MAX_MESHES;
+		colorsDescriptorWrites[0].pBufferInfo = colorBufferInfos;
+
+		// TexCoords SSBO
+		vk::DescriptorBufferInfo texcoordBufferInfos[MAX_MESHES];
+		for (int i = 0; i < MAX_MESHES; ++i) 
+		{
+			if (texcoordSSBOs[i] == vk::Buffer()) return;
+			texcoordBufferInfos[i].buffer = texcoordSSBOs[i];
+			texcoordBufferInfos[i].offset = 0;
+			texcoordBufferInfos[i].range = texcoordSSBOSizes[i];
+		}
+
+		texcoordsDescriptorWrites[0].dstSet = texcoordsDescriptorSet;
+		texcoordsDescriptorWrites[0].dstBinding = 0;
+		texcoordsDescriptorWrites[0].dstArrayElement = 0;
+		texcoordsDescriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
+		texcoordsDescriptorWrites[0].descriptorCount = MAX_MESHES;
+		texcoordsDescriptorWrites[0].pBufferInfo = texcoordBufferInfos;
+
+		// Indices SSBO
+		vk::DescriptorBufferInfo indexBufferInfos[MAX_MESHES];
+		for (int i = 0; i < MAX_MESHES; ++i) 
+		{
+			if (indexSSBOs[i] == vk::Buffer()) return;
+			indexBufferInfos[i].buffer = indexSSBOs[i];
+			indexBufferInfos[i].offset = 0;
+			indexBufferInfos[i].range = indexSSBOSizes[i];
+		}
+
+		indexDescriptorWrites[0].dstSet = indexDescriptorSet;
+		indexDescriptorWrites[0].dstBinding = 0;
+		indexDescriptorWrites[0].dstArrayElement = 0;
+		indexDescriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
+		indexDescriptorWrites[0].descriptorCount = MAX_MESHES;
+		indexDescriptorWrites[0].pBufferInfo = indexBufferInfos;
+
+		device.updateDescriptorSets((uint32_t)positionsDescriptorWrites.size(), positionsDescriptorWrites.data(), 0, nullptr);
+		device.updateDescriptorSets((uint32_t)normalsDescriptorWrites.size(), normalsDescriptorWrites.data(), 0, nullptr);
+		device.updateDescriptorSets((uint32_t)colorsDescriptorWrites.size(), colorsDescriptorWrites.data(), 0, nullptr);
+		device.updateDescriptorSets((uint32_t)texcoordsDescriptorWrites.size(), texcoordsDescriptorWrites.data(), 0, nullptr);
+		device.updateDescriptorSets((uint32_t)indexDescriptorWrites.size(), indexDescriptorWrites.data(), 0, nullptr);
 	}
-
-	if (normalsDescriptorSet == vk::DescriptorSet())
-	{
-		vk::DescriptorSetAllocateInfo allocInfo;
-		allocInfo.descriptorPool = normalsDescriptorPool;
-		allocInfo.descriptorSetCount = 1;
-		allocInfo.pSetLayouts = normalsLayouts;
-
-		normalsDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
-	}
-
-	if (colorsDescriptorSet == vk::DescriptorSet())
-	{
-		vk::DescriptorSetAllocateInfo allocInfo;
-		allocInfo.descriptorPool = colorsDescriptorPool;
-		allocInfo.descriptorSetCount = 1;
-		allocInfo.pSetLayouts = colorsLayouts;
-
-		colorsDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
-	}
-
-	if (texcoordsDescriptorSet == vk::DescriptorSet())
-	{
-		vk::DescriptorSetAllocateInfo allocInfo;
-		allocInfo.descriptorPool = texcoordsDescriptorPool;
-		allocInfo.descriptorSetCount = 1;
-		allocInfo.pSetLayouts = texcoordsLayouts;
-
-		texcoordsDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
-	}
-
-	if (indexDescriptorSet == vk::DescriptorSet())
-	{
-		vk::DescriptorSetAllocateInfo allocInfo;
-		allocInfo.descriptorPool = indexDescriptorPool;
-		allocInfo.descriptorSetCount = 1;
-		allocInfo.pSetLayouts = indexLayouts;
-
-		indexDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
-	}
-
-	auto positionSSBOs = Mesh::GetPositionSSBOs();
-	auto positionSSBOSizes = Mesh::GetPositionSSBOSizes();
-	auto normalSSBOs = Mesh::GetNormalSSBOs();
-	auto normalSSBOSizes = Mesh::GetNormalSSBOSizes();
-	auto colorSSBOs = Mesh::GetColorSSBOs();
-	auto colorSSBOSizes = Mesh::GetColorSSBOSizes();
-	auto texcoordSSBOs = Mesh::GetTexCoordSSBOs();
-	auto texcoordSSBOSizes = Mesh::GetTexCoordSSBOSizes();
-	auto indexSSBOs = Mesh::GetIndexSSBOs();
-	auto indexSSBOSizes = Mesh::GetIndexSSBOSizes();
-	
-	// Positions SSBO
-	vk::DescriptorBufferInfo positionBufferInfos[MAX_MESHES];
-	for (int i = 0; i < MAX_MESHES; ++i) 
-	{
-		if (positionSSBOs[i] == vk::Buffer()) return;
-		positionBufferInfos[i].buffer = positionSSBOs[i];
-		positionBufferInfos[i].offset = 0;
-		positionBufferInfos[i].range = positionSSBOSizes[i];
-	}
-
-	positionsDescriptorWrites[0].dstSet = positionsDescriptorSet;
-	positionsDescriptorWrites[0].dstBinding = 0;
-	positionsDescriptorWrites[0].dstArrayElement = 0;
-	positionsDescriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
-	positionsDescriptorWrites[0].descriptorCount = MAX_MESHES;
-	positionsDescriptorWrites[0].pBufferInfo = positionBufferInfos;
-
-	// Normals SSBO
-	vk::DescriptorBufferInfo normalBufferInfos[MAX_MESHES];
-	for (int i = 0; i < MAX_MESHES; ++i) 
-	{
-		if (normalSSBOs[i] == vk::Buffer()) return;
-		normalBufferInfos[i].buffer = normalSSBOs[i];
-		normalBufferInfos[i].offset = 0;
-		normalBufferInfos[i].range = normalSSBOSizes[i];
-	}
-
-	normalsDescriptorWrites[0].dstSet = normalsDescriptorSet;
-	normalsDescriptorWrites[0].dstBinding = 0;
-	normalsDescriptorWrites[0].dstArrayElement = 0;
-	normalsDescriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
-	normalsDescriptorWrites[0].descriptorCount = MAX_MESHES;
-	normalsDescriptorWrites[0].pBufferInfo = normalBufferInfos;
-
-	// Colors SSBO
-	vk::DescriptorBufferInfo colorBufferInfos[MAX_MESHES];
-	for (int i = 0; i < MAX_MESHES; ++i) 
-	{
-		if (colorSSBOs[i] == vk::Buffer()) return;
-		colorBufferInfos[i].buffer = colorSSBOs[i];
-		colorBufferInfos[i].offset = 0;
-		colorBufferInfos[i].range = colorSSBOSizes[i];
-	}
-
-	colorsDescriptorWrites[0].dstSet = colorsDescriptorSet;
-	colorsDescriptorWrites[0].dstBinding = 0;
-	colorsDescriptorWrites[0].dstArrayElement = 0;
-	colorsDescriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
-	colorsDescriptorWrites[0].descriptorCount = MAX_MESHES;
-	colorsDescriptorWrites[0].pBufferInfo = colorBufferInfos;
-
-	// TexCoords SSBO
-	vk::DescriptorBufferInfo texcoordBufferInfos[MAX_MESHES];
-	for (int i = 0; i < MAX_MESHES; ++i) 
-	{
-		if (texcoordSSBOs[i] == vk::Buffer()) return;
-		texcoordBufferInfos[i].buffer = texcoordSSBOs[i];
-		texcoordBufferInfos[i].offset = 0;
-		texcoordBufferInfos[i].range = texcoordSSBOSizes[i];
-	}
-
-	texcoordsDescriptorWrites[0].dstSet = texcoordsDescriptorSet;
-	texcoordsDescriptorWrites[0].dstBinding = 0;
-	texcoordsDescriptorWrites[0].dstArrayElement = 0;
-	texcoordsDescriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
-	texcoordsDescriptorWrites[0].descriptorCount = MAX_MESHES;
-	texcoordsDescriptorWrites[0].pBufferInfo = texcoordBufferInfos;
-
-	// Indices SSBO
-	vk::DescriptorBufferInfo indexBufferInfos[MAX_MESHES];
-	for (int i = 0; i < MAX_MESHES; ++i) 
-	{
-		if (indexSSBOs[i] == vk::Buffer()) return;
-		indexBufferInfos[i].buffer = indexSSBOs[i];
-		indexBufferInfos[i].offset = 0;
-		indexBufferInfos[i].range = indexSSBOSizes[i];
-	}
-
-	indexDescriptorWrites[0].dstSet = indexDescriptorSet;
-	indexDescriptorWrites[0].dstBinding = 0;
-	indexDescriptorWrites[0].dstArrayElement = 0;
-	indexDescriptorWrites[0].descriptorType = vk::DescriptorType::eStorageBuffer;
-	indexDescriptorWrites[0].descriptorCount = MAX_MESHES;
-	indexDescriptorWrites[0].pBufferInfo = indexBufferInfos;
-
-	device.updateDescriptorSets((uint32_t)positionsDescriptorWrites.size(), positionsDescriptorWrites.data(), 0, nullptr);
-	device.updateDescriptorSets((uint32_t)normalsDescriptorWrites.size(), normalsDescriptorWrites.data(), 0, nullptr);
-	device.updateDescriptorSets((uint32_t)colorsDescriptorWrites.size(), colorsDescriptorWrites.data(), 0, nullptr);
-	device.updateDescriptorSets((uint32_t)texcoordsDescriptorWrites.size(), texcoordsDescriptorWrites.data(), 0, nullptr);
-	device.updateDescriptorSets((uint32_t)indexDescriptorWrites.size(), indexDescriptorWrites.data(), 0, nullptr);
 }
 
 void Material::UpdateRaytracingDescriptorSets(vk::AccelerationStructureNV &tlas, Entity &camera_entity)
@@ -1897,7 +1891,7 @@ void Material::CreateVertexAttributeDescriptions() {
 
 void Material::BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass) 
 {
-	std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet, positionsDescriptorSet, normalsDescriptorSet, colorsDescriptorSet, texcoordsDescriptorSet, indexDescriptorSet};
+	std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet};
 	// command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, normalsurface[render_pass].pipelineLayout, 0, descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	// command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, blinn[render_pass].pipelineLayout, 0, descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	// command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, texcoordsurface[render_pass].pipelineLayout, 0, descriptorSets.size(), descriptorSets.data(), 0, nullptr);
