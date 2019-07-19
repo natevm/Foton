@@ -29,7 +29,14 @@ struct PushConsts
     int32_t diffuse_environment_id;
     int32_t specular_environment_id;
     int32_t viewIndex;
-    int32_t placeholders [8];
+    int32_t sobel_tile_id;
+    int32_t ranking_tile_id;
+    int32_t scramble_tile_id;
+    int32_t frame;
+    int32_t placeholder5;
+    int32_t placeholder6;
+    int32_t placeholder7;
+    int32_t placeholder8;
     int32_t flags;
     int32_t show_bounding_box;
     

@@ -96,6 +96,88 @@ vec4 sample_texture_3D(vec4 default_color, int texture_id, vec3 uvw, float lod)
     return color;//vec4(color.rgb, 0.0);
 }
 
+int sampleRankingTile(vec2 uv)
+{
+    if ((push.consts.ranking_tile_id < 0) || (push.consts.ranking_tile_id >= MAX_TEXTURES))
+        return 0;
+
+    TextureStruct tex = txbo.textures[push.consts.ranking_tile_id];
+
+    if ((tex.sampler_id < 0) || (tex.sampler_id >= MAX_SAMPLERS)) 
+        return 0;
+
+	return int(texture( 
+			sampler2D(texture_2Ds[push.consts.ranking_tile_id], samplers[tex.sampler_id]), 
+			uv
+    ).r * 255.0);
+}
+
+int sampleSobelTile(vec2 uv)
+{
+    if ((push.consts.sobel_tile_id < 0) || (push.consts.sobel_tile_id >= MAX_TEXTURES))
+        return 0;
+
+    TextureStruct tex = txbo.textures[push.consts.sobel_tile_id];
+
+    if ((tex.sampler_id < 0) || (tex.sampler_id >= MAX_SAMPLERS)) 
+        return 0;
+
+	return int(texture( 
+			sampler2D(texture_2Ds[push.consts.sobel_tile_id], samplers[tex.sampler_id]), 
+			uv
+    ).r * 255.0);
+}
+
+int sampleScramblingTile(vec2 uv)
+{
+    if ((push.consts.scramble_tile_id < 0) || (push.consts.scramble_tile_id >= MAX_TEXTURES))
+        return 0;
+
+    TextureStruct tex = txbo.textures[push.consts.scramble_tile_id];
+
+    if ((tex.sampler_id < 0) || (tex.sampler_id >= MAX_SAMPLERS)) 
+        return 0;
+
+	return int(texture( 
+			sampler2D(texture_2Ds[push.consts.scramble_tile_id], samplers[tex.sampler_id]), 
+			uv
+    ).r * 255.0);
+}
+
+float samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_128spp(int pixel_i, int pixel_j, int sampleIndex, int sampleDimension)
+{
+	// wrap arguments
+	pixel_i = pixel_i & 127;
+	pixel_j = pixel_j & 127;
+	sampleIndex = sampleIndex & 255;
+	sampleDimension = sampleDimension & 255;
+
+    int rankingTileAddr = sampleDimension + (pixel_i + pixel_j*128)*8;
+    int rankingTileAddrX = rankingTileAddr % 128;
+    int rankingTileAddrY = rankingTileAddr / 128;
+
+	// xor index based on optimized ranking
+	int rankedSampleIndex = sampleIndex ^ int(sampleRankingTile(vec2(rankingTileAddrX / 128.0, rankingTileAddrY / 1024.0)));;
+
+    int sobelTileAddr = sampleDimension + rankedSampleIndex*256;
+    int sobelTileAddrX = sobelTileAddr % 256;
+    int sobelTileAddrY = sobelTileAddr / 256;
+
+	// fetch value in sequence
+	int value = sampleSobelTile(vec2(sobelTileAddrX/256.0, sobelTileAddrY/256.0)); //sobol_256spp_256d[sampleDimension + rankedSampleIndex*256];
+
+    int scramblingTileAddr = (sampleDimension%8) + (pixel_i + pixel_j*128)*8;
+    int scramblingTileAddrX = sobelTileAddr % 128;
+    int scramblingTileAddrY = sobelTileAddr / 128;
+
+	// If the dimension is optimized, xor sequence value based on optimized scrambling
+	value = value ^ sampleScramblingTile(vec2(scramblingTileAddrX/128.0, scramblingTileAddrY/1024.0)); //scramblingTile[(sampleDimension%8) + (pixel_i + pixel_j*128)*8];
+
+	// convert to float and return
+	float v = (0.5f+value)/256.0f;
+	return v;
+}
+
 // Material Properties --------------------------------------
 vec4 getAlbedo(inout MaterialStruct material, vec4 vert_color, vec2 uv, vec3 m_position)
 {
@@ -786,7 +868,20 @@ vec4 get_ray_traced_contribution(PBRInfo info)
     vec3 directSpecularContribution = vec3(0.0);
     vec3 emissiveContribution = vec3(0.0);
 
+    // int active_lights = 0; 
+    // for (int i = 0; i < MAX_LIGHTS; ++i) {
+    //     int light_entity_id = lidbo.lightIDs[i];
+    //     if (light_entity_id != -1) active_lights++;
+    // }
+
+    // #ifndef RAYTRACING
     for (int i = 0; i < MAX_LIGHTS; ++i) {
+    // #else
+    // float rand0 = samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_128spp(int(payload.pixel.x), int(payload.pixel.y), push.consts.frame, payload.bounce_count * 9);
+    // int selected = max(int(rand0 * active_lights), active_lights - 1);
+    // for (int i = selected; i < selected + 1; i++)
+    // {
+    // #endif
         /* Skip unused lights */
         int light_entity_id = lidbo.lightIDs[i];
         if (light_entity_id == -1) continue;
@@ -1042,14 +1137,20 @@ vec4 get_ray_traced_contribution(PBRInfo info)
     int bounce_count = info.bounce_count;
 
     #ifdef RAYTRACING
+    float rand1 = samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_128spp(int(payload.pixel.x), int(payload.pixel.y), push.consts.frame, 10);
+
     /* Ray trace reflections (glossy surfaces not yet supported) */
-    if ((bounce_count < 2) && (roughness < .9)) {
+    if ((bounce_count < 2) && (roughness < rand1)) {
+        float theta = TWOPI*samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_128spp(int(payload.pixel.x), int(payload.pixel.y), push.consts.frame, 15);
+        float phi = TWOPI*samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_128spp(int(payload.pixel.x), int(payload.pixel.y), push.consts.frame, 15);
+        vec3 ddir = normalize(vec3(sin(theta)*cos(phi), cos(theta), cos(theta)*cos(phi)));
+        
         uint rayFlags = gl_RayFlagsNoneNV;
         uint cullMask = 0xff;
         float tmin = .01;
         float tmax = 100.0;
         // uint rayFlags = gl_RayFlagsCullBackFacingTrianglesNV ;
-        vec3 dir = w_refl.xyz;
+        vec3 dir = normalize(reflect(w_incoming, normalize(w_normal + (ddir * roughness))));
 
         payload.bounce_count = bounce_count + 1;
         payload.color = vec4(0.0);
@@ -1069,7 +1170,8 @@ vec4 get_ray_traced_contribution(PBRInfo info)
 
     /* Ray trace refractions (glossy surfaces not yet supported) */
     #ifdef RAYTRACING
-    if ((bounce_count < 2) && (transmission > .1)) {
+    float rand2 = samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_128spp(int(payload.pixel.x), int(payload.pixel.y), push.consts.frame, 11);
+    if ((bounce_count < 2) && (transmission > rand2)) {
         vec3 absorption = vec3(0.0);//clamp(vec3(1.0) - albedo.rgb, vec3(0.0), vec3(1.0)) * 2.0;
 
         uint rayFlags = gl_RayFlagsNoneNV;

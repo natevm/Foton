@@ -80,6 +80,7 @@ bool RenderSystem::initialize()
     push_constants.gamma = 2.2f;
     push_constants.exposure = 2.0f;
     push_constants.time = 0.0f;
+    push_constants.frame = 0;
     push_constants.environment_roughness = 0.0f;
     push_constants.target_id = -1;
     push_constants.camera_id = -1;
@@ -111,12 +112,20 @@ bool RenderSystem::update_push_constants()
     Texture* brdf = nullptr;
     Texture* ltc_mat = nullptr;
     Texture* ltc_amp = nullptr;
+
+    Texture* sobel = nullptr;
+    Texture* ranking = nullptr;
+    Texture* scramble = nullptr;
+
     try {
         brdf = Texture::Get("BRDF");
         ltc_mat = Texture::Get("LTCMAT");
         ltc_amp = Texture::Get("LTCAMP");
+        ranking = Texture::Get("RANKINGTILE");
+        scramble = Texture::Get("SCRAMBLETILE");
+        sobel = Texture::Get("SOBELTILE");
     } catch (...) {}
-    if ((!brdf) || (!ltc_mat) || (!ltc_amp)) return false;
+    if ((!brdf) || (!ltc_mat) || (!ltc_amp) || (!sobel) || (!ranking) || (!scramble)) return false;
 
     /* Update some push constants */
     auto brdf_id = brdf->get_id();
@@ -125,7 +134,11 @@ bool RenderSystem::update_push_constants()
     push_constants.brdf_lut_id = brdf_id;
     push_constants.ltc_mat_lut_id = ltc_mat_id;
     push_constants.ltc_amp_lut_id = ltc_amp_id;
+    push_constants.sobel_tile_id = sobel->get_id();
+    push_constants.ranking_tile_id = ranking->get_id();
+    push_constants.scramble_tile_id = scramble->get_id();
     push_constants.time = (float) glfwGetTime();
+    push_constants.frame++;
     return true;
 }
 

@@ -17,7 +17,9 @@ void main()
     vec3 final_color = vec3(0.0);
 
     /* Read from G Buffers*/
-    const vec2 pixelCenter = vec2(gl_LaunchIDNV.xy) + vec2(0.5);
+    float r0 = samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_128spp(int(gl_LaunchIDNV.x), int(gl_LaunchIDNV.y), push.consts.frame, 0);
+    float r1 = samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_128spp(int(gl_LaunchIDNV.x), int(gl_LaunchIDNV.y), push.consts.frame, 1);
+    const vec2 pixelCenter = vec2(gl_LaunchIDNV.xy) + vec2(r0, r1);
 	const vec2 inUV = pixelCenter/vec2(gl_LaunchSizeNV.xy);
 	vec2 d = inUV * 2.0 - 1.0;
     d.y *= -1.0;
@@ -77,6 +79,7 @@ void main()
 
         payload.bounce_count = 0;
         payload.is_shadow_ray = false;
+        payload.pixel = gl_LaunchIDNV.xy;
         traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, ray_origin, tmin, ray_direction, tmax, 0);
         if ((payload.distance < 0.0) || (payload.entity_id < 0) || (payload.entity_id >= MAX_ENTITIES)) {
             color.rgb = color.rgb + payload.color.rgb * (1.0 - color.a);

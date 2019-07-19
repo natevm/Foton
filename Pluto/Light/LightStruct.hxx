@@ -2,7 +2,7 @@
 #define LIGHTSTRUCT_HXX
 
 #ifndef MAX_LIGHTS
-#define MAX_LIGHTS 8
+#define MAX_LIGHTS 16
 #endif
 
 #ifndef GLSL
