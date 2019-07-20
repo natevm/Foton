@@ -96,7 +96,7 @@ vec4 sample_texture_3D(vec4 default_color, int texture_id, vec3 uvw, float lod)
     return color;//vec4(color.rgb, 0.0);
 }
 
-int sampleRankingTile(vec2 uv)
+int sampleRankingTile(ivec2 coordinates)
 {
     if ((push.consts.ranking_tile_id < 0) || (push.consts.ranking_tile_id >= MAX_TEXTURES))
         return 0;
@@ -106,13 +106,13 @@ int sampleRankingTile(vec2 uv)
     if ((tex.sampler_id < 0) || (tex.sampler_id >= MAX_SAMPLERS)) 
         return 0;
 
-	return int(texture( 
+	return int(texelFetch( 
 			sampler2D(texture_2Ds[push.consts.ranking_tile_id], samplers[tex.sampler_id]), 
-			uv
-    ).r * 255.0);
+			coordinates, 0
+    ).r * 255.5);
 }
 
-int sampleSobelTile(vec2 uv)
+int sampleSobelTile(ivec2 coordinates)
 {
     if ((push.consts.sobel_tile_id < 0) || (push.consts.sobel_tile_id >= MAX_TEXTURES))
         return 0;
@@ -122,13 +122,18 @@ int sampleSobelTile(vec2 uv)
     if ((tex.sampler_id < 0) || (tex.sampler_id >= MAX_SAMPLERS)) 
         return 0;
 
-	return int(texture( 
-			sampler2D(texture_2Ds[push.consts.sobel_tile_id], samplers[tex.sampler_id]), 
-			uv
-    ).r * 255.0);
+    return int(texelFetch(sampler2D(texture_2Ds[push.consts.sobel_tile_id], samplers[tex.sampler_id]), 
+        coordinates, 0
+    ).r * 255.5);
+
+    // return int(texture(texture_2Ds[push.consts.sobel_tile_id], uv) * 255.0);
+	// return int(texture( 
+	// 		sampler2D(texture_2Ds[push.consts.sobel_tile_id], samplers[tex.sampler_id]), 
+	// 		uv
+    // ).r * 255.0);
 }
 
-int sampleScramblingTile(vec2 uv)
+int sampleScramblingTile(ivec2 coordinates)
 {
     if ((push.consts.scramble_tile_id < 0) || (push.consts.scramble_tile_id >= MAX_TEXTURES))
         return 0;
@@ -138,15 +143,14 @@ int sampleScramblingTile(vec2 uv)
     if ((tex.sampler_id < 0) || (tex.sampler_id >= MAX_SAMPLERS)) 
         return 0;
 
-	return int(texture( 
+	return int(texelFetch( 
 			sampler2D(texture_2Ds[push.consts.scramble_tile_id], samplers[tex.sampler_id]), 
-			uv
-    ).r * 255.0);
+			coordinates, 0
+    ).r * 255.5);
 }
 
 float samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_128spp(int pixel_i, int pixel_j, int sampleIndex, int sampleDimension)
 {
-	// wrap arguments
 	pixel_i = pixel_i & 127;
 	pixel_j = pixel_j & 127;
 	sampleIndex = sampleIndex & 255;
@@ -157,24 +161,24 @@ float samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_128spp(int
     int rankingTileAddrY = rankingTileAddr / 128;
 
 	// xor index based on optimized ranking
-	int rankedSampleIndex = sampleIndex ^ int(sampleRankingTile(vec2(rankingTileAddrX / 128.0, rankingTileAddrY / 1024.0)));;
+	int rankedSampleIndex = sampleIndex ^ sampleRankingTile(ivec2(rankingTileAddrX, rankingTileAddrY));
 
     int sobelTileAddr = sampleDimension + rankedSampleIndex*256;
     int sobelTileAddrX = sobelTileAddr % 256;
     int sobelTileAddrY = sobelTileAddr / 256;
 
 	// fetch value in sequence
-	int value = sampleSobelTile(vec2(sobelTileAddrX/256.0, sobelTileAddrY/256.0)); //sobol_256spp_256d[sampleDimension + rankedSampleIndex*256];
+	int value = sampleSobelTile(ivec2(sampleDimension, rankedSampleIndex)); //sobol_256spp_256d[sampleDimension + rankedSampleIndex*256];
 
     int scramblingTileAddr = (sampleDimension%8) + (pixel_i + pixel_j*128)*8;
-    int scramblingTileAddrX = sobelTileAddr % 128;
-    int scramblingTileAddrY = sobelTileAddr / 128;
+    int scramblingTileAddrX = scramblingTileAddr % 128;
+    int scramblingTileAddrY = scramblingTileAddr / 128;
 
 	// If the dimension is optimized, xor sequence value based on optimized scrambling
-	value = value ^ sampleScramblingTile(vec2(scramblingTileAddrX/128.0, scramblingTileAddrY/1024.0)); //scramblingTile[(sampleDimension%8) + (pixel_i + pixel_j*128)*8];
+	value = value ^ sampleScramblingTile(ivec2(scramblingTileAddrX, scramblingTileAddrY)); //scramblingTile[(sampleDimension%8) + (pixel_i + pixel_j*128)*8];
 
 	// convert to float and return
-	float v = (0.5f+value)/256.0f;
+	float v = (0.5f+value)/255.0f;
 	return v;
 }
 
