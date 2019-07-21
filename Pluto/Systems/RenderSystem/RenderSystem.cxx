@@ -365,6 +365,44 @@ void RenderSystem::record_ray_trace_pass(Entity &camera_entity)
     }
 }
 
+void RenderSystem::record_compute_pass(Entity &camera_entity)
+{
+	auto vulkan = Vulkan::Get();
+    auto device = vulkan->get_device();
+    auto dldi = vulkan->get_dldi();
+
+    auto camera = camera_entity.get_camera();
+    if (!camera) throw std::runtime_error("Error, camera was null in recording compute pass");
+    vk::CommandBuffer command_buffer = camera->get_command_buffer();
+    Texture * texture = camera->get_texture();
+
+    /* Camera needs a texture */
+    if (!texture) return;
+	uint32_t width = texture->get_width();
+	uint32_t height = texture->get_height();
+
+    texture->make_general(command_buffer);
+
+	for(uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
+		update_gbuffer_descriptor_sets(camera_entity);
+        push_constants.target_id = -1;
+        push_constants.camera_id = camera_entity.get_id();
+        push_constants.viewIndex = rp_idx;
+        push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
+
+		command_buffer.pushConstants(edgedetect.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+		bind_compute_descriptor_sets(command_buffer);
+		command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, edgedetect.pipeline);
+		uint32_t local_size_x = 16;
+		uint32_t local_size_y = 16;
+
+		uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+		uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+		uint32_t groupZ = 1;
+		command_buffer.dispatch(groupX, groupY, groupZ);
+    }
+}
+
 void RenderSystem::record_blit_camera(Entity &camera_entity, std::map<std::string, std::pair<Camera *, uint32_t>> &window_to_cam)
 {
     auto glfw = GLFW::Get();
@@ -459,6 +497,8 @@ void RenderSystem::record_cameras()
             record_depth_prepass(entities[entity_id], visible_entities);
             record_raster_renderpass(entities[entity_id], visible_entities);
         }
+
+		record_compute_pass(entities[entity_id]);
 
         record_blit_camera(entities[entity_id], window_to_cam);
 

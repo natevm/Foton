@@ -410,6 +410,7 @@ namespace Systems
             bool update_push_constants();
             void record_render_commands();
             void record_ray_trace_pass(Entity &camera_entity);
+            void record_compute_pass(Entity &camera_entity);
             void record_raster_renderpass(Entity &camera_entity, std::vector<std::vector<VisibleEntityInfo>> &visible_entities);
             void record_depth_prepass(Entity &camera_entity, std::vector<std::vector<VisibleEntityInfo>> &visible_entities);
             void record_blit_camera(Entity &camera_entity, std::map<std::string, std::pair<Camera *, uint32_t>> &window_to_cam);
