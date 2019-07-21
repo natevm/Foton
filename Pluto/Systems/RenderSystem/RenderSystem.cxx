@@ -175,7 +175,7 @@ void RenderSystem::record_depth_prepass(Entity &camera_entity, std::vector<std::
 
             /* Bind all descriptor sets to that renderpass.
                 Note that we're using a single bind. The same descriptors are shared across pipelines. */
-            bind_descriptor_sets(command_buffer, rp);
+            bind_raster_descriptor_sets(command_buffer, rp);
 
             camera->begin_depth_prepass(command_buffer, rp_idx);
 
@@ -266,7 +266,7 @@ void RenderSystem::record_raster_renderpass(Entity &camera_entity, std::vector<s
 
         /* Bind all descriptor sets to that renderpass.
             Note that we're using a single bind. The same descriptors are shared across pipelines. */
-        bind_descriptor_sets(command_buffer, rp);
+        bind_raster_descriptor_sets(command_buffer, rp);
         
         camera->begin_renderpass(command_buffer, rp_idx);
 
@@ -352,7 +352,8 @@ void RenderSystem::record_ray_trace_pass(Entity &camera_entity)
         /* Get the renderpass for the current camera */
         vk::RenderPass rp = camera->get_renderpass(rp_idx);
         
-        update_raytracing_descriptor_sets(topAS, camera_entity);
+        update_gbuffer_descriptor_sets(camera_entity);
+        update_raytracing_descriptor_sets(topAS);
         bind_raytracing_descriptor_sets(command_buffer, rp);
 
         push_constants.target_id = -1;
@@ -2033,7 +2034,7 @@ void RenderSystem::setup_graphics_pipelines(vk::RenderPass renderpass, uint32_t 
 		range.size = sizeof(PushConsts);
 		range.stageFlags = vk::ShaderStageFlagBits::eAll;
 
-		std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, 
+		std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout, 
 			positionsDescriptorSetLayout, normalsDescriptorSetLayout, colorsDescriptorSetLayout, texcoordsDescriptorSetLayout, indexDescriptorSetLayout,
 			raytracingDescriptorSetLayout };
 		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
@@ -2115,7 +2116,7 @@ void RenderSystem::setup_compute_pipelines()
         range.size = sizeof(PushConsts);
         range.stageFlags = vk::ShaderStageFlagBits::eAll;
 
-        std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout };
+        std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout };
 		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
 
 		pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)layouts.size();
@@ -2191,7 +2192,7 @@ void RenderSystem::create_descriptor_set_layouts()
 	eboLayoutBinding.binding = 0;
 	eboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
 	eboLayoutBinding.descriptorCount = 1;
-	eboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+	eboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute
 		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 	eboLayoutBinding.pImmutableSamplers = nullptr; // Optional
 
@@ -2200,7 +2201,7 @@ void RenderSystem::create_descriptor_set_layouts()
 	tboLayoutBinding.binding = 1;
 	tboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
 	tboLayoutBinding.descriptorCount = 1;
-	tboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+	tboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
 		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 	tboLayoutBinding.pImmutableSamplers = nullptr; // Optional
 
@@ -2209,7 +2210,7 @@ void RenderSystem::create_descriptor_set_layouts()
 	cboLayoutBinding.binding = 2;
 	cboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
 	cboLayoutBinding.descriptorCount = 1;
-	cboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+	cboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
 		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 	cboLayoutBinding.pImmutableSamplers = nullptr; // Optional
 
@@ -2219,7 +2220,7 @@ void RenderSystem::create_descriptor_set_layouts()
 	mboLayoutBinding.descriptorCount = 1;
 	mboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
 	mboLayoutBinding.pImmutableSamplers = nullptr;
-	mboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+	mboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
 		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 
 	// Light SSBO
@@ -2228,7 +2229,7 @@ void RenderSystem::create_descriptor_set_layouts()
 	lboLayoutBinding.descriptorCount = 1;
 	lboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
 	lboLayoutBinding.pImmutableSamplers = nullptr;
-	lboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+	lboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
 		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 
 	// Mesh SSBO
@@ -2237,7 +2238,7 @@ void RenderSystem::create_descriptor_set_layouts()
 	meshssboLayoutBinding.descriptorCount = 1;
 	meshssboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
 	meshssboLayoutBinding.pImmutableSamplers = nullptr;
-	meshssboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+	meshssboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
 		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 
 	// Light Entity SSBO
@@ -2246,7 +2247,7 @@ void RenderSystem::create_descriptor_set_layouts()
 	lidboLayoutBinding.descriptorCount = 1;
 	lidboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
 	lidboLayoutBinding.pImmutableSamplers = nullptr;
-	lidboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+	lidboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
 		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 
 	std::array<vk::DescriptorSetLayoutBinding, 7> SSBObindings = { eboLayoutBinding, tboLayoutBinding, cboLayoutBinding, mboLayoutBinding, lboLayoutBinding, meshssboLayoutBinding, lidboLayoutBinding};
@@ -2261,7 +2262,7 @@ void RenderSystem::create_descriptor_set_layouts()
 	txboLayoutBinding.descriptorCount = 1;
 	txboLayoutBinding.binding = 0;
 	txboLayoutBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-	txboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+	txboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
 		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 	txboLayoutBinding.pImmutableSamplers = 0;
 
@@ -2270,7 +2271,7 @@ void RenderSystem::create_descriptor_set_layouts()
 	samplerBinding.descriptorCount = MAX_SAMPLERS;
 	samplerBinding.binding = 1;
 	samplerBinding.descriptorType = vk::DescriptorType::eSampler;
-	samplerBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+	samplerBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
 		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 	samplerBinding.pImmutableSamplers = 0;
 
@@ -2279,7 +2280,7 @@ void RenderSystem::create_descriptor_set_layouts()
 	texture2DsBinding.descriptorCount = MAX_TEXTURES;
 	texture2DsBinding.binding = 2;
 	texture2DsBinding.descriptorType = vk::DescriptorType::eSampledImage;
-	texture2DsBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+	texture2DsBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
 		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 	texture2DsBinding.pImmutableSamplers = 0;
 
@@ -2288,7 +2289,7 @@ void RenderSystem::create_descriptor_set_layouts()
 	textureCubesBinding.descriptorCount = MAX_TEXTURES;
 	textureCubesBinding.binding = 3;
 	textureCubesBinding.descriptorType = vk::DescriptorType::eSampledImage;
-	textureCubesBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+	textureCubesBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
 		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 	textureCubesBinding.pImmutableSamplers = 0;
 
@@ -2297,7 +2298,7 @@ void RenderSystem::create_descriptor_set_layouts()
 	texture3DsBinding.descriptorCount = MAX_TEXTURES;
 	texture3DsBinding.binding = 4;
 	texture3DsBinding.descriptorType = vk::DescriptorType::eSampledImage;
-	texture3DsBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
+	texture3DsBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
 		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 	texture3DsBinding.pImmutableSamplers = 0;
 
@@ -2306,53 +2307,70 @@ void RenderSystem::create_descriptor_set_layouts()
 	textureLayoutInfo.bindingCount = (uint32_t)textureBindings.size();
 	textureLayoutInfo.pBindings = textureBindings.data();
 
+    // G Buffers
+    vk::DescriptorSetLayoutBinding outputImageLayoutBinding;
+    outputImageLayoutBinding.binding = 0;
+    outputImageLayoutBinding.descriptorType = vk::DescriptorType::eStorageImage;
+    outputImageLayoutBinding.descriptorCount = 1;
+    outputImageLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eCompute | vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
+    outputImageLayoutBinding.pImmutableSamplers = nullptr;
+
+    vk::DescriptorSetLayoutBinding gbufferImageLayoutBinding;
+    gbufferImageLayoutBinding.binding = 1;
+    gbufferImageLayoutBinding.descriptorType = vk::DescriptorType::eStorageImage;
+    gbufferImageLayoutBinding.descriptorCount = MAX_G_BUFFERS;
+    gbufferImageLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eCompute | vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
+    gbufferImageLayoutBinding.pImmutableSamplers = nullptr;
+    
+    std::array<vk::DescriptorSetLayoutBinding, 2> gbufferBindings = {outputImageLayoutBinding, gbufferImageLayoutBinding};
+    vk::DescriptorSetLayoutCreateInfo gbufferLayoutInfo;
+    gbufferLayoutInfo.bindingCount = (uint32_t)gbufferBindings.size();
+	gbufferLayoutInfo.pBindings = gbufferBindings.data();
+
 	// Create the layouts
 	componentDescriptorSetLayout = device.createDescriptorSetLayout(SSBOLayoutInfo);
 	textureDescriptorSetLayout = device.createDescriptorSetLayout(textureLayoutInfo);
+	gbufferDescriptorSetLayout = device.createDescriptorSetLayout(gbufferLayoutInfo);
 
-	/* Vertex descriptors (mainly for ray tracing access) */
-	vk::DescriptorBindingFlagsEXT bindingFlag = vk::DescriptorBindingFlagBitsEXT::eVariableDescriptorCount;
-	vk::DescriptorSetLayoutBindingFlagsCreateInfoEXT bindingFlags;
-    bindingFlags.pBindingFlags = &bindingFlag;
-    bindingFlags.bindingCount = 1;
-
-    vk::DescriptorSetLayoutBinding positionBinding;
-    positionBinding.binding = 0;
-    positionBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-    positionBinding.descriptorCount = MAX_MESHES;
-    positionBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
-		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
-
-	vk::DescriptorSetLayoutBinding normalBinding;
-    normalBinding.binding = 0;
-    normalBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-    normalBinding.descriptorCount = MAX_MESHES;
-    normalBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
-		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
-
-	vk::DescriptorSetLayoutBinding colorBinding;
-    colorBinding.binding = 0;
-    colorBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-    colorBinding.descriptorCount = MAX_MESHES;
-    colorBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
-		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
-
-	vk::DescriptorSetLayoutBinding texcoordBinding;
-    texcoordBinding.binding = 0;
-    texcoordBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-    texcoordBinding.descriptorCount = MAX_MESHES;
-    texcoordBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
-		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
-
-	vk::DescriptorSetLayoutBinding indexBinding;
-    indexBinding.binding = 0;
-    indexBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
-    indexBinding.descriptorCount = MAX_MESHES;
-    indexBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment 
-		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
-	
-	// std::array<vk::DescriptorSetLayoutBinding, 5> vertexBindings = {positionBinding, normalBinding, colorBinding, texcoordBinding, indexBinding };
 	if (vulkan->is_ray_tracing_enabled()) {
+        /* Vertex descriptors (mainly for ray tracing access) */
+        vk::DescriptorBindingFlagsEXT bindingFlag = vk::DescriptorBindingFlagBitsEXT::eVariableDescriptorCount;
+        vk::DescriptorSetLayoutBindingFlagsCreateInfoEXT bindingFlags;
+        bindingFlags.pBindingFlags = &bindingFlag;
+        bindingFlags.bindingCount = 1;
+
+        vk::DescriptorSetLayoutBinding positionBinding;
+        positionBinding.binding = 0;
+        positionBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
+        positionBinding.descriptorCount = MAX_MESHES;
+        positionBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
+
+        vk::DescriptorSetLayoutBinding normalBinding;
+        normalBinding.binding = 0;
+        normalBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
+        normalBinding.descriptorCount = MAX_MESHES;
+        normalBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
+
+        vk::DescriptorSetLayoutBinding colorBinding;
+        colorBinding.binding = 0;
+        colorBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
+        colorBinding.descriptorCount = MAX_MESHES;
+        colorBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
+
+        vk::DescriptorSetLayoutBinding texcoordBinding;
+        texcoordBinding.binding = 0;
+        texcoordBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
+        texcoordBinding.descriptorCount = MAX_MESHES;
+        texcoordBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
+
+        vk::DescriptorSetLayoutBinding indexBinding;
+        indexBinding.binding = 0;
+        indexBinding.descriptorType = vk::DescriptorType::eStorageBuffer;
+        indexBinding.descriptorCount = MAX_MESHES;
+        indexBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
+        
+        // std::array<vk::DescriptorSetLayoutBinding, 5> vertexBindings = {positionBinding, normalBinding, colorBinding, texcoordBinding, indexBinding };
+
 		vk::DescriptorSetLayoutCreateInfo positionLayoutInfo;
 		positionLayoutInfo.bindingCount = 1;
 		positionLayoutInfo.pBindings = &positionBinding;
@@ -2390,22 +2408,7 @@ void RenderSystem::create_descriptor_set_layouts()
 		accelerationStructureLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 		accelerationStructureLayoutBinding.pImmutableSamplers = nullptr;
 
-		vk::DescriptorSetLayoutBinding outputImageLayoutBinding;
-		outputImageLayoutBinding.binding = 1;
-		outputImageLayoutBinding.descriptorType = vk::DescriptorType::eStorageImage;
-		outputImageLayoutBinding.descriptorCount = 1;
-		outputImageLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
-		outputImageLayoutBinding.pImmutableSamplers = nullptr;
-
-		vk::DescriptorSetLayoutBinding gbufferImageLayoutBinding;
-		gbufferImageLayoutBinding.binding = 2;
-		gbufferImageLayoutBinding.descriptorType = vk::DescriptorType::eStorageImage;
-		gbufferImageLayoutBinding.descriptorCount = MAX_G_BUFFERS;
-		gbufferImageLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
-		gbufferImageLayoutBinding.pImmutableSamplers = nullptr;
-
-		std::vector<vk::DescriptorSetLayoutBinding> bindings({ accelerationStructureLayoutBinding, 
-			outputImageLayoutBinding, gbufferImageLayoutBinding});
+		std::vector<vk::DescriptorSetLayoutBinding> bindings({ accelerationStructureLayoutBinding });
 
 		vk::DescriptorSetLayoutCreateInfo layoutInfo;
 		layoutInfo.bindingCount = (uint32_t)(bindings.size());
@@ -2485,6 +2488,23 @@ void RenderSystem::create_descriptor_pools()
 	texturePoolInfo.maxSets = MAX_MATERIALS;
 	texturePoolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 
+    /* G Buffer Pool Info */
+    std::array<vk::DescriptorPoolSize, 2> gbufferPoolSizes = {};
+    
+    // Output texture
+	gbufferPoolSizes[0].type = vk::DescriptorType::eStorageImage;
+	gbufferPoolSizes[0].descriptorCount = 1;
+
+	// G Buffers
+	gbufferPoolSizes[1].type = vk::DescriptorType::eStorageImage;
+	gbufferPoolSizes[1].descriptorCount = MAX_G_BUFFERS;
+
+    vk::DescriptorPoolCreateInfo gbufferPoolInfo;
+	gbufferPoolInfo.poolSizeCount = (uint32_t)gbufferPoolSizes.size();
+	gbufferPoolInfo.pPoolSizes = gbufferPoolSizes.data();
+	gbufferPoolInfo.maxSets = 1;
+	gbufferPoolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
+
 	/* Vertex Descriptor Pool Info */
 
 	// PositionSSBO
@@ -2543,19 +2563,11 @@ void RenderSystem::create_descriptor_pools()
 	indexPoolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 	
 	/* Raytrace Descriptor Pool Info */
-	std::array<vk::DescriptorPoolSize, 3> raytracingPoolSizes = {};
+	std::array<vk::DescriptorPoolSize, 1> raytracingPoolSizes = {};
 	
 	// Acceleration Structure
 	raytracingPoolSizes[0].type = vk::DescriptorType::eAccelerationStructureNV;
 	raytracingPoolSizes[0].descriptorCount = 1;
-
-	// Textures
-	raytracingPoolSizes[1].type = vk::DescriptorType::eStorageImage;
-	raytracingPoolSizes[1].descriptorCount = 1;
-
-	// G Buffers
-	raytracingPoolSizes[2].type = vk::DescriptorType::eStorageImage;
-	raytracingPoolSizes[2].descriptorCount = MAX_G_BUFFERS;
 	
 	vk::DescriptorPoolCreateInfo raytracingPoolInfo;
 	raytracingPoolInfo.poolSizeCount = (uint32_t)raytracingPoolSizes.size();
@@ -2566,6 +2578,7 @@ void RenderSystem::create_descriptor_pools()
 	// Create the pools
 	componentDescriptorPool = device.createDescriptorPool(SSBOPoolInfo);
 	textureDescriptorPool = device.createDescriptorPool(texturePoolInfo);
+	gbufferDescriptorPool = device.createDescriptorPool(gbufferPoolInfo);
 
 	if (vulkan->is_ray_tracing_enabled()) {
 		positionsDescriptorPool = device.createDescriptorPool(positionsPoolInfo);
@@ -2972,17 +2985,66 @@ void RenderSystem::update_raster_descriptor_sets()
 	}
 }
 
-void RenderSystem::update_raytracing_descriptor_sets(vk::AccelerationStructureNV &tlas, Entity &camera_entity)
+void RenderSystem::update_gbuffer_descriptor_sets(Entity &camera_entity)
+{
+    auto vulkan = Libraries::Vulkan::Get();
+	auto device = vulkan->get_device();
+
+    if (!camera_entity.is_initialized()) return;
+	if (!camera_entity.camera()) return;
+	if (!camera_entity.camera()->get_texture()) return;
+
+    vk::DescriptorSetLayout gbufferLayouts[] = { gbufferDescriptorSetLayout };
+
+    if (gbufferDescriptorSet == vk::DescriptorSet()) {
+        vk::DescriptorSetAllocateInfo allocInfo;
+		allocInfo.descriptorPool = gbufferDescriptorPool;
+		allocInfo.descriptorSetCount = 1;
+		allocInfo.pSetLayouts = gbufferLayouts;
+
+		gbufferDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
+    }
+
+    std::array<vk::WriteDescriptorSet, 2> gbufferDescriptorWrites = {};
+
+    // Output image 
+	vk::DescriptorImageInfo descriptorOutputImageInfo;
+	descriptorOutputImageInfo.imageLayout = vk::ImageLayout::eGeneral;
+	descriptorOutputImageInfo.imageView = camera_entity.camera()->get_texture()->get_color_image_view();		
+
+	gbufferDescriptorWrites[0].dstSet = gbufferDescriptorSet;
+	gbufferDescriptorWrites[0].dstBinding = 0;
+	gbufferDescriptorWrites[0].dstArrayElement = 0;
+	gbufferDescriptorWrites[0].descriptorCount = 1;
+	gbufferDescriptorWrites[0].descriptorType = vk::DescriptorType::eStorageImage;
+	gbufferDescriptorWrites[0].pImageInfo = &descriptorOutputImageInfo;
+
+	// G Buffers
+	std::vector<vk::DescriptorImageInfo> descriptorGBufferImageInfos(MAX_G_BUFFERS);
+
+	for (uint32_t g_idx = 0; g_idx < MAX_G_BUFFERS; ++g_idx) {
+		descriptorGBufferImageInfos[g_idx].imageLayout = vk::ImageLayout::eGeneral;
+		descriptorGBufferImageInfos[g_idx].imageView = camera_entity.camera()->get_texture()->get_g_buffer_image_view(g_idx);
+	}
+	
+	gbufferDescriptorWrites[1].dstSet = gbufferDescriptorSet;
+	gbufferDescriptorWrites[1].dstBinding = 1;
+	gbufferDescriptorWrites[1].dstArrayElement = 0;
+	gbufferDescriptorWrites[1].descriptorCount = descriptorGBufferImageInfos.size();
+	gbufferDescriptorWrites[1].descriptorType = vk::DescriptorType::eStorageImage;
+	gbufferDescriptorWrites[1].pImageInfo = descriptorGBufferImageInfos.data();
+
+    device.updateDescriptorSets((uint32_t)gbufferDescriptorWrites.size(), gbufferDescriptorWrites.data(), 0, nullptr);
+}
+
+void RenderSystem::update_raytracing_descriptor_sets(vk::AccelerationStructureNV &tlas)
 {
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
 
 	if (!vulkan->is_ray_tracing_enabled()) return;
 	if (tlas == vk::AccelerationStructureNV()) return;
-	if (!camera_entity.is_initialized()) return;
-	if (!camera_entity.camera()) return;
-	if (!camera_entity.camera()->get_texture()) return;
-	
+		
 	vk::DescriptorSetLayout raytracingLayouts[] = { raytracingDescriptorSetLayout };
 
 	if (raytracingDescriptorSet == vk::DescriptorSet())
@@ -2995,7 +3057,7 @@ void RenderSystem::update_raytracing_descriptor_sets(vk::AccelerationStructureNV
 		raytracingDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
 	}
 
-	std::array<vk::WriteDescriptorSet, 3> raytraceDescriptorWrites = {};
+	std::array<vk::WriteDescriptorSet, 1> raytraceDescriptorWrites = {};
 
 	vk::WriteDescriptorSetAccelerationStructureNV descriptorAccelerationStructureInfo;
 	descriptorAccelerationStructureInfo.accelerationStructureCount = 1;
@@ -3007,35 +3069,6 @@ void RenderSystem::update_raytracing_descriptor_sets(vk::AccelerationStructureNV
 	raytraceDescriptorWrites[0].dstArrayElement = 0;
 	raytraceDescriptorWrites[0].descriptorCount = 1;
 	raytraceDescriptorWrites[0].descriptorType = vk::DescriptorType::eAccelerationStructureNV;
-
-	// Output image 
-	vk::DescriptorImageInfo descriptorOutputImageInfo;
-	descriptorOutputImageInfo.imageLayout = vk::ImageLayout::eGeneral;
-	descriptorOutputImageInfo.imageView = camera_entity.camera()->get_texture()->get_color_image_view();		
-
-	raytraceDescriptorWrites[1].dstSet = raytracingDescriptorSet;
-	// raytraceDescriptorWrites[1].pNext = &descriptorAccelerationStructureInfo;
-	raytraceDescriptorWrites[1].dstBinding = 1;
-	raytraceDescriptorWrites[1].dstArrayElement = 0;
-	raytraceDescriptorWrites[1].descriptorCount = 1;
-	raytraceDescriptorWrites[1].descriptorType = vk::DescriptorType::eStorageImage;
-	raytraceDescriptorWrites[1].pImageInfo = &descriptorOutputImageInfo;
-
-	// G Buffers
-	std::vector<vk::DescriptorImageInfo> descriptorGBufferImageInfos(MAX_G_BUFFERS);
-
-	for (uint32_t g_idx = 0; g_idx < MAX_G_BUFFERS; ++g_idx) {
-		descriptorGBufferImageInfos[g_idx].imageLayout = vk::ImageLayout::eGeneral;
-		descriptorGBufferImageInfos[g_idx].imageView = camera_entity.camera()->get_texture()->get_g_buffer_image_view(g_idx);
-	}
-	
-	raytraceDescriptorWrites[2].dstSet = raytracingDescriptorSet;
-	// raytraceDescriptorWrites[2].pNext = &descriptorAccelerationStructureInfo;
-	raytraceDescriptorWrites[2].dstBinding = 2;
-	raytraceDescriptorWrites[2].dstArrayElement = 0;
-	raytraceDescriptorWrites[2].descriptorCount = descriptorGBufferImageInfos.size();
-	raytraceDescriptorWrites[2].descriptorType = vk::DescriptorType::eStorageImage;
-	raytraceDescriptorWrites[2].pImageInfo = descriptorGBufferImageInfos.data();
 	
 	device.updateDescriptorSets((uint32_t)raytraceDescriptorWrites.size(), raytraceDescriptorWrites.data(), 0, nullptr);
 }
@@ -3092,7 +3125,7 @@ void RenderSystem::create_vertex_attribute_descriptions() {
 	vertexInputAttributeDescriptions = attributeDescriptions;
 }
 
-void RenderSystem::bind_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass) 
+void RenderSystem::bind_raster_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass) 
 {
 	std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet};
 	// command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, normalsurface[render_pass].pipelineLayout, 0, descriptorSets.size(), descriptorSets.data(), 0, nullptr);
@@ -3104,9 +3137,15 @@ void RenderSystem::bind_descriptor_sets(vk::CommandBuffer &command_buffer, vk::R
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, volume[render_pass].pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 }
 
+void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffer)
+{
+	std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet, gbufferDescriptorSet};
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, edgedetect.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+}
+
 void RenderSystem::bind_raytracing_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass)
 {
-	std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet,  positionsDescriptorSet, normalsDescriptorSet, colorsDescriptorSet, texcoordsDescriptorSet, indexDescriptorSet, raytracingDescriptorSet};
+	std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet, gbufferDescriptorSet, positionsDescriptorSet, normalsDescriptorSet, colorsDescriptorSet, texcoordsDescriptorSet, indexDescriptorSet, raytracingDescriptorSet};
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, rttest[render_pass].pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 }
 

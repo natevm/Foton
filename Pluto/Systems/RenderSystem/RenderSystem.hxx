@@ -119,6 +119,9 @@ namespace Systems
             /* The descriptor set layout describing where the array of textures are bound */
             vk::DescriptorSetLayout textureDescriptorSetLayout;
 
+            /* TODO */
+            vk::DescriptorSetLayout gbufferDescriptorSetLayout;
+            
             /* The descriptor set layout describing per vertex information for all meshes */
             vk::DescriptorSetLayout positionsDescriptorSetLayout;
             vk::DescriptorSetLayout normalsDescriptorSetLayout;
@@ -136,6 +139,9 @@ namespace Systems
             /* The descriptor pool used to allocate the texture descriptor set. */
             vk::DescriptorPool textureDescriptorPool;
 
+            /* TODO */
+            vk::DescriptorPool gbufferDescriptorPool;
+
             /* The descriptor pool used to allocate the vertex descriptor set. */
             vk::DescriptorPool positionsDescriptorPool;
             vk::DescriptorPool normalsDescriptorPool;
@@ -151,6 +157,9 @@ namespace Systems
 
             /* The descriptor set containing references to all array of textues to be used as uniforms. */
             vk::DescriptorSet textureDescriptorSet;
+
+            /* TODO */
+            vk::DescriptorSet gbufferDescriptorSet;
 
             /* The descriptor set containing references to all vertices of all mesh components */
             vk::DescriptorSet positionsDescriptorSet;
@@ -224,10 +233,15 @@ namespace Systems
             void update_raster_descriptor_sets();
 
             /* EXPLAIN THIS */
-            void update_raytracing_descriptor_sets(vk::AccelerationStructureNV &tlas, Entity &camera_entity);
+            void update_gbuffer_descriptor_sets(Entity &camera_entity);
+
+            /* EXPLAIN THIS */            
+            void update_raytracing_descriptor_sets(vk::AccelerationStructureNV &tlas);
 
             /* Records a bind of all descriptor sets to each possible pipeline to the given command buffer. Call this at the beginning of a renderpass. */
-            void bind_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
+            void bind_raster_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
+
+            void bind_compute_descriptor_sets(vk::CommandBuffer &command_buffer);
 
             void bind_raytracing_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
 
