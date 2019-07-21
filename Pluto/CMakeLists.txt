@@ -16,6 +16,7 @@ add_subdirectory(Collider)
 add_subdirectory(RigidBody)
 add_subdirectory(Constraint)
 add_subdirectory(Importers)
+add_subdirectory(Resources)
 
 set (SRC 
     ${CMAKE_CURRENT_SOURCE_DIR}/Pluto.cxx
@@ -156,36 +157,12 @@ endif()
 set(GLSLC_OPTIMIZATION -O)
 # set(GLSLC_OPTIMIZATION -g -o0)
 
-set(SHADERS_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/PBRSurface/shader.vert
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/PBRSurface/shader.frag
-
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Skybox/shader.vert
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/SurfaceMaterials/Skybox/shader.frag
-
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/VolumeMaterials/Volume/shader.vert
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/VolumeMaterials/Volume/shader.frag
-
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/GBuffers/ShadowMap/shader.vert
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/GBuffers/ShadowMap/shader.frag
-
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/GBuffers/FragmentDepth/shader.vert
-
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/GBuffers/VRMask/shader.vert
-
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/GBuffers/shader.vert
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/GBuffers/shader.frag
-
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/RaytracedMaterials/TutorialShaders/shader.rgen
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/RaytracedMaterials/TutorialShaders/shader.rchit
-    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/RaytracedMaterials/TutorialShaders/shader.rmiss
-)
-
 set(spvfiles "")
 foreach(shader_file ${SHADERS_SRC})
     set(spv_file ${shader_file})
     string(REPLACE "shader.vert" "vert.spv" spv_file ${spv_file})
     string(REPLACE "shader.frag" "frag.spv" spv_file ${spv_file})
+    string(REPLACE "shader.comp" "comp.spv" spv_file ${spv_file})
     string(REPLACE "shader.rgen" "rgen.spv" spv_file ${spv_file})
     string(REPLACE "shader.rchit" "rchit.spv" spv_file ${spv_file})
     string(REPLACE "shader.rmiss" "rmiss.spv" spv_file ${spv_file})
@@ -216,7 +193,7 @@ add_custom_target(Shaders ALL
 )
 
 source_group(
-    TREE ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Shaders/
+    TREE ${CMAKE_CURRENT_SOURCE_DIR}
     FILES ${SHADERS_SRC}
 )
 
