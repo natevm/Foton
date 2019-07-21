@@ -107,6 +107,11 @@ namespace Systems
                 vk::Buffer shaderBindingTable;
                 vk::DeviceMemory shaderBindingTableMemory;
             };
+
+            struct ComputePipelineResources {
+                vk::Pipeline pipeline;
+                vk::PipelineLayout pipelineLayout;
+            };
             
             /* The descriptor set layout describing where component SSBOs are bound */
             vk::DescriptorSetLayout componentDescriptorSetLayout;
@@ -183,6 +188,11 @@ namespace Systems
 
             /* EXPLAIN THIS */
             void setup_raytracing_shader_binding_table(vk::RenderPass renderpass);
+
+
+            ComputePipelineResources edgedetect;
+
+            void setup_compute_pipelines();
 
             /* Wraps the vulkan boilerplate for creation of a graphics pipeline */
             void create_raster_pipeline(

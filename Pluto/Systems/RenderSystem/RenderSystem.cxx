@@ -945,6 +945,8 @@ void RenderSystem::allocate_vulkan_resources()
 	create_vertex_attribute_descriptions();
 	update_raster_descriptor_sets();
 
+    setup_compute_pipelines();
+
     auto vulkan = Vulkan::Get();
     auto device = vulkan->get_device();
     auto dldi = vulkan->get_dldi();
@@ -1816,8 +1818,6 @@ void RenderSystem::setup_graphics_pipelines(vk::RenderPass renderpass, uint32_t 
 			fragmentdepth[renderpass].pipelineParameters, 
 			renderpass, 0, 
 			fragmentdepth[renderpass].pipelines, fragmentdepth[renderpass].pipelineLayout);
-
-		// device.destroyShaderModule(vertShaderModule);
 	}
 
 	/* ------ All G Buffers  ------ */
@@ -2086,11 +2086,51 @@ void RenderSystem::setup_graphics_pipelines(vk::RenderPass renderpass, uint32_t 
 
 		rttest[renderpass].pipeline = device.createRayTracingPipelinesNV(vk::PipelineCache(), 
 			{rayPipelineInfo}, nullptr, dldi)[0];
-
-		// device.destroyShaderModule(raygenShaderModule);
 	}
 
 	setup_raytracing_shader_binding_table(renderpass);
+}
+
+void RenderSystem::setup_compute_pipelines()
+{
+    auto vulkan = Libraries::Vulkan::Get();
+	auto device = vulkan->get_device();
+
+    /* ------ Edge Detection  ------ */
+    {
+		std::string ResourcePath = Options::GetResourcePath();
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/Compute/EdgeDetect/comp.spv"));
+
+		/* Create shader modules */
+		auto compShaderModule = create_shader_module("edge_detect", compShaderCode);
+
+		/* Info for shader stages */
+		vk::PipelineShaderStageCreateInfo compShaderStageInfo;
+		compShaderStageInfo.stage = vk::ShaderStageFlagBits::eCompute;
+		compShaderStageInfo.module = compShaderModule;
+		compShaderStageInfo.pName = "main";
+
+        vk::PushConstantRange range;
+        range.offset = 0;
+        range.size = sizeof(PushConsts);
+        range.stageFlags = vk::ShaderStageFlagBits::eAll;
+
+        std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout };
+		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+
+		pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)layouts.size();
+		pipelineLayoutCreateInfo.pSetLayouts = layouts.data();
+		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+		pipelineLayoutCreateInfo.pPushConstantRanges = &range;
+
+        edgedetect.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+
+        vk::ComputePipelineCreateInfo computeCreateInfo;
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = edgedetect.pipelineLayout;
+        
+        edgedetect.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+	}
 }
 
 void RenderSystem::setup_raytracing_shader_binding_table(vk::RenderPass renderpass)
