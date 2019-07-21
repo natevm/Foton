@@ -882,7 +882,7 @@ void RenderSystem::release_vulkan_resources()
     if (!vulkan_resources_created) return;
 
     /* Release vulkan resources */
-    device.freeCommandBuffers(vulkan->get_command_pool(), {main_command_buffer});
+    device.freeCommandBuffers(vulkan->get_graphics_command_pool(), {main_command_buffer});
     main_command_buffer = vk::CommandBuffer();
     // device.destroyFence(main_fence);
     // for (auto &semaphore : main_command_buffer_semaphores)
@@ -903,7 +903,7 @@ void RenderSystem::allocate_vulkan_resources()
     /* Create a main command buffer if one does not already exist */
     vk::CommandBufferAllocateInfo mainCmdAllocInfo;
     mainCmdAllocInfo.level = vk::CommandBufferLevel::ePrimary;
-    mainCmdAllocInfo.commandPool = vulkan->get_command_pool();
+    mainCmdAllocInfo.commandPool = vulkan->get_graphics_command_pool();
     mainCmdAllocInfo.commandBufferCount = max_frames_in_flight;
 
     vk::SemaphoreCreateInfo semaphoreInfo;

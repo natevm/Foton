@@ -238,24 +238,29 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
     /* We need to look for and select a graphics card in the system that supports the features we need */
     /* We could technically choose multiple graphics cards and use them simultaneously, but for now just choose the first one */
     auto devices = instance.enumeratePhysicalDevices();
-    if (devices.size() == 0)
-    {
+    if (devices.size() == 0) {
         cout << "Failed to find GPUs with Vulkan support!" << endl;
         return false;
     }
 
     /* There are three things we're going to look for. We need to support requested device extensions, support a
-        graphics queue, and if targeting a surface, we need a present queue as well as an adequate swap chain.*/
+        graphics queue, a compute queue, and if targeting a surface, we need a present queue as well as an adequate swap chain.*/
     presentFamilyIndex = -1;
+    computeFamilyIndex = -1;
     graphicsFamilyIndex = -1;
-    uint32_t numGraphicsQueues = -1;
-    uint32_t numPresentQueues = -1;
+    int32_t numGraphicsQueues = -1;
+    int32_t numComputeQueues = -1;
+    int32_t numPresentQueues = -1;
     bool swapChainAdequate, extensionsSupported, featuresSupported, queuesFound;
 
-    /* vector of string to vector of c string... */
+    /* 
+    Transfer requested extensions from vector to set. 
+    Mark rayTracingEnabled as true if the extension was requested.
+    Force request for swapchain if rendering to a surface.
+    Force request for descriptor indexing. 
+    */
     deviceExtensions.clear();
-    for (auto &string : device_extensions)
-    {
+    for (auto &string : device_extensions) {
         deviceExtensions.insert(string);
         if (string.compare("VK_NV_ray_tracing") == 0) {
             rayTracingEnabled = true;
@@ -263,7 +268,6 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
     }
     if (surface)
         deviceExtensions.insert(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-
     deviceExtensions.insert(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
 
     std::string devicename;
@@ -274,9 +278,13 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
         physicalDevice = ovr->get_output_device(instance);
         deviceProperties = physicalDevice.getProperties();
         auto supportedFeatures = physicalDevice.getFeatures();
+        vk::PhysicalDeviceFeatures2 supportedFeatures2;
+        vk::PhysicalDeviceDescriptorIndexingFeaturesEXT descriptorIndexing;
+        supportedFeatures2.pNext = &descriptorIndexing;
+        physicalDevice.getFeatures2(&supportedFeatures2);
         auto queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
 
-        /* Look for a queue family which supports what we need (graphics, maybe also present) */
+        /* Look for a queue family which supports what we need (graphics, compute, maybe also present) */
         int32_t i = 0;
         for (auto queueFamily : queueFamilyProperties)
         {
@@ -290,8 +298,11 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
                 graphicsFamilyIndex = i;
                 numGraphicsQueues = queueFamily.queueCount;
             }
-            if (((!surface) || presentFamilyIndex != -1) && graphicsFamilyIndex != -1)
-            {
+            if (hasQueues && queueFamily.queueFlags & vk::QueueFlagBits::eCompute) {
+                computeFamilyIndex = i;
+                numComputeQueues = queueFamily.queueCount;
+            }
+            if (((!surface) || presentFamilyIndex != -1) && (graphicsFamilyIndex != -1) && (computeFamilyIndex != -1)) {
                 queuesFound = true;
                 break;
             }
@@ -302,7 +313,7 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
         auto availableExtensions = physicalDevice.enumerateDeviceExtensionProperties();
         std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
 
-        /* Indicate extensions found by removing them from this set. */
+        /* Indicate all extensions found by removing them from this set. */
         for (const auto &extension : availableExtensions)
             requiredExtensions.erase(extension.extensionName);
         extensionsSupported = requiredExtensions.empty();
@@ -318,14 +329,13 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
             swapChainAdequate = !formats.empty() && !presentModes.empty();
         }
 
-        /* Check if the device supports the featrues we want */
+        /* Check if the device supports the features we want */
         featuresSupported = GetFeaturesFromList(device_features, supportedFeatures);
 
-        if (queuesFound && extensionsSupported && featuresSupported && ((!surface) || swapChainAdequate))
-        {
+        if (queuesFound && extensionsSupported && featuresSupported && ((!surface) || swapChainAdequate)) {
             deviceFeatures = supportedFeatures;
+            deviceFeatures2 = supportedFeatures2;
             devicename = deviceProperties.deviceName;
-            supportedMSAASamples = min(deviceProperties.limits.framebufferColorSampleCounts, deviceProperties.limits.framebufferDepthSampleCounts);
         }
         else {
             std::cout<<"Error: OpenVR is running on a device which does not support the requested extensions. "<<std::endl;
@@ -372,8 +382,11 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
                     graphicsFamilyIndex = i;
                     numGraphicsQueues = queueFamily.queueCount;
                 }
-                if (((!surface) || presentFamilyIndex != -1) && graphicsFamilyIndex != -1)
-                {
+                if (hasQueues && queueFamily.queueFlags & vk::QueueFlagBits::eCompute) {
+                    computeFamilyIndex = i;
+                    numComputeQueues = queueFamily.queueCount;
+                }
+                if (((!surface) || presentFamilyIndex != -1) && (graphicsFamilyIndex != -1) && (computeFamilyIndex != -1)) {
                     queuesFound = true;
                     break;
                 }
@@ -384,7 +397,7 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
             auto availableExtensions = device.enumerateDeviceExtensionProperties();
             std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
 
-            /* Indicate extensions found by removing them from this set. */
+            /* Indicate all extensions found by removing them from this set. */
             for (const auto &extension : availableExtensions)
                 requiredExtensions.erase(extension.extensionName);
             extensionsSupported = requiredExtensions.empty();
@@ -409,7 +422,6 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
                 deviceFeatures2 = supportedFeatures2;
                 physicalDevice = device;
                 devicename = deviceProperties.deviceName;
-                supportedMSAASamples = min(deviceProperties.limits.framebufferColorSampleCounts, deviceProperties.limits.framebufferDepthSampleCounts);
 
                 if (deviceProperties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu) {
                     break;
@@ -446,11 +458,14 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
         props.pNext = &deviceRaytracingProperties;
         physicalDevice.getProperties2(&props, dldi);
     }
-    
+
+    supportedMSAASamples = min(deviceProperties.limits.framebufferColorSampleCounts, deviceProperties.limits.framebufferDepthSampleCounts);
+
     /* We now need to create a logical device, which is like an instance of a physical device */
     std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
     
     numGraphicsQueues = 1;
+    numComputeQueues = 1;
     numPresentQueues = 1;
     
     /* Add these queue create infos to a vector to be used when creating the logical device */
@@ -464,6 +479,13 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
     gQueueInfo.queueCount = numGraphicsQueues;
     gQueueInfo.pQueuePriorities = queuePriorities.data();
     queueCreateInfos.push_back(gQueueInfo);
+
+    /* Compute queue */
+    vk::DeviceQueueCreateInfo cQueueInfo;
+    cQueueInfo.queueFamilyIndex = computeFamilyIndex;
+    cQueueInfo.queueCount = numComputeQueues;
+    cQueueInfo.pQueuePriorities = queuePriorities.data();
+    queueCreateInfos.push_back(cQueueInfo);
 
     /* Present queue (if different than graphics queue) */
     if (surface && (presentFamilyIndex != graphicsFamilyIndex)) {
@@ -497,23 +519,28 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
     /* Queues are implicitly created when creating device. This just gets handles. */
     for (uint32_t i = 0; i < numGraphicsQueues; ++i) {
         graphicsQueues.push_back(device.getQueue(graphicsFamilyIndex, i));
-        numGraphicsQueues = 1;
-        break;
     }
-    if (surface)
-        for (uint32_t i = 0; i < numPresentQueues; ++i)
-        {
+    for (uint32_t i = 0; i < numComputeQueues; ++i) {
+        computeQueues.push_back(device.getQueue(computeFamilyIndex, i));
+    }
+    if (surface) {
+        for (uint32_t i = 0; i < numPresentQueues; ++i) {
             presentQueues.push_back(device.getQueue(presentFamilyIndex, i));
-            numPresentQueues = 1;
-            break;
         }
+    }
 
     /* Command pools manage the memory that is used to store the buffers and command buffers are allocated from them */
     for (uint32_t i = 0; i < num_command_pools; ++i) {
         auto poolInfo = vk::CommandPoolCreateInfo();
         poolInfo.queueFamilyIndex = graphicsFamilyIndex;
         poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer; // Optional
-        commandPools.push_back(device.createCommandPool(poolInfo));
+        graphicsCommandPools.push_back(device.createCommandPool(poolInfo));
+    }
+    for (uint32_t i = 0; i < num_command_pools; ++i) {
+        auto poolInfo = vk::CommandPoolCreateInfo();
+        poolInfo.queueFamilyIndex = computeFamilyIndex;
+        poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer; // Optional
+        computeCommandPools.push_back(device.createCommandPool(poolInfo));
     }
 
     initialized = true;
@@ -527,9 +554,9 @@ bool Vulkan::destroy_device()
         if (!device)
             return false;
 
-        // for (uint32_t i = 0; i < commandPools.size(); ++i) {
-        //     if (commandPools[i] != vk::CommandPool())
-        //         device.destroyCommandPool(commandPools[i]);
+        // for (uint32_t i = 0; i < graphicsCommandPools.size(); ++i) {
+        //     if (graphicsCommandPools[i] != vk::CommandPool())
+        //         device.destroyCommandPool(graphicsCommandPools[i]);
         // }
         device.destroy();
         
@@ -818,17 +845,30 @@ uint32_t Vulkan::get_present_family() const
     return presentFamilyIndex;
 }
 
-vk::CommandPool Vulkan::get_command_pool() const
+vk::CommandPool Vulkan::get_graphics_command_pool() const
 {
     auto vulkan = Get();
     uint32_t index = vulkan->get_thread_id();
-    if (index >= commandPools.size())
-        throw std::runtime_error("Error: max command pool index is " + std::to_string(commandPools.size() - 1) );
+    if (index >= graphicsCommandPools.size())
+        throw std::runtime_error("Error: max command pool index is " + std::to_string(graphicsCommandPools.size() - 1) );
 
-    if (commandPools[index] == vk::CommandPool())
+    if (graphicsCommandPools[index] == vk::CommandPool())
         throw std::runtime_error("Error: command pool at index " + std::to_string(index) + " was null!" );
         
-    return commandPools[index];
+    return graphicsCommandPools[index];
+}
+
+vk::CommandPool Vulkan::get_compute_command_pool() const
+{
+    auto vulkan = Get();
+    uint32_t index = vulkan->get_thread_id();
+    if (index >= computeCommandPools.size())
+        throw std::runtime_error("Error: max command pool index is " + std::to_string(computeCommandPools.size() - 1) );
+
+    if (computeCommandPools[index] == vk::CommandPool())
+        throw std::runtime_error("Error: command pool at index " + std::to_string(index) + " was null!" );
+        
+    return computeCommandPools[index];
 }
 
 vk::Queue Vulkan::get_graphics_queue(uint32_t index) const
@@ -877,7 +917,7 @@ uint32_t Vulkan::find_memory_type(uint32_t typeBits, vk::MemoryPropertyFlags pro
 
 vk::CommandBuffer Vulkan::begin_one_time_graphics_command() {
     vk::CommandBufferAllocateInfo cmdAllocInfo;
-    cmdAllocInfo.commandPool = get_command_pool();
+    cmdAllocInfo.commandPool = get_graphics_command_pool();
     cmdAllocInfo.level = vk::CommandBufferLevel::ePrimary;
     cmdAllocInfo.commandBufferCount = 1;
     vk::CommandBuffer cmdBuffer = device.allocateCommandBuffers(cmdAllocInfo)[0];
@@ -912,7 +952,7 @@ bool Vulkan::end_one_time_graphics_command(vk::CommandBuffer command_buffer, std
     }
     
     if (free_after_use)
-        device.freeCommandBuffers(get_command_pool(), {command_buffer});
+        device.freeCommandBuffers(get_graphics_command_pool(), {command_buffer});
 
     device.destroyFence(one_time_graphics_command_fence);
     return true;
@@ -942,7 +982,7 @@ bool Vulkan::end_one_time_graphics_command_immediately(vk::CommandBuffer command
     device.destroyFence(one_time_graphics_command_fence_immediately);
 
     // Occasionally crashing here for some reason...
-    if (free_after_use) device.freeCommandBuffers(get_command_pool(), {command_buffer});
+    if (free_after_use) device.freeCommandBuffers(get_graphics_command_pool(), {command_buffer});
     return true;
 }
 
@@ -981,6 +1021,43 @@ std::future<void> Vulkan::enqueue_graphics_commands(CommandQueueItem item)
     item.promise = std::make_shared<std::promise<void>>();
     auto new_future = item.promise->get_future();
     graphicsCommandQueue.push(item);
+    return new_future;
+}
+
+std::future<void> Vulkan::enqueue_compute_commands
+(
+    vector<vk::CommandBuffer> commandBuffers, 
+    vector<vk::Semaphore> waitSemaphores,
+    vector<vk::PipelineStageFlags> waitDstStageMasks,
+    vector<vk::Semaphore> signalSemaphores,
+    vk::Fence fence,
+    std::string hint,
+    uint32_t queue_idx
+) {
+    std::lock_guard<std::mutex> lock(compute_queue_mutex);
+
+    CommandQueueItem item;
+    item.queue_idx = (item.queue_idx < (computeQueues.size() - 1)) ? queue_idx : 0;
+    item.commandBuffers = commandBuffers;
+    item.waitSemaphores = waitSemaphores;
+    item.waitDstStageMask = waitDstStageMasks;
+    item.signalSemaphores = signalSemaphores;
+    item.fence = fence;
+    item.promise = std::make_shared<std::promise<void>>();
+    item.should_free = false;
+    item.hint = hint;
+    auto new_future = item.promise->get_future();
+    computeCommandQueue.push(item);
+
+    return new_future;
+}
+
+std::future<void> Vulkan::enqueue_compute_commands(CommandQueueItem item)
+{
+    std::lock_guard<std::mutex> lock(compute_queue_mutex);
+    item.promise = std::make_shared<std::promise<void>>();
+    auto new_future = item.promise->get_future();
+    computeCommandQueue.push(item);
     return new_future;
 }
 
@@ -1027,6 +1104,37 @@ bool Vulkan::submit_graphics_commands() {
                 std::cout << "[unknown exception]\n";
         }
         graphicsCommandQueue.pop();
+    }
+
+    return true;
+}
+
+bool Vulkan::submit_compute_commands() {
+    std::lock_guard<std::mutex> lock(compute_queue_mutex);
+
+    while (!computeCommandQueue.empty()) {
+        auto item = computeCommandQueue.front();
+
+        vk::SubmitInfo submit_info;
+        submit_info.waitSemaphoreCount = (uint32_t) item.waitSemaphores.size();
+        submit_info.pWaitSemaphores = item.waitSemaphores.data();
+        submit_info.pWaitDstStageMask = item.waitDstStageMask.data();
+        submit_info.commandBufferCount = (uint32_t) item.commandBuffers.size();
+        submit_info.pCommandBuffers = item.commandBuffers.data();
+        submit_info.signalSemaphoreCount = (uint32_t) item.signalSemaphores.size();
+        submit_info.pSignalSemaphores = item.signalSemaphores.data();
+
+        computeQueues[item.queue_idx].submit(submit_info, item.fence);
+        try {
+            item.promise->set_value();
+        }
+        catch (std::future_error& e) {
+            if (e.code() == std::make_error_condition(std::future_errc::promise_already_satisfied))
+                std::cout << "[promise already satisfied]\n";
+            else
+                std::cout << "[unknown exception]\n";
+        }
+        computeCommandQueue.pop();
     }
 
     return true;
