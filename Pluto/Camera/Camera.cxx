@@ -76,12 +76,12 @@ void Camera::setup(uint32_t tex_width, uint32_t tex_height, uint32_t msaa_sample
 	create_query_pool(max_views);
 	auto rs = Systems::RenderSystem::Get();
 	for(auto renderpass : renderpasses) {
-		rs->SetupGraphicsPipelines(renderpass, msaa_samples, use_depth_prepass);
+		rs->setup_graphics_pipelines(renderpass, msaa_samples, use_depth_prepass);
 	}
 	if (use_depth_prepass)
 	{
 		for(auto renderpass : depthPrepasses) {
-			rs->SetupGraphicsPipelines(renderpass, msaa_samples, use_depth_prepass);
+			rs->setup_graphics_pipelines(renderpass, msaa_samples, use_depth_prepass);
 		}
 	}
 

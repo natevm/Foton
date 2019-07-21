@@ -42,173 +42,6 @@ enum PipelineType : uint32_t {
 namespace Systems 
 {
     class RenderSystem : public System {
-        /* From material refactor.. */
-        public:
-        
-        /* Initializes the vulkan resources required to render during the specified renderpass */
-        void SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sampleCount, bool use_depth_prepass);
-
-        /* EXPLAIN THIS */
-        void SetupRaytracingShaderBindingTable(vk::RenderPass renderpass);
-
-        /* Copies SSBO / texture handles into the texture and component descriptor sets. 
-            Also, allocates the descriptor sets if not yet allocated. */
-        void UpdateRasterDescriptorSets();
-
-        /* EXPLAIN THIS */
-        void UpdateRaytracingDescriptorSets(vk::AccelerationStructureNV &tlas, Entity &camera_entity);
-
-        /* Records a bind of all descriptor sets to each possible pipeline to the given command buffer. Call this at the beginning of a renderpass. */
-        void BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
-
-        void BindRayTracingDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
-
-        /* Records a draw of the supplied entity to the current command buffer. Call this during a renderpass. */
-        void DrawEntity(
-            vk::CommandBuffer &command_buffer, 
-            vk::RenderPass &render_pass, 
-            Entity &entity, 
-            PushConsts &push_constants, 
-            RenderMode rendermode_override = RenderMode::RENDER_MODE_NONE, 
-            PipelineType pipeline_type_override = PipelineType::PIPELINE_TYPE_NORMAL,
-            bool render_bounding_box_override = false
-        ); // int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time
-
-        void TraceRays(
-            vk::CommandBuffer &command_buffer, 
-            vk::RenderPass &render_pass, 
-            PushConsts &push_constants,
-            Texture &texture);
-
-        /* TODO... */
-        void ResetBoundMaterial();
-
-        private:
-        /* A vector of vertex input binding descriptions, describing binding and stride of per vertex data. */
-        std::vector<vk::VertexInputBindingDescription> vertexInputBindingDescriptions;
-
-        /* A vector of vertex input attribute descriptions, describing location, format, and offset of each binding */
-        std::vector<vk::VertexInputAttributeDescription> vertexInputAttributeDescriptions;
-        
-        /* A struct aggregating pipeline parameters, which configure each stage within a graphics pipeline 
-            (rasterizer, input assembly, etc), with their corresponding graphics pipeline. */
-        struct RasterPipelineResources {
-            PipelineParameters pipelineParameters;
-            std::unordered_map<PipelineType, vk::Pipeline> pipelines;
-            vk::PipelineLayout pipelineLayout;
-        };
-
-        struct RaytracingPipelineResources {
-            vk::Pipeline pipeline;
-            vk::PipelineLayout pipelineLayout;
-            vk::Buffer shaderBindingTable;
-            vk::DeviceMemory shaderBindingTableMemory;
-        };
-        
-        /* The descriptor set layout describing where component SSBOs are bound */
-        vk::DescriptorSetLayout componentDescriptorSetLayout;
-
-        /* The descriptor set layout describing where the array of textures are bound */
-        vk::DescriptorSetLayout textureDescriptorSetLayout;
-
-        /* The descriptor set layout describing per vertex information for all meshes */
-        vk::DescriptorSetLayout positionsDescriptorSetLayout;
-        vk::DescriptorSetLayout normalsDescriptorSetLayout;
-        vk::DescriptorSetLayout colorsDescriptorSetLayout;
-        vk::DescriptorSetLayout texcoordsDescriptorSetLayout;
-        vk::DescriptorSetLayout indexDescriptorSetLayout;
-
-        /* The descriptor set layout describing where acceleration structures and 
-            raytracing related data are bound */
-        vk::DescriptorSetLayout raytracingDescriptorSetLayout;
-
-        /* The descriptor pool used to allocate the component descriptor set. */
-        vk::DescriptorPool componentDescriptorPool;
-
-        /* The descriptor pool used to allocate the texture descriptor set. */
-        vk::DescriptorPool textureDescriptorPool;
-
-        /* The descriptor pool used to allocate the vertex descriptor set. */
-        vk::DescriptorPool positionsDescriptorPool;
-        vk::DescriptorPool normalsDescriptorPool;
-        vk::DescriptorPool colorsDescriptorPool;
-        vk::DescriptorPool texcoordsDescriptorPool;
-        vk::DescriptorPool indexDescriptorPool;
-
-        /* The descriptor pool used to allocate the raytracing descriptor set */
-        vk::DescriptorPool raytracingDescriptorPool;
-
-        /* The descriptor set containing references to all component SSBO buffers to be used as uniforms. */
-        vk::DescriptorSet componentDescriptorSet;
-
-        /* The descriptor set containing references to all array of textues to be used as uniforms. */
-        vk::DescriptorSet textureDescriptorSet;
-
-        /* The descriptor set containing references to all vertices of all mesh components */
-        vk::DescriptorSet positionsDescriptorSet;
-        vk::DescriptorSet normalsDescriptorSet;
-        vk::DescriptorSet colorsDescriptorSet;
-        vk::DescriptorSet texcoordsDescriptorSet;
-        vk::DescriptorSet indexDescriptorSet;
-
-        /* The descriptor set containing references to acceleration structures and textures to trace onto. */
-        vk::DescriptorSet raytracingDescriptorSet;
-        
-        /* The pipeline resources for each of the possible material types */
-        // std::map<vk::RenderPass, RasterPipelineResources> uniformColor;
-        // std::map<vk::RenderPass, RasterPipelineResources> blinn;
-        std::map<vk::RenderPass, RasterPipelineResources> pbr;
-        // std::map<vk::RenderPass, RasterPipelineResources> texcoordsurface;
-        // std::map<vk::RenderPass, RasterPipelineResources> normalsurface;
-        std::map<vk::RenderPass, RasterPipelineResources> skybox;
-        // std::map<vk::RenderPass, RasterPipelineResources> depth;
-        std::map<vk::RenderPass, RasterPipelineResources> volume;
-        std::map<vk::RenderPass, RasterPipelineResources> shadowmap;
-        std::map<vk::RenderPass, RasterPipelineResources> fragmentdepth;
-        // std::map<vk::RenderPass, RasterPipelineResources> fragmentposition;
-        std::map<vk::RenderPass, RasterPipelineResources> vrmask;
-        
-        std::map<vk::RenderPass, RasterPipelineResources> gbuffers;
-
-        std::map<vk::RenderPass, RaytracingPipelineResources> rttest;
-
-        /* Wrapper for shader module creation.  */
-        vk::ShaderModule CreateShaderModule(std::string name, const std::vector<char>& code);
-
-        /* Cached modules */
-        std::unordered_map<std::string, vk::ShaderModule> shaderModuleCache;
-
-        /* Wraps the vulkan boilerplate for creation of a graphics pipeline */
-        void CreateRasterPipeline(
-            std::vector<vk::PipelineShaderStageCreateInfo> shaderStages,
-            std::vector<vk::VertexInputBindingDescription> bindingDescriptions,
-            std::vector<vk::VertexInputAttributeDescription> attributeDescriptions,
-            std::vector<vk::DescriptorSetLayout> componentDescriptorSetLayouts,
-            PipelineParameters parameters,
-            vk::RenderPass renderpass,
-            uint32 subpass,
-            std::unordered_map<PipelineType, vk::Pipeline> &pipelines,
-            vk::PipelineLayout &layout 
-        );
-
-        /* Creates all possible descriptor set layout combinations */
-        void CreateDescriptorSetLayouts();
-
-        /* Creates the descriptor pool where the descriptor sets will be allocated from. */
-        void CreateDescriptorPools();
-
-        /* Creates the vulkan vertex input binding descriptions required to create a pipeline. */
-        void CreateVertexInputBindingDescriptions();
-
-        /* Creates the vulkan vertex attribute binding descriptions required to create a pipeline. */
-        void CreateVertexAttributeDescriptions();
-
-        RenderMode currentlyBoundRenderMode = RenderMode::RENDER_MODE_NONE;
-        
-        PipelineType currentlyBoundPipelineType = PipelineType::PIPELINE_TYPE_NORMAL;
-
-        vk::RenderPass currentRenderpass = vk::RenderPass();
-
         public:
             static RenderSystem* Get();
             bool initialize();
@@ -241,16 +74,178 @@ namespace Systems
             void use_openvr_hidden_area_masks(bool use_masks);
 
             /* If RTX Raytracing is enabled, builds a top level BVH for all created meshes. (TODO, account for mesh transformations) */
-		    void build_top_level_bvh(bool submit_immediately = false);
+            void build_top_level_bvh(bool submit_immediately = false);
 
             void enable_ray_tracing(bool enable);
 
+            /* Initializes the vulkan resources required to render during the specified renderpass */
+            void setup_graphics_pipelines(vk::RenderPass renderpass, uint32_t sampleCount, bool use_depth_prepass);
         private:
             PushConsts push_constants;            
             bool using_openvr = false;
             bool using_vr_hidden_area_masks = true;
             bool ray_tracing_enabled = false;
             double lastTime, currentTime;
+
+            /* A vector of vertex input binding descriptions, describing binding and stride of per vertex data. */
+            std::vector<vk::VertexInputBindingDescription> vertexInputBindingDescriptions;
+
+            /* A vector of vertex input attribute descriptions, describing location, format, and offset of each binding */
+            std::vector<vk::VertexInputAttributeDescription> vertexInputAttributeDescriptions;
+            
+            /* A struct aggregating pipeline parameters, which configure each stage within a graphics pipeline 
+                (rasterizer, input assembly, etc), with their corresponding graphics pipeline. */
+            struct RasterPipelineResources {
+                PipelineParameters pipelineParameters;
+                std::unordered_map<PipelineType, vk::Pipeline> pipelines;
+                vk::PipelineLayout pipelineLayout;
+            };
+
+            struct RaytracingPipelineResources {
+                vk::Pipeline pipeline;
+                vk::PipelineLayout pipelineLayout;
+                vk::Buffer shaderBindingTable;
+                vk::DeviceMemory shaderBindingTableMemory;
+            };
+            
+            /* The descriptor set layout describing where component SSBOs are bound */
+            vk::DescriptorSetLayout componentDescriptorSetLayout;
+
+            /* The descriptor set layout describing where the array of textures are bound */
+            vk::DescriptorSetLayout textureDescriptorSetLayout;
+
+            /* The descriptor set layout describing per vertex information for all meshes */
+            vk::DescriptorSetLayout positionsDescriptorSetLayout;
+            vk::DescriptorSetLayout normalsDescriptorSetLayout;
+            vk::DescriptorSetLayout colorsDescriptorSetLayout;
+            vk::DescriptorSetLayout texcoordsDescriptorSetLayout;
+            vk::DescriptorSetLayout indexDescriptorSetLayout;
+
+            /* The descriptor set layout describing where acceleration structures and 
+                raytracing related data are bound */
+            vk::DescriptorSetLayout raytracingDescriptorSetLayout;
+
+            /* The descriptor pool used to allocate the component descriptor set. */
+            vk::DescriptorPool componentDescriptorPool;
+
+            /* The descriptor pool used to allocate the texture descriptor set. */
+            vk::DescriptorPool textureDescriptorPool;
+
+            /* The descriptor pool used to allocate the vertex descriptor set. */
+            vk::DescriptorPool positionsDescriptorPool;
+            vk::DescriptorPool normalsDescriptorPool;
+            vk::DescriptorPool colorsDescriptorPool;
+            vk::DescriptorPool texcoordsDescriptorPool;
+            vk::DescriptorPool indexDescriptorPool;
+
+            /* The descriptor pool used to allocate the raytracing descriptor set */
+            vk::DescriptorPool raytracingDescriptorPool;
+
+            /* The descriptor set containing references to all component SSBO buffers to be used as uniforms. */
+            vk::DescriptorSet componentDescriptorSet;
+
+            /* The descriptor set containing references to all array of textues to be used as uniforms. */
+            vk::DescriptorSet textureDescriptorSet;
+
+            /* The descriptor set containing references to all vertices of all mesh components */
+            vk::DescriptorSet positionsDescriptorSet;
+            vk::DescriptorSet normalsDescriptorSet;
+            vk::DescriptorSet colorsDescriptorSet;
+            vk::DescriptorSet texcoordsDescriptorSet;
+            vk::DescriptorSet indexDescriptorSet;
+
+            /* The descriptor set containing references to acceleration structures and textures to trace onto. */
+            vk::DescriptorSet raytracingDescriptorSet;
+            
+            /* The pipeline resources for each of the possible material types */
+            // std::map<vk::RenderPass, RasterPipelineResources> uniformColor;
+            // std::map<vk::RenderPass, RasterPipelineResources> blinn;
+            std::map<vk::RenderPass, RasterPipelineResources> pbr;
+            // std::map<vk::RenderPass, RasterPipelineResources> texcoordsurface;
+            // std::map<vk::RenderPass, RasterPipelineResources> normalsurface;
+            std::map<vk::RenderPass, RasterPipelineResources> skybox;
+            // std::map<vk::RenderPass, RasterPipelineResources> depth;
+            std::map<vk::RenderPass, RasterPipelineResources> volume;
+            std::map<vk::RenderPass, RasterPipelineResources> shadowmap;
+            std::map<vk::RenderPass, RasterPipelineResources> fragmentdepth;
+            // std::map<vk::RenderPass, RasterPipelineResources> fragmentposition;
+            std::map<vk::RenderPass, RasterPipelineResources> vrmask;
+            
+            std::map<vk::RenderPass, RasterPipelineResources> gbuffers;
+
+            std::map<vk::RenderPass, RaytracingPipelineResources> rttest;
+
+            /* Wrapper for shader module creation.  */
+            vk::ShaderModule create_shader_module(std::string name, const std::vector<char>& code);
+
+            /* Cached modules */
+            std::unordered_map<std::string, vk::ShaderModule> shaderModuleCache;
+
+            /* EXPLAIN THIS */
+            void setup_raytracing_shader_binding_table(vk::RenderPass renderpass);
+
+            /* Wraps the vulkan boilerplate for creation of a graphics pipeline */
+            void create_raster_pipeline(
+                std::vector<vk::PipelineShaderStageCreateInfo> shaderStages,
+                std::vector<vk::VertexInputBindingDescription> bindingDescriptions,
+                std::vector<vk::VertexInputAttributeDescription> attributeDescriptions,
+                std::vector<vk::DescriptorSetLayout> componentDescriptorSetLayouts,
+                PipelineParameters parameters,
+                vk::RenderPass renderpass,
+                uint32 subpass,
+                std::unordered_map<PipelineType, vk::Pipeline> &pipelines,
+                vk::PipelineLayout &layout 
+            );
+
+            /* Creates all possible descriptor set layout combinations */
+            void create_descriptor_set_layouts();
+
+            /* Creates the descriptor pool where the descriptor sets will be allocated from. */
+            void create_descriptor_pools();
+
+            /* Creates the vulkan vertex input binding descriptions required to create a pipeline. */
+            void create_vertex_input_binding_descriptions();
+
+            /* Creates the vulkan vertex attribute binding descriptions required to create a pipeline. */
+            void create_vertex_attribute_descriptions();
+            
+            /* Copies SSBO / texture handles into the texture and component descriptor sets. 
+                Also, allocates the descriptor sets if not yet allocated. */
+            void update_raster_descriptor_sets();
+
+            /* EXPLAIN THIS */
+            void update_raytracing_descriptor_sets(vk::AccelerationStructureNV &tlas, Entity &camera_entity);
+
+            /* Records a bind of all descriptor sets to each possible pipeline to the given command buffer. Call this at the beginning of a renderpass. */
+            void bind_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
+
+            void bind_raytracing_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
+
+            /* Records a draw of the supplied entity to the current command buffer. Call this during a renderpass. */
+            void draw_entity(
+                vk::CommandBuffer &command_buffer, 
+                vk::RenderPass &render_pass, 
+                Entity &entity, 
+                PushConsts &push_constants, 
+                RenderMode rendermode_override = RenderMode::RENDER_MODE_NONE, 
+                PipelineType pipeline_type_override = PipelineType::PIPELINE_TYPE_NORMAL,
+                bool render_bounding_box_override = false
+            ); // int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time
+
+            void trace_rays(
+                vk::CommandBuffer &command_buffer, 
+                vk::RenderPass &render_pass, 
+                PushConsts &push_constants,
+                Texture &texture);
+
+            /* TODO... */
+            void reset_bound_material();
+
+            RenderMode currentlyBoundRenderMode = RenderMode::RENDER_MODE_NONE;
+            
+            PipelineType currentlyBoundPipelineType = PipelineType::PIPELINE_TYPE_NORMAL;
+
+            vk::RenderPass currentRenderpass = vk::RenderPass();
 
             struct ComputeNode
             {
@@ -273,7 +268,7 @@ namespace Systems
             std::vector<std::stack<vk::Fence>> availableFences;
             std::vector<std::stack<vk::Fence>> usedFences;
 
-            void initializeSemaphorePools() 
+            void initialize_semaphore_pools() 
             {
                 while (availableSemaphores.size() <= currentFrame) {
                     availableSemaphores.push_back(std::stack<vk::Semaphore>());
@@ -283,7 +278,7 @@ namespace Systems
                 }
             }
 
-            void initializeFencePools() 
+            void initialize_fence_pools() 
             {
                 while (availableFences.size() <= currentFrame) {
                     availableFences.push_back(std::stack<vk::Fence>());
@@ -293,9 +288,9 @@ namespace Systems
                 }
             }
 
-            void semaphoresSubmitted()
+            void semaphores_submitted()
             {
-                initializeSemaphorePools();
+                initialize_semaphore_pools();
                 while (!usedSemaphores[currentFrame].empty()) {
                     vk::Semaphore semaphore = usedSemaphores[currentFrame].top();
                     usedSemaphores[currentFrame].pop();
@@ -303,9 +298,9 @@ namespace Systems
                 }
             }
 
-            void fencesSubmitted()
+            void fences_submitted()
             {
-                initializeFencePools();
+                initialize_fence_pools();
                 while (!usedFences[currentFrame].empty()) {
                     vk::Fence fence = usedFences[currentFrame].top();
                     usedFences[currentFrame].pop();
@@ -314,7 +309,7 @@ namespace Systems
             }
 
             vk::Semaphore get_semaphore() {
-                initializeSemaphorePools();
+                initialize_semaphore_pools();
                 if (!availableSemaphores[currentFrame].empty()) {
                     vk::Semaphore semaphore = availableSemaphores[currentFrame].top();
                     availableSemaphores[currentFrame].pop();
@@ -331,7 +326,7 @@ namespace Systems
 
             vk::Fence get_fence() {
                 auto vulkan = Libraries::Vulkan::Get(); auto device = vulkan->get_device();
-                initializeFencePools();
+                initialize_fence_pools();
                 if (!availableFences[currentFrame].empty()) {
                     vk::Fence fence = availableFences[currentFrame].top();
                     availableFences[currentFrame].pop();

@@ -168,14 +168,14 @@ void RenderSystem::record_depth_prepass(Entity &camera_entity, std::vector<std::
 
     if (camera->should_record_depth_prepass()) {
         for(uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
-            ResetBoundMaterial();
+            reset_bound_material();
             
             /* Get the renderpass for the current camera */
             vk::RenderPass rp = camera->get_depth_prepass(rp_idx);
 
             /* Bind all descriptor sets to that renderpass.
                 Note that we're using a single bind. The same descriptors are shared across pipelines. */
-            BindDescriptorSets(command_buffer, rp);
+            bind_descriptor_sets(command_buffer, rp);
 
             camera->begin_depth_prepass(command_buffer, rp_idx);
 
@@ -193,7 +193,7 @@ void RenderSystem::record_depth_prepass(Entity &camera_entity, std::vector<std::
                     push_constants.camera_id = camera_entity.get_id();
                     push_constants.viewIndex = rp_idx;
                     push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
-                    DrawEntity(command_buffer, rp, *mask_entity, push_constants, RenderMode::RENDER_MODE_VRMASK);
+                    draw_entity(command_buffer, rp, *mask_entity, push_constants, RenderMode::RENDER_MODE_VRMASK);
                 }
             }
 
@@ -225,7 +225,7 @@ void RenderSystem::record_depth_prepass(Entity &camera_entity, std::vector<std::
                     if (show_bounding_box || contains_transparency)
                         pipeline_type = PipelineType::PIPELINE_TYPE_DEPTH_WRITE_DISABLED;
 
-                    DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].entity, push_constants, 
+                    draw_entity(command_buffer, rp, *visible_entities[rp_idx][i].entity, push_constants, 
                         RenderMode::RENDER_MODE_FRAGMENTDEPTH, pipeline_type, show_bounding_box);
                     camera->end_visibility_query(command_buffer, rp_idx, visible_entities[rp_idx][i].entity_index);
                 }
@@ -259,14 +259,14 @@ void RenderSystem::record_raster_renderpass(Entity &camera_entity, std::vector<s
     vk::CommandBuffer command_buffer = camera->get_command_buffer();
 
     for(uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
-        ResetBoundMaterial();
+        reset_bound_material();
 
         /* Get the renderpass for the current camera */
         vk::RenderPass rp = camera->get_renderpass(rp_idx);
 
         /* Bind all descriptor sets to that renderpass.
             Note that we're using a single bind. The same descriptors are shared across pipelines. */
-        BindDescriptorSets(command_buffer, rp);
+        bind_descriptor_sets(command_buffer, rp);
         
         camera->begin_renderpass(command_buffer, rp_idx);
 
@@ -284,7 +284,7 @@ void RenderSystem::record_raster_renderpass(Entity &camera_entity, std::vector<s
                 push_constants.camera_id = camera_entity.get_id();
                 push_constants.viewIndex = rp_idx;
                 push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
-                DrawEntity(command_buffer, rp, *mask_entity, push_constants, RenderMode::RENDER_MODE_VRMASK);
+                draw_entity(command_buffer, rp, *mask_entity, push_constants, RenderMode::RENDER_MODE_VRMASK);
             }
         }
 
@@ -300,7 +300,7 @@ void RenderSystem::record_raster_renderpass(Entity &camera_entity, std::vector<s
                 push_constants.camera_id = camera_entity.get_id();
                 push_constants.viewIndex = rp_idx;
                 push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
-                DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].entity, push_constants, camera->get_rendermode_override());
+                draw_entity(command_buffer, rp, *visible_entities[rp_idx][i].entity, push_constants, camera->get_rendermode_override());
             }
         }
         
@@ -316,7 +316,7 @@ void RenderSystem::record_raster_renderpass(Entity &camera_entity, std::vector<s
                 push_constants.camera_id = camera_entity.get_id();
                 push_constants.viewIndex = rp_idx;
                 push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
-                DrawEntity(command_buffer, rp, *visible_entities[rp_idx][i].entity, push_constants, 
+                draw_entity(command_buffer, rp, *visible_entities[rp_idx][i].entity, push_constants, 
                     camera->get_rendermode_override(), PipelineType::PIPELINE_TYPE_DEPTH_TEST_GREATER);
             }
         }
@@ -347,20 +347,20 @@ void RenderSystem::record_ray_trace_pass(Entity &camera_entity)
     texture->make_general(command_buffer);
 
     for(uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
-        ResetBoundMaterial();
+        reset_bound_material();
 
         /* Get the renderpass for the current camera */
         vk::RenderPass rp = camera->get_renderpass(rp_idx);
         
-        UpdateRaytracingDescriptorSets(topAS, camera_entity);
-        BindRayTracingDescriptorSets(command_buffer, rp);
+        update_raytracing_descriptor_sets(topAS, camera_entity);
+        bind_raytracing_descriptor_sets(command_buffer, rp);
 
         push_constants.target_id = -1;
         push_constants.camera_id = camera_entity.get_id();
         push_constants.viewIndex = rp_idx;
         push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
         
-        TraceRays(command_buffer, rp, push_constants, *texture);
+        trace_rays(command_buffer, rp, push_constants, *texture);
     }
 }
 
@@ -518,7 +518,7 @@ void RenderSystem::record_render_commands()
 	vulkan->end_one_time_graphics_command_immediately(upload_command, "Upload SSBO Data", true);
 
     if (Material::IsInitialized()) {
-        UpdateRasterDescriptorSets();
+        update_raster_descriptor_sets();
         
         if (update_push_constants() == true) {
             record_cameras();
@@ -836,8 +836,8 @@ void RenderSystem::enqueue_render_commands() {
     
     /* Enqueue the commands */
     for (auto &item : command_queue) vulkan->enqueue_graphics_commands(item);
-    semaphoresSubmitted();
-    fencesSubmitted();
+    semaphores_submitted();
+    fences_submitted();
 }
 
 void RenderSystem::mark_cameras_as_render_complete()
@@ -939,11 +939,11 @@ void RenderSystem::allocate_vulkan_resources()
     /* Don't create vulkan resources more than once. */
     if (vulkan_resources_created) return;
 
-    CreateDescriptorSetLayouts();
-	CreateDescriptorPools();
-	CreateVertexInputBindingDescriptions();
-	CreateVertexAttributeDescriptions();
-	UpdateRasterDescriptorSets();
+    create_descriptor_set_layouts();
+	create_descriptor_pools();
+	create_vertex_input_binding_descriptions();
+	create_vertex_attribute_descriptions();
+	update_raster_descriptor_sets();
 
     auto vulkan = Vulkan::Get();
     auto device = vulkan->get_device();
@@ -1324,7 +1324,7 @@ bool RenderSystem::stop()
 }
 
 /* Wrapper for shader module creation */
-vk::ShaderModule RenderSystem::CreateShaderModule(std::string name, const std::vector<char>& code) {
+vk::ShaderModule RenderSystem::create_shader_module(std::string name, const std::vector<char>& code) {
 	if (shaderModuleCache.find(name) != shaderModuleCache.end()) return shaderModuleCache[name];
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
@@ -1339,7 +1339,7 @@ vk::ShaderModule RenderSystem::CreateShaderModule(std::string name, const std::v
 }
 
 /* Under the hood, all material types have a set of Vulkan pipeline objects. */
-void RenderSystem::CreateRasterPipeline(
+void RenderSystem::create_raster_pipeline(
 	std::vector<vk::PipelineShaderStageCreateInfo> shaderStages, // yes
 	std::vector<vk::VertexInputBindingDescription> bindingDescriptions, // yes
 	std::vector<vk::VertexInputAttributeDescription> attributeDescriptions, // yes
@@ -1450,7 +1450,7 @@ void RenderSystem::CreateRasterPipeline(
 
 
 /* Compiles all shaders */
-void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sampleCount, bool use_depth_prepass)
+void RenderSystem::setup_graphics_pipelines(vk::RenderPass renderpass, uint32_t sampleCount, bool use_depth_prepass)
 {
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
@@ -1476,8 +1476,8 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 	// 	auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/UniformColor/frag.spv"));
 
 	// 	/* Create shader modules */
-	// 	auto vertShaderModule = CreateShaderModule("uniform_color_vert", vertShaderCode);
-	// 	auto fragShaderModule = CreateShaderModule("uniform_color_frag", fragShaderCode);
+	// 	auto vertShaderModule = create_shader_module("uniform_color_vert", vertShaderCode);
+	// 	auto fragShaderModule = create_shader_module("uniform_color_frag", fragShaderCode);
 
 	// 	/* Info for shader stages */
 	// 	vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -1496,7 +1496,7 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 	// 	uniformColor[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
 	// 	uniformColor[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
 
-	// 	CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+	// 	create_raster_pipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
 	// 		{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 	// 		uniformColor[renderpass].pipelineParameters, 
 	// 		renderpass, 0, 
@@ -1514,8 +1514,8 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 	// 	auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Blinn/frag.spv"));
 
 	// 	/* Create shader modules */
-	// 	auto vertShaderModule = CreateShaderModule("blinn_vert", vertShaderCode);
-	// 	auto fragShaderModule = CreateShaderModule("blinn_frag", fragShaderCode);
+	// 	auto vertShaderModule = create_shader_module("blinn_vert", vertShaderCode);
+	// 	auto fragShaderModule = create_shader_module("blinn_frag", fragShaderCode);
 
 	// 	/* Info for shader stages */
 	// 	vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -1534,7 +1534,7 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 	// 	blinn[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
 	// 	blinn[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
 
-	// 	CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+	// 	create_raster_pipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
 	// 		{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 	// 		blinn[renderpass].pipelineParameters, 
 	// 		renderpass, 0, 
@@ -1551,8 +1551,8 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 		auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/PBRSurface/frag.spv"));
 
 		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule("pbr_vert", vertShaderCode);
-		auto fragShaderModule = CreateShaderModule("pbr_frag", fragShaderCode);
+		auto vertShaderModule = create_shader_module("pbr_vert", vertShaderCode);
+		auto fragShaderModule = create_shader_module("pbr_frag", fragShaderCode);
 
 		/* Info for shader stages */
 		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -1579,7 +1579,7 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 		}
 		// depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL; //not VK_COMPARE_OP_LESS since we have a depth prepass;
 		
-		CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+		create_raster_pipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
 			{ componentDescriptorSetLayout, textureDescriptorSetLayout}, 
 			pbr[renderpass].pipelineParameters, 
 			renderpass, 0, 
@@ -1596,8 +1596,8 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 	// 	auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/NormalSurface/frag.spv"));
 
 	// 	/* Create shader modules */
-	// 	auto vertShaderModule = CreateShaderModule("normal_surf_vert", vertShaderCode);
-	// 	auto fragShaderModule = CreateShaderModule("normal_surf_frag", fragShaderCode);
+	// 	auto vertShaderModule = create_shader_module("normal_surf_vert", vertShaderCode);
+	// 	auto fragShaderModule = create_shader_module("normal_surf_frag", fragShaderCode);
 
 	// 	/* Info for shader stages */
 	// 	vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -1616,7 +1616,7 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 	// 	normalsurface[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
 	// 	normalsurface[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
 
-	// 	CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+	// 	create_raster_pipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
 	// 		{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 	// 		normalsurface[renderpass].pipelineParameters, 
 	// 		renderpass, 0, 
@@ -1633,8 +1633,8 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 	// 	auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/TexCoordSurface/frag.spv"));
 
 	// 	/* Create shader modules */
-	// 	auto vertShaderModule = CreateShaderModule("texcoord_vert", vertShaderCode);
-	// 	auto fragShaderModule = CreateShaderModule("texcoord_frag", fragShaderCode);
+	// 	auto vertShaderModule = create_shader_module("texcoord_vert", vertShaderCode);
+	// 	auto fragShaderModule = create_shader_module("texcoord_frag", fragShaderCode);
 
 	// 	/* Info for shader stages */
 	// 	vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -1653,7 +1653,7 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 	// 	texcoordsurface[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
 	// 	texcoordsurface[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
 
-	// 	CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+	// 	create_raster_pipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
 	// 		{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 	// 		texcoordsurface[renderpass].pipelineParameters, 
 	// 		renderpass, 0, 
@@ -1670,8 +1670,8 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 		auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Skybox/frag.spv"));
 
 		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule("skybox_vert", vertShaderCode);
-		auto fragShaderModule = CreateShaderModule("skybox_frag", fragShaderCode);
+		auto vertShaderModule = create_shader_module("skybox_vert", vertShaderCode);
+		auto fragShaderModule = create_shader_module("skybox_frag", fragShaderCode);
 
 		/* Info for shader stages */
 		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -1693,7 +1693,7 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 		skybox[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
 		skybox[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
 
-		CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+		create_raster_pipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
 			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			skybox[renderpass].pipelineParameters, 
 			renderpass, 0, 
@@ -1710,8 +1710,8 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 	// 	auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Depth/frag.spv"));
 
 	// 	/* Create shader modules */
-	// 	auto vertShaderModule = CreateShaderModule("depth_vert", vertShaderCode);
-	// 	auto fragShaderModule = CreateShaderModule("depth_frag", fragShaderCode);
+	// 	auto vertShaderModule = create_shader_module("depth_vert", vertShaderCode);
+	// 	auto fragShaderModule = create_shader_module("depth_frag", fragShaderCode);
 
 	// 	/* Info for shader stages */
 	// 	vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -1738,7 +1738,7 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 	// 		depth[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
 	// 	}
 
-	// 	CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+	// 	create_raster_pipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
 	// 		{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 	// 		depth[renderpass].pipelineParameters, 
 	// 		renderpass, 0, 
@@ -1755,8 +1755,8 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 		auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/VolumeMaterials/Volume/frag.spv"));
 
 		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule("volume_vert", vertShaderCode);
-		auto fragShaderModule = CreateShaderModule("volume_frag", fragShaderCode);
+		auto vertShaderModule = create_shader_module("volume_vert", vertShaderCode);
+		auto fragShaderModule = create_shader_module("volume_frag", fragShaderCode);
 
 		/* Info for shader stages */
 		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -1775,7 +1775,7 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 		volume[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
 		volume[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
 
-		CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+		create_raster_pipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
 			{ componentDescriptorSetLayout, textureDescriptorSetLayout}, 
 			volume[renderpass].pipelineParameters, 
 			renderpass, 0, 
@@ -1793,7 +1793,7 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 		auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/FragmentDepth/vert.spv"));
 
 		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule("frag_depth", vertShaderCode);
+		auto vertShaderModule = create_shader_module("frag_depth", vertShaderCode);
 
 		/* Info for shader stages */
 		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -1811,7 +1811,7 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 		fragmentdepth[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
 		fragmentdepth[renderpass].pipelineParameters.rasterizer.cullMode = vk::CullModeFlagBits::eNone;
 
-		CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+		create_raster_pipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
 			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			fragmentdepth[renderpass].pipelineParameters, 
 			renderpass, 0, 
@@ -1829,8 +1829,8 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 		auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/frag.spv"));
 
 		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule("gbuffers_vert", vertShaderCode);
-		auto fragShaderModule = CreateShaderModule("gbuffers_frag", fragShaderCode);
+		auto vertShaderModule = create_shader_module("gbuffers_vert", vertShaderCode);
+		auto fragShaderModule = create_shader_module("gbuffers_frag", fragShaderCode);
 
 		/* Info for shader stages */
 		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -1857,7 +1857,7 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 			gbuffers[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
 		}
 
-		CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+		create_raster_pipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
 			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			gbuffers[renderpass].pipelineParameters, 
 			renderpass, 0, 
@@ -1875,8 +1875,8 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 		auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/ShadowMap/frag.spv"));
 
 		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule("shadow_map_vert", vertShaderCode);
-		auto fragShaderModule = CreateShaderModule("shadow_map_frag", fragShaderCode);
+		auto vertShaderModule = create_shader_module("shadow_map_vert", vertShaderCode);
+		auto fragShaderModule = create_shader_module("shadow_map_frag", fragShaderCode);
 
 		/* Info for shader stages */
 		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -1903,7 +1903,7 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 			shadowmap[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
 		}
 
-		CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+		create_raster_pipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
 			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			shadowmap[renderpass].pipelineParameters, 
 			renderpass, 0, 
@@ -1921,8 +1921,8 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 	// 	auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/FragmentPosition/frag.spv"));
 
 	// 	/* Create shader modules */
-	// 	auto vertShaderModule = CreateShaderModule("frag_pos_vert", vertShaderCode);
-	// 	auto fragShaderModule = CreateShaderModule("frag_pos_frag", fragShaderCode);
+	// 	auto vertShaderModule = create_shader_module("frag_pos_vert", vertShaderCode);
+	// 	auto fragShaderModule = create_shader_module("frag_pos_frag", fragShaderCode);
 
 	// 	/* Info for shader stages */
 	// 	vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -1949,7 +1949,7 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 	// 		fragmentposition[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
 	// 	}
 
-	// 	CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+	// 	create_raster_pipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
 	// 		{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 	// 		fragmentposition[renderpass].pipelineParameters, 
 	// 		renderpass, 0, 
@@ -1965,7 +1965,7 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 		auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/VRMask/vert.spv"));
 
 		/* Create shader modules */
-		auto vertShaderModule = CreateShaderModule("vr_mask", vertShaderCode);
+		auto vertShaderModule = create_shader_module("vr_mask", vertShaderCode);
 
 		/* Info for shader stages */
 		vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
@@ -1983,7 +1983,7 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 		vrmask[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
 		vrmask[renderpass].pipelineParameters.rasterizer.cullMode = vk::CullModeFlagBits::eNone;
 		
-		CreateRasterPipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
+		create_raster_pipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
 			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			vrmask[renderpass].pipelineParameters, 
 			renderpass, 0, 
@@ -2006,9 +2006,9 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 		auto raymissShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracedMaterials/TutorialShaders/rmiss.spv"));
 		
 		/* Create shader modules */
-		auto raygenShaderModule = CreateShaderModule("ray_tracing_gen", raygenShaderCode);
-		auto raychitShaderModule = CreateShaderModule("ray_tracing_chit", raychitShaderCode);
-		auto raymissShaderModule = CreateShaderModule("ray_tracing_miss", raymissShaderCode);
+		auto raygenShaderModule = create_shader_module("ray_tracing_gen", raygenShaderCode);
+		auto raychitShaderModule = create_shader_module("ray_tracing_chit", raychitShaderCode);
+		auto raymissShaderModule = create_shader_module("ray_tracing_miss", raymissShaderCode);
 
 		/* Info for shader stages */
 		vk::PipelineShaderStageCreateInfo raygenShaderStageInfo;
@@ -2090,10 +2090,10 @@ void RenderSystem::SetupGraphicsPipelines(vk::RenderPass renderpass, uint32_t sa
 		// device.destroyShaderModule(raygenShaderModule);
 	}
 
-	SetupRaytracingShaderBindingTable(renderpass);
+	setup_raytracing_shader_binding_table(renderpass);
 }
 
-void RenderSystem::SetupRaytracingShaderBindingTable(vk::RenderPass renderpass)
+void RenderSystem::setup_raytracing_shader_binding_table(vk::RenderPass renderpass)
 {
 	auto vulkan = Libraries::Vulkan::Get();
 	if (!vulkan->is_initialized())
@@ -2137,7 +2137,7 @@ void RenderSystem::SetupRaytracingShaderBindingTable(vk::RenderPass renderpass)
 	device.unmapMemory(rttest[renderpass].shaderBindingTableMemory);
 }
 
-void RenderSystem::CreateDescriptorSetLayouts()
+void RenderSystem::create_descriptor_set_layouts()
 {
 	/* Descriptor set layouts are standardized across shaders for optimized runtime binding */
 
@@ -2375,7 +2375,7 @@ void RenderSystem::CreateDescriptorSetLayouts()
 	}
 }
 
-void RenderSystem::CreateDescriptorPools()
+void RenderSystem::create_descriptor_pools()
 {
 	/* Since the descriptor layout is consistent across shaders, the descriptor
 		pool can be shared. */
@@ -2537,7 +2537,7 @@ void RenderSystem::CreateDescriptorPools()
 	}
 }
 
-void RenderSystem::UpdateRasterDescriptorSets()
+void RenderSystem::update_raster_descriptor_sets()
 {
 	if (  (componentDescriptorPool == vk::DescriptorPool()) || (textureDescriptorPool == vk::DescriptorPool())) return;
 	auto vulkan = Libraries::Vulkan::Get();
@@ -2932,7 +2932,7 @@ void RenderSystem::UpdateRasterDescriptorSets()
 	}
 }
 
-void RenderSystem::UpdateRaytracingDescriptorSets(vk::AccelerationStructureNV &tlas, Entity &camera_entity)
+void RenderSystem::update_raytracing_descriptor_sets(vk::AccelerationStructureNV &tlas, Entity &camera_entity)
 {
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
@@ -3000,7 +3000,7 @@ void RenderSystem::UpdateRaytracingDescriptorSets(vk::AccelerationStructureNV &t
 	device.updateDescriptorSets((uint32_t)raytraceDescriptorWrites.size(), raytraceDescriptorWrites.data(), 0, nullptr);
 }
 
-void RenderSystem::CreateVertexInputBindingDescriptions() {
+void RenderSystem::create_vertex_input_binding_descriptions() {
 	/* Vertex input bindings are consistent across shaders */
 	vk::VertexInputBindingDescription pointBindingDescription;
 	pointBindingDescription.binding = 0;
@@ -3025,7 +3025,7 @@ void RenderSystem::CreateVertexInputBindingDescriptions() {
 	vertexInputBindingDescriptions = { pointBindingDescription, colorBindingDescription, normalBindingDescription, texcoordBindingDescription };
 }
 
-void RenderSystem::CreateVertexAttributeDescriptions() {
+void RenderSystem::create_vertex_attribute_descriptions() {
 	/* Vertex attribute descriptions are consistent across shaders */
 	std::vector<vk::VertexInputAttributeDescription> attributeDescriptions(4);
 
@@ -3052,7 +3052,7 @@ void RenderSystem::CreateVertexAttributeDescriptions() {
 	vertexInputAttributeDescriptions = attributeDescriptions;
 }
 
-void RenderSystem::BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass) 
+void RenderSystem::bind_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass) 
 {
 	std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet};
 	// command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, normalsurface[render_pass].pipelineLayout, 0, descriptorSets.size(), descriptorSets.data(), 0, nullptr);
@@ -3064,13 +3064,13 @@ void RenderSystem::BindDescriptorSets(vk::CommandBuffer &command_buffer, vk::Ren
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, volume[render_pass].pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 }
 
-void RenderSystem::BindRayTracingDescriptorSets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass)
+void RenderSystem::bind_raytracing_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass)
 {
 	std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet,  positionsDescriptorSet, normalsDescriptorSet, colorsDescriptorSet, texcoordsDescriptorSet, indexDescriptorSet, raytracingDescriptorSet};
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, rttest[render_pass].pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 }
 
-void RenderSystem::DrawEntity(
+void RenderSystem::draw_entity(
 	vk::CommandBuffer &command_buffer, 
 	vk::RenderPass &render_pass, 
 	Entity &entity, 
@@ -3211,7 +3211,7 @@ void RenderSystem::DrawEntity(
 	command_buffer.drawIndexed(m->get_total_triangle_indices(), 1, 0, 0, 0);
 }
 
-void RenderSystem::TraceRays(
+void RenderSystem::trace_rays(
 	vk::CommandBuffer &command_buffer, 
 	vk::RenderPass &render_pass, 
 	PushConsts &push_constants,
@@ -3257,7 +3257,7 @@ void RenderSystem::TraceRays(
 		
 }
 
-void RenderSystem::ResetBoundMaterial()
+void RenderSystem::reset_bound_material()
 {
 	currentRenderpass = vk::RenderPass();
 	currentlyBoundRenderMode = RENDER_MODE_NONE;
