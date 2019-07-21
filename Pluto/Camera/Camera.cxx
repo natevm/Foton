@@ -1,7 +1,7 @@
 //#pragma optimize("", off)
 
 #include "./Camera.hxx"
-#include "Pluto/Material/PipelineParameters.hxx"
+#include "Pluto/Systems/RenderSystem/PipelineParameters.hxx"
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
 #include "Pluto/Texture/Texture.hxx"
 #include "Pluto/Material/Material.hxx"
@@ -74,13 +74,14 @@ void Camera::setup(uint32_t tex_width, uint32_t tex_height, uint32_t msaa_sample
 	create_render_passes(max_views, msaa_samples);
 	create_frame_buffers(max_views);
 	create_query_pool(max_views);
+	auto rs = Systems::RenderSystem::Get();
 	for(auto renderpass : renderpasses) {
-		Material::SetupGraphicsPipelines(renderpass, msaa_samples, use_depth_prepass);
+		rs->SetupGraphicsPipelines(renderpass, msaa_samples, use_depth_prepass);
 	}
 	if (use_depth_prepass)
 	{
 		for(auto renderpass : depthPrepasses) {
-			Material::SetupGraphicsPipelines(renderpass, msaa_samples, use_depth_prepass);
+			rs->SetupGraphicsPipelines(renderpass, msaa_samples, use_depth_prepass);
 		}
 	}
 

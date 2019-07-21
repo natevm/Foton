@@ -481,11 +481,13 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
     queueCreateInfos.push_back(gQueueInfo);
 
     /* Compute queue */
-    vk::DeviceQueueCreateInfo cQueueInfo;
-    cQueueInfo.queueFamilyIndex = computeFamilyIndex;
-    cQueueInfo.queueCount = numComputeQueues;
-    cQueueInfo.pQueuePriorities = queuePriorities.data();
-    queueCreateInfos.push_back(cQueueInfo);
+    if (computeFamilyIndex != graphicsFamilyIndex) {
+        vk::DeviceQueueCreateInfo cQueueInfo;
+        cQueueInfo.queueFamilyIndex = computeFamilyIndex;
+        cQueueInfo.queueCount = numComputeQueues;
+        cQueueInfo.pQueuePriorities = queuePriorities.data();
+        queueCreateInfos.push_back(cQueueInfo);
+    }
 
     /* Present queue (if different than graphics queue) */
     if (surface && (presentFamilyIndex != graphicsFamilyIndex)) {
@@ -517,14 +519,14 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
     device = physicalDevice.createDevice(createInfo);
 
     /* Queues are implicitly created when creating device. This just gets handles. */
-    for (uint32_t i = 0; i < numGraphicsQueues; ++i) {
+    for (int32_t i = 0; i < numGraphicsQueues; ++i) {
         graphicsQueues.push_back(device.getQueue(graphicsFamilyIndex, i));
     }
-    for (uint32_t i = 0; i < numComputeQueues; ++i) {
+    for (int32_t i = 0; i < numComputeQueues; ++i) {
         computeQueues.push_back(device.getQueue(computeFamilyIndex, i));
     }
     if (surface) {
-        for (uint32_t i = 0; i < numPresentQueues; ++i) {
+        for (int32_t i = 0; i < numPresentQueues; ++i) {
             presentQueues.push_back(device.getQueue(presentFamilyIndex, i));
         }
     }

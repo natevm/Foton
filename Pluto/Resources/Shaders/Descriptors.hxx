@@ -6,7 +6,7 @@
 #extension GL_EXT_nonuniform_qualifier : enable
 
 /* Component Declarations */
-#include "Pluto/Material/PushConstants.hxx"
+#include "Pluto/Systems/RenderSystem/PushConstants.hxx"
 #include "Pluto/Entity/EntityStruct.hxx"
 #include "Pluto/Material/MaterialStruct.hxx"
 #include "Pluto/Light/LightStruct.hxx"
