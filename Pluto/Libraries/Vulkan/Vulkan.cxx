@@ -948,9 +948,16 @@ bool Vulkan::end_one_time_graphics_command(vk::CommandBuffer command_buffer, std
         return false;
     }
 
-    auto result = device.waitForFences(one_time_graphics_command_fence, true, 1000000000);
-    if (result != vk::Result::eSuccess) {
-        std::cout<<"Fence timeout: " << hint << std::endl; 
+    while (true) {
+        auto result = device.waitForFences(one_time_graphics_command_fence, true, 1000000000);
+        if (result == vk::Result::eSuccess) break;
+        if (result == vk::Result::eErrorDeviceLost) {
+            std::cout<<"Error: Device was lost while submitting command "<<hint<<std::endl;
+            throw std::runtime_error(std::string("Error: Device was lost while submitting command ") + hint);
+        }
+        if (result == vk::Result::eTimeout) {
+            std::cout<<"Warning: fence timeout for " << hint << std::endl; 
+        }
     }
     
     if (free_after_use)

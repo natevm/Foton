@@ -15,5 +15,7 @@ void main() {
     payload.UV = vec2(0.);
     payload.entity_id = -1;
     payload.distance = -1;
-    payload.color = vec4(get_environment_color(gl_WorldRayDirectionNV), 1.0);
+    payload.contribution.diffuse_radiance = get_environment_color(gl_WorldRayDirectionNV);
+    payload.contribution.specular_radiance = vec3(0.0);
+    payload.contribution.alpha = 1.0;
 }

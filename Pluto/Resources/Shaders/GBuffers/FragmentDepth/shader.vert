@@ -2,6 +2,7 @@
 #include "Pluto/Resources/Shaders/Descriptors.hxx"
 #include "Pluto/Resources/Shaders/Attributes.hxx"
 #include "Pluto/Resources/Shaders/VertexVaryings.hxx"
+#include "Pluto/Resources/Shaders/Options.hxx"
 
 void main() {
     EntityStruct target_entity = ebo.entities[push.consts.target_id];
@@ -11,7 +12,7 @@ void main() {
     TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
 
     vec3 w_position;
-    if (push.consts.show_bounding_box == 1) {
+    if (show_bounding_box()) {
         MeshStruct mesh_struct = mesh_ssbo.meshes[target_entity.mesh_id];
         w_position = vec3(target_transform.localToWorld * mesh_struct.bb_local_to_parent * vec4(point.xyz, 1.0));
     }

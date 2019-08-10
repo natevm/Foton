@@ -49,6 +49,9 @@ class Light : public StaticFactory
         /* Returns the total number of reserved light components */
         static uint32_t GetCount();
 
+        /* Returns the number of lights stored in the light entities ssbo */
+        static uint32_t GetNumActiveLights();
+
         /* Deallocates a light with the given name */
         static void Delete(std::string name);
 
@@ -138,6 +141,17 @@ class Light : public StaticFactory
 
         /* Make the light act as a sphere area light */
         void use_sphere();
+
+        /* Toggles the light on or off */
+        void disable(bool disabled);
+
+        /* Enables variance shadow mapping, which blurs the shadow map before sampling, 
+        creating fake soft shadows. Note: may result in "peter-panning" artifacts */
+        void enable_vsm(bool enabled);
+
+        /* Returns true if variance shadow mapping is enabled. Useful when recording compute pass on shadow maps. */
+        bool should_use_vsm();
+
     private:
         /* Creates an uninitialized light. Useful for preallocation. */
         Light();
@@ -184,6 +198,9 @@ class Light : public StaticFactory
         /* The corresponding light entities staging SSBO memory */
         static vk::DeviceMemory stagingLightEntitiesSSBOMemory;
 
+        /* The number of entities in the light entities ssbo */
+        static uint32_t numLightEntities;
+
 /* Remove this? */
         static std::vector<Camera*> shadowCameras;
         
@@ -195,4 +212,7 @@ class Light : public StaticFactory
 
         /* A flag indicating whether the current light should cast shadows or not */
         bool castsDynamicShadows = true;
+
+        /* Flag to enable variance shadow mapping effect */
+        bool enableVSM = false;
 };

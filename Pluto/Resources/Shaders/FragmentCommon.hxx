@@ -3,7 +3,7 @@
 
 /* Outputs */
 layout(location = 0) out vec4 outColor;
-// layout(location = 1) out vec4 GBUF1;
+layout(location = 1) out vec4 GBUF1;
 // layout(location = 2) out vec4 GBUF2;
 // layout(location = 3) out vec4 GBUF3;
 // layout(location = 4) out vec4 GBUF4;

@@ -33,18 +33,18 @@ struct PushConsts
     int32_t ranking_tile_id;
     int32_t scramble_tile_id;
     int32_t frame;
-    int32_t placeholder5;
-    int32_t placeholder6;
-    int32_t placeholder7;
-    int32_t placeholder8;
+    int32_t width;
+    int32_t height;
     int32_t flags;
-    int32_t show_bounding_box;
+    int32_t num_lights;
+    int32_t iteration;
     
     float sky_transition;
     float gamma;
     float exposure;
     float time;
     float environment_roughness;
+    float parameter1;
 
     vec4 top_sky_color;
     vec4 bottom_sky_color;

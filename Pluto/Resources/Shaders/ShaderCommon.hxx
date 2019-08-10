@@ -3,20 +3,10 @@
 
 #include "Pluto/Resources/Shaders/LTCCommon.hxx"
 #include "Pluto/Resources/Shaders/ShaderConstants.hxx"
+#include "Pluto/Resources/Shaders/Random.hxx"
+#include "Pluto/Resources/Shaders/Halton.hxx"
 
-// Tone Mapping --------------------------------------
-// From http://filmicgames.com/archives/75
-vec3 Uncharted2Tonemap(vec3 x)
-{
-    x = max(x, vec3(0));
-	float A = 0.15;
-	float B = 0.50;
-	float C = 0.10;
-	float D = 0.20;
-	float E_ = 0.02;
-	float F = 0.30;
-	return max(vec3(0.0f), ((x*(A*x+C*B)+D*E_)/(x*(A*x+B)+D*F))-E_/F);
-}
+#include "Pluto/Resources/Shaders/DisneyBRDF.hxx"
 
 // Texture Lookups --------------------------------------
 // --- unfiltered checkerboard ---
@@ -94,92 +84,6 @@ vec4 sample_texture_3D(vec4 default_color, int texture_id, vec3 uvw, float lod)
 
     //textureLod(volumeTexture, pos, mbo.lod);
     return color;//vec4(color.rgb, 0.0);
-}
-
-int sampleRankingTile(ivec2 coordinates)
-{
-    if ((push.consts.ranking_tile_id < 0) || (push.consts.ranking_tile_id >= MAX_TEXTURES))
-        return 0;
-
-    TextureStruct tex = txbo.textures[push.consts.ranking_tile_id];
-
-    if ((tex.sampler_id < 0) || (tex.sampler_id >= MAX_SAMPLERS)) 
-        return 0;
-
-	return int(texelFetch( 
-			sampler2D(texture_2Ds[push.consts.ranking_tile_id], samplers[tex.sampler_id]), 
-			coordinates, 0
-    ).r * 255.5);
-}
-
-int sampleSobelTile(ivec2 coordinates)
-{
-    if ((push.consts.sobel_tile_id < 0) || (push.consts.sobel_tile_id >= MAX_TEXTURES))
-        return 0;
-
-    TextureStruct tex = txbo.textures[push.consts.sobel_tile_id];
-
-    if ((tex.sampler_id < 0) || (tex.sampler_id >= MAX_SAMPLERS)) 
-        return 0;
-
-    return int(texelFetch(sampler2D(texture_2Ds[push.consts.sobel_tile_id], samplers[tex.sampler_id]), 
-        coordinates, 0
-    ).r * 255.5);
-
-    // return int(texture(texture_2Ds[push.consts.sobel_tile_id], uv) * 255.0);
-	// return int(texture( 
-	// 		sampler2D(texture_2Ds[push.consts.sobel_tile_id], samplers[tex.sampler_id]), 
-	// 		uv
-    // ).r * 255.0);
-}
-
-int sampleScramblingTile(ivec2 coordinates)
-{
-    if ((push.consts.scramble_tile_id < 0) || (push.consts.scramble_tile_id >= MAX_TEXTURES))
-        return 0;
-
-    TextureStruct tex = txbo.textures[push.consts.scramble_tile_id];
-
-    if ((tex.sampler_id < 0) || (tex.sampler_id >= MAX_SAMPLERS)) 
-        return 0;
-
-	return int(texelFetch( 
-			sampler2D(texture_2Ds[push.consts.scramble_tile_id], samplers[tex.sampler_id]), 
-			coordinates, 0
-    ).r * 255.5);
-}
-
-float samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_128spp(int pixel_i, int pixel_j, int sampleIndex, int sampleDimension)
-{
-	pixel_i = pixel_i & 127;
-	pixel_j = pixel_j & 127;
-	sampleIndex = sampleIndex & 255;
-	sampleDimension = sampleDimension & 255;
-
-    int rankingTileAddr = sampleDimension + (pixel_i + pixel_j*128)*8;
-    int rankingTileAddrX = rankingTileAddr % 128;
-    int rankingTileAddrY = rankingTileAddr / 128;
-
-	// xor index based on optimized ranking
-	int rankedSampleIndex = sampleIndex ^ sampleRankingTile(ivec2(rankingTileAddrX, rankingTileAddrY));
-
-    int sobelTileAddr = sampleDimension + rankedSampleIndex*256;
-    int sobelTileAddrX = sobelTileAddr % 256;
-    int sobelTileAddrY = sobelTileAddr / 256;
-
-	// fetch value in sequence
-	int value = sampleSobelTile(ivec2(sampleDimension, rankedSampleIndex)); //sobol_256spp_256d[sampleDimension + rankedSampleIndex*256];
-
-    int scramblingTileAddr = (sampleDimension%8) + (pixel_i + pixel_j*128)*8;
-    int scramblingTileAddrX = scramblingTileAddr % 128;
-    int scramblingTileAddrY = scramblingTileAddr / 128;
-
-	// If the dimension is optimized, xor sequence value based on optimized scrambling
-	value = value ^ sampleScramblingTile(ivec2(scramblingTileAddrX, scramblingTileAddrY)); //scramblingTile[(sampleDimension%8) + (pixel_i + pixel_j*128)*8];
-
-	// convert to float and return
-	float v = (0.5f+value)/255.0f;
-	return v;
 }
 
 // Material Properties --------------------------------------
@@ -296,6 +200,17 @@ vec3 F_SchlickR(float cosTheta, vec3 F0, float roughness)
 	return F0 + (max(vec3(1.0 - roughness), F0) - F0) * SchlickR(cosTheta, roughness);
 }
 
+float LazanyiSchlick(float cosTheta, float reflectivity, float F82) {
+    // From Naty Hoffman at Lucasfilm
+    // F82 represents fresnel reflectance at the peak angle.
+    float theta_max = 1.425934; // arccos(1/7) = 81.7;
+    float cosTheta_max = cos(theta_max);
+    float h = F82;
+    float r = reflectivity;
+    float alpha = ( r + (1.0 - r) * pow((cosTheta_max), 5) - h ) / (cosTheta_max * pow((1.0 - cosTheta_max), 6));
+    return r + (1.0 - r) * pow((1.0 - cosTheta), 5) - alpha * cosTheta * pow((1.0 - cosTheta), 6);
+}
+
 // Specular Contribution function --------------------------------------
 vec3 specularContribution(vec3 L, vec3 V, vec3 N, vec3 F0, vec3 albedo, float metallic, float roughness)
 {
@@ -343,20 +258,50 @@ float get_shadow_contribution(EntityStruct light_entity, LightStruct light, vec3
     float viewDistance = l_dist;
     float diskRadius = light.softnessRadius * clamp((1.0 / pow(l_dist + 1.0, 3.)), .002, .1);
 
-    for (int i = 0; i < samples; i++)
+    // PCF
+    if ((light.flags & (1 << 3)) == 0 )
     {
-        float closestDepth = texture(
-            samplerCube(texture_cubes[tex_id], samplers[tex.sampler_id]), 
-            adjusted + sampleOffsetDirections[i] * diskRadius
-        ).r;
+        for (int i = 0; i < samples; i++)
+        {
+            float closestDepth = texture(
+                samplerCube(texture_cubes[tex_id], samplers[tex.sampler_id]), 
+                adjusted + sampleOffsetDirections[i] * diskRadius
+            ).r;
 
-        if (closestDepth == 0.0f) return 1.0f; // testing 
+            if (closestDepth == 0.0f) return 1.0f; // testing 
 
-        shadow += 1.0f;
-        if((l_dist - closestDepth) > 0.15)
-          shadow -= min(1.0, pow((l_dist - closestDepth), .1));
+            shadow += 1.0f;
+            if((l_dist - closestDepth) > 0.15)
+                shadow -= min(1.0, pow((l_dist - closestDepth), .1));
+        }
+        shadow /= float(samples);
     }
-    shadow /= float(samples);
+
+    // VSM
+    else {
+
+        // We retrive the two moments previously stored (depth and depth*depth)
+        vec2 moments = texture(
+            samplerCube(texture_cubes[tex_id], samplers[tex.sampler_id]), 
+            adjusted
+        ).rg;
+
+        // Surface is fully lit. as the current fragment is before the light occluder
+        if ((moments.x - l_dist) > -0.15)
+            return 1.0 ;
+
+
+        // The fragment is either in shadow or penumbra. We now use chebyshev's upperBound to check
+        // How likely this pixel is to be lit (p_max)
+        float variance = moments.y - (moments.x*moments.x);
+        variance = max(variance,0.00002);
+
+        float d = l_dist - moments.x;
+
+        float p_max = variance / (variance + d*d);
+    
+        return p_max;
+    }
 
 
     // if (tex.sampler_id != -1) {
@@ -492,9 +437,9 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
     float ndotv = saturate(dotNV);
     vec2 uv = vec2(roughness, sqrt(1.0 - ndotv));    
     uv = uv*LUT_SCALE + LUT_BIAS;
-    vec4 t1 = texture(sampler2D(texture_2Ds[push.consts.ltc_mat_lut_id], samplers[0]), uv);
+    vec4 t1 = texture(sampler2D(texture_2Ds[push.consts.ltc_mat_lut_id], samplers[0]), uv); // ltc_1
     // t1.w = max(t1.w, .05); // Causes numerical precision issues if too small
-    vec4 t2 = texture(sampler2D(texture_2Ds[push.consts.ltc_amp_lut_id], samplers[0]), uv);
+    vec4 t2 = texture(sampler2D(texture_2Ds[push.consts.ltc_amp_lut_id], samplers[0]), uv); // ltc_2
     mat3 m_inv = mat3(
         vec3(t1.x, 0, t1.y),
         vec3(  0,  1,    0),
@@ -719,72 +664,72 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
 }
 
 // Final Color Contribution Function          ----------------------------------------------------
-vec4 get_color_contribution(inout MaterialStruct material, vec3 N, vec3 V, vec3 P, vec3 MP, vec2 UV, vec4 VC)
-{
-    /* Compute reflection and refraction directions */
-    vec3 R = -normalize(reflect(V, N));	
-	float eta = 1.0 / material.ior; // air = 1.0 / material = ior
-	vec3 Refr = normalize(refract(-V, N, eta));
+// vec4 get_color_contribution(inout MaterialStruct material, vec3 N, vec3 V, vec3 P, vec3 MP, vec2 UV, vec4 VC)
+// {
+//     /* Compute reflection and refraction directions */
+//     vec3 R = -normalize(reflect(V, N));	
+// 	float eta = 1.0 / material.ior; // air = 1.0 / material = ior
+// 	vec3 Refr = normalize(refract(-V, N, eta));
 
-    float metallic = material.metallic;
-	float transmission = 1.0;//material.transmission;
-	float roughness = getRoughness(material, UV, MP);
-	float transmission_roughness = getTransmissionRoughness(material);
-	vec4 albedo = getAlbedo(material, VC, UV, MP);
-	float alphaMask = getAlphaMask(material, UV, MP);
-    float alpha = (alphaMask < 1.0) ? alphaMask : albedo.a; // todo: move alpha out of albedo. 
+//     float metallic = material.metallic;
+// 	float transmission = 1.0;//material.transmission;
+// 	float roughness = getRoughness(material, UV, MP);
+// 	float transmission_roughness = getTransmissionRoughness(material);
+// 	vec4 albedo = getAlbedo(material, VC, UV, MP);
+// 	float alphaMask = getAlphaMask(material, UV, MP);
+//     float alpha = (alphaMask < 1.0) ? alphaMask : albedo.a; // todo: move alpha out of albedo. 
     
-    /* TODO: Add support for ray tracing */
-	#ifndef RAYTRACING
-    if (alpha == 0.0) discard;
-    #endif
+//     /* TODO: Add support for ray tracing */
+// 	#ifndef RAYTRACING
+//     if (alpha == 0.0) discard;
+//     #endif
 
-    /* Todo: read from metallic/roughness texture if one exists. */
-	vec3 reflection = getPrefilteredReflection(R, roughness).rgb;
-	vec3 refraction = getPrefilteredReflection(Refr, min(transmission_roughness + roughness, 1.0) ).rgb;
-	vec3 irradiance = sampleIrradiance(N);
+//     /* Todo: read from metallic/roughness texture if one exists. */
+// 	vec3 reflection = getPrefilteredReflection(R, roughness).rgb;
+// 	vec3 refraction = getPrefilteredReflection(Refr, min(transmission_roughness + roughness, 1.0) ).rgb;
+// 	vec3 irradiance = sampleIrradiance(N);
 
-	/* Transition between albedo and black */
-	vec3 albedo_mix = mix(vec3(0.04), albedo.rgb, max(metallic, transmission));
+// 	/* Transition between albedo and black */
+// 	vec3 albedo_mix = mix(vec3(0.04), albedo.rgb, max(metallic, transmission));
 
-	/* Transition between refraction and black (metal takes priority) */
-	vec3 refraction_mix = mix(vec3(0.0), refraction, max((transmission - metallic), 0));
+// 	/* Transition between refraction and black (metal takes priority) */
+// 	vec3 refraction_mix = mix(vec3(0.0), refraction, max((transmission - metallic), 0));
 		
-	/* First compute diffuse (None if metal/glass.) */
-	vec3 diffuse = irradiance * albedo.rgb;
+// 	/* First compute diffuse (None if metal/glass.) */
+// 	vec3 diffuse = irradiance * albedo.rgb;
 	
-	/* Next compute specular. */
-	vec2 brdf = sampleBRDF(N, V, roughness);
-	float cosTheta = max(dot(N, V), 0.0);
-	float s = SchlickR(cosTheta, roughness);
+// 	/* Next compute specular. */
+// 	vec2 brdf = sampleBRDF(N, V, roughness);
+// 	float cosTheta = max(dot(N, V), 0.0);
+// 	float s = SchlickR(cosTheta, roughness);
 
-	// Add on either a white schlick ring if rough, or nothing. 
-	vec3 albedo_mix_schlicked = albedo_mix + ((max(vec3(1.0 - roughness), albedo_mix) - albedo_mix) * s);
+// 	// Add on either a white schlick ring if rough, or nothing. 
+// 	vec3 albedo_mix_schlicked = albedo_mix + ((max(vec3(1.0 - roughness), albedo_mix) - albedo_mix) * s);
 	
-	vec3 refraction_schlicked = refraction_mix * (1.0 - s);
-	vec3 reflection_schlicked = reflection * (mix(s, 1.0, metallic));
-	vec3 specular_reflection = reflection_schlicked * (albedo_mix_schlicked * brdf.x + brdf.y); // brdf.x seems to never reach 1.0
-	vec3 specular_refraction = refraction_schlicked * (albedo_mix * brdf.x); // brdf.y adds frensel like ring, which shouldn't exist on glass
+// 	vec3 refraction_schlicked = refraction_mix * (1.0 - s);
+// 	vec3 reflection_schlicked = reflection * (mix(s, 1.0, metallic));
+// 	vec3 specular_reflection = reflection_schlicked * (albedo_mix_schlicked * brdf.x + brdf.y); // brdf.x seems to never reach 1.0
+// 	vec3 specular_refraction = refraction_schlicked * (albedo_mix * brdf.x); // brdf.y adds frensel like ring, which shouldn't exist on glass
 
-	/* This is really subtle. Brightens schlicked areas, but only if not metal. */
-	vec3 kD = (1.0 - albedo_mix_schlicked) * (1.0 - metallic);
+// 	/* This is really subtle. Brightens schlicked areas, but only if not metal. */
+// 	vec3 kD = (1.0 - albedo_mix_schlicked) * (1.0 - metallic);
 
-    // Ambient occlusion part
-	float ao = /*(material.hasOcclusionTexture == 1.0f) ? texture(aoMap, inUV).r : */ 1.0f;
-	vec3 ambient = (kD * diffuse + specular_reflection + specular_refraction) * ao;
+//     // Ambient occlusion part
+// 	float ao = /*(material.hasOcclusionTexture == 1.0f) ? texture(aoMap, inUV).r : */ 1.0f;
+// 	vec3 ambient = (kD * diffuse + specular_reflection + specular_refraction) * ao;
 
-    // Iterate over point lights
-	vec3 final_color = ambient + get_light_contribution(P, V, N, albedo_mix, albedo.rgb, metallic, roughness);
+//     // Iterate over point lights
+// 	vec3 final_color = ambient + get_light_contribution(P, V, N, albedo_mix, albedo.rgb, metallic, roughness);
 
-    // Tone mapping
-	final_color = Uncharted2Tonemap(final_color * push.consts.exposure);
-	final_color = final_color * (1.0f / Uncharted2Tonemap(vec3(11.2f)));
+//     // Tone mapping
+// 	final_color = Uncharted2Tonemap(final_color * push.consts.exposure);
+// 	final_color = final_color * (1.0f / Uncharted2Tonemap(vec3(11.2f)));
 
-    // Gamma correction
-	final_color = pow(final_color, vec3(1.0f / push.consts.gamma));
+//     // Gamma correction
+// 	final_color = pow(final_color, vec3(1.0f / push.consts.gamma));
 
-    return vec4(final_color, alpha);
-}
+//     return vec4(final_color, alpha);
+// }
 
 struct PBRInfo
 {
@@ -796,10 +741,13 @@ struct PBRInfo
     vec4 m_position;
 };
 
-vec4 get_ray_traced_contribution(PBRInfo info)
+Contribution get_ray_traced_contribution(PBRInfo info)
 {
-    vec4 final_color = vec4(0.0);
-
+    Contribution final_color;
+    final_color.diffuse_radiance = vec3(0.0);
+    final_color.specular_radiance = vec3(0.0);
+    final_color.alpha = 0.0;
+    
     /* Load target entity information */
     EntityStruct target_entity = ebo.entities[info.entity_id];
     if (target_entity.transform_id < 0 || target_entity.transform_id >= MAX_TRANSFORMS) vec3(0.0);
@@ -808,13 +756,14 @@ vec4 get_ray_traced_contribution(PBRInfo info)
     MaterialStruct target_material = mbo.materials[target_entity.material_id];
 
     /* Hidden flag */
-    if ((target_material.flags & (1 << 1)) != 0) return vec4(0.0);
+    if ((target_material.flags & (1 << 1)) != 0) return final_color;
 
     /* Compute some material properties */
     const vec4 albedo = getAlbedo(target_material, vec4(0.0), info.uv, info.m_position.xyz);
     const float metallic = clamp(target_material.metallic, 0.0, 1.0);
     const float transmission = clamp(target_material.transmission, 0.0, 1.0);
-    const float roughness = clamp(getRoughness(target_material, info.uv, info.m_position.xyz), 0.05, 0.9);
+    const float roughness = getRoughness(target_material, info.uv, info.m_position.xyz);
+    const float clamped_roughness = clamp(roughness, 0.01, .99);
     const float transmission_roughness = clamp(getTransmissionRoughness(target_material), 0.0, 0.9);
 
     vec3 dielectric_specular = vec3(.04);
@@ -833,7 +782,7 @@ vec4 get_ray_traced_contribution(PBRInfo info)
     #ifndef RAYTRACING
     discard;
     #else
-    return vec4(0.0);
+    return final_color;
     #endif
 
     /* Compute some common vectors and interpolants */
@@ -859,7 +808,7 @@ vec4 get_ray_traced_contribution(PBRInfo info)
 	float schlick = pow(1.0 - NdotV, 5.0);
 
     /* Compute direct specular and diffuse contribution from LTC area lights */
-    vec2 LTC_UV = vec2(roughness, sqrt(1.0 - NdotV))*LUT_SCALE + LUT_BIAS;
+    vec2 LTC_UV = vec2(clamped_roughness, sqrt(1.0 - NdotV))*LUT_SCALE + LUT_BIAS;
     vec4 t1 = texture(sampler2D(texture_2Ds[push.consts.ltc_mat_lut_id], samplers[0]), LTC_UV);
     vec4 t2 = texture(sampler2D(texture_2Ds[push.consts.ltc_amp_lut_id], samplers[0]), LTC_UV);
     mat3 m_inv = mat3(
@@ -879,6 +828,8 @@ vec4 get_ray_traced_contribution(PBRInfo info)
     // }
 
     // #ifndef RAYTRACING
+    vec3 specular_irradiance = vec3(0.0);
+    vec3 diffuse_irradiance = vec3(0.0);
     for (int i = 0; i < MAX_LIGHTS; ++i) {
     // #else
     // float rand0 = samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_128spp(int(payload.pixel.x), int(payload.pixel.y), push.consts.frame, payload.bounce_count * 9);
@@ -946,6 +897,7 @@ vec4 get_ray_traced_contribution(PBRInfo info)
             vec3 dir = w_light_dir;
 
             payload.is_shadow_ray = true; 
+            payload.random_dimension = randomDimension;
             traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, w_position.xyz + w_normal * .01, tmin, dir, tmax, 0);
             if ((payload.distance < 0.0) || (payload.entity_id < 0) || (payload.entity_id >= MAX_ENTITIES) || (payload.entity_id == light_entity_id)) 
             {
@@ -1004,8 +956,11 @@ vec4 get_ray_traced_contribution(PBRInfo info)
             // Get diffuse
             vec3 ldiff = LTC_Evaluate_Rect_Clipped(w_normal, w_view, w_position, mat3(1), points, double_sided); 
 
-            directDiffuseContribution += shadow_term * geometric_term * lcol * (lspec);
-            directSpecularContribution += shadow_term * geometric_term * lcol * (KD*diffuse*ldiff);
+            /* Finding that the intensity is slightly more against ray traced ground truth */
+            float correction = 1.5 / PI;
+
+            diffuse_irradiance += shadow_term * lcol * lspec * correction;
+            specular_irradiance += shadow_term * lcol * ldiff * correction;
             // final_color += shadow_term * geometric_term * lcol * (spec + diffuse*diff);
         }
 
@@ -1035,8 +990,8 @@ vec4 get_ray_traced_contribution(PBRInfo info)
             // Get diffuse
             vec3 ldiff = LTC_Evaluate_Disk(w_normal, w_view, w_position, mat3(1), points, double_sided); 
 
-            directDiffuseContribution += shadow_term * geometric_term * lcol * (lspec);
-            directSpecularContribution += shadow_term * geometric_term * lcol * (KD*diffuse*ldiff);
+            diffuse_irradiance += shadow_term * lcol * lspec;
+            specular_irradiance += shadow_term * lcol * ldiff;
             // final_color += shadow_term * geometric_term * lcol * (spec + diffuse*diff);
         }
         
@@ -1066,8 +1021,8 @@ vec4 get_ray_traced_contribution(PBRInfo info)
             vec3 ldiff = LTC_Evaluate_Rod(w_normal, w_view, w_position, mat3(1), points, radius, show_end_caps); 
             // diff /= (PI);
 
-            directDiffuseContribution += shadow_term * geometric_term * lcol * (lspec);
-            directSpecularContribution += shadow_term * geometric_term * lcol * (KD*diffuse*ldiff);
+            diffuse_irradiance += shadow_term * lcol * lspec;
+            specular_irradiance += shadow_term * lcol * ldiff;
             // final_color += shadow_term * geometric_term * lcol * (spec + diffuse*diff);
         }
         
@@ -1116,15 +1071,19 @@ vec4 get_ray_traced_contribution(PBRInfo info)
             // Get diffuse
             vec3 ldiff = LTC_Evaluate_Disk(w_normal, w_view, w_position, mat3(1), points, true); 
 
-            directDiffuseContribution += shadow_term * geometric_term * lcol * (lspec);
-            directSpecularContribution += shadow_term * geometric_term * lcol * (KD*diffuse*ldiff);
+            diffuse_irradiance += shadow_term * lcol * lspec;
+            specular_irradiance += shadow_term * lcol * ldiff;
             // final_color += shadow_term * geometric_term * lcol * (spec + diffuse*diff);
         }
     }
 
+
+    directDiffuseContribution += (KD * diffuse) * diffuse_irradiance;
+    directSpecularContribution += (specular + diffuse) * specular_irradiance;
+
     /* Compute indirect diffuse contribution from IBL */
-    vec3 diffuse_irradiance = sampleIrradiance(w_normal);
-    vec3 indirectDiffuse = diffuse * diffuse_irradiance;
+    vec3 ambient_diffuse_irradiance = sampleIrradiance(w_normal);
+    vec3 indirectDiffuse = diffuse * ambient_diffuse_irradiance;
     vec3 indirectDiffuseContribution = KD * indirectDiffuse;
 
     /* Compute indirect specular contribution from IBL */
@@ -1143,33 +1102,47 @@ vec4 get_ray_traced_contribution(PBRInfo info)
     #ifdef RAYTRACING
     float rand1 = samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_128spp(int(payload.pixel.x), int(payload.pixel.y), push.consts.frame, 10);
 
+    // #define USE_BLUENOISE 
+    #ifdef USE_BLUENOISE
+    float theta = PI*samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_128spp(int(payload.pixel.x), int(payload.pixel.y), push.consts.frame, 15);
+    float phi = TWOPI*samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_128spp(int(payload.pixel.x), int(payload.pixel.y), push.consts.frame, 15);
+    #elif USE_HALTON
+    float theta = PI*Halton(2, int(payload.pixel.x), int(payload.pixel.y), push.consts.frame);
+    float phi = TWOPI*Halton(3, int(payload.pixel.x), int(payload.pixel.y), push.consts.frame); 
+    #else
+    float theta = PI * Hash(int(payload.pixel.x), int(payload.pixel.y), push.consts.frame, 0);
+    float phi = TWOPI * Hash(int(payload.pixel.x), int(payload.pixel.y), push.consts.frame, 1);
+    #endif
+    // float theta = TWOPI * 
+    vec3 ddir = normalize(vec3(sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta)));
+    vec3 rough_normal = normalize(w_normal + (ddir * roughness));
+
     /* Ray trace reflections (glossy surfaces not yet supported) */
-    if ((bounce_count < 2) && (roughness < rand1)) {
-        float theta = TWOPI*samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_128spp(int(payload.pixel.x), int(payload.pixel.y), push.consts.frame, 15);
-        float phi = TWOPI*samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_128spp(int(payload.pixel.x), int(payload.pixel.y), push.consts.frame, 15);
-        vec3 ddir = normalize(vec3(sin(theta)*cos(phi), cos(theta), cos(theta)*cos(phi)));
+    if ((bounce_count < 2) /*(roughness < rand1)*/) {
         
         uint rayFlags = gl_RayFlagsNoneNV;
         uint cullMask = 0xff;
-        float tmin = .01;
+        float tmin = .1;
         float tmax = 100.0;
         // uint rayFlags = gl_RayFlagsCullBackFacingTrianglesNV ;
-        vec3 dir = normalize(reflect(w_incoming, normalize(w_normal + (ddir * roughness))));
+        vec3 dir = normalize(reflect(w_incoming, rough_normal));
 
         payload.bounce_count = bounce_count + 1;
-        payload.color = vec4(0.0);
+        payload.contribution.diffuse_radiance = payload.contribution.specular_radiance = vec3(0.0);
+        payload.contribution.alpha = 0.0;
         payload.is_shadow_ray = false;
-        traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, w_position.xyz + w_normal * .01, tmin, dir, tmax, 0);
+        payload.random_dimension = randomDimension;
+        traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, w_position.xyz/*  + w_normal * .01*/, tmin, dir, tmax, 0);
         if ((payload.distance < 0.0) || (payload.entity_id < 0) || (payload.entity_id >= MAX_ENTITIES)) {
-            final_color += vec4(indirectSpecularReflectionContribution, 0.0);
+            final_color.specular_radiance += indirectSpecularReflectionContribution;
         } 
         else {
-            final_color += (1.0 - roughness) * vec4(specular * payload.color.rgb, 0.0);
+            final_color.specular_radiance += specular * (payload.contribution.diffuse_radiance + payload.contribution.specular_radiance); 
         }
     } else
     #endif
     {
-        final_color += vec4(indirectSpecularReflectionContribution, 0.0);
+        final_color.specular_radiance += indirectSpecularReflectionContribution;
     }
 
     /* Ray trace refractions (glossy surfaces not yet supported) */
@@ -1188,12 +1161,14 @@ vec4 get_ray_traced_contribution(PBRInfo info)
         vec3 dir = w_refr.xyz;
 
         payload.bounce_count = bounce_count + 1;
-        payload.color = vec4(0.0);
+        payload.contribution.diffuse_radiance = payload.contribution.specular_radiance = vec3(0.0);
+        payload.contribution.alpha = 0.0;
         payload.is_shadow_ray = false;
+        payload.random_dimension = randomDimension;
         // float sign = (inside) ? -1.0 : 1.0;
         traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, w_position.xyz/*  + w_normal * .1*/, tmin, dir, tmax, 0);
         if ((payload.distance < 0.0) || (payload.entity_id < 0) || (payload.entity_id >= MAX_ENTITIES)) {
-            final_color += vec4(indirectSpecularRefractionContribution, 0.0);
+            final_color.specular_radiance += indirectSpecularRefractionContribution;
         } 
         else {
             vec3 absorped;
@@ -1201,24 +1176,549 @@ vec4 get_ray_traced_contribution(PBRInfo info)
             absorped.g = pow(E, -payload.distance * absorption.g);
             absorped.b = pow(E, -payload.distance * absorption.b);
 
-            final_color += vec4(absorped * specular * payload.color.rgb, 0.0);
+            final_color.specular_radiance += absorped * specular * (payload.contribution.diffuse_radiance + payload.contribution.specular_radiance);
         }
     } else
     #endif
     {
-        final_color +=  vec4( indirectSpecularRefractionContribution, 0.0);
+        final_color.specular_radiance +=  indirectSpecularRefractionContribution;
     }
 
 
-    final_color += vec4(indirectDiffuseContribution, 0.0);
-    final_color += vec4(directSpecularContribution, 0.0);
-    final_color += vec4(directDiffuseContribution, 0.0);
-    final_color += vec4(emissiveContribution, 0.0);
+    final_color.diffuse_radiance += indirectDiffuseContribution;
+    final_color.specular_radiance += directSpecularContribution;
+    final_color.diffuse_radiance += directDiffuseContribution;
+    final_color.diffuse_radiance += emissiveContribution;
 
 
     // final_color = vec4(w_normal, 1.0);
-    final_color.a = alpha;
+    final_color.alpha = alpha;
     return final_color;
+}
+
+
+
+
+/* DISNEY BRDF */
+vec3 pointLightSample(const in EntityStruct light_entity, const in LightStruct light, const in TransformStruct light_transform, const in SurfaceInteraction interaction, out vec3 wi, out float lightPdf) {
+    vec3 w_light_position = light_transform.localToWorld[3].xyz;
+    vec3 w_light_dir = normalize(w_light_position - interaction.w_position.xyz);
+    
+    wi = w_light_dir;    
+    float sinThetaMax2 = 1.0 / distanceSq(w_light_position, interaction.w_position.xyz);
+    float cosThetaMax = sqrt(max(EPSILON, 1. - sinThetaMax2));
+    if (dot(wi, interaction.w_normal.xyz) > 0.) {
+        lightPdf = 1. / (TWO_PI * (1. - cosThetaMax));
+    }
+    
+	return light.color.rgb * light.intensity;
+}
+
+vec3 sphereLightSample(const in EntityStruct light_entity, const in LightStruct light, const in TransformStruct light_transform, const in SurfaceInteraction interaction, out vec3 wi, out float lightPdf) {
+    vec3 w_light_right =    light_transform.localToWorld[0].xyz;
+    vec3 w_light_forward =  light_transform.localToWorld[1].xyz;
+    vec3 w_light_up =       light_transform.localToWorld[2].xyz;
+    vec3 w_light_position = light_transform.localToWorld[3].xyz;
+    vec3 w_light_dir = normalize(w_light_position - interaction.w_position.xyz);
+    
+    float s1 = length(w_light_right);
+    float s2 = length(w_light_forward);
+    float s3 = length(w_light_up);
+
+    float light_radius = max(max(abs(s1), abs(s2) ), abs(s3) );
+    
+    vec2 u = vec2(random(interaction.pixel_coords), random(interaction.pixel_coords));
+    
+    vec3 tangent = vec3(0.), binormal = vec3(0.);
+    createBasis(w_light_dir, tangent, binormal);
+    
+    float sinThetaMax2 = light_radius * light_radius / distanceSq(w_light_position, interaction.w_position.xyz);
+    float cosThetaMax = sqrt(max(EPSILON, 1. - sinThetaMax2));
+    wi = uniformSampleCone(u, cosThetaMax, tangent, binormal, w_light_dir);
+    
+    if (dot(wi, interaction.w_normal.xyz) > 0.) {
+        lightPdf = 1. / (TWO_PI * (1. - cosThetaMax));
+    }
+    
+	return light.color.rgb * light.intensity;
+}
+
+float sphereLightPDF( const in EntityStruct light_entity, const in SurfaceInteraction interaction ) { 
+    LightStruct light = lbo.lights[light_entity.light_id];
+    TransformStruct light_transform = tbo.transforms[light_entity.transform_id];
+    vec3 w_light_right =    light_transform.localToWorld[0].xyz;
+    vec3 w_light_forward =  light_transform.localToWorld[1].xyz;
+    vec3 w_light_up =       light_transform.localToWorld[2].xyz;
+    vec3 w_light_position = light_transform.localToWorld[3].xyz;
+    vec3 w_light_dir = normalize(w_light_position - interaction.w_position.xyz);
+    
+    float s1 = length(w_light_right);
+    float s2 = length(w_light_forward);
+    float s3 = length(w_light_up);
+
+    float light_radius = max(max(abs(s1), abs(s2) ), abs(s3) );
+
+    float sinThetaMax2 = light_radius * light_radius / distanceSq(w_light_position, interaction.w_position.xyz);
+    float cosThetaMax = sqrt(max(EPSILON, 1. - sinThetaMax2));
+    return 1. / (TWO_PI * (1. - cosThetaMax)); 
+}
+
+vec3 rectangleLightSample(const in EntityStruct light_entity, const in LightStruct light, const in TransformStruct light_transform, const in SurfaceInteraction interaction, out vec3 wi, out float lightPdf) {
+    /* Verify the area light isn't degenerate */
+    // if (distance(w_light_right, w_light_forward) < .01) continue;
+
+    // /* Compute geometric term */
+    // vec3 dr = w_light_right * drn + w_light_forward * dfn;
+    // float geometric_term = dot( normalize((w_light_position + dr) - w_position), w_normal);
+    // if (geometric_term < 0.0) continue;
+
+    // /* Create points for area light polygon */
+    // vec3 points[4];
+    // points[0] = w_light_position - w_light_right - w_light_forward;
+    // points[1] = w_light_position + w_light_right - w_light_forward;
+    // points[2] = w_light_position + w_light_right + w_light_forward;
+    // points[3] = w_light_position - w_light_right + w_light_forward;
+
+    // // Get Specular
+    // vec3 lspec = LTC_Evaluate_Rect_Clipped(w_normal, w_view, w_position, m_inv, points, double_sided);
+    
+    // // BRDF shadowing and Fresnel
+    // lspec *= specular*t2.x + (1.0 - specular)*t2.y;
+
+    // // Get diffuse
+    // vec3 ldiff = LTC_Evaluate_Rect_Clipped(w_normal, w_view, w_position, mat3(1), points, double_sided); 
+
+    // directDiffuseContribution += shadow_term * geometric_term * lcol * (lspec);
+    // directSpecularContribution += shadow_term * geometric_term * lcol * (KD*diffuse*ldiff);
+    // // final_color += shadow_term * geometric_term * lcol * (spec + diffuse*diff);
+    
+    vec3 w_light_right =    light_transform.localToWorld[0].xyz;
+    vec3 w_light_forward =  light_transform.localToWorld[1].xyz;
+    vec3 w_light_up =       light_transform.localToWorld[2].xyz;
+    vec3 w_light_position = light_transform.localToWorld[3].xyz;
+    vec3 w_light_dir = normalize(w_light_position - interaction.w_position.xyz);
+
+    
+    
+    /* Compute a random point on a unit plane */
+    vec4 m_light_position = vec4(random(interaction.pixel_coords) * 2.0 - 1.0, random(interaction.pixel_coords) * 2.0 - 1.0, 0.0, 1.0);
+
+    /* Transform that point to where the light actually is */
+    vec4 w_light_sample_position = light_transform.localToWorld * m_light_position;
+
+    vec3 to_light = w_light_sample_position.xyz - interaction.w_position.xyz;
+    wi = normalize(to_light);
+
+    float n_dot_w = dot(normalize(w_light_up.xyz), normalize(wi));
+
+
+    
+
+
+    // float light_radius = 1.0; // not sure how to do this bit yet...
+    
+    
+    // vec3 tangent = vec3(0.), binormal = vec3(0.);
+    // createBasis(w_light_dir, tangent, binormal);
+    
+    // float sinThetaMax2 = light_radius * light_radius / distanceSq(w_light_position, interaction.w_position.xyz);
+    // float cosThetaMax = sqrt(max(EPSILON, 1. - sinThetaMax2));
+    
+    
+    // if (dot(wi, interaction.w_normal.xyz) > 0.) {
+    //     lightPdf = 1. / (TWO_PI * (1. - cosThetaMax));
+    // }
+    
+    float width = length(w_light_right);
+    float height = length(w_light_forward);
+
+
+    float surface_area = width * height;
+	vec3 to_pt = to_light;//p - dir;
+	float dist_sqr = dot(to_pt, to_pt);
+	// float n_dot_w = dot(normalize(w_light_up.xyz), wi);
+	// if (n_dot_w < EPSILON) {
+	// 	lightPdf = 0.f;
+	// }
+	lightPdf = dist_sqr / ( n_dot_w * surface_area);
+    
+
+	return light.color.rgb * light.intensity;
+}
+
+float visibilityTest(int light_entity_id, const in SurfaceInteraction interaction, vec3 ro, vec3 rd) {
+    #ifndef RAYTRACING
+    return 1.0;
+    #else
+    // SurfaceInteraction interaction = rayMarch(ro, rd);
+    // return IS_SAME_MATERIAL(interaction.objId, LIGHT_ID) ? 1. : 0.;
+
+    if (interaction.bounce_count <= push.consts.parameter1) {
+        float dist = INFINITY;
+
+        /* Trace a single shadow ray */
+        uint rayFlags = gl_RayFlagsNoneNV;
+        uint cullMask = 0xff;
+        float tmin = .02;
+        float tmax = dist + 1.0;
+        // uint rayFlags = gl_RayFlagsCullBackFacingTrianglesNV ;        
+        payload.is_shadow_ray = true; 
+        payload.random_dimension = randomDimension;
+        traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, ro, tmin, rd, tmax, 0); 
+        return ((payload.entity_id == light_entity_id) || (payload.entity_id == -1)) ? 1.0 : 0.0;
+    }
+
+
+    #endif
+
+    return 1.0;
+}
+
+// vec3 sampleLightType( int light_entity_id, const in EntityStruct light_entity, const in SurfaceInteraction interaction, out vec3 wi, out float lightPdf, out float visibility/*, float seed*/) {
+//     /* If the light is disabled */
+//     // if( (light.flags & (1 << 2)) != 0 )
+//         // return vec3(0.);
+
+//     LightStruct light = lbo.lights[light_entity.light_id];
+    
+//     if (light.type == LIGHT_TYPE_POINT) {
+//         vec3 L = pointLightSample(light_entity, interaction, wi, lightPdf/* , seed*/);
+//         visibility = visibilityTest(light_entity_id, interaction, interaction.w_position.xyz + wi * .01, wi);
+//         return L;
+//     }
+//     else if( light.type == LIGHT_TYPE_RECTANGLE ) {
+//         vec3 L = rectangleLightSample(light_entity, interaction, wi, lightPdf/* , seed*/);
+//         visibility = visibilityTest(light_entity_id, interaction, interaction.w_position.xyz + wi * .01, wi);
+//         return L;
+//     }
+//     else if (light.type == LIGHT_TYPE_DISK) {
+//         vec3 L = sphereLightSample(light_entity, interaction, wi, lightPdf/* , seed*/);
+//         visibility = visibilityTest(light_entity_id, interaction, interaction.w_position.xyz + wi * .01, wi);
+//         return L;
+//     }
+//     else if (light.type == LIGHT_TYPE_ROD) {
+//         vec3 L = sphereLightSample(light_entity, interaction, wi, lightPdf/* , seed*/);
+//         visibility = visibilityTest(light_entity_id, interaction, interaction.w_position.xyz + wi * .01, wi);
+//         return L;
+//     }
+//     else if( light.type == LIGHT_TYPE_SPHERE ) {
+//         vec3 L = sphereLightSample(light_entity, interaction, wi, lightPdf/* , seed*/);
+//         visibility = visibilityTest(light_entity_id, interaction, interaction.w_position.xyz + wi * .01, wi);
+//         return L;
+//     } 
+//     // else if( light.type == LIGHT_TYPE_SUN ) {
+//     //     vec3 L = sampleSun(light, interaction, wi, lightPdf, seed);
+//     //     visibility = visibilityTestSun(interaction.point + wi * .01, wi);
+//     //     return L;
+//     // }
+//     // else {
+//     //     return vec3(0.);
+//     // }
+// }
+
+
+// vec3 calculateRadiance(int light_entity_id, const in EntityStruct light_entity, const in SurfaceInteraction interaction, const in MaterialStruct material) {
+//     // Light MIS
+//     vec3 wo = -interaction.w_incoming.xyz;
+//     vec3 Ld = vec3(0.);
+//     float lightPdf = 0., visibility = 1.;
+//     bool isBlack = false;
+//     LightStruct light = lbo.lights[light_entity.light_id];
+
+//     vec3 wi;
+
+//     /* If the drawn object has a light component, radiate the light */
+//     EntityStruct interaction_entity = ebo.entities[interaction.entity_id];
+//     vec3 emission = vec3(0.0);
+//     if ((interaction_entity.light_id >= 0) && (interaction_entity.light_id < MAX_LIGHTS)) {
+//         LightStruct light = lbo.lights[interaction_entity.light_id];
+//         emission = light.color.rgb * light.intensity;
+//         if (interaction.entity_id == light_entity_id) return emission;
+//         if (interaction.bounce_count == 0) return emission;
+//     }
+
+//     /* Compute differential irradiance for this direct light */
+//     vec3 Li = sampleLightType( light_entity_id, light_entity, interaction, wi, lightPdf, visibility/*, seed*/ );
+//     Li *= visibility;
+    
+//     /* Compute outgoing radiance from the light */
+//     isBlack = dot(Li, Li) <= 0.;
+//     float light_scattering_pdf = 1.;
+//     float light_weight = 1.0;
+//     if (lightPdf > EPSILON && !isBlack ) {
+//         vec3 f = bsdfEvaluate(wi, wo, interaction, material) * abs(dot(wi, interaction.w_normal.xyz));
+        
+//         light_scattering_pdf = bsdfPdf(wi, wo, interaction, material);
+//         light_weight = powerHeuristic(1., lightPdf, 1., light_scattering_pdf);
+
+//         isBlack = dot(f, f) <= 0.;
+//         if (!isBlack) {
+//            Ld += Li * f * (light_weight / lightPdf);
+//         }
+//     }
+
+//     /* Compute outgoing radiance by sampling the BRDF */
+//     #ifdef RAYTRACING
+//     float brdf_scattering_pdf = 1.0;
+//     float brdf_weight = 1.0;
+//     bool is_specular;
+//     if (interaction.bounce_count < MAX_BOUNCES) {
+//         /* Compute a random reflection direction */
+//         vec2 u = vec2(random(), random());
+//         vec3 f = bsdfSample( wi, wo, brdf_scattering_pdf, is_specular, interaction, material);
+//         f *= abs(dot(wi, interaction.w_normal.xyz));
+//         isBlack = dot(f, f) <= 0.;
+
+//         if (!isBlack && (brdf_scattering_pdf > EPSILON)) {
+//             // /* TODO: Account for different light types */
+//             // if( light.type == LIGHT_TYPE_SPHERE ) {
+//             //     lightPdf = sphereLightPDF(light_entity, interaction);
+//             // } else {
+//             //     lightPdf = rectangleLightPDF(light_entity, interaction);
+//             // }
+//             if (lightPdf < EPSILON) return Ld;
+//             brdf_weight = powerHeuristic(1., brdf_scattering_pdf, 1., lightPdf);
+        
+//             /* Compute differential irradiance */
+//             float tmin = .1;
+//             float tmax = 100;
+//             uint rayFlags = gl_RayFlagsNoneNV;
+//             uint cullMask = 0xff;
+//             payload.is_shadow_ray = false; 
+//             payload.bounce_count = interaction.bounce_count + 1;
+//             traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, interaction.w_position.xyz, tmin, wi, tmax, 0);
+//             Li = (payload.contribution.diffuse_radiance + payload.contribution.specular_radiance);
+
+//             if (payload.entity_id == -1) brdf_weight = 1.0;
+
+// //             /* If we didn't hit the light */
+// //             if (!payload.contribution.is_direct_light) {
+// //                 Ld *= (lightPdf / light_weight); // Undo MIS
+// //                 brdf_scattering_pdf = 1.0;
+// //                 weight = 1.0;
+// //             }
+
+// //             // Li *= visibilityTest(light_entity_id, interaction, interaction.w_position.xyz + wi * .01, wi);
+//             isBlack = dot(Li, Li) <= 0.;
+//         	if (!isBlack) {
+//             	Ld += Li * f * (brdf_weight / brdf_scattering_pdf);
+//             }
+
+//         }
+//     }
+//     #endif
+
+//     // // //     contribution.alpha = material.base_color.a;
+// //     // //     beta = interaction.beta;
+// //     //     if( brdf_scattering_pdf > EPSILON && dot(f, f) > EPSILON)
+// //     //         f = f / brdf_scattering_pdf;
+
+
+//     return Ld;
+// }
+
+Contribution get_disney_ray_traced_contribution(MaterialStruct material, SurfaceInteraction interaction, out vec3 wi, out vec3 beta)
+{
+    randomDimension = interaction.random_dimension;
+
+    Contribution contribution;
+    contribution.diffuse_radiance = contribution.specular_radiance = vec3(0.0);
+    contribution.alpha = 1.0;
+    
+    EntityStruct interaction_entity = ebo.entities[interaction.entity_id];
+    if (interaction_entity.transform_id < 0 || interaction_entity.transform_id >= MAX_TRANSFORMS) return contribution;
+
+    /* If the source object has a light component, radiate the light, but only if primary visibility or immediately following a specular event */
+    vec3 emission = vec3(0.0);
+    if (
+        ((interaction_entity.light_id >= 0) && (interaction_entity.light_id < MAX_LIGHTS)) && 
+        ((interaction.is_specular) || (interaction.bounce_count == 0))
+    ) {
+        LightStruct light = lbo.lights[interaction_entity.light_id];
+        emission = light.color.rgb * light.intensity;
+        contribution.diffuse_radiance += emission;
+        return contribution;
+    }
+
+    TransformStruct transform = tbo.transforms[interaction_entity.transform_id];
+    EntityStruct light_entity;
+    LightStruct light;
+    TransformStruct light_transform;
+    int light_entity_id;
+
+    vec3 f = vec3(0.); 
+
+    /* Pick a random light for next event estimation */
+    bool light_found = false;
+    while (!light_found) {
+        int i = int(random(interaction.pixel_coords) * (push.consts.num_lights + .5));
+
+        /* Skip unused lights and lights without a transform */
+        light_entity_id = lidbo.lightIDs[i];
+        if (light_entity_id == -1) continue;
+        // if (light_entity_id == interaction.entity_id) break;
+        light_entity = ebo.entities[light_entity_id];
+        if ( (light_entity.initialized != 1) || (light_entity.transform_id == -1)) continue;
+        light_found = true;
+        light = lbo.lights[light_entity.light_id];
+        light_transform = tbo.transforms[light_entity.transform_id];
+    }
+
+    /* If we didn't find a light, return */
+    if (!light_found) return contribution;
+
+    /* Compute the outgoing radiance for this light */
+    vec3 wo = -interaction.w_incoming.xyz;
+    vec3 Ld = vec3(0.);
+    float lightPdf = 0., visibility = 1.;
+    bool isBlack = false;
+
+    /* Compute differential irradiance and visibility */
+    vec3 Li = vec3(0);   
+    if (light.type == LIGHT_TYPE_POINT) {
+        Li = pointLightSample(light_entity, light, light_transform, interaction, wi, lightPdf/* , seed*/);
+        visibility = visibilityTest(light_entity_id, interaction, interaction.w_position.xyz, wi);
+    }
+    else if( light.type == LIGHT_TYPE_RECTANGLE ) {
+        Li = rectangleLightSample(light_entity, light, light_transform, interaction, wi, lightPdf/* , seed*/);
+        visibility = visibilityTest(light_entity_id, interaction, interaction.w_position.xyz, wi);
+    }
+    else if (light.type == LIGHT_TYPE_DISK) {
+        Li = sphereLightSample(light_entity, light, light_transform, interaction, wi, lightPdf/* , seed*/);
+        visibility = visibilityTest(light_entity_id, interaction, interaction.w_position.xyz, wi);
+    }
+    else if (light.type == LIGHT_TYPE_ROD) {
+        Li = sphereLightSample(light_entity, light, light_transform, interaction, wi, lightPdf/* , seed*/);
+        visibility = visibilityTest(light_entity_id, interaction, interaction.w_position.xyz, wi);
+    }
+    else if( light.type == LIGHT_TYPE_SPHERE ) {
+        Li = sphereLightSample(light_entity, light, light_transform, interaction, wi, lightPdf/* , seed*/);
+        visibility = visibilityTest(light_entity_id, interaction, interaction.w_position.xyz, wi);
+    }
+    Li *= visibility;
+
+    /* Compute outgoing radiance from the light by sampling it directly */
+    isBlack = dot(Li, Li) <= 0.;
+    float light_scattering_pdf = 1.;
+    float light_weight = 1.0;
+    if (lightPdf > EPSILON && !isBlack ) {
+        vec3 f = bsdfEvaluate(wi, wo, interaction, material) * abs(dot(wi, interaction.w_normal.xyz));
+        
+        light_scattering_pdf = bsdfPdf(wi, wo, interaction, material);
+        light_weight = powerHeuristic(1., lightPdf, 1., light_scattering_pdf);
+
+        isBlack = dot(f, f) <= 0.;
+        if (!isBlack) {
+           Ld += Li * f * (light_weight / lightPdf);
+        }
+    }
+
+    /* Compute outgoing radiance from the light by sampling the BRDF */
+    if ((interaction.bounce_count < push.consts.parameter1) && (!interaction.is_specular)) {
+        float brdf_scattering_pdf = 1.0;
+        float brdf_weight = 1.0;
+        bool is_specular;
+        /* Compute a random reflection direction */
+        vec3 f = bsdfSample(random(interaction.pixel_coords), random(interaction.pixel_coords), random(interaction.pixel_coords), 
+            wi, wo, brdf_scattering_pdf, is_specular, interaction, material);
+        f *= abs(dot(wi, interaction.w_normal.xyz));
+        isBlack = dot(f, f) <= 0.;
+        brdf_weight = powerHeuristic(1., brdf_scattering_pdf, 1., lightPdf);
+
+        if (!isBlack && (brdf_scattering_pdf > EPSILON) && (brdf_weight > EPSILON)) {
+            // /* TODO: Account for different light types */
+            // if( light.type == LIGHT_TYPE_SPHERE ) {
+            //     lightPdf = sphereLightPDF(light_entity, interaction);
+            // } else {
+            //     lightPdf = rectangleLightPDF(light_entity, interaction);
+            // }
+            // if (lightPdf < EPSILON) {
+            //     contribution.diffuse_radiance += Ld;
+            //     return contribution;
+            // };
+        
+    #ifdef RAYTRACING
+            /* Compute differential irradiance */
+            float tmin = .1;
+            float tmax = 100;
+            uint rayFlags = gl_RayFlagsNoneNV;
+            uint cullMask = 0xff;
+            payload.is_shadow_ray = false; 
+            payload.bounce_count = interaction.bounce_count + 1;
+            payload.is_specular_ray = true;
+            payload.random_dimension = randomDimension;
+            traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, interaction.w_position.xyz, tmin, wi, tmax, 0);
+            Li = (payload.contribution.diffuse_radiance + payload.contribution.specular_radiance);
+
+            // if (payload.entity_id == -1) brdf_weight = 1.0;
+    #endif
+            isBlack = dot(Li, Li) <= 0.;
+        	if (!isBlack) {
+            	Ld += Li * f * (brdf_weight / brdf_scattering_pdf);
+            }
+        }
+    }
+
+    /* Compute radiance from global illumination */
+    if ((interaction.bounce_count < push.consts.parameter1) && (!interaction.is_specular)) {
+        float brdf_scattering_pdf = 1.0;
+        float brdf_weight = 1.0;
+        bool is_specular;
+        /* Compute a random reflection direction */
+        vec3 f = bsdfSample(random(interaction.pixel_coords), random(interaction.pixel_coords), random(interaction.pixel_coords), 
+            wi, wo, brdf_scattering_pdf, is_specular, interaction, material);
+        f *= abs(dot(wi, interaction.w_normal.xyz));
+        isBlack = dot(f, f) <= 0.;
+
+        if (!isBlack && (brdf_scattering_pdf > EPSILON)) {
+//             // /* TODO: Account for different light types */
+//             // if( light.type == LIGHT_TYPE_SPHERE ) {
+//             //     lightPdf = sphereLightPDF(light_entity, interaction);
+//             // } else {
+//             //     lightPdf = rectangleLightPDF(light_entity, interaction);
+//             // }
+//             if (lightPdf < EPSILON) {
+//                 contribution.diffuse_radiance += Ld;
+//                 return contribution;
+//             };
+            brdf_weight = 1.0;//powerHeuristic(1., brdf_scattering_pdf, 1., lightPdf);//powerHeuristic(1., brdf_scattering_pdf, 1., lightPdf);
+        
+    #ifdef RAYTRACING
+            /* Compute differential irradiance */
+            float tmin = .1;
+            float tmax = 100;
+            uint rayFlags = gl_RayFlagsNoneNV;
+            uint cullMask = 0xff;
+            payload.is_shadow_ray = false; 
+            payload.bounce_count = interaction.bounce_count + 1;
+            payload.is_specular_ray = false;
+            payload.random_dimension = randomDimension;
+            traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, interaction.w_position.xyz, tmin, wi, tmax, 0);
+            Li = (payload.contribution.diffuse_radiance + payload.contribution.specular_radiance);
+
+            /* Dont double count direcly sampled lights */
+            if (payload.entity_id == light_entity_id) brdf_weight = 0.0;
+    #endif
+
+//             /* If we didn't hit the light */
+//             if (!payload.contribution.is_direct_light) {
+//                 Ld *= (lightPdf / light_weight); // Undo MIS
+//                 brdf_scattering_pdf = 1.0;
+//                 weight = 1.0;
+//             }
+
+// //             // Li *= visibilityTest(light_entity_id, interaction, interaction.w_position.xyz + wi * .01, wi);
+            isBlack = dot(Li, Li) <= 0.;
+        	if (!isBlack) {
+            	Ld += Li * f * (brdf_weight / brdf_scattering_pdf);
+            }
+
+        }
+    }
+
+    contribution.diffuse_radiance = Ld;
+    contribution.random_dimension = randomDimension;
+    return contribution;
 }
 
 #endif

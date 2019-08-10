@@ -113,7 +113,7 @@ namespace Pluto {
             if (materials[i].specular_texname.length() > 0)
                 texture_paths.insert({materials[i].specular_texname, false});
 
-            materialComponents[i]->set_base_color(materials[i].diffuse[0], materials[i].diffuse[1], materials[i].diffuse[2], 1.0);
+            materialComponents[i]->set_base_color(materials[i].diffuse[0], materials[i].diffuse[1], materials[i].diffuse[2]);
             materialComponents[i]->set_roughness(1.0);
             materialComponents[i]->set_metallic(0.0);
         }

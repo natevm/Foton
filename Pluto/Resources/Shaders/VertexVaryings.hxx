@@ -7,4 +7,5 @@ layout(location = 4) out vec4 vert_color;
 layout(location = 5) out vec3 m_position;
 layout(location = 6) out vec3 w_cameraDir;
 layout(location = 7) out vec3 m_normal;
-
+layout(location = 8) out vec4 s_position;
+layout(location = 9) out vec4 s_position_prev;

@@ -5,7 +5,7 @@
 #endif
 
 #ifndef MAX_CAMERAS
-#define MAX_CAMERAS 256
+#define MAX_CAMERAS 32
 #endif
 
 #ifndef GLSL

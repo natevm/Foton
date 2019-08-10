@@ -85,4 +85,5 @@ void main() {
 		}
 	}
 	outColor = vec4(color, alpha);
+	GBUF1 = vec4(0.0f);
 }

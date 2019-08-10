@@ -119,6 +119,7 @@ void Camera::create_command_buffers()
     cmdAllocInfo.level = vk::CommandBufferLevel::ePrimary;
     cmdAllocInfo.commandBufferCount = 1;
     command_buffer = device.allocateCommandBuffers(cmdAllocInfo)[0];
+	pool = cmdAllocInfo.commandPool;
 }
 
 // void Camera::create_semaphores()
@@ -1130,7 +1131,7 @@ void Camera::cleanup()
 
 	if (command_buffer)
 	{
-		device.freeCommandBuffers(vulkan->get_graphics_command_pool(), {command_buffer});
+		device.freeCommandBuffers(pool, {command_buffer});
 		command_buffer = vk::CommandBuffer();
 	}
     if (renderpasses.size() > 0) {

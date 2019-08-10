@@ -1,0 +1,31 @@
+#version 460
+
+#define COMPUTE
+
+#include "Pluto/Resources/Shaders/Descriptors.hxx"
+
+layout (local_size_x = 16, local_size_y = 16) in;
+
+/* Note, this doesn't work for omnidirectional shadow maps, there will be discontinuities on cubemap boundaries... */
+void main() {
+    vec2 gid = gl_GlobalInvocationID.xy;
+
+    float Coefficients[21] = 
+    {0.000272337, 0.00089296, 0.002583865, 0.00659813, 0.014869116,
+    0.029570767, 0.051898313, 0.080381679, 0.109868729, 0.132526984,
+    0.14107424,
+    0.132526984, 0.109868729, 0.080381679, 0.051898313, 0.029570767,
+    0.014869116, 0.00659813, 0.002583865, 0.00089296, 0.000272337};
+
+    vec4 value = vec4(0.0);
+
+    for(int i = 0; i < 21; i++)
+    {
+        ivec2 coords =  ivec2(gl_GlobalInvocationID.xy) + ivec2((i - 10), 0);
+        coords.x = clamp(coords.x, 0, push.consts.width - 1);
+        coords.y = clamp(coords.y, 0, push.consts.height - 1);
+        value += imageLoad(render_image, coords) * Coefficients[i];
+    }
+
+    imageStore(render_image, ivec2(gl_GlobalInvocationID.xy), value);
+}

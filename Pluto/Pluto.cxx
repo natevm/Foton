@@ -155,6 +155,7 @@ namespace Pluto {
         physics_system->stop();
         event_system->stop();
 
+        vulkan->flush_queues();
 
         /* All systems must be stopped before we can cleanup (Causes DeviceLost otherwise) */
         Pluto::CleanUp();

@@ -1,6 +1,7 @@
 #version 450
 #include "Pluto/Resources/Shaders/Descriptors.hxx"
 #include "Pluto/Resources/Shaders/Attributes.hxx"
+#include "Pluto/Resources/Shaders/Options.hxx"
 
 layout(location=0) out vec4 w_position;
 

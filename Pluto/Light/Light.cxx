@@ -22,6 +22,8 @@ std::vector<Camera*> Light::shadowCameras;
 std::shared_ptr<std::mutex> Light::creation_mutex;
 bool Light::Initialized = false;
 
+uint32_t Light::numLightEntities = 0;
+
 Light::Light()
 {
     this->initialized = false;
@@ -41,6 +43,7 @@ Light::Light(std::string name, uint32_t id)
     this->light_struct.flags = 0;
     this->light_struct.softnessSamples = 20;
     this->light_struct.softnessRadius = .1;
+    enable_vsm(true);
 }
 
 void Light::set_shadow_softness_samples(uint32_t samples)
@@ -115,6 +118,16 @@ void Light::show_end_caps(bool show_end_caps)
     }
 }
 
+void Light::disable(bool disabled) {
+    if (disabled) {
+        light_struct.flags |= (1 << 4);
+    }
+    else
+    {
+        light_struct.flags &= (~(1 << 4));
+    }
+}
+
 void Light::cast_dynamic_shadows(bool enable_cast_dynamic_shadows)
 {
     castsDynamicShadows = enable_cast_dynamic_shadows;
@@ -142,6 +155,22 @@ bool Light::should_cast_shadows()
     if ((light_struct.flags & (1 << 2)) != 0)
         return true;
     return false;
+}
+
+void Light::enable_vsm(bool enabled) {
+    enableVSM = enabled;
+
+    if (enabled) {
+        light_struct.flags |= (1 << 3);
+    }
+    else
+    {
+        light_struct.flags &= (~(1 << 3));
+    }
+}
+
+bool Light::should_use_vsm() {
+    return enableVSM;
 }
 
 void Light::set_cone_angle(float angle)
@@ -282,6 +311,7 @@ void Light::Initialize()
     }
 
     creation_mutex = std::make_shared<std::mutex>();
+    numLightEntities = 0;
 
     Initialized = true;
 }
@@ -291,13 +321,18 @@ bool Light::IsInitialized()
     return Initialized;
 }
 
+uint32_t Light::GetNumActiveLights()
+{
+    return numLightEntities;
+}
+
 void Light::CreateShadowCameras()
 {
     std::thread t([](){
         // Right, Left, Up, Down, Far, Near
         /* Create shadow map textures */
         for (uint32_t i = 0; i < MAX_LIGHTS; ++i) {
-            auto cam = Camera::Create("ShadowCam_" + std::to_string(i), 512, 512, 1, 6, true, false);
+            auto cam = Camera::Create("ShadowCam_" + std::to_string(i), 256, 256, 1, 6, true, false);
             cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 0);
             cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 1);
             cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 2);
@@ -363,20 +398,20 @@ void Light::UploadSSBO(vk::CommandBuffer command_buffer)
     }
     // if (shadowCams.size() < MAX_LIGHTS) return false;
 
-    int32_t light_count = 0;
+    numLightEntities = 0;
     auto entities = Entity::GetFront();
     std::vector<int32_t> light_entity_ids(MAX_LIGHTS, -1);
     for (uint32_t i = 0; i < Entity::GetCount(); ++i)
     {
         if (entities[i].is_initialized() && (entities[i].get_light() != nullptr))
         {
-            if (shadowCams.size() > light_count) {
-                entities[i].set_camera(shadowCams[light_count]);
-                light_entity_ids[light_count] = i;
-                light_count++;
+            if (shadowCams.size() > numLightEntities) {
+                entities[i].set_camera(shadowCams[numLightEntities]);
+                light_entity_ids[numLightEntities] = i;
+                numLightEntities++;
             }
         }
-        if (light_count == MAX_LIGHTS)
+        if (numLightEntities == MAX_LIGHTS)
             break;
     }
     {

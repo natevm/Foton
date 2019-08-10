@@ -2,6 +2,7 @@
 #include "Pluto/Resources/Shaders/Descriptors.hxx"
 #include "Pluto/Resources/Shaders/Attributes.hxx"
 #include "Pluto/Resources/Shaders/VertexVaryings.hxx"
+#include "Pluto/Resources/Shaders/Options.hxx"
 
 void main() {
     EntityStruct target_entity = ebo.entities[push.consts.target_id];

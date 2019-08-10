@@ -27,6 +27,14 @@ set(SHADERS_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/GBuffers/shader.frag
 
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/Compute/EdgeDetect/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/Compute/TAA/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/Compute/ProgressiveRefinement/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/Compute/ToneMapping/shader.comp
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/Compute/VSM/GaussianBlurX/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/Compute/VSM/GaussianBlurY/shader.comp
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/Compute/ATrous/shader.comp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracedMaterials/TutorialShaders/shader.rgen
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracedMaterials/TutorialShaders/shader.rchit

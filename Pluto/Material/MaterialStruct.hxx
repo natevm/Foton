@@ -18,7 +18,7 @@ using namespace glm;
 
 /* Not all these properties are mapped to PBR. */
 struct MaterialStruct {
-    vec4 base_color; // 16
+    vec4 base_color; // 16 // Note: also contains alpha
     vec4 subsurface_radius; // 32
     vec4 subsurface_color; //48
     

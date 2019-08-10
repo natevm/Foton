@@ -1,4 +1,4 @@
-// #pragma optimize("", off)
+#pragma optimize("", off)
 
 #include "Pluto/Prefabs/Prefabs.hxx"
 
@@ -105,6 +105,9 @@ bool RenderSystem::initialize()
     push_constants.flags |= ( 1<< 1 );
     #endif
 
+	// If temporal antialiasing is enabled
+	push_constants.flags &= ~( 1 << 2 );
+
     initialized = true;
     return true;
 }
@@ -141,6 +144,7 @@ bool RenderSystem::update_push_constants()
     push_constants.ranking_tile_id = ranking->get_id();
     push_constants.scramble_tile_id = scramble->get_id();
     push_constants.time = (float) glfwGetTime();
+	push_constants.num_lights = Light::GetNumActiveLights();
     push_constants.frame++;
     return true;
 }
@@ -192,7 +196,7 @@ void RenderSystem::record_depth_prepass(Entity &camera_entity, std::vector<std::
                     push_constants.target_id = mask_entity->get_id();
                     push_constants.camera_id = camera_entity.get_id();
                     push_constants.viewIndex = rp_idx;
-                    push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
+                    push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << 0)) : (push_constants.flags & ~(1 << 0)); 
                     draw_entity(command_buffer, rp, *mask_entity, push_constants, RenderMode::RENDER_MODE_VRMASK);
                 }
             }
@@ -206,14 +210,14 @@ void RenderSystem::record_depth_prepass(Entity &camera_entity, std::vector<std::
             // }
 
             for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i) {
-                auto target_id = visible_entities[rp_idx][i].entity->get_id();
                 if (visible_entities[rp_idx][i].visible && visible_entities[rp_idx][i].distance < camera->get_max_visible_distance()) {
+                	auto target_id = visible_entities[rp_idx][i].entity->get_id();
                     camera->begin_visibility_query(command_buffer, rp_idx, visible_entities[rp_idx][i].entity_index);
                     // Push constants
                     push_constants.target_id = target_id;
                     push_constants.camera_id = camera_entity.get_id();
                     push_constants.viewIndex = rp_idx;
-                    push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
+                    push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << 0)) : (push_constants.flags & ~(1 << 0)); 
                     
                     bool was_visible_last_frame = camera->is_entity_visible(rp_idx, target_id);
                     bool contains_transparency = visible_entities[rp_idx][i].entity->material()->contains_transparency();
@@ -256,6 +260,8 @@ void RenderSystem::record_raster_renderpass(Entity &camera_entity, std::vector<s
     auto camera = camera_entity.get_camera();
     if (!camera) throw std::runtime_error("Error, camera was null during recording of final renderpass");
 
+	Texture * texture = camera->get_texture();
+
     vk::CommandBuffer command_buffer = camera->get_command_buffer();
 
     for(uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
@@ -269,6 +275,10 @@ void RenderSystem::record_raster_renderpass(Entity &camera_entity, std::vector<s
         bind_raster_descriptor_sets(command_buffer, rp);
         
         camera->begin_renderpass(command_buffer, rp_idx);
+		push_constants.width = texture->get_width();
+        push_constants.height = texture->get_height();
+		push_constants.camera_id = camera_entity.get_id();
+		push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << 0)) : (push_constants.flags & ~(1 << 0)); 
 
         /* Render visibility masks */
         if (using_openvr && using_vr_hidden_area_masks && !(camera->should_record_depth_prepass()))
@@ -281,9 +291,7 @@ void RenderSystem::record_raster_renderpass(Entity &camera_entity, std::vector<s
                 else mask_entity = ovr->get_right_eye_hidden_area_entity();
                 // Push constants
                 push_constants.target_id = mask_entity->get_id();
-                push_constants.camera_id = camera_entity.get_id();
                 push_constants.viewIndex = rp_idx;
-                push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
                 draw_entity(command_buffer, rp, *mask_entity, push_constants, RenderMode::RENDER_MODE_VRMASK);
             }
         }
@@ -297,10 +305,8 @@ void RenderSystem::record_raster_renderpass(Entity &camera_entity, std::vector<s
             auto target_id = visible_entities[rp_idx][i].entity_index;
             if (camera->is_entity_visible(rp_idx, target_id) || (!camera->should_record_depth_prepass())) {
                 push_constants.target_id = target_id;
-                push_constants.camera_id = camera_entity.get_id();
                 push_constants.viewIndex = rp_idx;
-                push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
-                draw_entity(command_buffer, rp, *visible_entities[rp_idx][i].entity, push_constants, camera->get_rendermode_override());
+				draw_entity(command_buffer, rp, *visible_entities[rp_idx][i].entity, push_constants, camera->get_rendermode_override());
             }
         }
         
@@ -313,9 +319,7 @@ void RenderSystem::record_raster_renderpass(Entity &camera_entity, std::vector<s
             auto target_id = visible_entities[rp_idx][i].entity_index;
             if (camera->is_entity_visible(rp_idx, target_id) || (!camera->should_record_depth_prepass())) {
                 push_constants.target_id = target_id;
-                push_constants.camera_id = camera_entity.get_id();
                 push_constants.viewIndex = rp_idx;
-                push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
                 draw_entity(command_buffer, rp, *visible_entities[rp_idx][i].entity, push_constants, 
                     camera->get_rendermode_override(), PipelineType::PIPELINE_TYPE_DEPTH_TEST_GREATER);
             }
@@ -352,14 +356,15 @@ void RenderSystem::record_ray_trace_pass(Entity &camera_entity)
         /* Get the renderpass for the current camera */
         vk::RenderPass rp = camera->get_renderpass(rp_idx);
         
-        update_gbuffer_descriptor_sets(camera_entity);
-        update_raytracing_descriptor_sets(topAS);
-        bind_raytracing_descriptor_sets(command_buffer, rp);
+        bind_raytracing_descriptor_sets(command_buffer, rp, camera_entity, rp_idx);
 
         push_constants.target_id = -1;
         push_constants.camera_id = camera_entity.get_id();
         push_constants.viewIndex = rp_idx;
-        push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
+		push_constants.width = texture->get_width();
+        push_constants.height = texture->get_height();
+        push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << 0)) : (push_constants.flags & ~(1 << 0)); 
+        push_constants.parameter1 = this->max_bounces;
         
         trace_rays(command_buffer, rp, push_constants, *texture);
     }
@@ -367,6 +372,7 @@ void RenderSystem::record_ray_trace_pass(Entity &camera_entity)
 
 void RenderSystem::record_compute_pass(Entity &camera_entity)
 {
+	// if (!taa_enabled) return;
 	auto vulkan = Vulkan::Get();
     auto device = vulkan->get_device();
     auto dldi = vulkan->get_dldi();
@@ -380,27 +386,118 @@ void RenderSystem::record_compute_pass(Entity &camera_entity)
     if (!texture) return;
 	uint32_t width = texture->get_width();
 	uint32_t height = texture->get_height();
+	push_constants.width = texture->get_width();
+	push_constants.height = texture->get_height();
+
+	bool shadow_caster = false;
+	if (camera_entity.get_light() && camera_entity.get_light()->should_cast_shadows())
+		shadow_caster = true;
 
     texture->make_general(command_buffer);
 
-	for(uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
-		update_gbuffer_descriptor_sets(camera_entity);
-        push_constants.target_id = -1;
-        push_constants.camera_id = camera_entity.get_id();
-        push_constants.viewIndex = rp_idx;
-        push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | 1 << 0) : (push_constants.flags & ~(1 << 0)); 
+	if ((!shadow_caster) && (progressive_refinement_enabled || taa_enabled) )
+	{
+		for(uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
+			push_constants.target_id = -1;
+			push_constants.camera_id = camera_entity.get_id();
+			push_constants.viewIndex = rp_idx;
+			push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << 0)) : (push_constants.flags & ~(1 << 0)); 
+			bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 
-		command_buffer.pushConstants(edgedetect.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-		bind_compute_descriptor_sets(command_buffer);
-		command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, edgedetect.pipeline);
-		uint32_t local_size_x = 16;
-		uint32_t local_size_y = 16;
+			if (progressive_refinement_enabled) {
+				command_buffer.pushConstants(progressive_refinement.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+				command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, progressive_refinement.pipeline);
+			}
+			else if (taa_enabled) {
+				command_buffer.pushConstants(temporalaa.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+				command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, temporalaa.pipeline);
+			}
+			uint32_t local_size_x = 16;
+			uint32_t local_size_y = 16;
 
-		uint32_t groupX = (width + local_size_x - 1) / local_size_x;
-		uint32_t groupY = (height + local_size_y - 1) / local_size_y;
-		uint32_t groupZ = 1;
-		command_buffer.dispatch(groupX, groupY, groupZ);
-    }
+			uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+			uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+			uint32_t groupZ = 1;
+			command_buffer.dispatch(groupX, groupY, groupZ);
+		}
+	}
+
+	/* Tone mapping pass */
+	if (!shadow_caster && tone_mapping_enabled) {
+		for (uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
+			push_constants.target_id = -1;
+			push_constants.camera_id = camera_entity.get_id();
+			push_constants.viewIndex = rp_idx;
+			push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << 0)) : (push_constants.flags & ~(1 << 0)); 
+			bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+
+
+			command_buffer.pushConstants(tone_mapping.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+			command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, tone_mapping.pipeline);
+
+			uint32_t local_size_x = 16;
+			uint32_t local_size_y = 16;
+
+			uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+			uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+			uint32_t groupZ = 1;
+			command_buffer.dispatch(groupX, groupY, groupZ);
+		}
+	}
+
+	/* A-Trous pass */
+	if ((!shadow_caster) && atrous_enabled )
+	{
+		for(uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
+			push_constants.target_id = -1;
+			push_constants.camera_id = camera_entity.get_id();
+			push_constants.viewIndex = rp_idx;
+			push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << 0)) : (push_constants.flags & ~(1 << 0)); 
+			bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+
+			uint32_t local_size_x = 16;
+			uint32_t local_size_y = 16;
+
+			uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+			uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+			uint32_t groupZ = 1;
+
+			command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, atrous_filter.pipeline);
+			
+			push_constants.parameter1 = atrous_sigma;
+			for (int i = 0; i < 2 * atrous_iterations; i++) {
+				push_constants.iteration = i;
+				command_buffer.pushConstants(atrous_filter.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+				command_buffer.dispatch(groupX, groupY, groupZ);
+			}
+		}
+	}
+
+	/* TESTING GAUSSIAN */
+	if (camera_entity.get_light() && camera_entity.get_light()->should_cast_shadows() && camera_entity.get_light()->should_use_vsm()) {
+		for (uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
+			push_constants.target_id = -1;
+			push_constants.camera_id = camera_entity.get_id();
+			push_constants.viewIndex = rp_idx;
+			push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << 0)) : (push_constants.flags & ~(1 << 0)); 
+			bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+
+			uint32_t local_size_x = 16;
+			uint32_t local_size_y = 16;
+
+			uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+			uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+			uint32_t groupZ = 1;
+
+			command_buffer.pushConstants(gaussian_x.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+			command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, gaussian_x.pipeline);
+			command_buffer.dispatch(groupX, groupY, groupZ);
+
+			command_buffer.pushConstants(gaussian_y.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+			command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, gaussian_y.pipeline);
+			command_buffer.dispatch(groupX, groupY, groupZ);
+		}
+	}
 }
 
 void RenderSystem::record_blit_camera(Entity &camera_entity, std::map<std::string, std::pair<Camera *, uint32_t>> &window_to_cam)
@@ -452,6 +549,11 @@ void RenderSystem::record_cameras()
     auto vulkan = Vulkan::Get();
     auto device = vulkan->get_device();
 
+	/* Update global descriptor sets */
+	update_raster_descriptor_sets();
+	if (vulkan->is_ray_tracing_enabled())
+		update_raytracing_descriptor_sets(topAS);
+
     /* Get window to camera mapping */
     auto glfw = GLFW::Get();
     auto window_to_cam = glfw->get_window_to_camera_map();
@@ -479,6 +581,11 @@ void RenderSystem::record_cameras()
             if (!light->should_cast_dynamic_shadows()) continue;
         }
 
+		/* Update camera specific descriptor sets */
+		for(uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
+			update_gbuffer_descriptor_sets(entities[entity_id], rp_idx);
+		}
+
         /* Begin recording */
         vk::CommandBufferBeginInfo beginInfo;
         if (camera->needs_command_buffers()) camera->create_command_buffers();
@@ -501,6 +608,11 @@ void RenderSystem::record_cameras()
 		record_compute_pass(entities[entity_id]);
 
         record_blit_camera(entities[entity_id], window_to_cam);
+
+		/* Need to keep track of largest render order number... */
+		if (entities[entity_id].get_camera()->get_render_order() < 0) {
+			texture->make_samplable(command_buffer);
+		}
 
         /* End this recording. */
         command_buffer.end();
@@ -559,8 +671,6 @@ void RenderSystem::record_render_commands()
 	vulkan->end_one_time_graphics_command_immediately(upload_command, "Upload SSBO Data", true);
 
     if (Material::IsInitialized()) {
-        update_raster_descriptor_sets();
-        
         if (update_push_constants() == true) {
             record_cameras();
         }
@@ -689,6 +799,7 @@ void RenderSystem::stream_frames()
     // #endif
 }
 
+/* THIS FUNCTION IS OVERDUE FOR REFACTORING... */
 void RenderSystem::enqueue_render_commands() {
     auto vulkan = Vulkan::Get(); auto device = vulkan->get_device();
     auto glfw = GLFW::Get();
@@ -700,9 +811,9 @@ void RenderSystem::enqueue_render_commands() {
     auto cameras = Camera::GetFront();
     
     std::vector<Vulkan::CommandQueueItem> command_queue;
+	std::vector<std::vector<std::shared_ptr<ComputeNode>>> compute_graph;
+	std::vector<vk::Fence> level_fences;
 
-    compute_graph.clear();
-    final_fences.clear();
     final_renderpass_semaphores.clear();
 
     /* Aggregate command sets */
@@ -780,7 +891,10 @@ void RenderSystem::enqueue_render_commands() {
     }
 
     /* Create semaphores and fences for nodes in the graph */
+	level_idx = 0;
     for (auto &level : compute_graph) {
+		/* For now, assume the level doesnt need a fence */
+		level_fences.push_back(vk::Fence());
         for (auto &node : level) {
             /* All internal nodes need to signal each child */
             for (uint32_t i = 0; i < node->children.size(); ++i) {
@@ -800,11 +914,13 @@ void RenderSystem::enqueue_render_commands() {
                 }
             }
 
-            /* If the node has no children, add a fence */
+            /* If the node has no children, we need to add a fence to this level */			
             if (node->children.size() == 0) {
-                node->fence = get_fence();
-                final_fences.push_back(node->fence);
+				if (level_fences[level_idx] == vk::Fence())
+                	level_fences[level_idx] = get_fence();
             }
+
+			level_idx++;
         }
     }
 
@@ -849,10 +965,11 @@ void RenderSystem::enqueue_render_commands() {
             for (auto &signal_semaphore : node->window_signal_semaphores)
                 signal_semaphores_set.insert(signal_semaphore);
 
-            if (node->fence != vk::Fence()) {
-                if (item.fence != vk::Fence()) throw std::runtime_error("Error, not expecting more than one fence per level!");
-                item.fence = node->fence;
-            }
+			item.fence = level_fences[level_idx];
+            // if (node->fence != vk::Fence()) {
+            //     if (item.fence != vk::Fence()) throw std::runtime_error("Error, not expecting more than one fence per level!");
+            //     item.fence = node->fence;
+            // }
 
             item.commandBuffers.push_back(node->command_buffer);            
             // For some reason, queues arent actually ran in parallel? Also calling submit many times turns out to be expensive...
@@ -1257,6 +1374,7 @@ bool RenderSystem::start()
             /* Regulate the framerate. */
             currentTime = glfwGetTime();
             if ((!using_openvr) && ((currentTime - lastTime) < .008)) continue;
+			ms_per_frame = currentTime - lastTime;
             lastTime = currentTime;
 
             /* Wait until vulkan is initialized before rendering. */
@@ -1295,8 +1413,8 @@ bool RenderSystem::start()
                 // If the delay on this fence is too short and we receive too many timeouts,
                 // the intel graphics driver on windows crashes...
                 auto device = vulkan->get_device();
-                if (final_fences.size() > 0 )
-                {
+                // if (final_fences.size() > 0 )
+                // {
                     // auto result = device.waitForFences(final_fences, true, 10000000000);
                     // if (result != vk::Result::eSuccess) {
                     //     std::cout<<"Fence timeout in render loop!"<<std::endl;
@@ -1304,7 +1422,7 @@ bool RenderSystem::start()
 
                     /* Cleanup fences. */
                     // for (auto &fence : final_fences) device.destroyFence(fence);
-                }
+                // }
 
                 mark_cameras_as_render_complete();
 
@@ -1510,81 +1628,6 @@ void RenderSystem::setup_graphics_pipelines(vk::RenderPass renderpass, uint32_t 
 
 	/* RASTER GRAPHICS PIPELINES */
 
-	/* ------ UNIFORM COLOR  ------ */
-	// {
-	// 	uniformColor[renderpass] = RasterPipelineResources();
-
-	// 	std::string ResourcePath = Options::GetResourcePath();
-	// 	auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/UniformColor/vert.spv"));
-	// 	auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/UniformColor/frag.spv"));
-
-	// 	/* Create shader modules */
-	// 	auto vertShaderModule = create_shader_module("uniform_color_vert", vertShaderCode);
-	// 	auto fragShaderModule = create_shader_module("uniform_color_frag", fragShaderCode);
-
-	// 	/* Info for shader stages */
-	// 	vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
-	// 	vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
-	// 	vertShaderStageInfo.module = vertShaderModule;
-	// 	vertShaderStageInfo.pName = "main";
-
-	// 	vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
-	// 	fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
-	// 	fragShaderStageInfo.module = fragShaderModule;
-	// 	fragShaderStageInfo.pName = "main";
-
-	// 	std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
-		
-	// 	/* Account for possibly multiple samples */
-	// 	uniformColor[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
-	// 	uniformColor[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
-
-	// 	create_raster_pipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
-	// 		{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
-	// 		uniformColor[renderpass].pipelineParameters, 
-	// 		renderpass, 0, 
-	// 		uniformColor[renderpass].pipelines, uniformColor[renderpass].pipelineLayout);
-
-	// }
-
-
-	/* ------ BLINN GRAPHICS ------ */
-	// {
-	// 	blinn[renderpass] = RasterPipelineResources();
-
-	// 	std::string ResourcePath = Options::GetResourcePath();
-	// 	auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Blinn/vert.spv"));
-	// 	auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Blinn/frag.spv"));
-
-	// 	/* Create shader modules */
-	// 	auto vertShaderModule = create_shader_module("blinn_vert", vertShaderCode);
-	// 	auto fragShaderModule = create_shader_module("blinn_frag", fragShaderCode);
-
-	// 	/* Info for shader stages */
-	// 	vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
-	// 	vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
-	// 	vertShaderStageInfo.module = vertShaderModule;
-	// 	vertShaderStageInfo.pName = "main";
-
-	// 	vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
-	// 	fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
-	// 	fragShaderStageInfo.module = fragShaderModule;
-	// 	fragShaderStageInfo.pName = "main";
-
-	// 	std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
-		
-	// 	/* Account for possibly multiple samples */
-	// 	blinn[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
-	// 	blinn[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
-
-	// 	create_raster_pipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
-	// 		{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
-	// 		blinn[renderpass].pipelineParameters, 
-	// 		renderpass, 0, 
-	// 		blinn[renderpass].pipelines, blinn[renderpass].pipelineLayout);
-
-	// }
-
 	/* ------ PBR  ------ */
 	{
 		pbr[renderpass] = RasterPipelineResources();
@@ -1627,82 +1670,9 @@ void RenderSystem::setup_graphics_pipelines(vk::RenderPass renderpass, uint32_t 
 			pbr[renderpass].pipelineParameters, 
 			renderpass, 0, 
 			pbr[renderpass].pipelines, pbr[renderpass].pipelineLayout);
-
+		
+		pbr[renderpass].ready = true;
 	}
-
-	// /* ------ NORMAL SURFACE ------ */
-	// {
-	// 	normalsurface[renderpass] = RasterPipelineResources();
-
-	// 	std::string ResourcePath = Options::GetResourcePath();
-	// 	auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/NormalSurface/vert.spv"));
-	// 	auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/NormalSurface/frag.spv"));
-
-	// 	/* Create shader modules */
-	// 	auto vertShaderModule = create_shader_module("normal_surf_vert", vertShaderCode);
-	// 	auto fragShaderModule = create_shader_module("normal_surf_frag", fragShaderCode);
-
-	// 	/* Info for shader stages */
-	// 	vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
-	// 	vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
-	// 	vertShaderStageInfo.module = vertShaderModule;
-	// 	vertShaderStageInfo.pName = "main";
-
-	// 	vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
-	// 	fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
-	// 	fragShaderStageInfo.module = fragShaderModule;
-	// 	fragShaderStageInfo.pName = "main";
-
-	// 	std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
-		
-	// 	/* Account for possibly multiple samples */
-	// 	normalsurface[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
-	// 	normalsurface[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
-
-	// 	create_raster_pipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
-	// 		{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
-	// 		normalsurface[renderpass].pipelineParameters, 
-	// 		renderpass, 0, 
-	// 		normalsurface[renderpass].pipelines, normalsurface[renderpass].pipelineLayout);
-
-	// }
-
-	/* ------ TEXCOORD SURFACE  ------ */
-	// {
-	// 	texcoordsurface[renderpass] = RasterPipelineResources();
-
-	// 	std::string ResourcePath = Options::GetResourcePath();
-	// 	auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/TexCoordSurface/vert.spv"));
-	// 	auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/TexCoordSurface/frag.spv"));
-
-	// 	/* Create shader modules */
-	// 	auto vertShaderModule = create_shader_module("texcoord_vert", vertShaderCode);
-	// 	auto fragShaderModule = create_shader_module("texcoord_frag", fragShaderCode);
-
-	// 	/* Info for shader stages */
-	// 	vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
-	// 	vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
-	// 	vertShaderStageInfo.module = vertShaderModule;
-	// 	vertShaderStageInfo.pName = "main";
-
-	// 	vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
-	// 	fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
-	// 	fragShaderStageInfo.module = fragShaderModule;
-	// 	fragShaderStageInfo.pName = "main";
-
-	// 	std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
-		
-	// 	/* Account for possibly multiple samples */
-	// 	texcoordsurface[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
-	// 	texcoordsurface[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
-
-	// 	create_raster_pipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
-	// 		{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
-	// 		texcoordsurface[renderpass].pipelineParameters, 
-	// 		renderpass, 0, 
-	// 		texcoordsurface[renderpass].pipelines, texcoordsurface[renderpass].pipelineLayout);
-
-	// }
 
 	/* ------ SKYBOX  ------ */
 	{
@@ -1742,52 +1712,8 @@ void RenderSystem::setup_graphics_pipelines(vk::RenderPass renderpass, uint32_t 
 			renderpass, 0, 
 			skybox[renderpass].pipelines, skybox[renderpass].pipelineLayout);
 
+		skybox[renderpass].ready = true;
 	}
-
-	/* ------ DEPTH  ------ */
-	// {
-	// 	depth[renderpass] = RasterPipelineResources();
-
-	// 	std::string ResourcePath = Options::GetResourcePath();
-	// 	auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Depth/vert.spv"));
-	// 	auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/SurfaceMaterials/Depth/frag.spv"));
-
-	// 	/* Create shader modules */
-	// 	auto vertShaderModule = create_shader_module("depth_vert", vertShaderCode);
-	// 	auto fragShaderModule = create_shader_module("depth_frag", fragShaderCode);
-
-	// 	/* Info for shader stages */
-	// 	vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
-	// 	vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
-	// 	vertShaderStageInfo.module = vertShaderModule;
-	// 	vertShaderStageInfo.pName = "main";
-
-	// 	vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
-	// 	fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
-	// 	fragShaderStageInfo.module = fragShaderModule;
-	// 	fragShaderStageInfo.pName = "main";
-
-	// 	std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
-		
-	// 	/* Account for possibly multiple samples */
-	// 	depth[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
-	// 	depth[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
-	// 	// depth[renderpass].pipelineParameters.rasterizer.cullMode = vk::CullModeFlagBits::eNone;
-
-	// 	/* Because we use a depth prepass */
-	// 	if (use_depth_prepass) {
-	// 		depth[renderpass].pipelineParameters.depthStencil.depthTestEnable = true;
-	// 		depth[renderpass].pipelineParameters.depthStencil.depthWriteEnable = false; // not VK_TRUE since we have a depth prepass
-	// 		depth[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
-	// 	}
-
-	// 	create_raster_pipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
-	// 		{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
-	// 		depth[renderpass].pipelineParameters, 
-	// 		renderpass, 0, 
-	// 		depth[renderpass].pipelines, depth[renderpass].pipelineLayout);
-
-	// }
 
 	/* ------ Volume  ------ */
 	{
@@ -1823,7 +1749,7 @@ void RenderSystem::setup_graphics_pipelines(vk::RenderPass renderpass, uint32_t 
 			volume[renderpass].pipelineParameters, 
 			renderpass, 0, 
 			volume[renderpass].pipelines, volume[renderpass].pipelineLayout);
-
+		volume[renderpass].ready = true;
 	}
 
 	/*  G BUFFERS  */
@@ -1859,6 +1785,7 @@ void RenderSystem::setup_graphics_pipelines(vk::RenderPass renderpass, uint32_t 
 			fragmentdepth[renderpass].pipelineParameters, 
 			renderpass, 0, 
 			fragmentdepth[renderpass].pipelines, fragmentdepth[renderpass].pipelineLayout);
+		fragmentdepth[renderpass].ready = true;
 	}
 
 	/* ------ All G Buffers  ------ */
@@ -1904,6 +1831,8 @@ void RenderSystem::setup_graphics_pipelines(vk::RenderPass renderpass, uint32_t 
 			renderpass, 0, 
 			gbuffers[renderpass].pipelines, gbuffers[renderpass].pipelineLayout);
 
+		gbuffers[renderpass].ready = true;
+
 	}
 
 	/* ------ SHADOWMAP  ------ */
@@ -1944,59 +1873,27 @@ void RenderSystem::setup_graphics_pipelines(vk::RenderPass renderpass, uint32_t 
 			shadowmap[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
 		}
 
+		/* G Buffers */
+		for (uint32_t g_idx = 0; g_idx < 1 + USED_G_BUFFERS; ++g_idx) {
+			shadowmap[renderpass].pipelineParameters.blendAttachments[g_idx].blendEnable = false;
+			// shadowmap[renderpass].pipelineParameters.blendAttachments[g_idx].srcColorBlendFactor = vk::BlendFactor::eOne; // Optional /* TRANSPARENCY STUFF HERE! */
+			// shadowmap[renderpass].pipelineParameters.blendAttachments[g_idx].dstColorBlendFactor = vk::BlendFactor::eZero; // Optional
+			// shadowmap[renderpass].pipelineParameters.blendAttachments[g_idx].colorBlendOp = vk::BlendOp::eAdd; // Optional
+			// shadowmap[renderpass].pipelineParameters.blendAttachments[g_idx].srcAlphaBlendFactor = vk::BlendFactor::eOne; // Optional
+			// shadowmap[renderpass].pipelineParameters.blendAttachments[g_idx].dstAlphaBlendFactor = vk::BlendFactor::eZero; // Optional
+			// shadowmap[renderpass].pipelineParameters.blendAttachments[g_idx].alphaBlendOp = vk::BlendOp::eAdd; // Optional
+		}
+		shadowmap[renderpass].pipelineParameters.colorBlending.attachmentCount = shadowmap[renderpass].pipelineParameters.blendAttachments.size();
+		shadowmap[renderpass].pipelineParameters.colorBlending.pAttachments = shadowmap[renderpass].pipelineParameters.blendAttachments.data();
+
 		create_raster_pipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
 			{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
 			shadowmap[renderpass].pipelineParameters, 
 			renderpass, 0, 
 			shadowmap[renderpass].pipelines, shadowmap[renderpass].pipelineLayout);
 
+		shadowmap[renderpass].ready = true;
 	}
-
-	/* ------ FRAGMENT POSITION  ------ */
-
-	// {
-	// 	fragmentposition[renderpass] = RasterPipelineResources();
-
-	// 	std::string ResourcePath = Options::GetResourcePath();
-	// 	auto vertShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/FragmentPosition/vert.spv"));
-	// 	auto fragShaderCode = readFile(ResourcePath + std::string("/Shaders/GBuffers/FragmentPosition/frag.spv"));
-
-	// 	/* Create shader modules */
-	// 	auto vertShaderModule = create_shader_module("frag_pos_vert", vertShaderCode);
-	// 	auto fragShaderModule = create_shader_module("frag_pos_frag", fragShaderCode);
-
-	// 	/* Info for shader stages */
-	// 	vk::PipelineShaderStageCreateInfo vertShaderStageInfo;
-	// 	vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
-	// 	vertShaderStageInfo.module = vertShaderModule;
-	// 	vertShaderStageInfo.pName = "main";
-
-	// 	vk::PipelineShaderStageCreateInfo fragShaderStageInfo;
-	// 	fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
-	// 	fragShaderStageInfo.module = fragShaderModule;
-	// 	fragShaderStageInfo.pName = "main";
-
-	// 	std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
-		
-	// 	/* Account for possibly multiple samples */
-	// 	fragmentposition[renderpass].pipelineParameters.multisampling.sampleShadingEnable = (sampleFlag == vk::SampleCountFlagBits::e1) ? false : true;
-	// 	fragmentposition[renderpass].pipelineParameters.multisampling.rasterizationSamples = sampleFlag;
-	// 	fragmentposition[renderpass].pipelineParameters.rasterizer.cullMode = vk::CullModeFlagBits::eNone;
-
-	// 	/* Because we use a depth prepass */
-	// 	if (use_depth_prepass) {
-	// 		fragmentposition[renderpass].pipelineParameters.depthStencil.depthTestEnable = true;
-	// 		fragmentposition[renderpass].pipelineParameters.depthStencil.depthWriteEnable = false; // not VK_TRUE since we have a depth prepass
-	// 		fragmentposition[renderpass].pipelineParameters.depthStencil.depthCompareOp = depthCompareOpEqual;
-	// 	}
-
-	// 	create_raster_pipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
-	// 		{ componentDescriptorSetLayout, textureDescriptorSetLayout }, 
-	// 		fragmentposition[renderpass].pipelineParameters, 
-	// 		renderpass, 0, 
-	// 		fragmentposition[renderpass].pipelines, fragmentposition[renderpass].pipelineLayout);
-
-	// }
 
 	/* ------ VR MASK ------ */
 	{
@@ -2031,6 +1928,7 @@ void RenderSystem::setup_graphics_pipelines(vk::RenderPass renderpass, uint32_t 
 			vrmask[renderpass].pipelines, vrmask[renderpass].pipelineLayout);
 
 		// device.destroyShaderModule(vertShaderModule);
+		vrmask[renderpass].ready = true;
 	}
 
 	if (!vulkan->is_ray_tracing_enabled()) return;
@@ -2120,13 +2018,14 @@ void RenderSystem::setup_graphics_pipelines(vk::RenderPass renderpass, uint32_t 
 		rayPipelineInfo.pStages = shaderStages.data();
 		rayPipelineInfo.groupCount = (uint32_t) shaderGroups.size();
 		rayPipelineInfo.pGroups = shaderGroups.data();
-		rayPipelineInfo.maxRecursionDepth = 5;
+		rayPipelineInfo.maxRecursionDepth = vulkan->get_physical_device_ray_tracing_properties().maxRecursionDepth;
 		rayPipelineInfo.layout = rttest[renderpass].pipelineLayout;
 		rayPipelineInfo.basePipelineHandle = vk::Pipeline();
 		rayPipelineInfo.basePipelineIndex = 0;
 
 		rttest[renderpass].pipeline = device.createRayTracingPipelinesNV(vk::PipelineCache(), 
 			{rayPipelineInfo}, nullptr, dldi)[0];
+		rttest[renderpass].ready = true;
 	}
 
 	setup_raytracing_shader_binding_table(renderpass);
@@ -2171,6 +2070,229 @@ void RenderSystem::setup_compute_pipelines()
         computeCreateInfo.layout = edgedetect.pipelineLayout;
         
         edgedetect.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		edgedetect.ready = true;
+	}
+
+	/* ------ Temporal Antialiasing  ------ */
+	{
+		std::string ResourcePath = Options::GetResourcePath();
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/Compute/TAA/comp.spv"));
+
+		/* Create shader modules */
+		auto compShaderModule = create_shader_module("taa", compShaderCode);
+
+		/* Info for shader stages */
+		vk::PipelineShaderStageCreateInfo compShaderStageInfo;
+		compShaderStageInfo.stage = vk::ShaderStageFlagBits::eCompute;
+		compShaderStageInfo.module = compShaderModule;
+		compShaderStageInfo.pName = "main";
+
+        vk::PushConstantRange range;
+        range.offset = 0;
+        range.size = sizeof(PushConsts);
+        range.stageFlags = vk::ShaderStageFlagBits::eAll;
+
+        std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout };
+		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+
+		pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)layouts.size();
+		pipelineLayoutCreateInfo.pSetLayouts = layouts.data();
+		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+		pipelineLayoutCreateInfo.pPushConstantRanges = &range;
+
+        temporalaa.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+
+        vk::ComputePipelineCreateInfo computeCreateInfo;
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = temporalaa.pipelineLayout;
+        
+        temporalaa.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		temporalaa.ready = true;
+	}
+
+	/* Progressive refinement */
+	{
+		std::string ResourcePath = Options::GetResourcePath();
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/Compute/ProgressiveRefinement/comp.spv"));
+
+		/* Create shader modules */
+		auto compShaderModule = create_shader_module("progressive_refinement", compShaderCode);
+
+		/* Info for shader stages */
+		vk::PipelineShaderStageCreateInfo compShaderStageInfo;
+		compShaderStageInfo.stage = vk::ShaderStageFlagBits::eCompute;
+		compShaderStageInfo.module = compShaderModule;
+		compShaderStageInfo.pName = "main";
+
+        vk::PushConstantRange range;
+        range.offset = 0;
+        range.size = sizeof(PushConsts);
+        range.stageFlags = vk::ShaderStageFlagBits::eAll;
+
+        std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout };
+		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+
+		pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)layouts.size();
+		pipelineLayoutCreateInfo.pSetLayouts = layouts.data();
+		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+		pipelineLayoutCreateInfo.pPushConstantRanges = &range;
+
+        progressive_refinement.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+
+        vk::ComputePipelineCreateInfo computeCreateInfo;
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = progressive_refinement.pipelineLayout;
+        
+        progressive_refinement.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		progressive_refinement.ready = true;
+	}
+
+	/* Tone Mapping */
+	{
+		std::string ResourcePath = Options::GetResourcePath();
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/Compute/ToneMapping/comp.spv"));
+
+		/* Create shader modules */
+		auto compShaderModule = create_shader_module("tone_mapping", compShaderCode);
+
+		/* Info for shader stages */
+		vk::PipelineShaderStageCreateInfo compShaderStageInfo;
+		compShaderStageInfo.stage = vk::ShaderStageFlagBits::eCompute;
+		compShaderStageInfo.module = compShaderModule;
+		compShaderStageInfo.pName = "main";
+
+        vk::PushConstantRange range;
+        range.offset = 0;
+        range.size = sizeof(PushConsts);
+        range.stageFlags = vk::ShaderStageFlagBits::eAll;
+
+        std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout };
+		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+
+		pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)layouts.size();
+		pipelineLayoutCreateInfo.pSetLayouts = layouts.data();
+		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+		pipelineLayoutCreateInfo.pPushConstantRanges = &range;
+
+        tone_mapping.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+
+        vk::ComputePipelineCreateInfo computeCreateInfo;
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = tone_mapping.pipelineLayout;
+        
+        tone_mapping.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		tone_mapping.ready = true;
+	}
+
+	/* Gaussian X */
+	{
+		std::string ResourcePath = Options::GetResourcePath();
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/Compute/VSM/GaussianBlurX/comp.spv"));
+
+		/* Create shader modules */
+		auto compShaderModule = create_shader_module("gaussian_x", compShaderCode);
+
+		/* Info for shader stages */
+		vk::PipelineShaderStageCreateInfo compShaderStageInfo;
+		compShaderStageInfo.stage = vk::ShaderStageFlagBits::eCompute;
+		compShaderStageInfo.module = compShaderModule;
+		compShaderStageInfo.pName = "main";
+
+        vk::PushConstantRange range;
+        range.offset = 0;
+        range.size = sizeof(PushConsts);
+        range.stageFlags = vk::ShaderStageFlagBits::eAll;
+
+        std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout };
+		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+
+		pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)layouts.size();
+		pipelineLayoutCreateInfo.pSetLayouts = layouts.data();
+		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+		pipelineLayoutCreateInfo.pPushConstantRanges = &range;
+
+        gaussian_x.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+
+        vk::ComputePipelineCreateInfo computeCreateInfo;
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = gaussian_x.pipelineLayout;
+        
+        gaussian_x.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		gaussian_x.ready = true;
+	}
+
+	/* Gaussian Y */
+	{
+		std::string ResourcePath = Options::GetResourcePath();
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/Compute/VSM/GaussianBlurY/comp.spv"));
+
+		/* Create shader modules */
+		auto compShaderModule = create_shader_module("gaussian_y", compShaderCode);
+
+		/* Info for shader stages */
+		vk::PipelineShaderStageCreateInfo compShaderStageInfo;
+		compShaderStageInfo.stage = vk::ShaderStageFlagBits::eCompute;
+		compShaderStageInfo.module = compShaderModule;
+		compShaderStageInfo.pName = "main";
+
+        vk::PushConstantRange range;
+        range.offset = 0;
+        range.size = sizeof(PushConsts);
+        range.stageFlags = vk::ShaderStageFlagBits::eAll;
+
+        std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout };
+		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+
+		pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)layouts.size();
+		pipelineLayoutCreateInfo.pSetLayouts = layouts.data();
+		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+		pipelineLayoutCreateInfo.pPushConstantRanges = &range;
+
+        gaussian_y.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+
+        vk::ComputePipelineCreateInfo computeCreateInfo;
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = gaussian_y.pipelineLayout;
+        
+        gaussian_y.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		gaussian_y.ready = true;
+	}
+
+	/* A-Trous Edge Avoiding Filter */
+	{
+		std::string ResourcePath = Options::GetResourcePath();
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/Compute/ATrous/comp.spv"));
+
+		/* Create shader modules */
+		auto compShaderModule = create_shader_module("atrous_filter", compShaderCode);
+
+		/* Info for shader stages */
+		vk::PipelineShaderStageCreateInfo compShaderStageInfo;
+		compShaderStageInfo.stage = vk::ShaderStageFlagBits::eCompute;
+		compShaderStageInfo.module = compShaderModule;
+		compShaderStageInfo.pName = "main";
+
+        vk::PushConstantRange range;
+        range.offset = 0;
+        range.size = sizeof(PushConsts);
+        range.stageFlags = vk::ShaderStageFlagBits::eAll;
+
+        std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout };
+		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+
+		pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)layouts.size();
+		pipelineLayoutCreateInfo.pSetLayouts = layouts.data();
+		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+		pipelineLayoutCreateInfo.pPushConstantRanges = &range;
+
+        atrous_filter.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+
+        vk::ComputePipelineCreateInfo computeCreateInfo;
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = atrous_filter.pipelineLayout;
+        
+        atrous_filter.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		atrous_filter.ready = true;
 	}
 }
 
@@ -2542,7 +2664,7 @@ void RenderSystem::create_descriptor_pools()
     vk::DescriptorPoolCreateInfo gbufferPoolInfo;
 	gbufferPoolInfo.poolSizeCount = (uint32_t)gbufferPoolSizes.size();
 	gbufferPoolInfo.pPoolSizes = gbufferPoolSizes.data();
-	gbufferPoolInfo.maxSets = 1;
+	gbufferPoolInfo.maxSets = (MAX_G_BUFFERS + 1); // up to 6 views per camera
 	gbufferPoolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 
 	/* Vertex Descriptor Pool Info */
@@ -2618,7 +2740,13 @@ void RenderSystem::create_descriptor_pools()
 	// Create the pools
 	componentDescriptorPool = device.createDescriptorPool(SSBOPoolInfo);
 	textureDescriptorPool = device.createDescriptorPool(texturePoolInfo);
-	gbufferDescriptorPool = device.createDescriptorPool(gbufferPoolInfo);
+	// gbufferDescriptorPool = device.createDescriptorPool(gbufferPoolInfo);
+
+	/* This is dumb. Why do I need to do this?... Cant allocate more than one gbuffer 
+	descriptor set on intel without "vk_out_of_host_memory" ... */
+	for (uint32_t i = 0; i < MAX_CAMERAS * 6; ++i) {
+	 	gbufferDescriptorPools.push_back(device.createDescriptorPool(gbufferPoolInfo));
+	}
 
 	if (vulkan->is_ray_tracing_enabled()) {
 		positionsDescriptorPool = device.createDescriptorPool(positionsPoolInfo);
@@ -3025,7 +3153,7 @@ void RenderSystem::update_raster_descriptor_sets()
 	}
 }
 
-void RenderSystem::update_gbuffer_descriptor_sets(Entity &camera_entity)
+void RenderSystem::update_gbuffer_descriptor_sets(Entity &camera_entity, uint32_t rp_idx)
 {
     auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
@@ -3034,25 +3162,31 @@ void RenderSystem::update_gbuffer_descriptor_sets(Entity &camera_entity)
 	if (!camera_entity.camera()) return;
 	if (!camera_entity.camera()->get_texture()) return;
 
-    vk::DescriptorSetLayout gbufferLayouts[] = { gbufferDescriptorSetLayout };
+    // vk::DescriptorSetLayout gbufferLayouts[] = { gbufferDescriptorSetLayout };
+	std::vector<vk::DescriptorSetLayout> gbufferLayouts(1, gbufferDescriptorSetLayout);
 
-    if (gbufferDescriptorSet == vk::DescriptorSet()) {
+	auto key = std::pair<uint32_t, int32_t>(camera_entity.get_id(), rp_idx);
+
+    if (gbufferDescriptorSets.find(key) == gbufferDescriptorSets.end()) {
         vk::DescriptorSetAllocateInfo allocInfo;
-		allocInfo.descriptorPool = gbufferDescriptorPool;
+		allocInfo.descriptorPool = gbufferDescriptorPools[gbufferPoolIdx]; // this is DUUUMB.... Why do I need to do this @intel...
 		allocInfo.descriptorSetCount = 1;
-		allocInfo.pSetLayouts = gbufferLayouts;
+		allocInfo.pSetLayouts = gbufferLayouts.data();
 
-		gbufferDescriptorSet = device.allocateDescriptorSets(allocInfo)[0];
+		gbufferDescriptorSets[key] = device.allocateDescriptorSets(allocInfo)[0];
+		gbufferPoolIdx++;
     }
 
     std::array<vk::WriteDescriptorSet, 2> gbufferDescriptorWrites = {};
 
+	auto colorImageViewLayers = camera_entity.camera()->get_texture()->get_color_image_view_layers();
+
     // Output image 
 	vk::DescriptorImageInfo descriptorOutputImageInfo;
 	descriptorOutputImageInfo.imageLayout = vk::ImageLayout::eGeneral;
-	descriptorOutputImageInfo.imageView = camera_entity.camera()->get_texture()->get_color_image_view();		
+	descriptorOutputImageInfo.imageView = colorImageViewLayers[rp_idx];
 
-	gbufferDescriptorWrites[0].dstSet = gbufferDescriptorSet;
+	gbufferDescriptorWrites[0].dstSet = gbufferDescriptorSets[key];
 	gbufferDescriptorWrites[0].dstBinding = 0;
 	gbufferDescriptorWrites[0].dstArrayElement = 0;
 	gbufferDescriptorWrites[0].descriptorCount = 1;
@@ -3064,10 +3198,11 @@ void RenderSystem::update_gbuffer_descriptor_sets(Entity &camera_entity)
 
 	for (uint32_t g_idx = 0; g_idx < MAX_G_BUFFERS; ++g_idx) {
 		descriptorGBufferImageInfos[g_idx].imageLayout = vk::ImageLayout::eGeneral;
-		descriptorGBufferImageInfos[g_idx].imageView = camera_entity.camera()->get_texture()->get_g_buffer_image_view(g_idx);
+		auto gbufferImageViewLayers = camera_entity.camera()->get_texture()->get_g_buffer_image_view_layers(g_idx);
+		descriptorGBufferImageInfos[g_idx].imageView = gbufferImageViewLayers[rp_idx];
 	}
 	
-	gbufferDescriptorWrites[1].dstSet = gbufferDescriptorSet;
+	gbufferDescriptorWrites[1].dstSet = gbufferDescriptorSets[key];
 	gbufferDescriptorWrites[1].dstBinding = 1;
 	gbufferDescriptorWrites[1].dstArrayElement = 0;
 	gbufferDescriptorWrites[1].descriptorCount = descriptorGBufferImageInfos.size();
@@ -3167,6 +3302,12 @@ void RenderSystem::create_vertex_attribute_descriptions() {
 
 void RenderSystem::bind_raster_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass) 
 {
+	if (
+		(pbr[render_pass].ready == false) || 
+		(skybox[render_pass].ready == false) || 
+		(volume[render_pass].ready == false)
+	) return;
+
 	std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet};
 	// command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, normalsurface[render_pass].pipelineLayout, 0, descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	// command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, blinn[render_pass].pipelineLayout, 0, descriptorSets.size(), descriptorSets.data(), 0, nullptr);
@@ -3177,15 +3318,36 @@ void RenderSystem::bind_raster_descriptor_sets(vk::CommandBuffer &command_buffer
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, volume[render_pass].pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 }
 
-void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffer)
+void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffer, Entity &camera_entity, uint32_t rp_idx)
 {
-	std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet, gbufferDescriptorSet};
+	if (
+		(edgedetect.ready == false) || 
+		(temporalaa.ready == false) || 
+		(progressive_refinement.ready == false) || 
+		(tone_mapping.ready == false) || 
+		(gaussian_x.ready == false) || 
+		(gaussian_y.ready == false) || 
+		(atrous_filter.ready == false)
+	) return;
+
+	auto key = std::pair<uint32_t, uint32_t>(camera_entity.get_id(), rp_idx);
+	std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet, gbufferDescriptorSets[key]};
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, edgedetect.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, temporalaa.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, progressive_refinement.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, tone_mapping.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, gaussian_x.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, gaussian_y.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, atrous_filter.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 }
 
-void RenderSystem::bind_raytracing_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass)
+void RenderSystem::bind_raytracing_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &camera_entity, uint32_t rp_idx)
 {
-	std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet, gbufferDescriptorSet, positionsDescriptorSet, normalsDescriptorSet, colorsDescriptorSet, texcoordsDescriptorSet, indexDescriptorSet, raytracingDescriptorSet};
+	if (
+		(rttest[render_pass].ready == false)
+	) return;
+	auto key = std::pair<uint32_t, uint32_t>(camera_entity.get_id(), rp_idx);
+	std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet, gbufferDescriptorSets[key], positionsDescriptorSet, normalsDescriptorSet, colorsDescriptorSet, texcoordsDescriptorSet, indexDescriptorSet, raytracingDescriptorSet};
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, rttest[render_pass].pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 }
 
@@ -3205,7 +3367,7 @@ void RenderSystem::draw_entity(
 	if (!m) return;
 
 	bool show_bounding_box = m->should_show_bounding_box() | render_bounding_box_override;
-	push_constants.show_bounding_box = show_bounding_box;
+	push_constants.flags = (show_bounding_box) ? (push_constants.flags | (1 << 4)) : (push_constants.flags & ~(1 << 4)); 
 
 	/* Need a transform to render. */
 	auto transform = entity.get_transform();
@@ -3402,6 +3564,76 @@ void RenderSystem::set_bottom_sky_color(float r, float g, float b) { set_bottom_
 void RenderSystem::set_sky_transition(float transition) { push_constants.sky_transition = transition; }
 void RenderSystem::use_openvr(bool useOpenVR) { this->using_openvr = useOpenVR; }
 void RenderSystem::use_openvr_hidden_area_masks(bool use_masks) {this->using_vr_hidden_area_masks = use_masks;};
-void RenderSystem::enable_ray_tracing(bool enable) {this->ray_tracing_enabled = enable;};
+void RenderSystem::enable_ray_tracing(bool enable) {
+	auto vulkan = Libraries::Vulkan::Get();
+	if (!vulkan->is_ray_tracing_enabled()) throw std::runtime_error("Error, the \"VK_NV_ray_tracing\" device extension was not provided during initialization!");
+	this->ray_tracing_enabled = enable;
+};
+void RenderSystem::enable_taa(bool enable) {
+	this->taa_enabled = enable; 
+	this->push_constants.frame = 0; 
+	if (this->taa_enabled) {
+		this->progressive_refinement_enabled = false;
+		this->push_constants.flags |= ( 1 << 2 );
+	} else {
+		this->push_constants.flags &= ~( 1 << 2 );
+	}
+};
+
+void RenderSystem::enable_atrous(bool enable) {
+	this->atrous_enabled = enable; 
+	if (this->taa_enabled) {
+		this->push_constants.flags |= ( 1 << 3 );
+	} else {
+		this->push_constants.flags &= ~( 1 << 3 );
+	}
+};
+
+void RenderSystem::set_atrous_sigma(float sigma) {
+	atrous_sigma = sigma;
+}
+
+void RenderSystem::set_atrous_iterations(int iterations) {
+	atrous_iterations = iterations;
+}
+
+void RenderSystem::enable_progressive_refinement(bool enable) {
+	this->progressive_refinement_enabled = enable; 
+	this->push_constants.frame = 0; 
+	if (this->progressive_refinement_enabled) {
+		this->taa_enabled = false;
+		this->push_constants.flags |= ( 1 << 6 );
+	} else {
+		this->push_constants.flags &= ~( 1 << 6 );
+	}
+};
+
+void RenderSystem::enable_tone_mapping(bool enable) {
+	this->tone_mapping_enabled = enable; 
+};
+
+void RenderSystem::set_max_bounces(uint32_t max_bounces) {
+	auto vulkan = Libraries::Vulkan::Get();
+	uint32_t limit = vulkan->get_physical_device_ray_tracing_properties().maxRecursionDepth;
+	if (max_bounces > limit - 1) max_bounces = limit - 1;
+	this->max_bounces = max_bounces;
+}
+
+float RenderSystem::get_seconds_per_frame() 
+{
+	return this->ms_per_frame;
+}
+
+void RenderSystem::enable_blue_noise(bool enable) {
+	if (enable) {
+		this->push_constants.flags |= ( 1 << 5 );
+	} else {
+		this->push_constants.flags &= ~( 1 << 5 );
+	}
+}
+
+void RenderSystem::reset_progressive_refinement() {
+	if ((this->push_constants.flags | ( 1 << 6 )) != 0) this->push_constants.frame = 0;
+}
 
 } // namespace Systems

@@ -425,16 +425,90 @@ void Material::hide() {
 	renderMode = RENDER_MODE_HIDDEN;
 }
 
-void Material::set_base_color(glm::vec4 color) {
-	this->material_struct.base_color = color;
+void Material::set_base_color(glm::vec3 color) {
+	this->material_struct.base_color.r = color.r;
+	this->material_struct.base_color.g = color.g;
+	this->material_struct.base_color.b = color.b;
 }
 
-void Material::set_base_color(float r, float g, float b, float a) {
-	this->material_struct.base_color = glm::vec4(r, g, b, a);
+void Material::set_base_color(float r, float g, float b) {
+	this->material_struct.base_color.r = r;
+	this->material_struct.base_color.g = g;
+	this->material_struct.base_color.b = b;
 }
 
-glm::vec4 Material::get_base_color() {
-	return this->material_struct.base_color;
+glm::vec3 Material::get_base_color() {
+	return vec3(this->material_struct.base_color.r, this->material_struct.base_color.g, this->material_struct.base_color.b);
+}
+
+void Material::set_subsurface_color(glm::vec3 color) {
+	this->material_struct.subsurface_color.r = color.r;
+	this->material_struct.subsurface_color.g = color.g;
+	this->material_struct.subsurface_color.b = color.b;
+}
+
+void Material::set_subsurface_color(float r, float g, float b) {
+	this->material_struct.subsurface_color.r = r;
+	this->material_struct.subsurface_color.g = g;
+	this->material_struct.subsurface_color.b = b;
+}
+
+glm::vec3 Material::get_subsurface_color() {
+	return glm::vec3(this->material_struct.subsurface_color.r, this->material_struct.subsurface_color.g, this->material_struct.subsurface_color.b);
+}
+
+void Material::set_subsurface_radius(glm::vec3 radius) {
+	this->material_struct.subsurface_radius = glm::vec4(radius.x, radius.y, radius.z, 0.0);
+}
+
+void Material::set_subsurface_radius(float x, float y, float z) {
+	this->material_struct.subsurface_radius = glm::vec4(x, y, z, 0.0);
+}
+
+glm::vec3 Material::get_subsurface_radius() {
+	return glm::vec3(this->material_struct.subsurface_radius.x, this->material_struct.subsurface_radius.y, this->material_struct.subsurface_radius.z);
+}
+
+void Material::set_alpha(float a) 
+{
+	this->material_struct.base_color.a = a;
+}
+
+float Material::get_alpha()
+{
+	return this->material_struct.base_color.a;
+}
+
+void Material::set_subsurface(float subsurface) {
+	this->material_struct.subsurface = subsurface;
+}
+
+float Material::get_subsurface() {
+	return this->material_struct.subsurface;
+}
+
+void Material::set_metallic(float metallic) {
+	this->material_struct.metallic = metallic;
+}
+
+float Material::get_metallic() {
+	return this->material_struct.metallic;
+}
+
+void Material::set_specular(float specular) {
+	this->material_struct.specular = specular;
+}
+
+float Material::get_specular() {
+	return this->material_struct.specular;
+}
+
+void Material::set_specular_tint(float specular_tint) {
+	this->material_struct.specular_tint = specular_tint;
+}
+
+float Material::get_specular_tint() {
+	return this->material_struct.specular_tint;
 }
 
 void Material::set_roughness(float roughness) {
@@ -445,12 +519,60 @@ float Material::get_roughness() {
 	return this->material_struct.roughness;
 }
 
-void Material::set_metallic(float metallic) {
-	this->material_struct.metallic = metallic;
+void Material::set_anisotropic(float anisotropic) {
+	this->material_struct.anisotropic = anisotropic;
 }
 
-float Material::get_metallic() {
-	return this->material_struct.metallic;
+float Material::get_anisotropic() {
+	return this->material_struct.anisotropic;
+}
+
+void Material::set_anisotropic_rotation(float anisotropic_rotation) {
+	this->material_struct.anisotropic_rotation = anisotropic_rotation;
+}
+
+float Material::get_anisotropic_rotation() {
+	return this->material_struct.anisotropic_rotation;
+}
+
+void Material::set_sheen(float sheen) {
+	this->material_struct.sheen = sheen;
+}
+
+float Material::get_sheen() {
+	return this->material_struct.sheen;
+}
+
+void Material::set_sheen_tint(float sheen_tint) {
+	this->material_struct.sheen_tint = sheen_tint;
+}
+
+float Material::get_sheen_tint() {
+	return this->material_struct.sheen_tint;
+}
+
+void Material::set_clearcoat(float clearcoat) {
+	this->material_struct.clearcoat = clearcoat;
+}
+
+float Material::get_clearcoat() {
+	return this->material_struct.clearcoat;
+}
+
+void Material::set_clearcoat_roughness(float clearcoat_roughness) {
+	this->material_struct.clearcoat_roughness = clearcoat_roughness;
+}
+
+float Material::get_clearcoat_roughness() {
+	return this->material_struct.clearcoat_roughness;
+}
+
+void Material::set_ior(float ior) {
+	this->material_struct.ior = ior;
+}
+
+float Material::get_ior() {
+	return this->material_struct.ior;
 }
 
 void Material::set_transmission(float transmission) {
@@ -467,10 +589,6 @@ void Material::set_transmission_roughness(float transmission_roughness) {
 
 float Material::get_transmission_roughness() {
 	return this->material_struct.transmission_roughness;
-}
-
-void Material::set_ior(float ior) {
-	this->material_struct.ior = ior;
 }
 
 bool Material::contains_transparency() {

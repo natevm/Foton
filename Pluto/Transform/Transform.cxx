@@ -84,14 +84,19 @@ void Transform::UploadSSBO(vk::CommandBuffer command_buffer)
 	/* TODO: remove this for loop */
 	for (int i = 0; i < MAX_TRANSFORMS; ++i) {
 		if (!transforms[i].is_initialized()) continue;
+		transformObjects[i].worldToLocalPrev = pinnedMemory[i].worldToLocal;
+		transformObjects[i].localToWorldPrev = pinnedMemory[i].localToWorld;
+		transformObjects[i].worldToLocalRotationPrev = pinnedMemory[i].worldToLocalRotation;
+		transformObjects[i].worldToLocalTranslationPrev = pinnedMemory[i].worldToLocalTranslation;
+
 		transformObjects[i].worldToLocal = transforms[i].get_world_to_local_matrix();
 		transformObjects[i].localToWorld = transforms[i].get_local_to_world_matrix();
 		transformObjects[i].worldToLocalRotation = transforms[i].get_world_to_local_rotation_matrix();
-		transformObjects[i].localToWorldRotation = transforms[i].get_local_to_world_rotation_matrix();
 		transformObjects[i].worldToLocalTranslation = transforms[i].get_world_to_local_translation_matrix();
-		transformObjects[i].localToWorldTranslation = transforms[i].get_local_to_world_translation_matrix();
-		transformObjects[i].worldToLocalScale = transforms[i].get_world_to_local_scale_matrix();
-		transformObjects[i].localToWorldScale = transforms[i].get_local_to_world_scale_matrix();
+		// transformObjects[i].localToWorldRotation = transforms[i].get_local_to_world_rotation_matrix();
+		// transformObjects[i].localToWorldTranslation = transforms[i].get_local_to_world_translation_matrix();
+		// transformObjects[i].worldToLocalScale = transforms[i].get_world_to_local_scale_matrix();
+		// transformObjects[i].localToWorldScale = transforms[i].get_local_to_world_scale_matrix();
 	};
 
 	/* Copy to GPU mapped memory */
@@ -234,8 +239,8 @@ void Transform::rotate_around(vec3 point, float angle, vec3 axis)
 {
 	glm::vec3 direction = point - get_position();
 	glm::vec3 newPosition = get_position() + direction;
-	glm::quat newRotation = glm::angleAxis(radians(angle), axis) * get_rotation();
-	newPosition = newPosition - direction * glm::angleAxis(radians(-angle), axis);
+	glm::quat newRotation = glm::angleAxis(angle, axis) * get_rotation();
+	newPosition = newPosition - direction * glm::angleAxis(-angle, axis);
 
 	rotation = glm::normalize(newRotation);
 	localToParentRotation = glm::toMat4(rotation);

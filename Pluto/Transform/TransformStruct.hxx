@@ -15,12 +15,22 @@ using namespace glm;
 
 struct TransformStruct
 {
+    /* 64 bytes */
     mat4 worldToLocal;
     mat4 localToWorld;
     mat4 worldToLocalRotation;
-    mat4 localToWorldRotation;
     mat4 worldToLocalTranslation;
-    mat4 localToWorldTranslation;
-    mat4 worldToLocalScale;
-    mat4 localToWorldScale;
+
+    /* 128 bytes, for temporal reprojection */
+    mat4 worldToLocalPrev;
+    mat4 localToWorldPrev;
+    mat4 worldToLocalRotationPrev;
+    mat4 worldToLocalTranslationPrev;
+
+
+    
+    // mat4 localToWorldRotation;
+    // mat4 localToWorldTranslation;
+    // mat4 worldToLocalScale;
+    // mat4 localToWorldScale;
 };

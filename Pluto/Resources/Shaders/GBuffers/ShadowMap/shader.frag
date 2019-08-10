@@ -1,10 +1,9 @@
 #version 450
 #include "Pluto/Resources/Shaders/Descriptors.hxx"
+#include "Pluto/Resources/Shaders/FragmentCommon.hxx"
 
 layout(location = 0) in vec3 w_position;
 layout(location = 1) in vec3 c_position;
-
-layout(location = 0) out vec4 outFragColor;
 
 float LinearizeDepth(float depth, float near, float far)
 {
@@ -25,5 +24,7 @@ vec3 hsv2rgb(vec3 c) {
 void main() 
 {
   vec3 distvec = w_position - c_position;
-  outFragColor = vec4(length(distvec), 0.0, 0.0, 1.0);
+  float len = length(distvec);
+  outColor = vec4(len, len * len, len * len * len, len * len * len * len); // todo: complete moment shadow mapping...
+  GBUF1 = vec4(0.0f);
 }

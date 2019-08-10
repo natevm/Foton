@@ -1,7 +1,9 @@
 #pragma once
 #include "Pluto/Libraries/Vulkan/Vulkan.hxx"
 
-#define USED_G_BUFFERS 0
+/* If this is more than 0, the corresponding g buffers must be written to by all
+fragment shaders. */
+#define USED_G_BUFFERS 1
 
 struct PipelineParameters {
 	vk::PipelineInputAssemblyStateCreateInfo inputAssembly;

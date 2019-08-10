@@ -1,0 +1,174 @@
+#version 460
+
+#define COMPUTE
+
+#include "Pluto/Resources/Shaders/Descriptors.hxx"
+
+layout (local_size_x = 16, local_size_y = 16) in;
+/*
+In my engine, this is the HDR image that we get AFTER the deferred lighting has been done,
+and BEFORE the tonemapping is applied.
+hdrTex = HDR image of current frame
+histHdrTex = HDR image of previous frame.
+*/
+
+#define RADIUS 3
+
+void main() {
+    vec2 gid = gl_GlobalInvocationID.xy;
+
+
+    // first frame, no blending at all.
+    if (push.consts.frame > 10) {
+        int valid_samples = 0;
+
+        vec4 motion_data = imageLoad(gbuffers[3], ivec2(gid));
+        vec2 v = motion_data.xy;
+        v = v * vec2(.5, -.5);
+        v = v * vec2(push.consts.width, push.consts.height);
+        ivec2 vel = ivec2(v.xy);
+        ivec2 histUv = ivec2(gid.xy + vel.xy);
+
+        ivec2 current_entity_data = ivec2(imageLoad(gbuffers[4], ivec2(gid)).xy);
+        vec4 current_depth_data = imageLoad(gbuffers[2], ivec2(gid));
+        vec3 current_color = imageLoad(render_image, ivec2(gid)).rgb;
+        vec3 current_norm_data = imageLoad(gbuffers[1], ivec2(gid)).xyz;
+
+        float blend = 0.5;
+        vec3 hist_color = vec3(0);
+
+
+        for (int y = -RADIUS; y <= RADIUS; ++y) {
+            for (int x = -RADIUS; x <= RADIUS; ++x) {
+                vec3 color = imageLoad(gbuffers[6], histUv + ivec2(x, y)).rgb;
+                ivec2 hist_entity_data = ivec2(imageLoad(gbuffers[4], histUv + ivec2(x, y)).xy);
+                vec4 reproj_depth_data = imageLoad(gbuffers[2], histUv + ivec2(x, y));
+                vec3 reproj_norm_data = imageLoad(gbuffers[5], histUv + ivec2(x, y)).xyz;
+
+
+                bool reset = false;
+                /* Don't blend disocclusion */
+                if ((current_depth_data.x - reproj_depth_data.y) > .1) reset = true;
+                
+                /* Dont blend multiple objects together*/
+                if (current_entity_data.x != current_entity_data.y) reset = true;
+                if (current_entity_data.x != hist_entity_data.y) reset = true;
+                if (current_entity_data.x != hist_entity_data.x) reset = true;
+                if (current_entity_data.y != hist_entity_data.x) reset = true;
+                if (current_entity_data.y != hist_entity_data.y) reset = true;
+
+                // if (dot(reproj_norm_data, current_norm_data) < .999) reset = true;
+
+                if (!reset) {
+                    valid_samples++;
+                    hist_color += color;
+                }
+            }
+        }
+
+        if (valid_samples > 0) hist_color /= valid_samples;
+
+        /* Dont blend if motion vector falls out of the screen */
+        bvec2 a = greaterThan(histUv, vec2(push.consts.width-1, push.consts.height-1));
+        bvec2 b = lessThan(histUv, vec2(0.0, 0.0));
+        blend = any(bvec2(any(a), any(b))) ? 1.0 : blend;
+        
+        if (valid_samples == 0) blend = 1.0; // Dont blend if we didnt find a good sample...
+        
+        // finally, blend current and clamped history sample.
+        hist_color = mix(hist_color, current_color, vec3(blend)  );
+        vec3 final_color = hist_color;
+
+        // vec3 neighbourhood[9];
+        
+        // /* This could be unroll and jam'd to improve perf... */
+        // /* Load pixel neighbourhood */
+        // neighbourhood[0] = imageLoad(render_image, ivec2(gid) + ivec2(-1, -1)).rgb;
+        // neighbourhood[1] = imageLoad(render_image, ivec2(gid) + ivec2(+0, -1)).rgb;
+        // neighbourhood[2] = imageLoad(render_image, ivec2(gid) + ivec2(+1, -1)).rgb;
+        // neighbourhood[3] = imageLoad(render_image, ivec2(gid) + ivec2(-1, +0)).rgb;
+        // neighbourhood[4] = imageLoad(render_image, ivec2(gid) + ivec2(+0, +0)).rgb;
+        // neighbourhood[5] = imageLoad(render_image, ivec2(gid) + ivec2(+1, +0)).rgb;
+        // neighbourhood[6] = imageLoad(render_image, ivec2(gid) + ivec2(-1, +1)).rgb;
+        // neighbourhood[7] = imageLoad(render_image, ivec2(gid) + ivec2(+0, +1)).rgb;
+        // neighbourhood[8] = imageLoad(render_image, ivec2(gid) + ivec2(+1, +1)).rgb;
+        
+        // vec3 nmin = neighbourhood[0];
+        // vec3 nmax = neighbourhood[0];   
+        // for(int i = 1; i < 9; ++i) {
+        //     nmin = min(nmin, neighbourhood[i]);
+        //     nmax = max(nmax, neighbourhood[i]);
+        // }
+
+
+        
+        // vec3 current_pos = imageLoad(gbuffers[0], ivec2(gid)).xyz;
+
+        
+
+        /* Compute history sample (with neighborhood clamp) */
+        
+        
+        // hist_color = texture(sampler2D(gbuffers[6], samplers[0]), histUv2);
+
+        // vec3 hist_pos = imageLoad(gbuffers[0], histUv).xyz;
+        // int hist_entity = int(imageLoad(gbuffers[0], histUv).w);
+
+        
+        
+        
+        // if ((push.consts.frame % 2) == 0) 
+        // vec4 reproj_depth_data1 = imageLoad(gbuffers[2], histUv+ivec2(-1,0));
+        // vec4 reproj_depth_data2 = imageLoad(gbuffers[2], histUv+ivec2(+1,0));
+        // vec4 reproj_depth_data3 = imageLoad(gbuffers[2], histUv+ivec2(0,-1));
+        // vec4 reproj_depth_data4 = imageLoad(gbuffers[2], histUv+ivec2(0,+1));
+        // vec2 D_old = depth_data.zw; // z is old non-reproj, w is old reproj
+        // vec2 D_new = depth_data.xy; // x is new non-reproj, y is new reproj
+
+        /* Compute blend factor */        
+        // float blend = 0.2;
+        
+        
+
+        // vec3 final_color = vec3(0);
+        // if (reset) final_color = hist_color = vec3(1, 0, 0);
+
+        // if (current_depth_data.y - reproj_depth_data.x > 0.1) final_color.r = 1; // surface causing disocclusion
+        // if (current_depth_data.y - reproj_depth_data.x < -0.1) final_color.g = 1; // disocclusion
+        // if (current_depth_data.x - reproj_depth_data.x < -0.1) final_color.b = 1; // Also seems to detect disocclusion well
+        // if (current_depth_data.x - reproj_depth_data.x > 0.1) final_color.r = 1; // Also seems to be surface causing disocclusion
+        
+        imageStore(render_image, ivec2(gl_GlobalInvocationID.xy), vec4(final_color, 1.0));
+
+
+        imageStore(gbuffers[6], ivec2(gl_GlobalInvocationID.xy), vec4(hist_color, 1.0));
+
+
+
+        // float velmag = length(vel);
+
+    
+        
+        // sample from history buffer, with neighbourhood clamping.  
+        // vec3 hist_color = clamp(imageLoad(gbuffers[1], histUv).rgb, nmin, nmax);
+        // vec3 history = imageLoad(gbuffers[1], ivec2(gl_GlobalInvocationID.xy)).rgb;
+        // vec3 hist_color = imageLoad(gbuffers[1], histUv).rgb;
+        // float oldHistDepth = imageLoad(gbuffers[2], histUv).g; // r is current, g is past
+        // float newHistDepth = imageLoad(gbuffers[2], ivec2(gid)).r; // r is current, g is past
+
+        // if (newHistDepth - oldHistDepth < -0.1) reset = true;
+        
+        // // blend factor
+        // // float blend = 0.5;
+        
+        
+        // The larger the velocity vector is, the less accurate it seems to be. 
+        // This is a soft correction for that
+        // blend = min(blend + ( velmag / 10.0), 1.0);// (1.0 - (max(velmag, 5.0) / 5.0));
+    }  
+    else {
+        /* Set history to current value */
+        vec3 currVal = imageLoad(render_image, ivec2(gl_GlobalInvocationID.xy)).rgb;
+        imageStore(gbuffers[6], ivec2(gl_GlobalInvocationID.xy), vec4(currVal, 1.0));
+    }
+}

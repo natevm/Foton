@@ -92,18 +92,46 @@ class Material : public StaticFactory
         void hide();
 
         /* Accessors / Mutators */
-        void set_base_color(glm::vec4 color);
-        void set_base_color(float r, float g, float b, float a);
-        glm::vec4 get_base_color();
-        void set_roughness(float roughness);
-        float get_roughness();
+        void set_base_color(glm::vec3 color);
+        void set_base_color(float r, float g, float b);
+        void set_subsurface_color(glm::vec3 color);
+        void set_subsurface_color(float r, float g, float b);
+        void set_subsurface_radius(glm::vec3 subsurface_radius);
+        void set_subsurface_radius(float x, float y, float z);
+        void set_alpha(float a);
+        void set_subsurface(float subsurface);
         void set_metallic(float metallic);
-        float get_metallic();
-        void set_transmission(float transmission);
-        float get_transmission();
-        void set_transmission_roughness(float transmission_roughness);
-        float get_transmission_roughness();
+        void set_specular(float specular);
+        void set_specular_tint(float specular_tint);
+        void set_roughness(float roughness);
+        void set_anisotropic(float anisotropic);
+        void set_anisotropic_rotation(float anisotropic_rotation);
+        void set_sheen(float sheen);
+        void set_sheen_tint(float sheen_tint);
+        void set_clearcoat(float clearcoat);
+        void set_clearcoat_roughness(float clearcoat_roughness);
         void set_ior(float ior);
+        void set_transmission(float transmission);
+        void set_transmission_roughness(float transmission_roughness);
+        
+        glm::vec3 get_base_color();
+        glm::vec3 get_subsurface_color();
+        glm::vec3 get_subsurface_radius();
+        float get_alpha();
+        float get_subsurface();
+        float get_metallic();
+        float get_specular();
+        float get_specular_tint();
+        float get_roughness();
+        float get_anisotropic();
+        float get_anisotropic_rotation();
+        float get_sheen();
+        float get_sheen_tint();
+        float get_clearcoat();
+        float get_clearcoat_roughness();
+        float get_ior();
+        float get_transmission();
+        float get_transmission_roughness();
 
         /* Certain constant material properties can be replaced with texture lookups. */
         void set_base_color_texture(uint32_t texture_id);

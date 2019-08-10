@@ -77,15 +77,36 @@ namespace Systems
             void build_top_level_bvh(bool submit_immediately = false);
 
             void enable_ray_tracing(bool enable);
+            void enable_taa(bool enable);
+            void enable_atrous(bool enable);
+            void set_atrous_sigma(float sigma);
+            void set_atrous_iterations(int iterations);
+            void enable_progressive_refinement(bool enable);
+            void enable_tone_mapping(bool enable);
+
+            void set_max_bounces(uint32_t max_bounces);
+            void enable_blue_noise(bool enable);
 
             /* Initializes the vulkan resources required to render during the specified renderpass */
             void setup_graphics_pipelines(vk::RenderPass renderpass, uint32_t sampleCount, bool use_depth_prepass);
+
+            float get_seconds_per_frame();
+
+            void reset_progressive_refinement();
         private:
             PushConsts push_constants;            
             bool using_openvr = false;
             bool using_vr_hidden_area_masks = true;
             bool ray_tracing_enabled = false;
+            bool taa_enabled = false;
+            bool atrous_enabled = false;
+            bool progressive_refinement_enabled = false;
+            bool tone_mapping_enabled = true;
             double lastTime, currentTime;
+            float atrous_sigma = 1.0;
+            int atrous_iterations = 2;
+            float ms_per_frame;
+            int max_bounces = 1;
 
             /* A vector of vertex input binding descriptions, describing binding and stride of per vertex data. */
             std::vector<vk::VertexInputBindingDescription> vertexInputBindingDescriptions;
@@ -99,6 +120,7 @@ namespace Systems
                 PipelineParameters pipelineParameters;
                 std::unordered_map<PipelineType, vk::Pipeline> pipelines;
                 vk::PipelineLayout pipelineLayout;
+                bool ready = false;
             };
 
             struct RaytracingPipelineResources {
@@ -106,11 +128,13 @@ namespace Systems
                 vk::PipelineLayout pipelineLayout;
                 vk::Buffer shaderBindingTable;
                 vk::DeviceMemory shaderBindingTableMemory;
+                bool ready = false;
             };
 
             struct ComputePipelineResources {
                 vk::Pipeline pipeline;
                 vk::PipelineLayout pipelineLayout;
+                bool ready = false;
             };
             
             /* The descriptor set layout describing where component SSBOs are bound */
@@ -139,8 +163,10 @@ namespace Systems
             /* The descriptor pool used to allocate the texture descriptor set. */
             vk::DescriptorPool textureDescriptorPool;
 
-            /* TODO */
-            vk::DescriptorPool gbufferDescriptorPool;
+            /* Descriptor pool for g buffer descriptor sets */
+            /* I have no idea why, but on Intel, I cannot allocate more than one descriptor set from a pool... */
+            std::vector<vk::DescriptorPool> gbufferDescriptorPools;
+            int gbufferPoolIdx = 0;
 
             /* The descriptor pool used to allocate the vertex descriptor set. */
             vk::DescriptorPool positionsDescriptorPool;
@@ -159,7 +185,7 @@ namespace Systems
             vk::DescriptorSet textureDescriptorSet;
 
             /* TODO */
-            vk::DescriptorSet gbufferDescriptorSet;
+            std::map<std::pair<uint32_t, uint32_t>, vk::DescriptorSet> gbufferDescriptorSets;
 
             /* The descriptor set containing references to all vertices of all mesh components */
             vk::DescriptorSet positionsDescriptorSet;
@@ -200,6 +226,12 @@ namespace Systems
 
 
             ComputePipelineResources edgedetect;
+            ComputePipelineResources temporalaa;
+            ComputePipelineResources progressive_refinement;
+            ComputePipelineResources tone_mapping;
+            ComputePipelineResources gaussian_x;
+            ComputePipelineResources gaussian_y;
+            ComputePipelineResources atrous_filter;
 
             void setup_compute_pipelines();
 
@@ -233,7 +265,7 @@ namespace Systems
             void update_raster_descriptor_sets();
 
             /* EXPLAIN THIS */
-            void update_gbuffer_descriptor_sets(Entity &camera_entity);
+            void update_gbuffer_descriptor_sets(Entity &camera_entity, uint32_t rp_idx);
 
             /* EXPLAIN THIS */            
             void update_raytracing_descriptor_sets(vk::AccelerationStructureNV &tlas);
@@ -241,9 +273,9 @@ namespace Systems
             /* Records a bind of all descriptor sets to each possible pipeline to the given command buffer. Call this at the beginning of a renderpass. */
             void bind_raster_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
 
-            void bind_compute_descriptor_sets(vk::CommandBuffer &command_buffer);
+            void bind_compute_descriptor_sets(vk::CommandBuffer &command_buffer, Entity &camera_entity, uint32_t rp_idx);
 
-            void bind_raytracing_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
+            void bind_raytracing_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &camera_entity, uint32_t rp_idx);
 
             /* Records a draw of the supplied entity to the current command buffer. Call this during a renderpass. */
             void draw_entity(
@@ -274,8 +306,6 @@ namespace Systems
             struct ComputeNode
             {
                 vk::CommandBuffer command_buffer;
-                vk::Fence fence = vk::Fence();
-
                 std::vector<std::shared_ptr<ComputeNode>> dependencies;
                 std::vector<std::shared_ptr<ComputeNode>> children;
                 std::vector<std::string> connected_windows;
@@ -284,8 +314,6 @@ namespace Systems
                 uint32_t level;
                 uint32_t queue_idx;
             };
-
-            std::vector<std::vector<std::shared_ptr<ComputeNode>>> compute_graph;
 
             std::vector<std::stack<vk::Semaphore>> availableSemaphores;
             std::vector<std::stack<vk::Semaphore>> usedSemaphores;

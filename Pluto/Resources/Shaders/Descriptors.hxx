@@ -4,6 +4,7 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_EXT_multiview : enable
 #extension GL_EXT_nonuniform_qualifier : enable
+#extension GL_ARB_gpu_shader_int64 : enable
 
 /* Component Declarations */
 #include "Pluto/Systems/RenderSystem/PushConstants.hxx"
@@ -33,6 +34,8 @@ layout(set = 1, binding = 4) uniform texture3D texture_3Ds[MAX_TEXTURES];
 /* Rasterizer will only write to these, via framebuffer attachments. */
 #if defined  RAYTRACING || defined COMPUTE
 layout(set = 2, binding = 0, rgba16f) uniform image2D render_image;
+/* GBUFFER 0 - Velocity in screen space */
+/* GBUFFER 1 - History */
 layout(set = 2, binding = 1, rgba16f) uniform image2D gbuffers[7];
 #endif
 
@@ -66,25 +69,48 @@ layout(std430, push_constant) uniform PushConstants {
     PushConsts consts;
 } push;
 
-bool is_multiview_enabled()
+struct SurfaceInteraction
 {
-    return ((push.consts.flags & (1 << 0)) == 0);
-}
+    int entity_id;
+    vec4 w_incoming; 
+    vec4 w_position; 
+    vec4 w_normal; 
+    vec4 w_tangent; 
+    vec4 w_binormal; 
+    vec4 m_position; 
+    vec4 m_normal; 
+    vec4 m_tangent; 
+    vec4 m_binormal; 
+    vec3 beta;
+    vec2 uv; 
+    ivec2 pixel_coords;
+    int random_dimension;
+    int bounce_count;
+    bool is_specular;
+};
 
-bool is_reverse_z_enabled()
+struct Contribution
 {
-    return ((push.consts.flags & (1 << 1)) == 0);
-}
+    vec3 diffuse_radiance;
+    vec3 specular_radiance;
+    float alpha;
+    int random_dimension;
+};
 
 struct HitInfo {
     vec4 N;
     vec4 P;
+    vec4 WN;
+    vec4 WP;
     vec4 C;
     vec2 UV;
+    Contribution contribution;
+
     vec2 pixel;
-    vec4 color;
     float distance;
     int entity_id; 
     int bounce_count;
     bool is_shadow_ray;
+    bool is_specular_ray;
+    int random_dimension;
 };

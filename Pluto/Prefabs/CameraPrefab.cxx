@@ -8,6 +8,7 @@
 #include "Pluto/Texture/Texture.hxx"
 
 #include "Pluto/Systems/EventSystem/EventSystem.hxx"
+#include "Pluto/Systems/RenderSystem/RenderSystem.hxx"
 
 #include "Pluto/Libraries/GLFW/GLFW.hxx"
 
@@ -81,6 +82,7 @@ void CameraPrefab::update_arcball()
 {
     using namespace Libraries;
     auto g = GLFW::Get();
+    auto rs = Systems::RenderSystem::Get();
 
     if (initialized && (g->does_window_exist(window_name))) {
         if (!last_cursor_pos_initialized) {
@@ -125,6 +127,7 @@ void CameraPrefab::update_arcball()
         auto right = transform->get_right();
         auto forward = transform->get_forward();
         auto p = transform->get_position();
+        auto p_orig = p;
 
         if ((left_arrow_action >= 1) || (a_action >= 1)) p -= right * .05f;
         if ((right_arrow_action >= 1) || (d_action >= 1)) p += right * .05f;
@@ -136,6 +139,7 @@ void CameraPrefab::update_arcball()
         dp *= .9f;
         dr *= .9f;
         
+        
         // Move the camera
         right = transform->get_right();
         up = transform->get_up();
@@ -143,6 +147,9 @@ void CameraPrefab::update_arcball()
         p += (right * (float)dp[0]) + (up * (float)dp[1]);
 
         transform->set_position(p);
+        
+        if ((std::abs(dr.x) > .000001) || (std::abs(dr.y) > .000001)) rs->reset_progressive_refinement();
+        if (glm::distance(p, p_orig) > .000001) rs->reset_progressive_refinement();
 
         // Arcball camera controls 
 
@@ -170,6 +177,7 @@ void CameraPrefab::update_fps()
 {
     using namespace Libraries;
     auto g = GLFW::Get();
+    auto rs = Systems::RenderSystem::Get();
 
     if (initialized && (g->does_window_exist(window_name))) {
         if (!last_cursor_pos_initialized) {
@@ -215,6 +223,8 @@ void CameraPrefab::update_fps()
         auto forward = transform->get_forward();
         auto p = transform->get_position();
 
+        auto p_orig = p;
+
         if ((left_arrow_action >= 1) || (a_action >= 1)) p -= right * .05f;
         if ((right_arrow_action >= 1) || (d_action >= 1)) p += right * .05f;
         if ((up_arrow_action >= 1) || (w_action >= 1)) p += forward * .05f;
@@ -230,14 +240,17 @@ void CameraPrefab::update_fps()
         up = transform->get_up();
         p += (right * (float)dp[0]) + (up * (float)dp[1]);
         transform->set_position(p);
+        
+        if ((std::abs(dr.x) > .000001) || (std::abs(dr.y) > .000001)) rs->reset_progressive_refinement();
+        if (glm::distance(p, p_orig) > .000001) rs->reset_progressive_refinement();
 
 
         right = transform->get_right();
-        transform->rotate_around(transform->get_position(), dr.y, right);
+        transform->rotate_around(transform->get_position(), glm::radians(dr.y), right);
         // transform->add_rotation(dr.y, right);
         
         up = glm::vec3(0.0, 0.0, 1.0);//transform->get_up();
-        transform->rotate_around(transform->get_position(), dr.x, up);
+        transform->rotate_around(transform->get_position(), glm::radians(dr.x), up);
         // transform->add_rotation(dr.x, up);
         
         update_spacemouse();

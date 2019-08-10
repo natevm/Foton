@@ -307,6 +307,9 @@ class Camera : public StaticFactory
 	/* The vulkan command buffer handle, used to record the renderpass. */
 	vk::CommandBuffer command_buffer;
 
+	/* A reference to the pool which was used to create the camera's command buffer */
+	vk::CommandPool pool;
+
 	/* TODO: explain this */
 	// std::vector<vk::Semaphore> semaphores;
 

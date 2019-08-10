@@ -136,7 +136,7 @@ namespace Pluto {
             {
                 if (mat_type.compare("DisneyMaterial") == 0) {
                     auto disney_mat = pbrt_material->as<pbrt::DisneyMaterial>();
-                    mat->set_base_color(disney_mat->color.x, disney_mat->color.y, disney_mat->color.z, 1.0 );
+                    mat->set_base_color(disney_mat->color.x, disney_mat->color.y, disney_mat->color.z);
                     mat->set_metallic(disney_mat->metallic);
                     mat->set_roughness(disney_mat->roughness);
                     mat->set_ior(disney_mat->eta);
@@ -153,7 +153,7 @@ namespace Pluto {
                 } else if (mat_type.compare("MetalMaterial") == 0) {
                     std::cout<<"Warning, MetalMaterial not completely supported. Approximating..." << std::endl;
                     auto metal_mat = pbrt_material->as<pbrt::MetalMaterial>();
-                    mat->set_base_color(metal_mat->k.x, metal_mat->k.y, metal_mat->k.z, 1.0 );
+                    mat->set_base_color(metal_mat->k.x, metal_mat->k.y, metal_mat->k.z);
                     mat->set_ior(metal_mat->eta.x); // ior per channel not supported
                     mat->set_roughness(metal_mat->roughness);
                     /* Other possible parameters:
@@ -185,8 +185,7 @@ namespace Pluto {
                     float max_reflection = std::max(std::max(translucent_mat->reflect.x, translucent_mat->reflect.y), translucent_mat->reflect.z);
                     mat->set_base_color(translucent_mat->kd.x * max_reflection, 
                         translucent_mat->kd.y * max_reflection, 
-                        translucent_mat->kd.z * max_reflection, 
-                        1.0);
+                        translucent_mat->kd.z * max_reflection);
 
                     if (translucent_mat->map_kd) {
                         Texture* tex = get_texture_from_pbrt(texture_map, basePath, translucent_mat->map_kd, mat_name + "_kd", false);
@@ -197,7 +196,7 @@ namespace Pluto {
                     */
                 } else if (mat_type.compare("PlasticMaterial") == 0) {
                     auto plastic_mat = pbrt_material->as<pbrt::PlasticMaterial>();
-                    mat->set_base_color(plastic_mat->kd.x, plastic_mat->kd.y, plastic_mat->kd.z, 1.0);
+                    mat->set_base_color(plastic_mat->kd.x, plastic_mat->kd.y, plastic_mat->kd.z);
                     mat->set_roughness(plastic_mat->roughness);
 
                     if (plastic_mat->map_bump) {
@@ -221,7 +220,7 @@ namespace Pluto {
                     */
                 } else if (mat_type.compare("SubstrateMaterial") == 0) {
                     auto substrate_mat = pbrt_material->as<pbrt::SubstrateMaterial>();
-                    mat->set_base_color(substrate_mat->kd.x, substrate_mat->kd.y, substrate_mat->kd.z, 1.0);
+                    mat->set_base_color(substrate_mat->kd.x, substrate_mat->kd.y, substrate_mat->kd.z);
                     mat->set_roughness(std::max(substrate_mat->uRoughness, substrate_mat->vRoughness));
                     if (substrate_mat->uRoughness != substrate_mat->vRoughness) {
                         std::cout<<"Warning, SubstrateMaterial different u and v roughness parameters not currently supported. Approximating..."<<std::endl;
@@ -263,7 +262,7 @@ namespace Pluto {
                     */
                 } else if (mat_type.compare("MirrorMaterial") == 0) {
                     auto mirror_mat = pbrt_material->as<pbrt::MirrorMaterial>();
-                    mat->set_base_color(mirror_mat->kr.x, mirror_mat->kr.y, mirror_mat->kr.z, 1.0);
+                    mat->set_base_color(mirror_mat->kr.x, mirror_mat->kr.y, mirror_mat->kr.z);
                     mat->set_roughness(0.0);
                     mat->set_metallic(1.0);
 
@@ -282,7 +281,7 @@ namespace Pluto {
                 } else if (mat_type.compare("MatteMaterial") == 0) {
                     auto matte_mat = pbrt_material->as<pbrt::MatteMaterial>();
                     mat->set_roughness(1.0);
-                    mat->set_base_color(matte_mat->kd.x, matte_mat->kd.y, matte_mat->kd.z, 1.0);
+                    mat->set_base_color(matte_mat->kd.x, matte_mat->kd.y, matte_mat->kd.z);
                     if (matte_mat->sigma > 0.f) {
                         std::cout<<"Warning: MatteMaterial sigma not currently supported" << std::endl;
                     }
@@ -306,7 +305,7 @@ namespace Pluto {
                     auto glass_mat = pbrt_material->as<pbrt::GlassMaterial>();
                     mat->set_ior(glass_mat->index);
                     float max_kt = std::max(std::max(glass_mat->kt.x, glass_mat->kt.y), glass_mat->kt.z);
-                    mat->set_base_color(glass_mat->kt.x, glass_mat->kt.y, glass_mat->kt.z, 1.0);
+                    mat->set_base_color(glass_mat->kt.x, glass_mat->kt.y, glass_mat->kt.z);
                     mat->set_roughness(0.0);
                     mat->set_metallic(.2f); // Makes the glass shiny
                     mat->set_transmission(1.0);
@@ -316,7 +315,8 @@ namespace Pluto {
                 } else if (mat_type.compare("UberMaterial") == 0) {
                     auto uber_mat = pbrt_material->as<pbrt::UberMaterial>();
                     float min_opacity = std::max(std::max(uber_mat->opacity.x, uber_mat->opacity.y), uber_mat->opacity.z);
-                    mat->set_base_color(uber_mat->kd.x, uber_mat->kd.y, uber_mat->kd.z, min_opacity);
+                    mat->set_base_color(uber_mat->kd.x, uber_mat->kd.y, uber_mat->kd.z);
+                    mat->set_alpha(min_opacity);
                     mat->set_roughness(uber_mat->roughness);
                     mat->set_ior(uber_mat->index);
 
@@ -395,7 +395,7 @@ namespace Pluto {
 
         /* Setup Cameras */
         auto pbrt_camera = scene->cameras[0]; // TODO: Add support for more cameras
-        auto camera_prefab = Prefabs::CreatePrefabCamera("fps", scene->film->resolution.x * 1.5, scene->film->resolution.y * 1.5, glm::radians(pbrt_camera->fov), 1, 1.0, true, name);
+        auto camera_prefab = Prefabs::CreatePrefabCamera("fps", scene->film->resolution.x, scene->film->resolution.y, glm::radians(pbrt_camera->fov), 1, 1.0, true, name);
         
         auto frame = pbrt_camera->frame;
         glm::mat4 cam_xfm = pbrt_frame_to_glm(frame);
@@ -508,16 +508,10 @@ namespace Pluto {
                                 texcoords[tc_idx] = glm::vec2(tc.x, tc.y);
                             }
 
-                            // PBRT doesnt support vertex colors
-                            std::vector<glm::vec4> colors;
-                            mesh = Mesh::CreateFromRaw(mesh_name, positions, normals, colors, texcoords, indices, true);
-                            if (normals.size() == 0)
-                                mesh->compute_smooth_normals();
-
                             if (triangle_mesh->areaLight) {
-                                /* TODO: Determine if the mesh is a quad*/
                                 std::cout<<triangle_mesh->areaLight->toString() << std::endl;
                                 light = Light::Create(mesh_name);
+
                                 // light->();
                                 light->cast_shadows(true);
                                 if (triangle_mesh->areaLight->toString().compare("DiffuseAreaLightRGB") == 0) {
@@ -528,7 +522,98 @@ namespace Pluto {
                                     light->set_temperature(bb_area_light->temperature);
                                     light->set_intensity(bb_area_light->scale);
                                 }
+
+                                /* Determine if the mesh is a quad and has an area light. If it does, try to align it to the XY plane with Z facing up. */
+                                if (indices.size() == 6) {
+                                    std::vector<glm::vec3> corners;
+
+                                    /* Detect if the shape is a quad */
+                                    for (uint32_t idx = 0; idx < positions.size(); ++idx) {
+                                        bool found = false;
+                                        for (auto &corner : corners) {
+                                            if (glm::distance2(corner, glm::vec3(positions[idx])) < .001)
+                                                found = true;
+                                        }
+                                        if (!found) corners.push_back(vec3(positions[idx]));
+                                    }
+
+                                    
+                                    if (corners.size() == 4) {
+                                        /* First, bake the transform into the points */
+                                        glm::vec3 old_scale = tfm->get_scale();
+                                        glm::quat old_rotation = tfm->get_rotation();
+                                        glm::vec3 old_position = tfm->get_position();
+
+                                        for (uint32_t idx = 0; idx < positions.size(); ++idx) {
+                                            positions[idx] = glm::vec4(glm::vec3(positions[idx]) * old_scale, 1.0f);
+                                            positions[idx] = glm::inverse(old_rotation) * positions[idx];
+                                            positions[idx] = glm::vec4(glm::vec3(positions[idx]) + old_position, 1.0f);
+                                        }
+
+                                        for (uint32_t idx = 0; idx < 4; ++idx) {
+                                            corners[idx] = corners[idx] * old_scale;
+                                            corners[idx] = vec3(glm::inverse(old_rotation) * vec4(corners[idx], 1.0f));
+                                            corners[idx] = corners[idx] + old_position;
+                                        }
+
+                                        tfm->set_scale(1.0);
+                                        tfm->set_rotation(0.0, glm::vec3(1.0, 0.0, 0.0));
+                                        tfm->set_position(0.0, 0.0, 0.0);
+
+                                        /* Now compute the target bases we'd like a unit plane to match */
+                                        vec3 d1 = corners[1] - corners[0];
+                                        vec3 d2 = corners[2] - corners[0];
+                                        vec3 d3 = corners[3] - corners[0];
+
+                                        float angle1 = glm::abs(glm::dot(normalize(d1), normalize(d2)));
+                                        float angle2 = glm::abs(glm::dot(normalize(d1), normalize(d3)));
+                                        float angle3 = glm::abs(glm::dot(normalize(d2), normalize(d3)));
+
+                                        vec3 b1, b2;
+                                        if ((angle1 < angle2) && (angle1 < angle3)) {
+                                            b1 = d1; b2 = d2;
+                                        } else if ((angle2 < angle1) && (angle2 < angle3)) {
+                                            b1 = d1; b2 = d3;
+                                        } else {
+                                            b1 = d2; b2 = d3;
+                                        }
+
+                                        glm::vec3 b3 = glm::normalize(glm::cross(b1, b2));
+                                        glm::vec3 corner = positions[indices[0]];
+
+                                        /* Force points to be a unit plane */
+                                        positions[indices[0]] = glm::vec4(-1.0, -1.0, 0.0, 1.0);
+                                        positions[indices[1]] = glm::vec4(1.0, -1.0, 0.0, 1.0);
+                                        positions[indices[2]] = glm::vec4(1.0, 1.0, 0.0, 1.0);
+                                        positions[indices[3]] = glm::vec4(-1.0, -1.0, 0.0, 1.0);
+                                        positions[indices[4]] = glm::vec4(1.0, 1.0, 0.0, 1.0);
+                                        positions[indices[5]] = glm::vec4(-1.0, 1.0, 0.0, 1.0);
+
+                                        /* Compute scale */
+                                        glm::vec3 new_scale = glm::vec3(glm::length(b1) * .5f, glm::length(b2) * .5f, 1.0);
+                                        tfm->set_scale(new_scale);
+
+                                        /* Compute origin */
+                                        vec3 origin = ((b1 + b2) * .5f) + corner;
+                                        tfm->set_position(origin);
+
+                                        /* Compute rotation */
+                                        b1 = glm::normalize(b1);
+                                        b2 = glm::normalize(b2);
+                                        b3 = glm::normalize(b3);
+                                        glm::quat rot = glm::toQuat(glm::mat3(b1,b2,b3));
+                                        tfm->set_rotation(rot);
+                                        tfm->add_rotation(3.14, glm::vec3(1.0, 0.0, 0.0));
+                                        light->use_plane();
+                                    }
+                                }
                             }
+
+                            // PBRT doesnt support vertex colors
+                            std::vector<glm::vec4> colors;
+                            mesh = Mesh::CreateFromRaw(mesh_name, positions, normals, colors, texcoords, indices, true);
+                            if (normals.size() == 0)
+                                mesh->compute_smooth_normals();
                         }
                     } else if (mesh_type.compare("Sphere") == 0) {
                         auto sphere = shape->as<pbrt::Sphere>();

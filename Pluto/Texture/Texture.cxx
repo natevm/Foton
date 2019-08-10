@@ -102,7 +102,7 @@ std::vector<float> Texture::download_color_data(uint32_t width, uint32_t height,
 	vk::ImageCreateInfo imInfo;
 	// imInfo.flags; // May need this later for cubemaps, texture arrays, etc
 	imInfo.imageType = data.imageType;
-	imInfo.format = vk::Format::eR32G32B32A32Sfloat;
+	imInfo.format = vk::Format::eR16G16B16A16Sfloat;
 	imInfo.extent = vk::Extent3D{width, height, depth};
 	imInfo.mipLevels = 1;
 	imInfo.arrayLayers = 1;
@@ -320,7 +320,7 @@ void Texture::upload_color_data(uint32_t width, uint32_t height, uint32_t depth,
 	/* Create optimal tiled target image */
 	vk::ImageCreateInfo imageCreateInfo;
 	imageCreateInfo.imageType = data.imageType; // src and dst types must match. Deal with this in error check
-	imageCreateInfo.format = vk::Format::eR32G32B32A32Sfloat;
+	imageCreateInfo.format = vk::Format::eR16G16B16A16Sfloat;
 	imageCreateInfo.mipLevels = 1;
 	imageCreateInfo.arrayLayers = 1;
 	imageCreateInfo.samples = vk::SampleCountFlagBits::e1;
@@ -448,7 +448,7 @@ void Texture::record_blit_to(vk::CommandBuffer command_buffer, Texture * other, 
 	region.dstOffsets[1] = vk::Offset3D{(int32_t)other->get_width(), (int32_t)other->get_height(), (int32_t)other->get_depth()};
 
 	/* Next, specify the filter we'd like to use */
-	vk::Filter filter = vk::Filter::eLinear;
+	vk::Filter filter = vk::Filter::eNearest;
 
 	/* For layout transitions */
 	vk::ImageSubresourceRange srcSubresourceRange;
