@@ -1136,6 +1136,7 @@ void RenderSystem::allocate_vulkan_resources()
             accelerationStructureInfo.info.instanceCount = instanceCount;
             accelerationStructureInfo.info.geometryCount = geometryCount;
             accelerationStructureInfo.info.pGeometries = geometries;
+			accelerationStructureInfo.info.flags = vk::BuildAccelerationStructureFlagBitsNV::eAllowUpdate;
 
             AS = device.createAccelerationStructureNV(accelerationStructureInfo, nullptr, dldi);
 
@@ -1189,39 +1190,68 @@ void RenderSystem::allocate_vulkan_resources()
 		device.bindBufferMemory(instanceBuffer, instanceBufferMemory, 0);
 
         /* Allocate scratch buffer for building */
-        auto GetScratchBufferSize = [&](vk::AccelerationStructureNV handle)
+        auto GetScratchBufferSize = [&](vk::AccelerationStructureNV handle, vk::AccelerationStructureMemoryRequirementsTypeNV type)
         {
             vk::AccelerationStructureMemoryRequirementsInfoNV memoryRequirementsInfo;
             memoryRequirementsInfo.accelerationStructure = handle;
-            memoryRequirementsInfo.type = vk::AccelerationStructureMemoryRequirementsTypeNV::eBuildScratch;
+            memoryRequirementsInfo.type = type;
 
             vk::MemoryRequirements2 memoryRequirements;
             memoryRequirements = device.getAccelerationStructureMemoryRequirementsNV( memoryRequirementsInfo, dldi);
 
-            vk::DeviceSize result = memoryRequirements.memoryRequirements.size;
+            vk::DeviceSize result = std::max((uint64_t)memoryRequirements.memoryRequirements.size, (uint64_t)memoryRequirements.memoryRequirements.alignment);
             return result;
         };
 
-        vk::DeviceSize scratchBufferSize = GetScratchBufferSize(topAS);
+		{
+			vk::DeviceSize scratchBufferSize = GetScratchBufferSize(topAS, vk::AccelerationStructureMemoryRequirementsTypeNV::eBuildScratch);
 
-		vk::BufferCreateInfo bufferInfo;
-		bufferInfo.size = scratchBufferSize;
-		bufferInfo.usage = vk::BufferUsageFlagBits::eRayTracingNV;
-		bufferInfo.sharingMode = vk::SharingMode::eExclusive;
-		accelerationStructureScratchBuffer = device.createBuffer(bufferInfo);
-		
-		vk::MemoryRequirements scratchBufferRequirements;
-		scratchBufferRequirements = device.getBufferMemoryRequirements(accelerationStructureScratchBuffer);
-		
-		vk::MemoryAllocateInfo scratchMemoryAllocateInfo;
-		scratchMemoryAllocateInfo.allocationSize = scratchBufferRequirements.size;
-		scratchMemoryAllocateInfo.memoryTypeIndex = vulkan->find_memory_type(scratchBufferRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
+			vk::BufferCreateInfo bufferInfo;
+			bufferInfo.size = scratchBufferSize;
+			bufferInfo.usage = vk::BufferUsageFlagBits::eRayTracingNV;
+			bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+			accelerationStructureBuildScratchBuffer = device.createBuffer(bufferInfo);
+			
+			vk::MemoryRequirements scratchBufferRequirements;
+			scratchBufferRequirements = device.getBufferMemoryRequirements(accelerationStructureBuildScratchBuffer);
+			
+			vk::MemoryAllocateInfo scratchMemoryAllocateInfo;
+			scratchMemoryAllocateInfo.allocationSize = scratchBufferRequirements.size;
+			scratchMemoryAllocateInfo.memoryTypeIndex = vulkan->find_memory_type(scratchBufferRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
 
-		accelerationStructureScratchMemory = device.allocateMemory(scratchMemoryAllocateInfo);
-		device.bindBufferMemory(accelerationStructureScratchBuffer, accelerationStructureScratchMemory, 0);
+			accelerationStructureBuildScratchMemory = device.allocateMemory(scratchMemoryAllocateInfo);
+			device.bindBufferMemory(accelerationStructureBuildScratchBuffer, accelerationStructureBuildScratchMemory, 0);
+		}
+
+		build_top_level_bvh(true);
+
+		{
+			vk::DeviceSize scratchBufferSize = GetScratchBufferSize(topAS, vk::AccelerationStructureMemoryRequirementsTypeNV::eUpdateScratch);
+
+			vk::BufferCreateInfo bufferInfo;
+			bufferInfo.size = scratchBufferSize;
+			bufferInfo.usage = vk::BufferUsageFlagBits::eRayTracingNV;
+			bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+			accelerationStructureUpdateScratchBuffer = device.createBuffer(bufferInfo);
+			
+			vk::MemoryRequirements scratchBufferRequirements;
+			scratchBufferRequirements = device.getBufferMemoryRequirements(accelerationStructureUpdateScratchBuffer);
+			
+			vk::MemoryAllocateInfo scratchMemoryAllocateInfo;
+			scratchMemoryAllocateInfo.allocationSize = scratchBufferRequirements.size;
+			scratchMemoryAllocateInfo.memoryTypeIndex = vulkan->find_memory_type(scratchBufferRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
+
+			accelerationStructureUpdateScratchMemory = device.allocateMemory(scratchMemoryAllocateInfo);
+			device.bindBufferMemory(accelerationStructureUpdateScratchBuffer, accelerationStructureUpdateScratchMemory, 0);
+		}
     }
 
     vulkan_resources_created = true;
+}
+
+void RenderSystem::enqueue_bvh_rebuild()
+{
+	top_level_acceleration_structure_built = false;
 }
 
 void RenderSystem::build_top_level_bvh(bool submit_immediately)
@@ -1324,19 +1354,31 @@ void RenderSystem::build_top_level_bvh(bool submit_immediately)
 
 		auto cmd = vulkan->begin_one_time_graphics_command();
 
+		bool update = top_level_acceleration_structure_built;
+
 		/* TODO: MOVE INSTANCE STUFF INTO HERE */
 		{
 			vk::AccelerationStructureInfoNV asInfo;
 			asInfo.type = vk::AccelerationStructureTypeNV::eTopLevel;
 			asInfo.instanceCount = (uint32_t) instances.size();
 			asInfo.geometryCount = 0;//(uint32_t) geometries.size();
+			asInfo.flags = vk::BuildAccelerationStructureFlagBitsNV::eAllowUpdate;//VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_NV;
 			// asInfo.pGeometries = geometries.data();
 
             // TODO: change this to update instead of fresh build
-			cmd.buildAccelerationStructureNV(&asInfo, 
-				instanceBuffer, 0, VK_FALSE, 
-				topAS, vk::AccelerationStructureNV(),
-				accelerationStructureScratchBuffer, 0, dldi);
+			if (!top_level_acceleration_structure_built)
+			{
+				cmd.buildAccelerationStructureNV(&asInfo, 
+					instanceBuffer, 0, VK_FALSE, 
+					topAS, vk::AccelerationStructureNV(),
+					accelerationStructureBuildScratchBuffer, 0, dldi);
+			}
+			else {
+				cmd.buildAccelerationStructureNV(&asInfo, 
+					instanceBuffer, 0, VK_TRUE, 
+					topAS, topAS,
+					accelerationStructureUpdateScratchBuffer, 0, dldi);
+			}
 		}
 		
 		// cmd.pipelineBarrier(
@@ -1352,7 +1394,10 @@ void RenderSystem::build_top_level_bvh(bool submit_immediately)
 			vulkan->end_one_time_graphics_command(cmd, "build acceleration structure", true);
 
         /* Get a handle to the acceleration structure */
-	    device.getAccelerationStructureHandleNV(topAS, sizeof(uint64_t), &topASHandle, dldi);
+		// if (!top_level_acceleration_structure_built) {
+		// }
+		device.getAccelerationStructureHandleNV(topAS, sizeof(uint64_t), &topASHandle, dldi);
+		top_level_acceleration_structure_built = true;
 	}
 }
 

@@ -93,6 +93,9 @@ namespace Systems
             float get_seconds_per_frame();
 
             void reset_progressive_refinement();
+
+            void enqueue_bvh_rebuild();
+
         private:
             PushConsts push_constants;            
             bool using_openvr = false;
@@ -107,6 +110,7 @@ namespace Systems
             int atrous_iterations = 2;
             float ms_per_frame;
             int max_bounces = 1;
+            bool top_level_acceleration_structure_built = false;
 
             /* A vector of vertex input binding descriptions, describing binding and stride of per vertex data. */
             std::vector<vk::VertexInputBindingDescription> vertexInputBindingDescriptions;
@@ -418,8 +422,11 @@ namespace Systems
             vk::DeviceMemory topASMemory;
             uint64_t topASHandle;
 
-            vk::DeviceMemory accelerationStructureScratchMemory;
-            vk::Buffer accelerationStructureScratchBuffer;
+            vk::DeviceMemory accelerationStructureBuildScratchMemory;
+            vk::Buffer accelerationStructureBuildScratchBuffer;
+
+            vk::DeviceMemory accelerationStructureUpdateScratchMemory;
+            vk::Buffer accelerationStructureUpdateScratchBuffer;
 
             /* A handle to an RTX buffer of geometry instances used to build the top level BVH */
             vk::Buffer instanceBuffer;

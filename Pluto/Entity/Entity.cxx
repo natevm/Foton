@@ -337,6 +337,9 @@ void Entity::set_mesh(int32_t mesh_id)
 	if (mesh_id >= MAX_MESHES)
 		throw std::runtime_error( std::string("Mesh id must be less than max meshes"));
 	this->entity_struct.mesh_id = mesh_id;
+
+	auto rs = Systems::RenderSystem::Get();
+	rs->enqueue_bvh_rebuild();
 }
 
 void Entity::set_mesh(Mesh* mesh) 
@@ -346,11 +349,17 @@ void Entity::set_mesh(Mesh* mesh)
 	if (!mesh->is_initialized())
 		throw std::runtime_error("Error, mesh not initialized");
 	this->entity_struct.mesh_id = mesh->get_id();
+
+	auto rs = Systems::RenderSystem::Get();
+	rs->enqueue_bvh_rebuild();
 }
 
 void Entity::clear_mesh()
 {
 	this->entity_struct.mesh_id = -1;
+
+	auto rs = Systems::RenderSystem::Get();
+	rs->enqueue_bvh_rebuild();
 }
 
 int32_t Entity::get_mesh_id() 
