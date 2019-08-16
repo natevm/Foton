@@ -72,16 +72,15 @@ layout(std430, push_constant) uniform PushConstants {
 struct SurfaceInteraction
 {
     int entity_id;
-    vec4 w_incoming; 
-    vec4 w_position; 
-    vec4 w_normal; 
-    vec4 w_tangent; 
-    vec4 w_binormal; 
-    vec4 m_position; 
-    vec4 m_normal; 
-    vec4 m_tangent; 
-    vec4 m_binormal; 
-    vec3 beta;
+    vec4 m_p; 
+    vec3 m_n; 
+    vec3 m_t; 
+    vec3 m_b; 
+    vec3 w_i; 
+    vec4 w_p; 
+    vec3 w_n; 
+    vec3 w_t; 
+    vec3 w_b; 
     vec2 uv; 
     ivec2 pixel_coords;
     int random_dimension;
@@ -98,19 +97,22 @@ struct Contribution
 };
 
 struct HitInfo {
-    vec4 N;
-    vec4 P;
-    vec4 WN;
-    vec4 WP;
-    vec4 C;
-    vec2 UV;
-    Contribution contribution;
-
-    vec2 pixel;
+    vec3 m_p;
+    vec3 w_p;
+    vec3 m_n;
+    vec3 w_n;
+    // vec4 C;
+    vec2 uv;
     float distance;
     int entity_id; 
-    int bounce_count;
     bool is_shadow_ray;
-    bool is_specular_ray;
-    int random_dimension;
+    bool backface;
+
+    // vec4 WN;
+    // vec4 WP;
+    // Contribution contribution;
+    // vec2 pixel;
+    // int bounce_count;
+    // bool is_specular_ray;
+    // int random_dimension;
 };

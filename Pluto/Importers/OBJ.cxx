@@ -71,9 +71,31 @@ namespace Pluto {
         std::set<OBJTextureInfo, OBJTextureInfoCompare> texture_paths;
         std::map<std::string, Texture*> texture_map;
 
+        if (materials.size() >= MAX_MATERIALS) {
+            throw std::runtime_error(std::string("Error, total materials found is ") 
+                + std::to_string(materials.size()) 
+                + std::string(" but max supported materials is set to ")
+                + std::to_string(MAX_MATERIALS) 
+            );
+        }
+
         for (uint32_t i = 0; i < materials.size(); ++i) {
             materialComponents.push_back(Material::Create(materials[i].name));
-            
+            int illum_group = materials[i].illum;
+
+            // Meaning of illum group
+            // 0. Color on and Ambient off
+            // 1. Color on and Ambient on
+            // 2. Highlight on
+            // 3. Reflection on and Ray trace on
+            // 4. Transparency: Glass on, Reflection: Ray trace on
+            // 5. Reflection: Fresnel on and Ray trace on
+            // 6. Transparency: Refraction on, Reflection: Fresnel off and Ray trace on
+            // 7. Transparency: Refraction on, Reflection: Fresnel on and Ray trace on
+            // 8. Reflection on and Ray trace off
+            // 9. Transparency: Glass on, Reflection: Ray trace off
+            // 10. Casts shadows onto invisible surfaces
+
             if (materials[i].alpha_texname.length() > 0)
                 texture_paths.insert({materials[i].alpha_texname, false});
 
@@ -116,6 +138,10 @@ namespace Pluto {
             materialComponents[i]->set_base_color(materials[i].diffuse[0], materials[i].diffuse[1], materials[i].diffuse[2]);
             materialComponents[i]->set_roughness(1.0);
             materialComponents[i]->set_metallic(0.0);
+
+            if (illum_group == 6) {
+                materialComponents[i]->set_transmission(1.0);
+            }
         }
 
         for (auto &pathobj : texture_paths)

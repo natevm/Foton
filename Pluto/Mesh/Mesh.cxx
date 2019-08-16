@@ -700,6 +700,8 @@ void Mesh::load_obj(std::string objPath, bool allow_edits, bool submit_immediate
 		texcoords.push_back(v.texcoord);
 	}
 
+	
+
 	cleanup();
 	createPointBuffer(allow_edits, submit_immediately);
 	createColorBuffer(allow_edits, submit_immediately);

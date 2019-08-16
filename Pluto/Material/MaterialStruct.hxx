@@ -1,7 +1,10 @@
+#ifndef MATERIAL_STRUCT_HXX
+#define MATERIAL_STRUCT_HXX
+
 /* File shared by both GLSL and C++ */
 #ifndef MAX_MATERIALS
 #ifndef LARGE_SCENE_SUPPORT
-#define MAX_MATERIALS 256
+#define MAX_MATERIALS 512
 #else
 #define MAX_MATERIALS 1024
 #endif
@@ -16,7 +19,7 @@ using namespace glm;
 #define int32_t int
 #endif
 
-/* Not all these properties are mapped to PBR. */
+/* Follows the disney BSDF */
 struct MaterialStruct {
     vec4 base_color; // 16 // Note: also contains alpha
     vec4 subsurface_radius; // 32
@@ -68,3 +71,5 @@ struct MaterialStruct {
     // int32_t ph8_id; // 184
     // int32_t ph8_id; // 184
 };
+
+#endif

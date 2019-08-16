@@ -67,8 +67,8 @@ void main() {
     float p_phi = push.consts.parameter1; 
 
     c_phi = 1. / (push.consts.iteration * c_phi); // TODO, upload this...
-    n_phi = 5. / ((1 << push.consts.iteration) * n_phi); // TODO, upload this...
-    p_phi = 5. / ((1 << push.consts.iteration) * p_phi); // TODO, upload this...
+    n_phi = 1. / ((1 << push.consts.iteration) * n_phi); // TODO, upload this...
+    p_phi = 1. / ((1 << push.consts.iteration) * p_phi); // TODO, upload this...
 
     vec2 gid = gl_GlobalInvocationID.xy;
     int entity_id = int(imageLoad(gbuffers[0], ivec2(gid)).w);
@@ -76,9 +76,9 @@ void main() {
 
     if (entity_id != -1) {
         vec4 color = ((iteration%2) == 0) ? imageLoad(render_image, ivec2(gid)) : imageLoad(gbuffers[5], ivec2(gid));
-        vec3 cval = color.rgb;
         vec3 pval = imageLoad(gbuffers[0], ivec2(gid)).xyz;
         vec3 nval = imageLoad(gbuffers[1], ivec2(gid)).xyz;
+        vec3 cval = imageLoad(gbuffers[2], ivec2(gid)).xyz;
         float cum_w = 0.0;
 
         for (int i = 0; i < 25; i++) {

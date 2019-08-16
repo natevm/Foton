@@ -33,8 +33,8 @@ struct PushConsts
     int32_t ranking_tile_id;
     int32_t scramble_tile_id;
     int32_t frame;
-    int32_t width;
-    int32_t height;
+    int32_t width; // Might be able to repurpose this, as launch size is sometimes available
+    int32_t height; // Might be able to repurpose this, as launch size is sometimes available
     int32_t flags;
     int32_t num_lights;
     int32_t iteration;

@@ -17,6 +17,7 @@
 using namespace glm;
 #endif
 
+/* This could be split up to allow for better GPU memory reads */
 struct CameraObject
 {
     mat4 view;

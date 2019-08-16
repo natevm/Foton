@@ -2,6 +2,8 @@
 #define LTC_COMMON
 
 #include "Pluto/Resources/Shaders/ShaderConstants.hxx"
+#include "Pluto/Resources/Shaders/Random.hxx"
+#include "Pluto/Resources/Shaders/Utilities.hxx"
 
 
 /* LTC LIGHTING */
@@ -33,6 +35,14 @@ struct Rect
     float halfy;
 
     vec4  plane;
+};
+
+struct LTCContribution {
+    vec3 diffuse_irradiance;
+    vec3 specular_irradiance;
+    vec3 differential_irradiance;
+    vec3 wi;
+    float lightPdf;
 };
 
 // Camera functions
@@ -701,11 +711,6 @@ vec3 LTC_Evaluate_Rod(vec3 N, vec3 V, vec3 P, mat3 m_inv, vec3 points[2], float 
     return vec3(min(1.0, Iline + Idisks));
 }
 
-float saturate(float v)
-{
-    return clamp(v, 0.0, 1.0);
-}
-
 vec3 PowV3(vec3 v, float p)
 {
     return vec3(pow(v.x, p), pow(v.y, p), pow(v.z, p));
@@ -724,5 +729,335 @@ vec3 sampleOffsetDirections[20] = vec3[]
    vec3( 1,  0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1,  0, -1),
    vec3( 0,  1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0,  1, -1)
 );   
+
+LTCContribution rectangleLightSampleLTC(
+    const in EntityStruct light_entity, 
+    const in LightStruct light, 
+    const in TransformStruct light_transform,
+    const in mat3 m_inv,
+    const in SurfaceInteraction SI) 
+{
+    LTCContribution contribution;
+    contribution.diffuse_irradiance = vec3(0);
+    contribution.specular_irradiance = vec3(0);
+    contribution.differential_irradiance = light.color.rgb * light.intensity;
+    contribution.lightPdf = 0.0;
+
+    /* First compute analytically integrated irradiance */
+    vec3 w_light_right =    light_transform.localToWorld[0].xyz;
+    vec3 w_light_forward =  light_transform.localToWorld[1].xyz;
+    vec3 w_light_up =       light_transform.localToWorld[2].xyz;
+    vec3 w_light_position = light_transform.localToWorld[3].xyz;
+    vec3 w_to_light_center = w_light_position - SI.w_p.xyz;
+    vec3 w_light_dir = normalize(w_to_light_center);
+
+    /* Verify the area light isn't degenerate */
+    // if (distance(w_light_right, w_light_forward) < EPSILON) return contribution;
+
+    bool double_sided = bool(light.flags & (1 << 0));
+
+    // /* Compute geometric term */
+    // vec3 dr = w_light_right * drn + w_light_forward * dfn;
+    // float geometric_term = dot( normalize((w_light_position + dr) - w_position), w_normal);
+    // if (geometric_term < 0.0) continue;
+
+    /* Create points for area light polygon */
+    vec3 points[4];
+    points[0] = w_light_position - w_light_right - w_light_forward;
+    points[1] = w_light_position + w_light_right - w_light_forward;
+    points[2] = w_light_position + w_light_right + w_light_forward;
+    points[3] = w_light_position - w_light_right + w_light_forward;
+
+    // Get Specular vec3 N, vec3 V, vec3 P, mat3 m_inv, vec3 points[4], bool twoSided)
+    contribution.specular_irradiance = LTC_Evaluate_Rect_Clipped(SI.w_n.xyz, SI.w_i.xyz, SI.w_p.xyz, m_inv, points, double_sided);
+    
+    // BRDF shadowing and Fresnel
+    // lspec *= specular*t2.x + (1.0 - specular)*t2.y;
+
+    // Get diffuse
+    contribution.diffuse_irradiance = LTC_Evaluate_Rect_Clipped(SI.w_n.xyz, SI.w_i.xyz, SI.w_p.xyz, mat3(1), points, double_sided); 
+
+    // /* Finding that the intensity is slightly more against ray traced ground truth */
+    // float correction = 1.5 / PI;
+
+    // diffuse_irradiance += shadow_term * lcol * lspec * correction;
+    // specular_irradiance += shadow_term * lcol * ldiff * correction;
+    // // final_color += shadow_term * geometric_term * lcol * (spec + diffuse*diff);
+
+    contribution.specular_irradiance *= contribution.differential_irradiance;
+    contribution.diffuse_irradiance *= contribution.differential_irradiance;
+
+    /* Now compute differential irradiance */
+    
+    // Compute a random point on a unit plane and its pdf
+    vec4 m_light_position = vec4(random(SI.pixel_coords) * 2.0 - 1.0, random(SI.pixel_coords) * 2.0 - 1.0, 0.0, 1.0);
+
+    // Transform that point to where the light actually is
+    vec4 w_light_sample_position = light_transform.localToWorld * m_light_position;
+
+    vec3 to_light_sample_position = w_light_sample_position.xyz - SI.w_p.xyz;
+    contribution.wi = normalize(to_light_sample_position);
+    float n_dot_w = dot(normalize(w_light_up.xyz), normalize(contribution.wi));
+    float width = length(w_light_right);
+    float height = length(w_light_forward);
+    float surface_area = width * height;
+	float dist_sqr = dot(to_light_sample_position, to_light_sample_position);
+	// float n_dot_w = dot(normalize(w_light_up.xyz), wi);
+	// if (n_dot_w < EPSILON) {
+	// 	lightPdf = 0.f;
+	// }
+	contribution.lightPdf = dist_sqr / ( n_dot_w * surface_area);
+	
+    return contribution;
+}
+
+//     vec3 specular_irradiance = vec3(0.0);
+//     vec3 diffuse_irradiance = vec3(0.0);
+//     for (int i = 0; i < MAX_LIGHTS; ++i) {
+//     // #else
+//     // float rand0 = samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_128spp(int(payload.pixel.x), int(payload.pixel.y), push.consts.frame, payload.bounce_count * 9);
+//     // int selected = max(int(rand0 * active_lights), active_lights - 1);
+//     // for (int i = selected; i < selected + 1; i++)
+//     // {
+//     // #endif
+//         /* Skip unused lights */
+//         int light_entity_id = lidbo.lightIDs[i];
+//         if (light_entity_id == -1) continue;
+
+//         /* Skip lights without a transform */
+//         EntityStruct light_entity = ebo.entities[light_entity_id];
+//         if ( (light_entity.initialized != 1) || (light_entity.transform_id == -1)) continue;
+//         LightStruct light = lbo.lights[light_entity.light_id];
+
+//         /* If the drawn object is the light component (fake emission) */
+//         if (light_entity_id == info.entity_id) {
+//             emissiveContribution += light.color.rgb * light.intensity;
+//             continue;
+//         }
+
+//         TransformStruct light_transform = tbo.transforms[light_entity.transform_id];
+//         vec3 w_light_right =    light_transform.localToWorld[0].xyz;
+//         vec3 w_light_forward =  light_transform.localToWorld[1].xyz;
+//         vec3 w_light_up =       light_transform.localToWorld[2].xyz;
+//         vec3 w_light_position = light_transform.localToWorld[3].xyz;
+//         vec3 w_light_dir = normalize(w_light_position - w_position);
+
+//         // Precalculate vectors and dot products	
+//         vec3 w_half = normalize(w_view + w_light_dir);
+//         float dotNH = clamp(dot(w_normal, w_half), 0.0, 1.0);
+//         float dotNL = clamp(dot(w_normal, w_light_dir), 0.0, 1.0);
+//         if (dotNL < 0.0) continue;
+
+//         /* Some info for geometric terms */
+//         float dun = dot(normalize(w_light_up), w_normal);
+//         float drn = dot(normalize(w_light_right), w_normal);
+//         float dfn = dot(normalize(w_light_forward), w_normal);
+
+//         vec3 lcol = vec3(light.intensity * light.color.rgb);
+//         bool double_sided = bool(light.flags & (1 << 0));
+//         bool show_end_caps = bool(light.flags & (1 << 1));
+
+//         float light_angle = 1.0 - (acos(abs( dot(normalize(w_light_up), w_light_dir))) / PI);
+//         float cone_angle_difference = clamp((light.coneAngle - light_angle) / ( max(light.coneAngle, .001) ), 0.0, 1.0);
+//         float cone_term = (light.coneAngle == 0.0) ? 1.0 : max((2.0 / (1.0 + exp( 6.0 * ((cone_angle_difference / max(light.coneSoftness, .01)) - 1.0)) )) - 1.0, 0.0);
+
+//         /* If casting shadows is disabled */
+//         float shadow_term = 1.0;
+//         if ((light.flags & (1 << 2)) != 0) {
+//             #ifndef RAYTRACING
+//             shadow_term = get_shadow_contribution(light_entity, light, w_light_position, w_position);
+//             #else
+//             if (info.bounce_count < 2) {
+
+//             float dist = distance(w_light_position, w_position);
+
+//             /* Trace a single shadow ray */
+//             uint rayFlags = gl_RayFlagsNoneNV;
+//             uint cullMask = 0xff;
+//             float tmin = .01;
+//             float tmax = dist + 1.0;
+//             // uint rayFlags = gl_RayFlagsCullBackFacingTrianglesNV ;
+//             vec3 dir = w_light_dir;
+
+//             payload.is_shadow_ray = true; 
+//             payload.random_dimension = randomDimension;
+//             traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, w_position.xyz + w_normal * .01, tmin, dir, tmax, 0);
+//             if ((payload.distance < 0.0) || (payload.entity_id < 0) || (payload.entity_id >= MAX_ENTITIES) || (payload.entity_id == light_entity_id)) 
+//             {
+//                 shadow_term = 1.0;
+//             } else if (payload.distance < dist) {                
+//                     shadow_term = 0.0;
+//                 // final_color += (1.0 - roughness) * vec4(specular * payload.color.rgb, 0.0);
+//             }
+//             }
+//             #endif
+//         }
+
+//         shadow_term *= cone_term;
+        
+//         float over_dist_squared = 1.0 / max(sqr(length(w_light_position - w_position)), 1.0);
+        
+//         /* Point light */
+//         if (light.type == 0) {
+//             // // D = Normal distribution (Distribution of the microfacets)
+//             // float D = D_GGX(dotNH, roughness); 
+//             // // G = Geometric shadowing term (Microfacets shadowing)
+//             // float G = G_SchlicksmithGGX(dotNL, NdotV, roughness);
+//             // // F = Fresnel factor (Reflectance depending on angle of incidence)
+//             // vec3 F = F_Schlick(NdotV, F0);		
+            
+//             // vec3 spec = (D * F * G / (4.0 * dotNL * NdotV + 0.001));
+//             // directDiffuseContribution += shadow_term * lcol * dotNL * KD * diffuse;
+//             // directSpecularContribution += shadow_term * lcol * dotNL * spec;
+//             // // final_color += shadow_term * over_dist_squared * lcol * dotNL * (kD * albedo + spec);
+//         }
+        
+//         /* Rectangle light */
+//         else if (light.type == 1)
+//         {
+//             /* Verify the area light isn't degenerate */
+//             if (distance(w_light_right, w_light_forward) < .01) continue;
+
+//             /* Compute geometric term */
+//             vec3 dr = w_light_right * drn + w_light_forward * dfn;
+//             float geometric_term = dot( normalize((w_light_position + dr) - w_position), w_normal);
+//             if (geometric_term < 0.0) continue;
+
+//             /* Create points for area light polygon */
+//             vec3 points[4];
+//             points[0] = w_light_position - w_light_right - w_light_forward;
+//             points[1] = w_light_position + w_light_right - w_light_forward;
+//             points[2] = w_light_position + w_light_right + w_light_forward;
+//             points[3] = w_light_position - w_light_right + w_light_forward;
+
+//             // Get Specular
+//             vec3 lspec = LTC_Evaluate_Rect_Clipped(w_normal, w_view, w_position, m_inv, points, double_sided);
+            
+//             // BRDF shadowing and Fresnel
+//             lspec *= specular*t2.x + (1.0 - specular)*t2.y;
+
+//             // Get diffuse
+//             vec3 ldiff = LTC_Evaluate_Rect_Clipped(w_normal, w_view, w_position, mat3(1), points, double_sided); 
+
+//             /* Finding that the intensity is slightly more against ray traced ground truth */
+//             float correction = 1.5 / PI;
+
+//             diffuse_irradiance += shadow_term * lcol * lspec * correction;
+//             specular_irradiance += shadow_term * lcol * ldiff * correction;
+//             // final_color += shadow_term * geometric_term * lcol * (spec + diffuse*diff);
+//         }
+
+//         /* Disk Light */
+//         else if (light.type == 2)
+//         {
+//             /* Verify the area light isn't degenerate */
+//             if (distance(w_light_right, w_light_forward) < .1) continue;
+
+//             /* Compute geometric term */
+//             vec3 dr = w_light_right * drn + w_light_forward * dfn;
+//             float geometric_term = dot( normalize((w_light_position + dr) - w_position), w_normal);
+//             if (geometric_term < 0.0) continue;
+
+//             vec3 points[4];
+//             points[0] = w_light_position - w_light_right - w_light_forward;
+//             points[1] = w_light_position + w_light_right - w_light_forward;
+//             points[2] = w_light_position + w_light_right + w_light_forward;
+//             points[3] = w_light_position - w_light_right + w_light_forward;
+
+//             // Get Specular
+//             vec3 lspec = LTC_Evaluate_Disk(w_normal, w_view, w_position, m_inv, points, double_sided);
+
+//             // BRDF shadowing and Fresnel
+//             lspec *= specular*t2.x + (1.0 - specular)*t2.y;
+            
+//             // Get diffuse
+//             vec3 ldiff = LTC_Evaluate_Disk(w_normal, w_view, w_position, mat3(1), points, double_sided); 
+
+//             diffuse_irradiance += shadow_term * lcol * lspec;
+//             specular_irradiance += shadow_term * lcol * ldiff;
+//             // final_color += shadow_term * geometric_term * lcol * (spec + diffuse*diff);
+//         }
+        
+//         /* Rod light */
+//         else if (light.type == 3) {
+//             vec3 points[2];
+//             points[0] = w_light_position - w_light_up;
+//             points[1] = w_light_position + w_light_up;
+//             float radius = .1;//max(length(w_light_up), length(ex));
+
+//             /* Verify the area light isn't degenerate */
+//             if (length(w_light_up) < .1) continue;
+//             if (radius < .1) continue;
+
+//             /* Compute geometric term */
+//             vec3 dr = dun * w_light_up;
+//             float geometric_term = dot( normalize((w_light_position + dr) - w_position), w_normal);
+//             if (geometric_term <= 0) continue;
+            
+//             // Get Specular
+//             vec3 lspec = LTC_Evaluate_Rod(w_normal, w_view, w_position, m_inv, points, radius, show_end_caps);
+
+//             // BRDF shadowing and Fresnel
+//             lspec *= specular*t2.x + (1.0 - specular)*t2.y;
+            
+//             // Get diffuse
+//             vec3 ldiff = LTC_Evaluate_Rod(w_normal, w_view, w_position, mat3(1), points, radius, show_end_caps); 
+//             // diff /= (PI);
+
+//             diffuse_irradiance += shadow_term * lcol * lspec;
+//             specular_irradiance += shadow_term * lcol * ldiff;
+//             // final_color += shadow_term * geometric_term * lcol * (spec + diffuse*diff);
+//         }
+        
+//         /* Sphere light */
+//         else if (light.type == 4)
+//         {
+//             /* construct orthonormal basis around L */
+//             vec3 T1, T2;
+//             generate_basis(w_light_dir, T1, T2);
+//             T1 = normalize(T1);
+//             T2 = normalize(T2);
+
+//             float s1 = length(w_light_right);
+//             float s2 = length(w_light_forward);
+//             float s3 = length(w_light_up);
+
+//             float maxs = max(max(abs(s1), abs(s2) ), abs(s3) );
+
+//             vec3 ex, ey;
+//             ex = T1 * maxs;
+//             ey = T2 * maxs;
+
+//             float temp = dot(ex, ey);
+//             if (temp < 0.0)
+//                 ey *= -1;
+            
+//             /* Verify the area light isn't degenerate */
+//             if (distance(ex, ey) < .01) continue;
+
+//             float geometric_term = dot( normalize((w_light_position + maxs * w_normal) - w_position), w_normal);
+//             if (geometric_term <= 0) continue;
+
+//             /* Create points for the area light around the light center */
+//             vec3 points[4];
+//             points[0] = w_light_position - ex - ey;
+//             points[1] = w_light_position + ex - ey;
+//             points[2] = w_light_position + ex + ey;
+//             points[3] = w_light_position - ex + ey;
+            
+//             // Get Specular
+//             vec3 lspec = LTC_Evaluate_Disk(w_normal, w_view, w_position, m_inv, points, true);
+
+//             // BRDF shadowing and Fresnel
+//             lspec *= specular*t2.x + (1.0 - specular)*t2.y;
+
+//             // Get diffuse
+//             vec3 ldiff = LTC_Evaluate_Disk(w_normal, w_view, w_position, mat3(1), points, true); 
+
+//             diffuse_irradiance += shadow_term * lcol * lspec;
+//             specular_irradiance += shadow_term * lcol * ldiff;
+//             // final_color += shadow_term * geometric_term * lcol * (spec + diffuse*diff);
+//         }
+//     }
 
 #endif

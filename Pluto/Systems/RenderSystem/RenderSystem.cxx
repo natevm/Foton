@@ -913,15 +913,14 @@ void RenderSystem::enqueue_render_commands() {
                     final_renderpass_semaphores.push_back(render_complete);
                 }
             }
-
-            /* If the node has no children, we need to add a fence to this level */			
-            if (node->children.size() == 0) {
+			/* If the node has no children, we need to add a fence to this level */			
+			if (node->children.size() == 0) {
 				if (level_fences[level_idx] == vk::Fence())
-                	level_fences[level_idx] = get_fence();
-            }
-
-			level_idx++;
+					level_fences[level_idx] = get_fence();
+			}
         }
+
+		level_idx++;
     }
 
     level_idx = 0;
@@ -3573,7 +3572,7 @@ void RenderSystem::enable_taa(bool enable) {
 	this->taa_enabled = enable; 
 	this->push_constants.frame = 0; 
 	if (this->taa_enabled) {
-		this->progressive_refinement_enabled = false;
+		enable_progressive_refinement(false);
 		this->push_constants.flags |= ( 1 << 2 );
 	} else {
 		this->push_constants.flags &= ~( 1 << 2 );
@@ -3601,7 +3600,7 @@ void RenderSystem::enable_progressive_refinement(bool enable) {
 	this->progressive_refinement_enabled = enable; 
 	this->push_constants.frame = 0; 
 	if (this->progressive_refinement_enabled) {
-		this->taa_enabled = false;
+		enable_taa(false);
 		this->push_constants.flags |= ( 1 << 6 );
 	} else {
 		this->push_constants.flags &= ~( 1 << 6 );
@@ -3633,7 +3632,7 @@ void RenderSystem::enable_blue_noise(bool enable) {
 }
 
 void RenderSystem::reset_progressive_refinement() {
-	if ((this->push_constants.flags | ( 1 << 6 )) != 0) this->push_constants.frame = 0;
+	if ((this->push_constants.flags & ( 1 << 6 )) != 0) this->push_constants.frame = 0;
 }
 
 } // namespace Systems

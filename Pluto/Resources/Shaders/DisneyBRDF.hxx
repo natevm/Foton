@@ -1,9 +1,9 @@
+#include "Pluto/Resources/Shaders/Utilities.hxx"
+
 // Disney brdf's taken from here:: https://github.com/wdas/brdf/blob/master/src/brdfs/disney.brdf
 
 // required helper functions
-float pow2(float x) { 
-    return x*x;
-}
+
 
 float distanceSq(vec3 v1, vec3 v2) {
     vec3 d = v1 - v2;
@@ -108,10 +108,10 @@ float pdfLambertianReflection(const in vec3 wi, const in vec3 wo, const in vec3 
 }
 
 float pdfMicrofacet(const in vec3 wi, const in vec3 wo, const in SurfaceInteraction interaction, const in MaterialStruct material) {
-    if (!sameHemiSphere(wo, wi, interaction.w_normal.xyz)) return 0.;
+    if (!sameHemiSphere(wo, wi, interaction.w_n.xyz)) return 0.;
     vec3 wh = normalize(wo + wi);
     
-    float NdotH = dot(interaction.w_normal.xyz, wh);
+    float NdotH = dot(interaction.w_n.xyz, wh);
     float alpha2 = material.roughness * material.roughness;
     alpha2 *= alpha2;
     
@@ -123,7 +123,7 @@ float pdfMicrofacet(const in vec3 wi, const in vec3 wo, const in SurfaceInteract
 }
 
 float pdfMicrofacetAniso(const in vec3 wi, const in vec3 wo, const in SurfaceInteraction interaction, const in MaterialStruct material) {
-    if (!sameHemiSphere(wo, wi, interaction.w_normal.xyz)) return 0.;
+    if (!sameHemiSphere(wo, wi, interaction.w_n.xyz)) return 0.;
     vec3 wh = normalize(wo + wi);
     
     float aspect = sqrt(1.-material.anisotropic*.9);
@@ -133,9 +133,9 @@ float pdfMicrofacetAniso(const in vec3 wi, const in vec3 wo, const in SurfaceInt
     float alphax2 = alphax * alphax;
     float alphay2 = alphax * alphay;
 
-    float hDotX = dot(wh, interaction.w_tangent.xyz);
-    float hDotY = dot(wh, interaction.w_binormal.xyz);
-    float NdotH = dot(interaction.w_normal.xyz, wh);
+    float hDotX = dot(wh, interaction.w_t.xyz);
+    float hDotY = dot(wh, interaction.w_b.xyz);
+    float NdotH = dot(interaction.w_n.xyz, wh);
     
     float denom = hDotX * hDotX/alphax2 + hDotY * hDotY/alphay2 + NdotH * NdotH;
     if( denom == 0. ) return 0.;
@@ -144,12 +144,12 @@ float pdfMicrofacetAniso(const in vec3 wi, const in vec3 wo, const in SurfaceInt
 }
 
 float pdfClearCoat(const in vec3 wi, const in vec3 wo, const in SurfaceInteraction interaction, const in MaterialStruct material) {
-    if (!sameHemiSphere(wo, wi, interaction.w_normal.xyz)) return 0.;
+    if (!sameHemiSphere(wo, wi, interaction.w_n.xyz)) return 0.;
 
     vec3 wh = wi + wo;
     wh = normalize(wh);
 	
-    float NdotH = abs(dot(wh, interaction.w_normal.xyz));
+    float NdotH = abs(dot(wh, interaction.w_n.xyz));
     float Dr = GTR1(NdotH, mix(.1,.001,1.0 - material.clearcoat_roughness));
     return Dr * NdotH/ (4. * dot(wo, wh));
 }
@@ -239,17 +239,17 @@ void disneyMicrofacetAnisoSample(out vec3 wi, const in vec3 wo, /* const in vec3
     float alphax2 = alphax * alphax, alphay2 = alphay * alphay;
     float alpha2 = 1. / (cosPhi * cosPhi / alphax2 + sinPhi * sinPhi / alphay2);
     float tanTheta2 = alpha2 * u[0] / (1. - u[0]);
-    cosTheta = 1. / sqrt(1. + tanTheta2);
+    cosTheta = 1. / sqrt( max(1. + tanTheta2, EPSILON));
     
     float sinTheta = sqrt(max(0., 1. - cosTheta * cosTheta));
     vec3 whLocal = sphericalDirection(sinTheta, cosTheta, sin(phi), cos(phi));
          
-    vec3 wh = whLocal.x * interaction.w_tangent.xyz + whLocal.y * interaction.w_binormal.xyz + whLocal.z * interaction.w_normal.xyz;
-    
-    if(!sameHemiSphere(wo, wh, interaction.w_normal.xyz)) {
+    vec3 wh = whLocal.x * interaction.w_t.xyz + whLocal.y * interaction.w_b.xyz + whLocal.z * interaction.w_n.xyz;
+
+    if(!sameHemiSphere(wo, wh, interaction.w_n.xyz)) {
        wh *= -1.;
     }
-            
+
     wi = reflect(-wo, wh);
 }
 
@@ -272,11 +272,11 @@ void disneyClearCoatSample(out vec3 wi, const in vec3 wo, const in vec2 u, const
     vec3 whLocal = sphericalDirection(sinTheta, cosTheta, sin(phi), cos(phi));
      
     vec3 tangent = vec3(0.), binormal = vec3(0.);
-    createBasis(interaction.w_normal.xyz, tangent, binormal);
+    createBasis(interaction.w_n.xyz, tangent, binormal);
     
-    vec3 wh = whLocal.x * tangent + whLocal.y * binormal + whLocal.z * interaction.w_normal.xyz;
+    vec3 wh = whLocal.x * tangent + whLocal.y * binormal + whLocal.z * interaction.w_n.xyz;
     
-    if(!sameHemiSphere(wo, wh, interaction.w_normal.xyz)) {
+    if(!sameHemiSphere(wo, wh, interaction.w_n.xyz)) {
        wh *= -1.;
     }
             
@@ -294,23 +294,23 @@ vec3 disneySheen(float LdotH, const in MaterialStruct material) {
 }
 
 vec3 bsdfEvaluate(const in vec3 wi, const in vec3 wo, /* const in vec3 X, const in vec3 Y,*/ const in SurfaceInteraction interaction, const in MaterialStruct material) {
-    if( !sameHemiSphere(wo, wi, interaction.w_normal.xyz) )
+    if( !sameHemiSphere(wo, wi, interaction.w_n.xyz) )
         return vec3(0.);
     
-	float NdotL = dot(interaction.w_normal.xyz, wo);
-    float NdotV = dot(interaction.w_normal.xyz, wi);
+	float NdotL = dot(interaction.w_n.xyz, wo);
+    float NdotV = dot(interaction.w_n.xyz, wi);
     
     if (NdotL < 0. || NdotV < 0.) return vec3(0.);
 
     vec3 H = normalize(wo+wi);
-    float NdotH = dot(interaction.w_normal.xyz,H);
+    float NdotH = dot(interaction.w_n.xyz,H);
     float LdotH = dot(wo,H);
 
     //TEMPORARY
     
     vec3 diffuse = disneyDiffuse(NdotL, NdotV, LdotH, material);
     vec3 subSurface = disneySubsurface(NdotL, NdotV, LdotH, material);
-    vec3 glossy = disneyMicrofacetAnisotropic(NdotL, NdotV, NdotH, LdotH, wi, wo, H, interaction.w_tangent.xyz, interaction.w_binormal.xyz, material);
+    vec3 glossy = disneyMicrofacetAnisotropic(NdotL, NdotV, NdotH, LdotH, wi, wo, H, interaction.w_t.xyz, interaction.w_b.xyz, material);
     // vec3 glossy = disneyMicrofacetIsotropic(NdotL, NdotV, NdotH, LdotH, material);
     float clearCoat = disneyClearCoat(NdotL, NdotV, NdotH, LdotH, material);
     vec3 sheen = disneySheen(LdotH, material);
@@ -319,7 +319,7 @@ vec3 bsdfEvaluate(const in vec3 wi, const in vec3 wo, /* const in vec3 X, const 
 }
 
 float bsdfPdf(const in vec3 wi, const in vec3 wo, const in SurfaceInteraction interaction, const in MaterialStruct material) {
-    float pdfDiffuse = pdfLambertianReflection(wi, wo, interaction.w_normal.xyz);
+    float pdfDiffuse = pdfLambertianReflection(wi, wo, interaction.w_n.xyz);
     float pdfMicrofacet = pdfMicrofacetAniso(wi, wo, interaction, material);
     float pdfClearCoat = pdfClearCoat(wi, wo, interaction, material);;
     return (pdfDiffuse + pdfMicrofacet + pdfClearCoat)/3.;
@@ -334,7 +334,7 @@ vec3 bsdfSample (float random1, float random2, float random3, out vec3 wi, const
     vec2 u = vec2(random1, random2);
     float rnd = random3;
 	if( rnd <= 0.3333 ) {
-       disneyDiffuseSample(wi, wo, pdf, u, interaction.w_normal.xyz, material);
+       disneyDiffuseSample(wi, wo, pdf, u, interaction.w_n.xyz, material);
        is_specular = false;
     }
     else if( rnd >= 0.3333 && rnd < 0.6666 ) {

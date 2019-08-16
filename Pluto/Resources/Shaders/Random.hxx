@@ -1,5 +1,5 @@
-#ifndef BLUE_NOISE
-#define BLUE_NOISE
+#ifndef RANDOM_HXX
+#define RANDOM_HXX
 
 #include "Pluto/Resources/Shaders/Options.hxx"
 
@@ -137,7 +137,7 @@ PCGRand get_rng(ivec2 pixel, int seed) {
 
 float random(ivec2 pixel) {
     randomDimension++;
-    if (is_blue_noise_enabled() && (!is_progressive_refinement_enabled() || (push.consts.frame < 256)) ) {
+    if (is_blue_noise_enabled() && (!is_progressive_refinement_enabled() || (push.consts.frame < 128)) ) {
         return samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_128spp(pixel.x, pixel.y, push.consts.frame, randomDimension);
     } else {
         return fract(sin(randomDimension + hash12( pixel ) + push.consts.frame) * 43758.5453123);

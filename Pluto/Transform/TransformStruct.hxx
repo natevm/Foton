@@ -13,6 +13,7 @@
 using namespace glm;
 #endif
 
+/* This could be split up to allow for better GPU memory reads */
 struct TransformStruct
 {
     /* 64 bytes */

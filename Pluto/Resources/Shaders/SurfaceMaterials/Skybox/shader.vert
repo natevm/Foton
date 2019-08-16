@@ -15,7 +15,7 @@ void main() {
     TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
 
     w_position = vec3(target_transform.localToWorld * vec4(point.xyz, 1.0));
-    w_normal = normalize(transpose(target_transform.worldToLocal) * vec4(normal.xyz, 0.0)).xyz;
+    w_normal = normalize(transpose(mat3(target_transform.worldToLocal)) * normal.xyz);
     #ifdef DISABLE_MULTIVIEW
     int viewIndex = push.consts.viewIndex;
     #else
