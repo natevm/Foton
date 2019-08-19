@@ -63,7 +63,7 @@ void main() {
 	vec3 R0 = P0.xyz + dot(P0.xyz - P.xyz, N0.xyz) * N0.xyz;
 	vec3 R1 = P1.xyz + dot(P1.xyz - P.xyz, N1.xyz) * N1.xyz;
 	vec3 R2 = P2.xyz + dot(P2.xyz - P.xyz, N2.xyz) * N2.xyz;
-	P = vec4(R0 * barycentrics.x + R1 * barycentrics.y + R2 * barycentrics.z, 1.0);
+	// P = vec4(R0 * barycentrics.x + R1 * barycentrics.y + R2 * barycentrics.z, 1.0);
 
 	// vec4 C0 = ColorBuffers[nonuniformEXT(entity.mesh_id)].colors[I0];
 	// vec4 C1 = ColorBuffers[nonuniformEXT(entity.mesh_id)].colors[I1];
@@ -84,7 +84,7 @@ void main() {
 	payload.w_p = (gl_ObjectToWorldNV * P).xyz;
 	payload.entity_id = gl_InstanceID;
 	payload.distance = gl_RayTmaxNV;
-	payload.backface = dot(N, gl_ObjectRayDirectionNV) < 0.0;
+	payload.backface = dot(N, -gl_ObjectRayDirectionNV) < 0.0;
 }
 
 // void main() {

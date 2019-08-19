@@ -10,10 +10,10 @@ void main() {
     vec2 gid = gl_GlobalInvocationID.xy;
 
     /* first frame, no blending at all. */
-    if (push.consts.frame < 1) {
+    if (push.consts.frame < 5) {
         /* Set history to current value */
         vec3 currVal = imageLoad(render_image, ivec2(gl_GlobalInvocationID.xy)).rgb;
-        imageStore(gbuffers[6], ivec2(gl_GlobalInvocationID.xy), vec4(currVal, 1.0));
+        imageStore(gbuffers[9], ivec2(gl_GlobalInvocationID.xy), vec4(currVal, 1.0));
     }
     /* Otherwise, do refinement */
     else {
@@ -21,13 +21,13 @@ void main() {
         vec3 newVal = imageLoad(render_image, ivec2(gl_GlobalInvocationID.xy)).rgb;
         
         /* Read from history buffer */
-        vec3 history = imageLoad(gbuffers[6], ivec2(gl_GlobalInvocationID.xy)).rgb;
+        vec3 history = imageLoad(gbuffers[9], ivec2(gl_GlobalInvocationID.xy)).rgb;
         
         /* Mix current and history together */
         history = history + (newVal - history) / (push.consts.frame);
 
         /* Store the results */
         imageStore(render_image, ivec2(gl_GlobalInvocationID.xy), vec4(history, 1.0));
-        imageStore(gbuffers[6], ivec2(gl_GlobalInvocationID.xy), vec4(history, 1.0));
+        imageStore(gbuffers[9], ivec2(gl_GlobalInvocationID.xy), vec4(history, 1.0));
     }
 }

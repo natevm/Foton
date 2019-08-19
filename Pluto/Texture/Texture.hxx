@@ -11,8 +11,7 @@
 #include "Pluto/Texture/TextureStruct.hxx"
 
 #ifndef MAX_G_BUFFERS  
-/* There seems to be a hard limit on the number of attachments on a fragment shader (8) */
-#define MAX_G_BUFFERS 7 
+#define MAX_G_BUFFERS 20
 #endif
 
 class Texture : public StaticFactory

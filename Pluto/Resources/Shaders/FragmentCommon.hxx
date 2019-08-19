@@ -10,4 +10,7 @@ layout(location = 1) out vec4 GBUF1;
 // layout(location = 5) out vec4 GBUF5;
 // layout(location = 6) out vec4 GBUF6;
 // layout(location = 7) out vec4 GBUF7;
+// layout(location = 8) out vec4 GBUF8;
+// layout(location = 9) out vec4 GBUF9;
+// layout(location = 10) out vec4 GBUF10;
 #endif

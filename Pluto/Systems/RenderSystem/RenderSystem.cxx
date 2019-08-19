@@ -395,6 +395,81 @@ void RenderSystem::record_compute_pass(Entity &camera_entity)
 
     texture->make_general(command_buffer);
 
+	/* SVGF A-Trous pass */
+	if ((!shadow_caster) && svgf_atrous_enabled && ray_tracing_enabled )
+	{
+		for(uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
+			push_constants.target_id = -1;
+			push_constants.camera_id = camera_entity.get_id();
+			push_constants.viewIndex = rp_idx;
+			push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << 0)) : (push_constants.flags & ~(1 << 0)); 
+			bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+
+			uint32_t local_size_x = 16;
+			uint32_t local_size_y = 16;
+
+			uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+			uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+			uint32_t groupZ = 1;
+
+			command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, svgf_atrous_filter.pipeline);
+			
+			push_constants.parameter1 = atrous_sigma;
+			for (int i = 0; i < 2 * atrous_iterations; i++) {
+				push_constants.iteration = i;
+				command_buffer.pushConstants(svgf_atrous_filter.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+				command_buffer.dispatch(groupX, groupY, groupZ);
+			}
+		}
+	}
+
+	/* SVGF Remodulate */
+	if (!shadow_caster && ray_tracing_enabled) {
+		for (uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
+			push_constants.target_id = -1;
+			push_constants.camera_id = camera_entity.get_id();
+			push_constants.viewIndex = rp_idx;
+			push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << 0)) : (push_constants.flags & ~(1 << 0)); 
+			bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+
+
+			command_buffer.pushConstants(svgf_remodulate.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+			command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, svgf_remodulate.pipeline);
+
+			uint32_t local_size_x = 16;
+			uint32_t local_size_y = 16;
+
+			uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+			uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+			uint32_t groupZ = 1;
+			command_buffer.dispatch(groupX, groupY, groupZ);
+		}
+	}
+
+	/* SVGF TAA (TODO, move before atrous) */
+	if ((!shadow_caster) && svgf_taa_enabled && ray_tracing_enabled)
+	{
+		for(uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
+			push_constants.target_id = -1;
+			push_constants.camera_id = camera_entity.get_id();
+			push_constants.viewIndex = rp_idx;
+			push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << 0)) : (push_constants.flags & ~(1 << 0)); 
+			bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+			
+			command_buffer.pushConstants(svgf_taa.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+			command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, svgf_taa.pipeline);
+
+			uint32_t local_size_x = 16;
+			uint32_t local_size_y = 16;
+
+			uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+			uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+			uint32_t groupZ = 1;
+			command_buffer.dispatch(groupX, groupY, groupZ);
+		}
+	}
+
+	/* TAA/Progresssive Refinement */
 	if ((!shadow_caster) && (progressive_refinement_enabled || taa_enabled) )
 	{
 		for(uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
@@ -409,8 +484,8 @@ void RenderSystem::record_compute_pass(Entity &camera_entity)
 				command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, progressive_refinement.pipeline);
 			}
 			else if (taa_enabled) {
-				command_buffer.pushConstants(temporalaa.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-				command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, temporalaa.pipeline);
+				command_buffer.pushConstants(taa.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+				command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, taa.pipeline);
 			}
 			uint32_t local_size_x = 16;
 			uint32_t local_size_y = 16;
@@ -423,7 +498,7 @@ void RenderSystem::record_compute_pass(Entity &camera_entity)
 	}
 
 	/* Tone mapping pass */
-	if (!shadow_caster && tone_mapping_enabled) {
+	if (!shadow_caster) {
 		for (uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
 			push_constants.target_id = -1;
 			push_constants.camera_id = camera_entity.get_id();
@@ -445,35 +520,7 @@ void RenderSystem::record_compute_pass(Entity &camera_entity)
 		}
 	}
 
-	/* A-Trous pass */
-	if ((!shadow_caster) && atrous_enabled )
-	{
-		for(uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
-			push_constants.target_id = -1;
-			push_constants.camera_id = camera_entity.get_id();
-			push_constants.viewIndex = rp_idx;
-			push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << 0)) : (push_constants.flags & ~(1 << 0)); 
-			bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
-
-			uint32_t local_size_x = 16;
-			uint32_t local_size_y = 16;
-
-			uint32_t groupX = (width + local_size_x - 1) / local_size_x;
-			uint32_t groupY = (height + local_size_y - 1) / local_size_y;
-			uint32_t groupZ = 1;
-
-			command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, atrous_filter.pipeline);
-			
-			push_constants.parameter1 = atrous_sigma;
-			for (int i = 0; i < 2 * atrous_iterations; i++) {
-				push_constants.iteration = i;
-				command_buffer.pushConstants(atrous_filter.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-				command_buffer.dispatch(groupX, groupY, groupZ);
-			}
-		}
-	}
-
-	/* TESTING GAUSSIAN */
+	/* gaussian blur (for VSM) */
 	if (camera_entity.get_light() && camera_entity.get_light()->should_cast_shadows() && camera_entity.get_light()->should_use_vsm()) {
 		for (uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
 			push_constants.target_id = -1;
@@ -2079,264 +2126,133 @@ void RenderSystem::setup_compute_pipelines()
 {
     auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
+	std::string ResourcePath = Options::GetResourcePath();
 
-    /* ------ Edge Detection  ------ */
+	vk::PushConstantRange range;
+	range.offset = 0;
+	range.size = sizeof(PushConsts);
+	range.stageFlags = vk::ShaderStageFlagBits::eAll;
+
+	/* Info for shader stages */
+	vk::PipelineShaderStageCreateInfo compShaderStageInfo;
+	compShaderStageInfo.stage = vk::ShaderStageFlagBits::eCompute;
+	compShaderStageInfo.pName = "main";
+
+    std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout };
+	vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+	pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+	pipelineLayoutCreateInfo.pPushConstantRanges = &range;
+	pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)layouts.size();
+	pipelineLayoutCreateInfo.pSetLayouts = layouts.data();
+
+    vk::ComputePipelineCreateInfo computeCreateInfo;
+    
+	/* ------ Edge Detection  ------ */
     {
-		std::string ResourcePath = Options::GetResourcePath();
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/Compute/EdgeDetect/comp.spv"));
-
-		/* Create shader modules */
 		auto compShaderModule = create_shader_module("edge_detect", compShaderCode);
-
-		/* Info for shader stages */
-		vk::PipelineShaderStageCreateInfo compShaderStageInfo;
-		compShaderStageInfo.stage = vk::ShaderStageFlagBits::eCompute;
 		compShaderStageInfo.module = compShaderModule;
-		compShaderStageInfo.pName = "main";
-
-        vk::PushConstantRange range;
-        range.offset = 0;
-        range.size = sizeof(PushConsts);
-        range.stageFlags = vk::ShaderStageFlagBits::eAll;
-
-        std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout };
-		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
-
-		pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)layouts.size();
-		pipelineLayoutCreateInfo.pSetLayouts = layouts.data();
-		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-		pipelineLayoutCreateInfo.pPushConstantRanges = &range;
-
         edgedetect.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
-
-        vk::ComputePipelineCreateInfo computeCreateInfo;
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = edgedetect.pipelineLayout;
-        
         edgedetect.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
 		edgedetect.ready = true;
 	}
 
-	/* ------ Temporal Antialiasing  ------ */
-	{
-		std::string ResourcePath = Options::GetResourcePath();
-		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/Compute/TAA/comp.spv"));
-
-		/* Create shader modules */
-		auto compShaderModule = create_shader_module("taa", compShaderCode);
-
-		/* Info for shader stages */
-		vk::PipelineShaderStageCreateInfo compShaderStageInfo;
-		compShaderStageInfo.stage = vk::ShaderStageFlagBits::eCompute;
-		compShaderStageInfo.module = compShaderModule;
-		compShaderStageInfo.pName = "main";
-
-        vk::PushConstantRange range;
-        range.offset = 0;
-        range.size = sizeof(PushConsts);
-        range.stageFlags = vk::ShaderStageFlagBits::eAll;
-
-        std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout };
-		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
-
-		pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)layouts.size();
-		pipelineLayoutCreateInfo.pSetLayouts = layouts.data();
-		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-		pipelineLayoutCreateInfo.pPushConstantRanges = &range;
-
-        temporalaa.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
-
-        vk::ComputePipelineCreateInfo computeCreateInfo;
-        computeCreateInfo.stage = compShaderStageInfo;
-        computeCreateInfo.layout = temporalaa.pipelineLayout;
-        
-        temporalaa.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
-		temporalaa.ready = true;
-	}
-
 	/* Progressive refinement */
 	{
-		std::string ResourcePath = Options::GetResourcePath();
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/Compute/ProgressiveRefinement/comp.spv"));
-
-		/* Create shader modules */
 		auto compShaderModule = create_shader_module("progressive_refinement", compShaderCode);
-
-		/* Info for shader stages */
-		vk::PipelineShaderStageCreateInfo compShaderStageInfo;
-		compShaderStageInfo.stage = vk::ShaderStageFlagBits::eCompute;
 		compShaderStageInfo.module = compShaderModule;
-		compShaderStageInfo.pName = "main";
-
-        vk::PushConstantRange range;
-        range.offset = 0;
-        range.size = sizeof(PushConsts);
-        range.stageFlags = vk::ShaderStageFlagBits::eAll;
-
-        std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout };
-		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
-
-		pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)layouts.size();
-		pipelineLayoutCreateInfo.pSetLayouts = layouts.data();
-		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-		pipelineLayoutCreateInfo.pPushConstantRanges = &range;
-
         progressive_refinement.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
-
-        vk::ComputePipelineCreateInfo computeCreateInfo;
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = progressive_refinement.pipelineLayout;
-        
         progressive_refinement.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
 		progressive_refinement.ready = true;
 	}
 
 	/* Tone Mapping */
 	{
-		std::string ResourcePath = Options::GetResourcePath();
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/Compute/ToneMapping/comp.spv"));
-
-		/* Create shader modules */
 		auto compShaderModule = create_shader_module("tone_mapping", compShaderCode);
-
-		/* Info for shader stages */
-		vk::PipelineShaderStageCreateInfo compShaderStageInfo;
-		compShaderStageInfo.stage = vk::ShaderStageFlagBits::eCompute;
 		compShaderStageInfo.module = compShaderModule;
-		compShaderStageInfo.pName = "main";
-
-        vk::PushConstantRange range;
-        range.offset = 0;
-        range.size = sizeof(PushConsts);
-        range.stageFlags = vk::ShaderStageFlagBits::eAll;
-
-        std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout };
-		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
-
-		pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)layouts.size();
-		pipelineLayoutCreateInfo.pSetLayouts = layouts.data();
-		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-		pipelineLayoutCreateInfo.pPushConstantRanges = &range;
-
         tone_mapping.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
-
-        vk::ComputePipelineCreateInfo computeCreateInfo;
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = tone_mapping.pipelineLayout;
-        
         tone_mapping.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
 		tone_mapping.ready = true;
 	}
 
 	/* Gaussian X */
 	{
-		std::string ResourcePath = Options::GetResourcePath();
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/Compute/VSM/GaussianBlurX/comp.spv"));
-
-		/* Create shader modules */
 		auto compShaderModule = create_shader_module("gaussian_x", compShaderCode);
-
-		/* Info for shader stages */
-		vk::PipelineShaderStageCreateInfo compShaderStageInfo;
-		compShaderStageInfo.stage = vk::ShaderStageFlagBits::eCompute;
 		compShaderStageInfo.module = compShaderModule;
-		compShaderStageInfo.pName = "main";
-
-        vk::PushConstantRange range;
-        range.offset = 0;
-        range.size = sizeof(PushConsts);
-        range.stageFlags = vk::ShaderStageFlagBits::eAll;
-
-        std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout };
-		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
-
-		pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)layouts.size();
-		pipelineLayoutCreateInfo.pSetLayouts = layouts.data();
-		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-		pipelineLayoutCreateInfo.pPushConstantRanges = &range;
-
         gaussian_x.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
-
-        vk::ComputePipelineCreateInfo computeCreateInfo;
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = gaussian_x.pipelineLayout;
-        
         gaussian_x.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
 		gaussian_x.ready = true;
 	}
 
 	/* Gaussian Y */
 	{
-		std::string ResourcePath = Options::GetResourcePath();
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/Compute/VSM/GaussianBlurY/comp.spv"));
-
-		/* Create shader modules */
 		auto compShaderModule = create_shader_module("gaussian_y", compShaderCode);
-
-		/* Info for shader stages */
-		vk::PipelineShaderStageCreateInfo compShaderStageInfo;
-		compShaderStageInfo.stage = vk::ShaderStageFlagBits::eCompute;
 		compShaderStageInfo.module = compShaderModule;
-		compShaderStageInfo.pName = "main";
-
-        vk::PushConstantRange range;
-        range.offset = 0;
-        range.size = sizeof(PushConsts);
-        range.stageFlags = vk::ShaderStageFlagBits::eAll;
-
-        std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout };
-		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
-
-		pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)layouts.size();
-		pipelineLayoutCreateInfo.pSetLayouts = layouts.data();
-		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-		pipelineLayoutCreateInfo.pPushConstantRanges = &range;
-
         gaussian_y.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
-
-        vk::ComputePipelineCreateInfo computeCreateInfo;
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = gaussian_y.pipelineLayout;
-        
         gaussian_y.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
 		gaussian_y.ready = true;
 	}
 
-	/* A-Trous Edge Avoiding Filter */
+	/* ------ Temporal Antialiasing  ------ */
 	{
-		std::string ResourcePath = Options::GetResourcePath();
-		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/Compute/ATrous/comp.spv"));
-
-		/* Create shader modules */
-		auto compShaderModule = create_shader_module("atrous_filter", compShaderCode);
-
-		/* Info for shader stages */
-		vk::PipelineShaderStageCreateInfo compShaderStageInfo;
-		compShaderStageInfo.stage = vk::ShaderStageFlagBits::eCompute;
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/Compute/TAA/comp.spv"));
+		auto compShaderModule = create_shader_module("taa", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-		compShaderStageInfo.pName = "main";
-
-        vk::PushConstantRange range;
-        range.offset = 0;
-        range.size = sizeof(PushConsts);
-        range.stageFlags = vk::ShaderStageFlagBits::eAll;
-
-        std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout };
-		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
-
-		pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)layouts.size();
-		pipelineLayoutCreateInfo.pSetLayouts = layouts.data();
-		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-		pipelineLayoutCreateInfo.pPushConstantRanges = &range;
-
-        atrous_filter.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
-
-        vk::ComputePipelineCreateInfo computeCreateInfo;
+        taa.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
-        computeCreateInfo.layout = atrous_filter.pipelineLayout;
-        
-        atrous_filter.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
-		atrous_filter.ready = true;
+        computeCreateInfo.layout = taa.pipelineLayout;
+        taa.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		taa.ready = true;
+	}
+
+	/* ------ SVGF Temporal Antialiasing  ------ */
+	{
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/Compute/SVGF_TAA/comp.spv"));
+		auto compShaderModule = create_shader_module("svgf_taa", compShaderCode);
+		compShaderStageInfo.module = compShaderModule;
+        svgf_taa.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = svgf_taa.pipelineLayout;
+        svgf_taa.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		svgf_taa.ready = true;
+	}
+
+	/* SVGF A-Trous Edge Avoiding Filter */
+	{
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/Compute/SVGF_Atrous/comp.spv"));
+		auto compShaderModule = create_shader_module("svgf_atrous_filter", compShaderCode);
+		compShaderStageInfo.module = compShaderModule;
+        svgf_atrous_filter.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = svgf_atrous_filter.pipelineLayout;
+        svgf_atrous_filter.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		svgf_atrous_filter.ready = true;
+	}
+
+	/* SVGF Remodulate */
+	{
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/Compute/SVGF_Remodulate/comp.spv"));
+		auto compShaderModule = create_shader_module("svgf_remodulate", compShaderCode);
+		compShaderStageInfo.module = compShaderModule;
+        svgf_remodulate.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = svgf_remodulate.pipelineLayout;
+        svgf_remodulate.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		svgf_remodulate.ready = true;
 	}
 }
 
@@ -2527,8 +2443,15 @@ void RenderSystem::create_descriptor_set_layouts()
     gbufferImageLayoutBinding.descriptorCount = MAX_G_BUFFERS;
     gbufferImageLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eCompute | vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
     gbufferImageLayoutBinding.pImmutableSamplers = nullptr;
+
+	vk::DescriptorSetLayoutBinding gbufferTextureImageLayoutBinding;
+    gbufferTextureImageLayoutBinding.binding = 2;
+    gbufferTextureImageLayoutBinding.descriptorType = vk::DescriptorType::eSampledImage;
+    gbufferTextureImageLayoutBinding.descriptorCount = MAX_G_BUFFERS;
+    gbufferTextureImageLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eCompute | vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
+    gbufferTextureImageLayoutBinding.pImmutableSamplers = nullptr;
     
-    std::array<vk::DescriptorSetLayoutBinding, 2> gbufferBindings = {outputImageLayoutBinding, gbufferImageLayoutBinding};
+    std::array<vk::DescriptorSetLayoutBinding, 3> gbufferBindings = {outputImageLayoutBinding, gbufferImageLayoutBinding, gbufferTextureImageLayoutBinding};
     vk::DescriptorSetLayoutCreateInfo gbufferLayoutInfo;
     gbufferLayoutInfo.bindingCount = (uint32_t)gbufferBindings.size();
 	gbufferLayoutInfo.pBindings = gbufferBindings.data();
@@ -3221,7 +3144,7 @@ void RenderSystem::update_gbuffer_descriptor_sets(Entity &camera_entity, uint32_
 		gbufferPoolIdx++;
     }
 
-    std::array<vk::WriteDescriptorSet, 2> gbufferDescriptorWrites = {};
+    std::array<vk::WriteDescriptorSet, 3> gbufferDescriptorWrites = {};
 
 	auto colorImageViewLayers = camera_entity.camera()->get_texture()->get_color_image_view_layers();
 
@@ -3252,6 +3175,22 @@ void RenderSystem::update_gbuffer_descriptor_sets(Entity &camera_entity, uint32_
 	gbufferDescriptorWrites[1].descriptorCount = descriptorGBufferImageInfos.size();
 	gbufferDescriptorWrites[1].descriptorType = vk::DescriptorType::eStorageImage;
 	gbufferDescriptorWrites[1].pImageInfo = descriptorGBufferImageInfos.data();
+
+	// G Buffer textures
+	std::vector<vk::DescriptorImageInfo> descriptorGBufferTextureImageInfos(MAX_G_BUFFERS);
+
+	for (uint32_t g_idx = 0; g_idx < MAX_G_BUFFERS; ++g_idx) {
+		descriptorGBufferTextureImageInfos[g_idx].imageLayout = vk::ImageLayout::eGeneral;
+		auto gbufferImageViewLayers = camera_entity.camera()->get_texture()->get_g_buffer_image_view_layers(g_idx);
+		descriptorGBufferTextureImageInfos[g_idx].imageView = gbufferImageViewLayers[rp_idx];
+	}
+	
+	gbufferDescriptorWrites[2].dstSet = gbufferDescriptorSets[key];
+	gbufferDescriptorWrites[2].dstBinding = 2;
+	gbufferDescriptorWrites[2].dstArrayElement = 0;
+	gbufferDescriptorWrites[2].descriptorCount = descriptorGBufferTextureImageInfos.size();
+	gbufferDescriptorWrites[2].descriptorType = vk::DescriptorType::eSampledImage;
+	gbufferDescriptorWrites[2].pImageInfo = descriptorGBufferTextureImageInfos.data();
 
     device.updateDescriptorSets((uint32_t)gbufferDescriptorWrites.size(), gbufferDescriptorWrites.data(), 0, nullptr);
 }
@@ -3366,23 +3305,26 @@ void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffe
 {
 	if (
 		(edgedetect.ready == false) || 
-		(temporalaa.ready == false) || 
+		(svgf_taa.ready == false) || 
 		(progressive_refinement.ready == false) || 
 		(tone_mapping.ready == false) || 
 		(gaussian_x.ready == false) || 
 		(gaussian_y.ready == false) || 
-		(atrous_filter.ready == false)
+		(svgf_atrous_filter.ready == false) ||
+		(svgf_remodulate.ready == false)
 	) return;
 
 	auto key = std::pair<uint32_t, uint32_t>(camera_entity.get_id(), rp_idx);
 	std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet, gbufferDescriptorSets[key]};
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, edgedetect.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
-	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, temporalaa.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, svgf_taa.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, taa.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, progressive_refinement.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, tone_mapping.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, gaussian_x.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, gaussian_y.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
-	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, atrous_filter.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, svgf_atrous_filter.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, svgf_remodulate.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 }
 
 void RenderSystem::bind_raytracing_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &camera_entity, uint32_t rp_idx)
@@ -3624,12 +3566,21 @@ void RenderSystem::enable_taa(bool enable) {
 	}
 };
 
-void RenderSystem::enable_atrous(bool enable) {
-	this->atrous_enabled = enable; 
-	if (this->taa_enabled) {
+void RenderSystem::enable_svgf_atrous(bool enable) {
+	this->svgf_atrous_enabled = enable; 
+	if (this->svgf_atrous_enabled) {
 		this->push_constants.flags |= ( 1 << 3 );
 	} else {
 		this->push_constants.flags &= ~( 1 << 3 );
+	}
+};
+
+void RenderSystem::enable_svgf_taa(bool enable) {
+	this->svgf_taa_enabled = enable; 
+	if (this->svgf_taa_enabled) {
+		this->push_constants.flags |= ( 1 << 7 );
+	} else {
+		this->push_constants.flags &= ~( 1 << 7 );
 	}
 };
 
@@ -3677,7 +3628,7 @@ void RenderSystem::enable_blue_noise(bool enable) {
 }
 
 void RenderSystem::reset_progressive_refinement() {
-	if ((this->push_constants.flags & ( 1 << 6 )) != 0) this->push_constants.frame = 0;
+	if ((this->push_constants.flags & ( 1 << 6 )) != 0) this->push_constants.frame = this->push_constants.frame % 3;
 }
 
 } // namespace Systems

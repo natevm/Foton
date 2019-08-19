@@ -77,8 +77,9 @@ namespace Systems
             void build_top_level_bvh(bool submit_immediately = false);
 
             void enable_ray_tracing(bool enable);
+            void enable_svgf_taa(bool enable);
+            void enable_svgf_atrous(bool enable);
             void enable_taa(bool enable);
-            void enable_atrous(bool enable);
             void set_atrous_sigma(float sigma);
             void set_atrous_iterations(int iterations);
             void enable_progressive_refinement(bool enable);
@@ -102,7 +103,8 @@ namespace Systems
             bool using_vr_hidden_area_masks = true;
             bool ray_tracing_enabled = false;
             bool taa_enabled = false;
-            bool atrous_enabled = false;
+            bool svgf_taa_enabled = false;
+            bool svgf_atrous_enabled = false;
             bool progressive_refinement_enabled = false;
             bool tone_mapping_enabled = true;
             double lastTime, currentTime;
@@ -228,14 +230,15 @@ namespace Systems
             /* EXPLAIN THIS */
             void setup_raytracing_shader_binding_table(vk::RenderPass renderpass);
 
-
             ComputePipelineResources edgedetect;
-            ComputePipelineResources temporalaa;
-            ComputePipelineResources progressive_refinement;
-            ComputePipelineResources tone_mapping;
             ComputePipelineResources gaussian_x;
             ComputePipelineResources gaussian_y;
-            ComputePipelineResources atrous_filter;
+            ComputePipelineResources svgf_taa;
+            ComputePipelineResources svgf_atrous_filter;
+            ComputePipelineResources svgf_remodulate;
+            ComputePipelineResources progressive_refinement;
+            ComputePipelineResources tone_mapping;
+            ComputePipelineResources taa;
 
             void setup_compute_pipelines();
 

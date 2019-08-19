@@ -3,6 +3,7 @@
 #define COMPUTE
 
 #include "Pluto/Resources/Shaders/Descriptors.hxx"
+#include "Pluto/Resources/Shaders/ShaderConstants.hxx"
 
 layout (local_size_x = 16, local_size_y = 16) in;
 
@@ -16,57 +17,53 @@ float kernel[25] = {
     1.0 / 16.0, 1.0 / 64.0, 1.0 / 256.0, 1.0 / 64.0, 3.0 / 128.0, 1.0 / 64.0, 1.0 / 256.0
 };
 
+/* Reference implementation */
+// uniform sampler2D colorMap, normalMap, posMap;
+// uniform float c_phi, n_phi, p_phi, stepwidth;
+// uniform float kernel[25];
+// uniform vec2 offset[25];
+// glUniform1f(c_phiUniform, 1.0f / i * c_phi0);
+// glUniform1f(n_phiUniform, 1.0f / (1 << i) * n_phi0);
+// glUniform1f(p_phiUniform, 1.0f / (1 << i) * p_phi0);
+// glUniform1i(stepwidthUniform, (1 << (i + 1)) - 1);
+// void main(void) {
+//     vec4 sum = vec4(0.0);
+//     vec2 step = vec2(1./512., 1./512.);     // resolution
+//     vec4 cval = texture2D(colorMap, gl_TexCoord[0].st);
+//     vec4 nval = texture2D(normalMap, gl_TexCoord[0].st);
+//     vec4 pval = texture2D(posMap, gl_TexCoord[0].st);
+//     float cum_w = 0.0;
+//     for(int i = 0; i < 25; i++) {
+//         vec2 uv = gl_TexCoord[0].st + offset[i]*step*stepwidth;
+//         vec4 ctmp = texture2D(colorMap, uv);
+//         vec4 t = cval - ctmp;
+//         float dist2 = dot(t,t);
+//         float c_w = min(exp(-(dist2)/c_phi), 1.0);
+//         vec4 ntmp = texture2D(normalMap, uv);
+//         t = nval - ntmp;
+//         dist2 = max(dot(t,t)/(stepwidth*stepwidth),0.0);
+//         float n_w = min(exp(-(dist2)/n_phi), 1.0);
+//         vec4 ptmp = texture2D(posMap, uv);
+//         t = pval - ptmp;
+//         dist2 = dot(t,t);
+//         float p_w = min(exp(-(dist2)/p_phi),1.0);
+//         float weight = c_w*n_w*p_w;
+//         sum += ctmp*weight*kernel[i];
+//         cum_w += weight*kernel[i];
+//     }
+//     gl_FragData[0] = sum/cum_w;
+// }
+
 void main() {
+    vec3 sum_direct = vec3(0.0);
+    vec3 sum_indirect = vec3(0.0);
 
-
-    /* Reference implementation */
-    // void main(void) {
-    //     vec4 sum = vec4(0.0);
-    //     vec2 step = vec2(1./512., 1./512.);     // resolution
-    //     vec4 cval = texture2D(colorMap, gl_TexCoord[0].st);
-    //     vec4 nval = texture2D(normalMap, gl_TexCoord[0].st);
-    //     vec4 pval = texture2D(posMap, gl_TexCoord[0].st);
-    //     float cum_w = 0.0;
-    //     for(int i = 0; i < 25; i++) {
-    //         vec2 uv = gl_TexCoord[0].st + offset[i]*step*stepwidth;
-    //         vec4 ctmp = texture2D(colorMap, uv);
-    //         vec4 t = cval - ctmp;
-    //         float dist2 = dot(t,t);
-    //         float c_w = min(exp(-(dist2)/c_phi), 1.0);
-    //         vec4 ntmp = texture2D(normalMap, uv);
-    //         t = nval - ntmp;
-    //         dist2 = max(dot(t,t)/(stepwidth*stepwidth),0.0);
-    //         float n_w = min(exp(-(dist2)/n_phi), 1.0);
-    //         vec4 ptmp = texture2D(posMap, uv);
-    //         t = pval - ptmp;
-    //         dist2 = dot(t,t);
-    //         float p_w = min(exp(-(dist2)/p_phi),1.0);
-    //         float weight = c_w*n_w*p_w;
-    //         sum += ctmp*weight*kernel[i];
-    //         cum_w += weight*kernel[i];
-    //     }
-    //     gl_FragData[0] = sum/cum_w;
-    // }
-
-    // uniform sampler2D colorMap, normalMap, posMap;
-    // uniform float c_phi, n_phi, p_phi, stepwidth;
-    // uniform float kernel[25];
-    // uniform vec2 offset[25];
-
-    vec3 sum = vec3(0.0);
-    
-
-    // glUniform1f(c_phiUniform, 1.0f / i * c_phi0);
-    // glUniform1f(n_phiUniform, 1.0f / (1 << i) * n_phi0);
-    // glUniform1f(p_phiUniform, 1.0f / (1 << i) * p_phi0);
-    // glUniform1i(stepwidthUniform, (1 << (i + 1)) - 1);
-    
     int stepwidth = (1 << (push.consts.iteration + 1)) - 1;
     float c_phi = push.consts.parameter1; 
     float n_phi = push.consts.parameter1; 
     float p_phi = push.consts.parameter1; 
 
-    c_phi = 1. / (push.consts.iteration * c_phi); // TODO, upload this...
+    c_phi = 1. / ((1 << push.consts.iteration) * c_phi); // TODO, upload this...
     n_phi = 1. / ((1 << push.consts.iteration) * n_phi); // TODO, upload this...
     p_phi = 1. / ((1 << push.consts.iteration) * p_phi); // TODO, upload this...
 
@@ -75,43 +72,59 @@ void main() {
     int iteration = push.consts.iteration;
 
     if (entity_id != -1) {
-        vec4 color = ((iteration%2) == 0) ? imageLoad(render_image, ivec2(gid)) : imageLoad(gbuffers[5], ivec2(gid));
+        vec4 direct = ((iteration%2) == 0) ? imageLoad(gbuffers[7], ivec2(gid)) : imageLoad(gbuffers[10], ivec2(gid));
+        vec4 indirect = ((iteration%2) == 0) ? imageLoad(gbuffers[8], ivec2(gid)) : imageLoad(gbuffers[11], ivec2(gid));
         vec3 pval = imageLoad(gbuffers[0], ivec2(gid)).xyz;
         vec3 nval = imageLoad(gbuffers[1], ivec2(gid)).xyz;
-        vec3 cval = imageLoad(gbuffers[2], ivec2(gid)).xyz;
-        float cum_w = 0.0;
+        vec3 cval = imageLoad(gbuffers[3], ivec2(gid)).xyz;
+        float cum_w = EPSILON;
 
         for (int i = 0; i < 25; i++) {
             ivec2 st = ivec2(gid) + offsets[i] * stepwidth;
             
-            vec3 ctmp = ((iteration%2) == 0) ? imageLoad(render_image, ivec2(st)).rgb : imageLoad(gbuffers[5], ivec2(st)).rgb;
+            vec3 tmp_direct = ((iteration%2) == 0) ? imageLoad(gbuffers[7], ivec2(st)).rgb : imageLoad(gbuffers[10], ivec2(st)).rgb;
+            vec3 tmp_indirect = ((iteration%2) == 0) ? imageLoad(gbuffers[8], ivec2(st)).rgb : imageLoad(gbuffers[11], ivec2(st)).rgb;
+            
+            // just in case...
+            if (any(isnan(tmp_direct))) tmp_direct = vec3(0.0); 
+            if (any(isnan(tmp_indirect))) tmp_indirect = vec3(0.0); // just in case...
+
+            vec3 ctmp = imageLoad(gbuffers[3], ivec2(st)).xyz;
             vec3 t = cval - ctmp;
             float dist2 = dot(t,t);
             float c_w = min(exp(-(dist2)/c_phi), 1.0);
-            
+
             vec3 ntmp = imageLoad(gbuffers[1], st).xyz;
             t = nval - ntmp;
             dist2 = max(dot(t,t)/float(stepwidth*stepwidth), 0.0);
             float n_w = min(exp(-(dist2)/n_phi), 1.0);
-            
+ 
             vec3 ptmp = imageLoad(gbuffers[0], st).xyz;
             t = pval - ptmp;
             dist2 = dot(t,t);
             float p_w = min(exp(-(dist2)/p_phi),1.0);
 
             float weight = c_w*n_w*p_w;
-            sum += ctmp*weight*kernel[i];
+            sum_direct += tmp_direct*weight*kernel[i];
+            sum_indirect += tmp_indirect*weight*kernel[i];
             cum_w += weight*kernel[i];
         }
 
+        vec3 direct_result = sum_direct/cum_w;
+        vec3 indirect_result = sum_indirect/cum_w;
+
+        if (any(isnan(direct_result))) direct_result = direct.rgb; // just in case...
+        if (any(isnan(indirect_result))) indirect_result = indirect.rgb; // just in case...
+
         if ((iteration%2) == 0) {
-            imageStore(gbuffers[5], ivec2(gid), vec4(sum/cum_w, color.a));
+            imageStore(gbuffers[10], ivec2(gid), vec4(direct_result.rgb, direct.a));
+            imageStore(gbuffers[11], ivec2(gid), vec4(indirect_result.rgb, indirect.a));
         } else  {
-            imageStore(render_image, ivec2(gid), vec4(sum/cum_w, color.a));
+            imageStore(gbuffers[7], ivec2(gid), vec4(direct_result.rgb, direct.a));
+            imageStore(gbuffers[8], ivec2(gid), vec4(indirect_result.rgb, indirect.a));
         }
     }
-
-
+}
 
 //     // first frame, no blending at all.
 //     if (push.consts.frame > 10) {
@@ -198,4 +211,3 @@ void main() {
 //         vec3 currVal = imageLoad(render_image, ivec2(gl_GlobalInvocationID.xy)).rgb;
 //         imageStore(gbuffers[6], ivec2(gl_GlobalInvocationID.xy), vec4(currVal, 1.0));
 //     }
-}

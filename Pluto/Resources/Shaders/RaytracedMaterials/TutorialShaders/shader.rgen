@@ -7,13 +7,12 @@ layout(location = 0) rayPayloadNV HitInfo payload;
 #include "Pluto/Resources/Shaders/ShaderCommon.hxx"
 #include "Pluto/Resources/Shaders/Options.hxx"
 
-#define TMIN .01
-#define TMAX 1000 /*1e20f*/
-
-vec3 sample_direct_light(const in ivec2 pixel_coords, const in MaterialStruct mat, const in vec3 w_p, const in vec3 w_n,
+vec3 sample_direct_light(const in ivec2 pixel_coords, const in MaterialStruct mat, bool backface, const in vec3 w_p, const in vec3 w_n,
 	const in vec3 w_x, const in vec3 w_y, const in vec3 w_o, out int light_entity_id)
 {
 	vec3 radiance = vec3(0.0f);
+
+    vec3 w_n_f = (backface) ? -w_n : w_n;
 
     /* Pick a random light */
     EntityStruct light_entity; TransformStruct light_transform;
@@ -32,31 +31,6 @@ vec3 sample_direct_light(const in ivec2 pixel_coords, const in MaterialStruct ma
 
     /* If we didn't find a light, return. (Shouldn't happen except during initialization) */
     if (!light_found) return radiance;
-
-    /* Compute outgoing radiance from the light by sampling it directly */
-
-    // Sample the light to compute an incident light ray to this point
-	// {
-	// 	vec3 light_pos = sample_quad_light_position(light,
-	// 		vec2(random(pixel_coords), random(pixel_coords)));
-	// 	vec3 light_dir = light_pos - hit_p;
-	// 	float light_dist = length(light_dir);
-	// 	light_dir = normalize(light_dir);
-
-	// 	float light_pdf = quad_light_pdf(light, light_pos, hit_p, light_dir);
-	// 	float bsdf_pdf = disney_pdf(mat, n, w_o, light_dir, v_x, v_y);
-
-	// 	shadow_ray.Direction = light_dir;
-	// 	shadow_ray.TMax = light_dist;
-	// 	TraceRay(scene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, 0xff,
-	// 			OCCLUSION_RAY, 0, OCCLUSION_RAY, shadow_ray, shadow_hit);
-
-	// 	if (light_pdf >= EPSILON && bsdf_pdf >= EPSILON && shadow_hit.hit == 0) {
-	// 		vec3 bsdf = disney_brdf(mat, n, w_o, light_dir, v_x, v_y);
-	// 		float w = power_heuristic(1.f, light_pdf, 1.f, bsdf_pdf);
-	// 		illum = bsdf * light.emission.rgb * abs(dot(light_dir, n)) * w / light_pdf;
-	// 	}
-	// }
 
     // Importance sample the light directly
     /* Compute the outgoing radiance for this light */
@@ -81,22 +55,22 @@ vec3 sample_direct_light(const in ivec2 pixel_coords, const in MaterialStruct ma
         float visibility = 1.;
         vec3 Li = vec3(0);   
         if (light.type == LIGHT_TYPE_POINT) {
-            Li = sphereLightSample(pixel_coords, light_entity, light, light_transform, w_p, w_n, w_i, light_pdf);
+            Li = sphereLightSample(pixel_coords, light_entity, light, light_transform, w_p, w_n_f, w_i, light_pdf);
         }
         else if( light.type == LIGHT_TYPE_RECTANGLE ) {
-            Li = rectangleLightSample(pixel_coords, light_entity, light, light_transform, w_p, w_n, w_i, light_pdf);
+            Li = rectangleLightSample(pixel_coords, light_entity, light, light_transform, w_p, w_n_f, w_i, light_pdf);
         }
         else if (light.type == LIGHT_TYPE_DISK) {
-            Li = sphereLightSample(pixel_coords, light_entity, light, light_transform, w_p, w_n, w_i, light_pdf);
+            Li = sphereLightSample(pixel_coords, light_entity, light, light_transform, w_p, w_n_f, w_i, light_pdf);
         }
         else if (light.type == LIGHT_TYPE_ROD) {
-            Li = sphereLightSample(pixel_coords, light_entity, light, light_transform, w_p, w_n, w_i, light_pdf);
+            Li = sphereLightSample(pixel_coords, light_entity, light, light_transform, w_p, w_n_f, w_i, light_pdf);
         }
         else if( light.type == LIGHT_TYPE_SPHERE ) {
-            Li = sphereLightSample(pixel_coords, light_entity, light, light_transform, w_p, w_n, w_i, light_pdf);
+            Li = sphereLightSample(pixel_coords, light_entity, light, light_transform, w_p, w_n_f, w_i, light_pdf);
         }
 
-        float bsdf_pdf = disney_pdf(mat, w_n, w_o, w_i, w_x, w_y);
+        float bsdf_pdf = disney_pdf(mat, backface, w_n, w_o, w_i, w_x, w_y);
 
         /* Compute visibility by tracing a shadow ray */
         {
@@ -110,9 +84,9 @@ vec3 sample_direct_light(const in ivec2 pixel_coords, const in MaterialStruct ma
         }
 
         if (light_pdf >= EPSILON && bsdf_pdf >= EPSILON && visibility == 1.0) {
-            vec3 bsdf = disney_brdf(mat, w_n, w_o, w_i, w_x, w_y);
+            vec3 bsdf = disney_brdf(mat, backface, w_n, w_o, w_i, w_x, w_y);
             float w = power_heuristic(1.f, light_pdf, 1.f, bsdf_pdf);
-            radiance = bsdf * Li * abs(dot(w_i, w_n)) * w / light_pdf;
+            radiance = bsdf * Li * abs(dot(w_i, w_n_f)) * w / light_pdf;
         }
     }
 
@@ -121,7 +95,7 @@ vec3 sample_direct_light(const in ivec2 pixel_coords, const in MaterialStruct ma
 		vec3 w_i;
 		float bsdf_pdf;
         float visibility = 1.0;
-		vec3 bsdf = sample_disney_brdf(pixel_coords, mat, w_n, w_o, w_x, w_y, w_i, bsdf_pdf);
+		vec3 bsdf = sample_disney_brdf(pixel_coords, mat, backface, w_n, w_o, w_x, w_y, w_i, bsdf_pdf);
 		
 		float light_dist;
 		vec3 light_pos;
@@ -131,19 +105,19 @@ vec3 sample_direct_light(const in ivec2 pixel_coords, const in MaterialStruct ma
 			float light_pdf; // = quad_light_pdf(light, light_pos, w_p, w_i);
             vec3 Li;
             if (light.type == LIGHT_TYPE_POINT) {
-                light_pdf = sphereLightPDF(light_entity, light, light_transform, w_p, w_n);
+                light_pdf = sphereLightPDF(light_entity, light, light_transform, w_p, w_n_f);
             }
             else if( light.type == LIGHT_TYPE_RECTANGLE ) {
-                light_pdf = rectangleLightPDF(light_entity, light, light_transform, w_p, w_n);
+                light_pdf = rectangleLightPDF(light_entity, light, light_transform, w_p, w_n_f);
             }
             else if (light.type == LIGHT_TYPE_DISK) {
-                light_pdf = sphereLightPDF(light_entity, light, light_transform, w_p, w_n);
+                light_pdf = sphereLightPDF(light_entity, light, light_transform, w_p, w_n_f);
             }
             else if (light.type == LIGHT_TYPE_ROD) {
-                light_pdf = sphereLightPDF(light_entity, light, light_transform, w_p, w_n);
+                light_pdf = sphereLightPDF(light_entity, light, light_transform, w_p, w_n_f);
             }
             else if( light.type == LIGHT_TYPE_SPHERE ) {
-                light_pdf = sphereLightPDF(light_entity, light, light_transform, w_p, w_n);
+                light_pdf = sphereLightPDF(light_entity, light, light_transform, w_p, w_n_f);
             }
             Li = light.color.rgb * light.intensity;
 			if (light_pdf >= EPSILON) {
@@ -158,7 +132,7 @@ vec3 sample_direct_light(const in ivec2 pixel_coords, const in MaterialStruct ma
                 }
                 
 				if (visibility == 1.0) {
-					radiance += visibility * bsdf * Li * abs(dot(w_i, w_n)) * w / bsdf_pdf;
+					radiance += visibility * bsdf * Li * abs(dot(w_i, w_n_f)) * w / bsdf_pdf;
 				}
 			}
 		}
@@ -230,10 +204,26 @@ void main()
     /* These are required for shading purposes. Wait until they're ready. */
     if ((push.consts.ltc_mat_lut_id < 0) || (push.consts.ltc_mat_lut_id >= MAX_TEXTURES)) return;
     if ((push.consts.ltc_amp_lut_id < 0) || (push.consts.ltc_amp_lut_id >= MAX_TEXTURES)) return;
+    
+    /* First, update G Buffer history */
+    vec4 temp;
+
+    // Position G Buffer 
+    temp = imageLoad(gbuffers[0], ivec2(gl_LaunchIDNV.xy));
+    imageStore(gbuffers[1], ivec2(gl_LaunchIDNV.xy), temp);
+
+    // Normal G Buffer
+    temp = imageLoad(gbuffers[2], ivec2(gl_LaunchIDNV.xy));
+    imageStore(gbuffers[3], ivec2(gl_LaunchIDNV.xy), temp);
+
+    // Raw albedo
+    temp = imageLoad(gbuffers[4], ivec2(gl_LaunchIDNV.xy));
+    imageStore(gbuffers[5], ivec2(gl_LaunchIDNV.xy), temp);
+
+    /* Now, Compute ray origin and direction */
     randomDimension = 0;
     int max_path_depth = int(push.consts.parameter1);
 
-    /* Compute ray origin and direction */
     const ivec2 pixel_coords = ivec2(gl_LaunchIDNV.xy);
     const vec2 pixel_center = vec2(gl_LaunchIDNV.xy) + vec2(random(pixel_coords), random(pixel_coords));
 	const vec2 in_uv = pixel_center/vec2(gl_LaunchSizeNV.xy);
@@ -255,9 +245,16 @@ void main()
     int last_direct_light_entity_id = -2;
 
 
-    vec3 first_hit_position;
-    vec3 first_hit_normal;
-    vec3 first_hit_albedo;
+    vec3 first_hit_world_position = vec3(INFINITY);
+    vec3 first_hit_model_position = vec3(INFINITY);
+    vec3 first_hit_normal = vec3(INFINITY);
+    vec3 first_hit_albedo = vec3(0.0);
+    vec3 first_hit_direct = vec3(0.0);
+    float first_hit_distance = INFINITY;
+
+    int first_hit_entity_id = -1;
+    EntityStruct first_hit_entity;
+    first_hit_entity.initialized = 0;
 
     do{
         /* Trace a ray through the scene */
@@ -267,6 +264,10 @@ void main()
         /* If we hit the sky... */
         if (payload.entity_id == -1) {
             vec3 irradiance = get_environment_color(direction);
+            /* Include lighting from sky as direct lighting.  */
+            if ((bounce == 0) || (bounce == 1)) first_hit_direct += path_throughput * irradiance;
+            /* Primary visibility is sky */
+            if (bounce == 0) first_hit_albedo = irradiance;
             color.rgb += path_throughput * irradiance;
             break;
         }
@@ -276,14 +277,35 @@ void main()
             break;
         }
 
+        int entity_id = payload.entity_id;
         EntityStruct entity; MaterialStruct mat; LightStruct light;
         unpack_entity_struct(payload.entity_id, entity);
         unpack_material_struct(payload.entity_id, entity, payload.uv, payload.m_p, mat);
         unpack_light_struct(payload.entity_id, entity, light);
 
+        vec3 w_o = -direction;
+        vec3 w_p = payload.w_p;
+        vec3 m_p = payload.m_p;
+        vec3 w_x, w_y, w_z;
+        w_z = payload.w_n;
+        bool backface = payload.backface;
+        float dist = payload.distance;
+
+        directionOfAnisotropicity(w_z, w_x, w_y);
+
         /* If we're a light, radiate */
         if ((entity.light_id >= 0) && (entity.light_id < MAX_LIGHTS)) {
             color.rgb += path_throughput * light.color.rgb * light.intensity;
+            if (bounce == 0) {
+                first_hit_entity_id = entity_id;
+                first_hit_entity = entity;
+                first_hit_world_position = w_p;
+                first_hit_model_position = m_p;
+                first_hit_distance = dist;
+                first_hit_normal = w_z;
+                first_hit_albedo = light.color.rgb;
+                first_hit_direct = color.rgb;
+            }
             break;
         }
 
@@ -293,35 +315,34 @@ void main()
             continue;
         }
 
-        vec3 w_o = -direction;
-        vec3 w_p = payload.w_p;
-        vec3 w_x, w_y, w_z;
-        w_z = payload.w_n;
-
-        /* For opaque objects (or thin materials) make the normal face forward */
-        if (mat.transmission < EPSILON && dot(w_o, w_z) < 0.0) {
-            w_z = -w_z;
-        }
-
-        directionOfAnisotropicity(w_z, w_x, w_y);
+        /* Next event estimation */
+        color.rgb += path_throughput * sample_direct_light(pixel_coords, mat, backface, w_p, w_z, w_x, w_y, w_o, last_direct_light_entity_id); 
 
         /* Record first hit data */
         if (bounce == 0) {
-            first_hit_position = w_p;
+            first_hit_entity_id = entity_id;
+            first_hit_entity = entity;
+            first_hit_world_position = w_p;
+            first_hit_model_position = m_p;
+            first_hit_distance = dist;
             first_hit_normal = w_z;
             first_hit_albedo = mat.base_color.rgb;
+            first_hit_direct = color.rgb;
         }
 
-        /* Next event estimation */
-        color.rgb += path_throughput * sample_direct_light(pixel_coords, mat, w_p, w_z, w_x, w_y, w_o, last_direct_light_entity_id);
+        bounce++;
+
+        /* Avoid sampling the brdf if this is the last path position */
+        if (bounce > max_path_depth) break;
 
         /* Setup next ray */
         vec3 w_i; float pdf;
-        vec3 bsdf = sample_disney_brdf(pixel_coords, mat, w_z, w_o, w_x, w_y, w_i, pdf);
+        vec3 bsdf = sample_disney_brdf(pixel_coords, mat, backface, w_z, w_o, w_x, w_y, w_i, pdf);
         if (pdf < EPSILON || all(lessThan(bsdf, vec3(EPSILON)))) {
             break;
         }
-        path_throughput *= bsdf * abs(dot(w_i, w_z)) / pdf;
+
+        path_throughput *= bsdf / pdf;
 
         if (all(lessThan(path_throughput, vec3(EPSILON)))) {
             break;
@@ -329,25 +350,59 @@ void main()
 
         origin = w_p;
         direction = w_i;
-        bounce++;
-    } while (bounce < max_path_depth);
+    } while (bounce <= max_path_depth);
 
-    /* Color G Buffer  */
-    imageStore(render_image, ivec2(gl_LaunchIDNV.xy), color);
+    // if (any(isnan(color))) color = vec4(1.0, 0.0, 1.0, 1.0);
+    // if (any(isinf(color))) color = vec4(0.0, 1.0, 1.0, 1.0);
 
-    if (is_taa_enabled() || is_atrous_enabled()) {
-        /* Position G Buffer */
-        imageStore(gbuffers[0], ivec2(gl_LaunchIDNV.xy), vec4(first_hit_position, 0));
+    /* Compute motion vector for primary visibility */
+    vec3 motion = vec3(0.0);
+    bool reset = true;
+    if (first_hit_entity.initialized == 1) {
+        reset = false;
+        TransformStruct transform = tbo.transforms[first_hit_entity.transform_id];
+        vec4 w_p_prev = transform.localToWorldPrev * vec4(first_hit_model_position, 1.0);
 
-        vec3 oldNormalData = imageLoad(gbuffers[1], ivec2(gl_LaunchIDNV.xy)).xyz;
-        vec2 oldDepthData = imageLoad(gbuffers[2], ivec2(gl_LaunchIDNV.xy)).xy;
-        int oldEntityID = int(imageLoad(gbuffers[4], ivec2(gl_LaunchIDNV.xy)).x);
+        vec4 v_p_curr = camera.multiviews[push.consts.viewIndex].viewproj * camera_transform.worldToLocal * vec4(first_hit_world_position, 1.0);
+        vec4 v_p_prev = camera.multiviews[push.consts.viewIndex].viewproj * camera_transform.worldToLocalPrev * w_p_prev;
 
-        /* Current Normal G Buffer */
-        imageStore(gbuffers[1], ivec2(gl_LaunchIDNV.xy), vec4(first_hit_normal, 0));
+        motion = (v_p_prev.xyz / v_p_prev.w) - (v_p_curr.xyz / v_p_curr.w);
+    }
+
+    /* Write to G Buffers */
+
+    // Position G Buffer
+    imageStore(gbuffers[0], ivec2(gl_LaunchIDNV.xy), vec4(first_hit_world_position, first_hit_distance));
+
+    // Normal G Buffer
+    imageStore(gbuffers[2], ivec2(gl_LaunchIDNV.xy), vec4(first_hit_normal, 0));
+
+    // Raw albedo
+    imageStore(gbuffers[4], ivec2(gl_LaunchIDNV.xy), vec4(first_hit_albedo, first_hit_entity_id));
+
+    // Motion Vector G Buffer
+    imageStore(gbuffers[6], ivec2(gl_LaunchIDNV.xy), vec4(motion, (reset) ? 1.0 : 0.0));
+
+    // Demodulated direct illumination 
+    vec3 demodulated_direct = first_hit_direct / (first_hit_albedo + vec3(EPSILON)); 
+    imageStore(gbuffers[7], ivec2(gl_LaunchIDNV.xy), vec4(demodulated_direct, 0));
+
+    // Demodulated indirect illumination
+    vec3 demodulated_indirect = (color.rgb - first_hit_direct) / (first_hit_albedo + vec3(EPSILON));
+    imageStore(gbuffers[8], ivec2(gl_LaunchIDNV.xy), vec4(demodulated_indirect, 0));
+
+
+    // if (is_taa_enabled() || is_atrous_enabled()) {
+        
+
+        // vec3 oldNormalData = imageLoad(gbuffers[1], ivec2(gl_LaunchIDNV.xy)).xyz;
+        // vec2 oldDepthData = imageLoad(gbuffers[2], ivec2(gl_LaunchIDNV.xy)).xy;
+        // int oldEntityID = int(imageLoad(gbuffers[4], ivec2(gl_LaunchIDNV.xy)).x);
+
+        
 
         /* Current Raw Albedo */
-        imageStore(gbuffers[2], ivec2(gl_LaunchIDNV.xy), vec4(first_hit_albedo, 0));
+        
 
         // /* Old Normal G Buffer */
         // imageStore(gbuffers[5], ivec2(gl_LaunchIDNV.xy), vec4(oldNormalData, 0));
@@ -391,7 +446,7 @@ void main()
         //     imageStore(gbuffers[3], ivec2(gl_LaunchIDNV.xy), vec4(0.0, 0.0, 0.0, -1.0));
         // }
 
-    }
+    // }
 }
     // do {
     //     /* Trace a ray through the scene */

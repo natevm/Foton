@@ -5,7 +5,7 @@
 #define TWOPI 6.283185307
 #define TWO_PI TWOPI
 #define E 2.71828182845904523536f
-#define EPSILON 0.000001
+#define EPSILON 0.001
 #define INFINITY 1000000.
 
 #define LIGHT_TYPE_POINT 0
@@ -18,3 +18,8 @@
 #define MAX_BOUNCES 5
 
 #define USE_LTC true
+
+#define ALPHA_MINIMUM .01
+
+#define TMIN .001
+#define TMAX 1000 /*1e20f*/

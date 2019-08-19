@@ -34,9 +34,27 @@ layout(set = 1, binding = 4) uniform texture3D texture_3Ds[MAX_TEXTURES];
 /* Rasterizer will only write to these, via framebuffer attachments. */
 #if defined  RAYTRACING || defined COMPUTE
 layout(set = 2, binding = 0, rgba16f) uniform image2D render_image;
-/* GBUFFER 0 - Velocity in screen space */
-/* GBUFFER 1 - History */
-layout(set = 2, binding = 1, rgba16f) uniform image2D gbuffers[7];
+/* GBUFFER 0  - Position */
+/* GBUFFER 1  - Position History */
+/* GBUFFER 2  - Normal */
+/* GBUFFER 3  - Normal History */
+/* GBUFFER 4  - Albedo */
+/* GBUFFER 5  - Albedo History */
+/* GBUFFER 6  - Motion */
+/* GBUFFER 7  - Demodulated direct illumination */
+/* GBUFFER 8  - Demodulated indirect illumination */
+/* GBUFFER 9  - Progresive refinement history */
+/* GBUFFER 10 - Atrous refinement history */
+/* GBUFFER 11 - Atrous refinement history */
+/* GBUFFER 12 - SVGF TAA refinement history (demodulated direct) */
+/* GBUFFER 13 - SVGF TAA refinement history (demodulated direct) */
+/* GBUFFER 14 - SVGF TAA refinement history (demodulated indirect) */
+/* GBUFFER 15 - SVGF TAA refinement history (demodulated indirect) */
+/* GBUFFER 16 - TAA refinement history (final image) */
+/* GBUFFER 17 - TAA refinement history (final image) */
+layout(set = 2, binding = 1, rgba16f) uniform image2D gbuffers[20];
+
+layout(set = 2, binding = 2) uniform texture2D gbuffer_textures[20];
 #endif
 
 /* NV Ray tracing needs access to vert data and acceleration structure  */

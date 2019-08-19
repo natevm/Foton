@@ -170,19 +170,51 @@ float gtr_2_pdf(const in vec3 w_o, const in vec3 w_i, const in vec3 n, float alp
 float gtr_2_transmission_pdf(const in vec3 w_o, const in vec3 w_i, const in vec3 n,
 	float alpha, float ior)
 {
+	// does not fix nan
+	// if (any(isnan(w_o))) microfacet_transmission = 0;
+	// if (any(isnan(w_i))) microfacet_transmission = 0;
+	// if (isnan(alpha)) microfacet_transmission = 0;
+	// if (isnan(mat.ior)) microfacet_transmission = 0;
+	// if (any(isnan(w_n))) microfacet_transmission = 0;
+	// if (length(w_o) < .5) microfacet_transmission = 0;
+	// if (length(w_i) < .5) microfacet_transmission = 0;
+	// if (length(w_n) < .5) microfacet_transmission = 0;
+
 	if (same_hemisphere(w_o, w_i, n)) {
 		return 0.f;
 	}
 	bool entering = dot(w_o, n) > 0.f;
 	float eta_o = entering ? 1.f : ior;
 	float eta_i = entering ? ior : 1.f;
+
+	// does not fix nan
+	// if (isnan(eta_i / eta_o)) return 0;
+	// if (isinf(eta_i / eta_o)) return 0;
+
+	// does not fix nan
+	// if (any(isnan(w_o + w_i * eta_i / eta_o))) return 0;
+
+	// fixes nan...
+	// if (length(w_o + w_i * eta_i / eta_o) < EPSILON) return 0;
+
+	// fixes nan...
+	if (length(w_o + w_i) < EPSILON) return 0;
+
 	vec3 w_h = normalize(w_o + w_i * eta_i / eta_o);
+
+	// fixes nan...
+	// if (any(isnan(w_h))) return 0;
+	
 	float cos_theta_h = abs(dot(n, w_h));
 	float i_dot_h = dot(w_i, w_h);
 	float o_dot_h = dot(w_o, w_h);
-	float d = gtr_2(cos_theta_h, alpha);
+	float d = gtr_2(cos_theta_h, alpha); // might become infinite...
 	float dwh_dwi = o_dot_h * pow2(eta_o) / pow2(eta_o * o_dot_h + eta_i * i_dot_h);
-	return d * cos_theta_h * abs(dwh_dwi);
+	
+	float transmission = d * cos_theta_h * abs(dwh_dwi);
+
+	// if (isnan(transmission)) return 0;
+	return transmission;
 }
 
 float gtr_2_aniso_pdf(const in vec3 w_o, const in vec3 w_i, const in vec3 n,
@@ -218,7 +250,7 @@ vec3 disney_microfacet_isotropic(const in MaterialStruct mat, const in vec3 n,
 	vec3 tint = lum > 0.f ? mat.base_color.rgb / lum : vec3(1, 1, 1);
 	vec3 spec = mix(mat.specular * 0.08 * mix(vec3(1, 1, 1), tint, mat.specular_tint), mat.base_color.rgb, mat.metallic);
 
-	float alpha = max(0.001, mat.roughness * mat.roughness);
+	float alpha = max(ALPHA_MINIMUM, mat.roughness * mat.roughness);
 	float d = gtr_2(dot(n, w_h), alpha);
 	vec3 f = mix(spec, vec3(1, 1, 1), schlick_weight(dot(w_i, w_h)));
 	float g = smith_shadowing_ggx(dot(n, w_i), alpha) * smith_shadowing_ggx(dot(n, w_o), alpha);
@@ -230,28 +262,46 @@ vec3 disney_microfacet_transmission_isotropic(const in MaterialStruct mat, const
 {
 	float o_dot_n = dot(w_o, n);
 	float i_dot_n = dot(w_i, n);
-	if (o_dot_n == 0.f || i_dot_n == 0.f) {
+	// These dot products will result in fireflies if let be too small.
+	if (abs(o_dot_n) < EPSILON || abs(i_dot_n) < EPSILON) {
 		return vec3(0.f);
 	}
+	if (length(w_o + w_i) < EPSILON) return vec3(0.f);
+
 	bool entering = o_dot_n > 0.f;
 	float eta_o = entering ? 1.f : mat.ior;
 	float eta_i = entering ? mat.ior : 1.f;
 	vec3 w_h = normalize(w_o + w_i * eta_i / eta_o);
-	vec3 spec = mat.transmission * mat.base_color.rgb;
+	
+	// w_h and n must be significantly different, else d gives nan
+	// if (abs(dot(n, w_h)) > .999) {
+	// 	return vec3(0.f);
+	// }
 
-	float alpha = max(0.001, mat.roughness * mat.roughness);
-	float d = gtr_2(abs(dot(n, w_h)), alpha);
+	vec3 spec = /*mat.transmission * */mat.base_color.rgb; // mat.transmission is multiplied outside.
 
-	float f = fresnel_dielectric(abs(dot(w_i, n)), eta_o, eta_i);
+	float alpha = max(ALPHA_MINIMUM, mat.roughness * mat.roughness);
+	float d = gtr_2( abs(dot(n, w_h)), alpha); // Seems to be near infinite when n == w_h
+
+	float f = fresnel_dielectric(abs(dot(w_i, n)), eta_i, eta_o); // I think eta_i and eta_o were flipped here. I flipped them back.
 	float g = smith_shadowing_ggx(abs(dot(n, w_i)), alpha) * smith_shadowing_ggx(abs(dot(n, w_o)), alpha);
 
 	float i_dot_h = dot(w_i, w_h);
 	float o_dot_h = dot(w_o, w_h);
 
-	float c = abs(o_dot_h) / abs(dot(w_o, n)) * abs(i_dot_h) / abs(dot(w_i, n))
-		* pow2(eta_o) / pow2(eta_o * o_dot_h + eta_i * i_dot_h);
+	float c = abs(o_dot_h) / abs(dot(w_o, n))
+			* abs(i_dot_h) / abs(dot(w_i, n))
+			* pow2(eta_o) / pow2(eta_o * o_dot_h + eta_i * i_dot_h);
 
-	return spec * c * (1.f - f) * g * d;
+	// c is large
+	// d is sometimes nan
+	// g is somewhat darker, but doesnt seem to give nan
+	// 1.f - f makes things dark too. 
+
+	vec3 result = spec * c * (1.f - f) * g * d;
+	// if (any(isnan(result))) return vec3(1.0, 0.0, 0.0);
+	return result;
+
 }
 
 vec3 disney_microfacet_anisotropic(const in MaterialStruct mat, const in vec3 n,
@@ -264,7 +314,7 @@ vec3 disney_microfacet_anisotropic(const in MaterialStruct mat, const in vec3 n,
 
 	float aspect = sqrt(1.f - mat.anisotropic * 0.9f);
 	float a = mat.roughness * mat.roughness;
-	vec2 alpha = vec2(max(0.001, a / aspect), max(0.001, a * aspect));
+	vec2 alpha = vec2(max(ALPHA_MINIMUM, a / aspect), max(ALPHA_MINIMUM, a * aspect));
 	float d = gtr_2_aniso(dot(n, w_h), abs(dot(w_h, v_x)), abs(dot(w_h, v_y)), alpha);
 	vec3 f = mix(spec, vec3(1, 1, 1), schlick_weight(dot(w_i, w_h)));
 	float g = smith_shadowing_ggx_aniso(dot(n, w_i), abs(dot(w_i, v_x)), abs(dot(w_i, v_y)), alpha)
@@ -276,7 +326,7 @@ float disney_clear_coat(const in MaterialStruct mat, const in vec3 n,
 	const in vec3 w_o, const in vec3 w_i)
 {
 	vec3 w_h = normalize(w_i + w_o);
-	float alpha = mix(0.1f, 0.001f, (1.0f - mat.clearcoat_roughness));
+	float alpha = mix(0.1f, ALPHA_MINIMUM, (1.0f - mat.clearcoat_roughness));
 	float d = gtr_1(dot(n, w_h), alpha);
 	float f = mix(0.04f, 1.f, schlick_weight(dot(w_i, n)));
 	float g = smith_shadowing_ggx(dot(n, w_i), 0.25f) * smith_shadowing_ggx(dot(n, w_o), 0.25f);
@@ -294,63 +344,94 @@ vec3 disney_sheen(const in MaterialStruct mat, const in vec3 n,
 	return f * mat.sheen * sheen_color;
 }
 
-vec3 disney_brdf(const in MaterialStruct mat, const in vec3 n,
-	const in vec3 w_o, const in vec3 w_i, const in vec3 v_x, const in vec3 v_y)
+vec3 disney_brdf(const in MaterialStruct mat, bool backface, const in vec3 w_n,
+	const in vec3 w_o, const in vec3 w_i, const in vec3 w_x, const in vec3 w_y)
 {
-	if (!same_hemisphere(w_o, w_i, n)) {
-		if (mat.transmission > 0.f) {
-			vec3 spec_trans = disney_microfacet_transmission_isotropic(mat, n, w_o, w_i);
-			return spec_trans * (1.f - mat.metallic) * mat.transmission;
-		}
-		return vec3(0.f);
+	vec3 w_n_f = (backface) ? -w_n : w_n;
+	vec3 w_x_f = (backface) ? -w_x : w_x;
+	vec3 w_y_f = (backface) ? -w_y : w_y;
+
+	vec3 spec_trans = vec3(0.0);
+	float transmission = 0;
+	if (mat.transmission > 0.f) {
+		if (!same_hemisphere(w_o, w_i, w_n)) 
+		{
+			transmission = mat.transmission;
+			spec_trans = disney_microfacet_transmission_isotropic(mat, w_n, w_o, w_i);
+		} 
 	}
 
-	float coat = disney_clear_coat(mat, n, w_o, w_i);
-	vec3 sheen = disney_sheen(mat, n, w_o, w_i);
-	vec3 diffuse = disney_diffuse(mat, n, w_o, w_i);
-	vec3 gloss;
-	if (mat.anisotropic == 0.f) {
-		gloss = disney_microfacet_isotropic(mat, n, w_o, w_i);
-	} else {
-		gloss = disney_microfacet_anisotropic(mat, n, w_o, w_i, v_x, v_y);
+	float coat = 0.0;
+	vec3 sheen = vec3(0.0);
+	vec3 diffuse = vec3(0.0);
+	vec3 gloss = vec3(0.0);
+
+	if (same_hemisphere(w_o, w_i, w_n_f)) 
+	{
+		coat = disney_clear_coat(mat, w_n_f, w_o, w_i);
+		sheen = disney_sheen(mat, w_n_f, w_o, w_i);
+		diffuse = disney_diffuse(mat, w_n_f, w_o, w_i);
+		if (mat.anisotropic == 0.f) {
+			gloss = disney_microfacet_isotropic(mat, w_n_f, w_o, w_i);
+		} else {
+			gloss = disney_microfacet_anisotropic(mat, w_n_f, w_o, w_i, w_x_f, w_y_f);
+		}
 	}
-	return (diffuse + sheen) * (1.f - mat.metallic) * (1.f - mat.transmission) + gloss + coat;
+
+	vec3 result = diffuse * (1.f - mat.metallic) * (1.f - mat.transmission)
+				+ (gloss + sheen + coat)
+				+ spec_trans * (1.f - mat.metallic) * mat.transmission;
+	
+	result *= abs(dot(w_i, w_n));
+
+	return result;
 }
 
-float disney_pdf(const in MaterialStruct mat, const in vec3 n,
-	const in vec3 w_o, const in vec3 w_i, const in vec3 v_x, const in vec3 v_y)
+float disney_pdf(const in MaterialStruct mat, bool backface, 
+	const in vec3 w_n, const in vec3 w_o, const in vec3 w_i, const in vec3 w_x, const in vec3 w_y)
 {
-	float alpha = max(0.001, mat.roughness * mat.roughness);
+	vec3 w_n_f = (backface) ? -w_n : w_n;
+	vec3 w_x_f = (backface) ? -w_x : w_x;
+	vec3 w_y_f = (backface) ? -w_y : w_y;
+
+	float alpha = max(ALPHA_MINIMUM, mat.roughness * mat.roughness);
 	float aspect = sqrt(1.f - mat.anisotropic * 0.9f);
-	vec2 alpha_aniso = vec2(max(0.001, alpha / aspect), max(0.001, alpha * aspect));
+	vec2 alpha_aniso = vec2(max(ALPHA_MINIMUM, alpha / aspect), max(ALPHA_MINIMUM, alpha * aspect));
 
-	float clearcoat_alpha = mix(0.1f, 0.001f, (1.0f - mat.clearcoat_roughness));
+	float clearcoat_alpha = mix(0.1f, ALPHA_MINIMUM, (1.0f - mat.clearcoat_roughness));
 
-	float diffuse = lambertian_pdf(w_i, n);
-	float clear_coat = gtr_1_pdf(w_o, w_i, n, clearcoat_alpha);
+	float diffuse = lambertian_pdf(w_i, w_n_f);
+	float clear_coat = gtr_1_pdf(w_o, w_i, w_n_f, clearcoat_alpha);
 
 	float n_comp = 3.f;
 	float microfacet;
 	float microfacet_transmission = 0.f;
 	if (mat.anisotropic == 0.f) {
-		microfacet = gtr_2_pdf(w_o, w_i, n, alpha);
+		microfacet = gtr_2_pdf(w_o, w_i, w_n_f, alpha);
 	} else {
-		microfacet = gtr_2_aniso_pdf(w_o, w_i, n, v_x, v_y, alpha_aniso);
+		microfacet = gtr_2_aniso_pdf(w_o, w_i, w_n_f, w_x_f, w_y_f, alpha_aniso);
 	}
 	if (mat.transmission > 0.f) {
-		n_comp = 4.f;
-		microfacet_transmission = gtr_2_transmission_pdf(w_o, w_i, n, alpha, mat.ior);
+		if (!same_hemisphere(w_o, w_i, w_n)) {
+			n_comp = 4.f;
+			microfacet_transmission = gtr_2_transmission_pdf(w_o, w_i, w_n, alpha, mat.ior);
+		}
 	}
-	return (diffuse + microfacet + microfacet_transmission + clear_coat) / n_comp;
+
+	float result = ((diffuse + microfacet + microfacet_transmission + clear_coat) / n_comp);
+	return result;
 }
 
 /* Sample a component of the Disney BRDF, returns the sampled BRDF color,
  * ray reflection direction (w_i) and sample PDF.
  */
-vec3 sample_disney_brdf(ivec2 pixel_coordinates, const in MaterialStruct mat, const in vec3 n,
-	const in vec3 w_o, const in vec3 v_x, const in vec3 v_y,
+vec3 sample_disney_brdf(ivec2 pixel_coordinates, const in MaterialStruct mat, bool backface, const in vec3 w_n,
+	const in vec3 w_o, const in vec3 w_x, const in vec3 w_y,
 	out vec3 w_i, out float pdf)
 {
+	vec3 w_n_f = (backface) ? -w_n : w_n;
+	vec3 w_x_f = (backface) ? -w_x : w_x;
+	vec3 w_y_f = (backface) ? -w_y : w_y;
 	int component = 0;
 	if (mat.transmission == 0.f) {
 		component = int(clamp(random(pixel_coordinates) * 3.f, 0, 2));
@@ -361,55 +442,57 @@ vec3 sample_disney_brdf(ivec2 pixel_coordinates, const in MaterialStruct mat, co
 	vec2 samples = vec2(random(pixel_coordinates), random(pixel_coordinates));
 	if (component == 0) {
 		// Sample diffuse component
-		w_i = sample_lambertian_dir(n, v_x, v_y, samples);
+		w_i = sample_lambertian_dir(w_n_f, w_x_f, w_y_f, samples);
 	} else if (component == 1) {
-		vec3 w_h;
-		float alpha = max(0.001, mat.roughness * mat.roughness);
-		if (mat.anisotropic == 0.f) {
-			w_h = sample_gtr_2_h(n, v_x, v_y, alpha, samples);
-		} else {
-			float aspect = sqrt(1.f - mat.anisotropic * 0.9f);
-			vec2 alpha_aniso = vec2(max(0.001, alpha / aspect), max(0.001, alpha * aspect));
-			w_h = sample_gtr_2_aniso_h(n, v_x, v_y, alpha_aniso, samples);
-		}
+		// Sample clear coat component
+		float alpha = mix(0.1f, ALPHA_MINIMUM, (1.0f - mat.clearcoat_roughness));
+		vec3 w_h = sample_gtr_1_h(w_n_f, w_x_f, w_y_f, alpha, samples);
 		w_i = reflect(-w_o, w_h);
 
 		// Invalid reflection, terminate ray
-		if (!same_hemisphere(w_o, w_i, n)) {
+		if (!same_hemisphere(w_o, w_i, w_n_f)) {
 			pdf = 0.f;
 			w_i = vec3(0.f);
 			return vec3(0.f);
 		}
 	} else if (component == 2) {
-		// Sample clear coat component
-		float alpha = mix(0.1f, 0.001f, (1.0f - mat.clearcoat_roughness));
-		vec3 w_h = sample_gtr_1_h(n, v_x, v_y, alpha, samples);
+		vec3 w_h;
+		float alpha = max(ALPHA_MINIMUM, mat.roughness * mat.roughness);
+		if (mat.anisotropic == 0.f) {
+			w_h = sample_gtr_2_h(w_n_f, w_x_f, w_y_f, alpha, samples);
+		} else {
+			float aspect = sqrt(1.f - mat.anisotropic * 0.9f);
+			vec2 alpha_aniso = vec2(max(ALPHA_MINIMUM, alpha / aspect), max(ALPHA_MINIMUM, alpha * aspect));
+			w_h = sample_gtr_2_aniso_h(w_n_f, w_x_f, w_y_f, alpha_aniso, samples);
+		}
 		w_i = reflect(-w_o, w_h);
 
 		// Invalid reflection, terminate ray
-		if (!same_hemisphere(w_o, w_i, n)) {
+		if (!same_hemisphere(w_o, w_i, w_n_f)) {
 			pdf = 0.f;
 			w_i = vec3(0.f);
 			return vec3(0.f);
 		}
 	} else {
 		// Sample microfacet transmission component
-		float alpha = max(0.001, mat.roughness * mat.roughness);
-		vec3 w_h = sample_gtr_2_h(n, v_x, v_y, alpha, samples);
+		float alpha = max(ALPHA_MINIMUM, mat.roughness * mat.roughness);
+		vec3 w_h = sample_gtr_2_h(w_n, w_x, w_y, alpha, samples);
 		if (dot(w_o, w_h) < 0.f) {
 			w_h = -w_h;
 		}
-		bool entering = dot(w_o, n) > 0.f;
+		bool entering = dot(w_o, w_n) > 0.f;
 		w_i = refract(-w_o, w_h, entering ? 1.f / mat.ior : mat.ior);
 
-		// Invalid refraction, terminate ray
+		// Total internal reflection. 
 		if (all(equal(w_i, vec3(0.f)))) {
 			pdf = 0.f;
+			w_i = vec3(0.f);
 			return vec3(0.f);
 		}
 	}
-	pdf = disney_pdf(mat, n, w_o, w_i, v_x, v_y);
-	return disney_brdf(mat, n, w_o, w_i, v_x, v_y);
+	pdf = disney_pdf(mat, backface, w_n, w_o, w_i, w_x, w_y);
+	vec3 bsdf = disney_brdf(mat, backface, w_n, w_o, w_i, w_x, w_y);
+	return bsdf;
 }
 
 #endif
