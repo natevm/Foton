@@ -96,7 +96,7 @@ struct PipelineParameters {
 		/* Default Color Blending State */
 		colorBlending.logicOpEnable = false;
 		colorBlending.logicOp = vk::LogicOp::eCopy; // Optional
-		colorBlending.attachmentCount = blendAttachments.size();
+		colorBlending.attachmentCount = (uint32_t)blendAttachments.size();
 		colorBlending.pAttachments = blendAttachments.data();
 		colorBlending.blendConstants[0] = 0.0f; // Optional
 		colorBlending.blendConstants[1] = 0.0f; // Optional

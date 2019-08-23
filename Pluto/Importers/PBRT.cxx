@@ -365,9 +365,10 @@ namespace Pluto {
     }
 
     std::vector<Entity*> ImportPBRT(std::string name, std::string inFileName, std::string basePath,
-        glm::vec3 position = glm::vec3(0.0f), 
-        glm::vec3 scale = glm::vec3(1.0f),
-        glm::quat rotation = glm::angleAxis(0.0f, glm::vec3(1.0f, 0.0f, 0.0f)))
+        float camera_target,
+        glm::vec3 position,
+        glm::vec3 scale,
+        glm::quat rotation)
     {
         std::shared_ptr<pbrt::Scene> scene;
 
@@ -395,7 +396,7 @@ namespace Pluto {
 
         /* Setup Cameras */
         auto pbrt_camera = scene->cameras[0]; // TODO: Add support for more cameras
-        auto camera_prefab = Prefabs::CreatePrefabCamera("fps", scene->film->resolution.x, scene->film->resolution.y, glm::radians(pbrt_camera->fov), 1, 1.0, true, name);
+        auto camera_prefab = Prefabs::CreatePrefabCamera("arcball", scene->film->resolution.x, scene->film->resolution.y, glm::radians(pbrt_camera->fov), 1, camera_target, true, name);
         
         auto frame = pbrt_camera->frame;
         glm::mat4 cam_xfm = pbrt_frame_to_glm(frame);

@@ -39,6 +39,20 @@ enum PipelineType : uint32_t {
     PIPELINE_TYPE_WIREFRAME = 4
 };
 
+enum RenderSystemOptions : uint32_t {
+    RASTERIZE_MULTIVIEW = 0,
+    DISABLE_REVERSE_Z_PROJECTION = 1,
+    ENABLE_TAA = 2,
+    ENABLE_SVGF_ATROUS = 3,
+    RASTERIZE_BOUNDING_BOX = 4,
+    ENABLE_BLUE_NOISE = 5,
+    ENABLE_PROGRESSIVE_REFINEMENT = 6,
+    ENABLE_SVGF_TAA = 7,
+    SHOW_DIRECT_ILLUMINATION = 8,
+    SHOW_INDIRECT_ILLUMINATION = 9,
+    SHOW_ALBEDO = 10,
+};
+
 namespace Systems 
 {
     class RenderSystem : public System {
@@ -88,6 +102,10 @@ namespace Systems
             void set_max_bounces(uint32_t max_bounces);
             void enable_blue_noise(bool enable);
 
+            void show_direct_illumination(bool enable);
+            void show_indirect_illumination(bool enable);
+            void show_albedo(bool enable);
+
             /* Initializes the vulkan resources required to render during the specified renderpass */
             void setup_graphics_pipelines(vk::RenderPass renderpass, uint32_t sampleCount, bool use_depth_prepass);
 
@@ -109,11 +127,11 @@ namespace Systems
             bool tone_mapping_enabled = true;
             double lastTime, currentTime;
             float atrous_sigma = 1.0;
-            int atrous_iterations = 2;
+            int atrous_iterations = 5;
             float ms_per_frame;
             int max_bounces = 1;
             bool top_level_acceleration_structure_built = false;
-
+            
             /* A vector of vertex input binding descriptions, describing binding and stride of per vertex data. */
             std::vector<vk::VertexInputBindingDescription> vertexInputBindingDescriptions;
 

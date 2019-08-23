@@ -1,5 +1,7 @@
 #version 460
 
+/* Denoises raw color data before being fed into the geometric TAA */
+
 #define COMPUTE
 
 #include "Pluto/Resources/Shaders/Descriptors.hxx"
@@ -17,44 +19,20 @@ float kernel[25] = {
     1.0 / 16.0, 1.0 / 64.0, 1.0 / 256.0, 1.0 / 64.0, 3.0 / 128.0, 1.0 / 64.0, 1.0 / 256.0
 };
 
-/* Reference implementation */
-// uniform sampler2D colorMap, normalMap, posMap;
-// uniform float c_phi, n_phi, p_phi, stepwidth;
-// uniform float kernel[25];
-// uniform vec2 offset[25];
-// glUniform1f(c_phiUniform, 1.0f / i * c_phi0);
-// glUniform1f(n_phiUniform, 1.0f / (1 << i) * n_phi0);
-// glUniform1f(p_phiUniform, 1.0f / (1 << i) * p_phi0);
-// glUniform1i(stepwidthUniform, (1 << (i + 1)) - 1);
-// void main(void) {
-//     vec4 sum = vec4(0.0);
-//     vec2 step = vec2(1./512., 1./512.);     // resolution
-//     vec4 cval = texture2D(colorMap, gl_TexCoord[0].st);
-//     vec4 nval = texture2D(normalMap, gl_TexCoord[0].st);
-//     vec4 pval = texture2D(posMap, gl_TexCoord[0].st);
-//     float cum_w = 0.0;
-//     for(int i = 0; i < 25; i++) {
-//         vec2 uv = gl_TexCoord[0].st + offset[i]*step*stepwidth;
-//         vec4 ctmp = texture2D(colorMap, uv);
-//         vec4 t = cval - ctmp;
-//         float dist2 = dot(t,t);
-//         float c_w = min(exp(-(dist2)/c_phi), 1.0);
-//         vec4 ntmp = texture2D(normalMap, uv);
-//         t = nval - ntmp;
-//         dist2 = max(dot(t,t)/(stepwidth*stepwidth),0.0);
-//         float n_w = min(exp(-(dist2)/n_phi), 1.0);
-//         vec4 ptmp = texture2D(posMap, uv);
-//         t = pval - ptmp;
-//         dist2 = dot(t,t);
-//         float p_w = min(exp(-(dist2)/p_phi),1.0);
-//         float weight = c_w*n_w*p_w;
-//         sum += ctmp*weight*kernel[i];
-//         cum_w += weight*kernel[i];
-//     }
-//     gl_FragData[0] = sum/cum_w;
-// }
-
 void main() {
+    int iteration = push.consts.iteration;
+
+    const int max_diffuse_iteration = 10;
+
+    const int d_addr_0 = ((iteration%2) == 0) ? 7 : 10;
+    const int i_addr_0 = ((iteration%2) == 0) ? 8 : 11;
+    const int d_addr_1 = ((iteration%2) == 0) ? 10 : 7;
+    const int i_addr_1 = ((iteration%2) == 0) ? 11 : 8;
+
+    const int p_addr = 0;
+    const int n_addr = 2;
+    const int c_addr = 4;
+
     vec3 sum_direct = vec3(0.0);
     vec3 sum_indirect = vec3(0.0);
 
@@ -69,37 +47,36 @@ void main() {
 
     vec2 gid = gl_GlobalInvocationID.xy;
     int entity_id = int(imageLoad(gbuffers[0], ivec2(gid)).w);
-    int iteration = push.consts.iteration;
 
     if (entity_id != -1) {
-        vec4 direct = ((iteration%2) == 0) ? imageLoad(gbuffers[7], ivec2(gid)) : imageLoad(gbuffers[10], ivec2(gid));
-        vec4 indirect = ((iteration%2) == 0) ? imageLoad(gbuffers[8], ivec2(gid)) : imageLoad(gbuffers[11], ivec2(gid));
-        vec3 pval = imageLoad(gbuffers[0], ivec2(gid)).xyz;
-        vec3 nval = imageLoad(gbuffers[1], ivec2(gid)).xyz;
-        vec3 cval = imageLoad(gbuffers[3], ivec2(gid)).xyz;
+        vec4 direct = (iteration <= max_diffuse_iteration) ? imageLoad(gbuffers[d_addr_0], ivec2(gid)) : vec4(0);
+        vec4 indirect = imageLoad(gbuffers[i_addr_0], ivec2(gid));
+        vec3 pval = imageLoad(gbuffers[p_addr], ivec2(gid)).xyz;
+        vec3 nval = imageLoad(gbuffers[n_addr], ivec2(gid)).xyz;
+        vec3 cval = imageLoad(gbuffers[c_addr], ivec2(gid)).xyz;
         float cum_w = EPSILON;
 
         for (int i = 0; i < 25; i++) {
             ivec2 st = ivec2(gid) + offsets[i] * stepwidth;
             
-            vec3 tmp_direct = ((iteration%2) == 0) ? imageLoad(gbuffers[7], ivec2(st)).rgb : imageLoad(gbuffers[10], ivec2(st)).rgb;
-            vec3 tmp_indirect = ((iteration%2) == 0) ? imageLoad(gbuffers[8], ivec2(st)).rgb : imageLoad(gbuffers[11], ivec2(st)).rgb;
+            vec3 tmp_direct = (iteration <= max_diffuse_iteration) ? imageLoad(gbuffers[d_addr_0], ivec2(st)).rgb : vec3(0);
+            vec3 tmp_indirect = imageLoad(gbuffers[i_addr_0], ivec2(st)).rgb;
             
             // just in case...
             if (any(isnan(tmp_direct))) tmp_direct = vec3(0.0); 
             if (any(isnan(tmp_indirect))) tmp_indirect = vec3(0.0); // just in case...
 
-            vec3 ctmp = imageLoad(gbuffers[3], ivec2(st)).xyz;
+            vec3 ctmp = imageLoad(gbuffers[c_addr], ivec2(st)).xyz;
             vec3 t = cval - ctmp;
             float dist2 = dot(t,t);
             float c_w = min(exp(-(dist2)/c_phi), 1.0);
 
-            vec3 ntmp = imageLoad(gbuffers[1], st).xyz;
+            vec3 ntmp = imageLoad(gbuffers[n_addr], st).xyz;
             t = nval - ntmp;
             dist2 = max(dot(t,t)/float(stepwidth*stepwidth), 0.0);
             float n_w = min(exp(-(dist2)/n_phi), 1.0);
  
-            vec3 ptmp = imageLoad(gbuffers[0], st).xyz;
+            vec3 ptmp = imageLoad(gbuffers[p_addr], st).xyz;
             t = pval - ptmp;
             dist2 = dot(t,t);
             float p_w = min(exp(-(dist2)/p_phi),1.0);
@@ -110,104 +87,15 @@ void main() {
             cum_w += weight*kernel[i];
         }
 
-        vec3 direct_result = sum_direct/cum_w;
+        vec3 direct_result = (iteration > 2) ? direct.rgb : sum_direct/cum_w;
         vec3 indirect_result = sum_indirect/cum_w;
 
         if (any(isnan(direct_result))) direct_result = direct.rgb; // just in case...
         if (any(isnan(indirect_result))) indirect_result = indirect.rgb; // just in case...
 
-        if ((iteration%2) == 0) {
-            imageStore(gbuffers[10], ivec2(gid), vec4(direct_result.rgb, direct.a));
-            imageStore(gbuffers[11], ivec2(gid), vec4(indirect_result.rgb, indirect.a));
-        } else  {
-            imageStore(gbuffers[7], ivec2(gid), vec4(direct_result.rgb, direct.a));
-            imageStore(gbuffers[8], ivec2(gid), vec4(indirect_result.rgb, indirect.a));
+        imageStore(gbuffers[d_addr_1], ivec2(gid), vec4(direct_result.rgb, direct.a));
+        if (iteration <= max_diffuse_iteration) {
+            imageStore(gbuffers[i_addr_1], ivec2(gid), vec4(indirect_result.rgb, indirect.a));
         }
     }
 }
-
-//     // first frame, no blending at all.
-//     if (push.consts.frame > 10) {
-//         vec3 neighbourhood[9];
-        
-//         /* This could be unroll and jam'd to improve perf... */
-//         /* Load pixel neighbourhood */
-//         neighbourhood[0] = imageLoad(render_image, ivec2(gid) + ivec2(-1, -1)).rgb;
-//         neighbourhood[1] = imageLoad(render_image, ivec2(gid) + ivec2(+0, -1)).rgb;
-//         neighbourhood[2] = imageLoad(render_image, ivec2(gid) + ivec2(+1, -1)).rgb;
-//         neighbourhood[3] = imageLoad(render_image, ivec2(gid) + ivec2(-1, +0)).rgb;
-//         neighbourhood[4] = imageLoad(render_image, ivec2(gid) + ivec2(+0, +0)).rgb;
-//         neighbourhood[5] = imageLoad(render_image, ivec2(gid) + ivec2(+1, +0)).rgb;
-//         neighbourhood[6] = imageLoad(render_image, ivec2(gid) + ivec2(-1, +1)).rgb;
-//         neighbourhood[7] = imageLoad(render_image, ivec2(gid) + ivec2(+0, +1)).rgb;
-//         neighbourhood[8] = imageLoad(render_image, ivec2(gid) + ivec2(+1, +1)).rgb;
-        
-//         vec3 nmin = neighbourhood[0];
-//         vec3 nmax = neighbourhood[0];   
-//         for(int i = 1; i < 9; ++i) {
-//             nmin = min(nmin, neighbourhood[i]);
-//             nmax = max(nmax, neighbourhood[i]);
-//         }
-
-//         int entity_id = int(imageLoad(gbuffers[0], ivec2(gid)).w);
-//         vec3 P = imageLoad(gbuffers[0], ivec2(gid)).xyz;
-//         vec3 N = imageLoad(gbuffers[1], ivec2(gid)).xyz;
-
-//         if ((entity_id < 0) || (entity_id >= MAX_ENTITIES)) return; // todo, take into account background
-//         EntityStruct entity = ebo.entities[entity_id];
-//         if ((entity.transform_id < 0) || (entity.transform_id >= MAX_TRANSFORMS)) return;
-//         TransformStruct entity_transform = tbo.transforms[entity.transform_id];
-
-//         EntityStruct camera_entity = ebo.entities[push.consts.camera_id];
-//         CameraStruct camera = cbo.cameras[camera_entity.camera_id];
-//         TransformStruct camera_transform = tbo.transforms[camera_entity.transform_id];
-
-//         /* Compute velocity vector (Assuming meshes are rigid for now...) */
-//         vec4 p1 = camera.multiviews[push.consts.viewIndex].viewproj * camera_transform.worldToLocal 
-//             * entity_transform.localToWorld * vec4(P.xyz, 1.0);
-//         vec4 p2 = camera.multiviews[push.consts.viewIndex].viewproj * camera_transform.worldToLocalPrev 
-//             * entity_transform.localToWorldPrev * vec4(P.xyz, 1.0);
-
-//         vec3 p1p = (p1.xyz / p1.w);
-//         vec3 p2p = (p2.xyz / p2.w);
-//         vec2 v = (p2p - p1p).xy;
-//         v = v * vec2(.5, -.5);
-//         v = v * vec2(push.consts.width, push.consts.height);
-//         ivec2 vel = ivec2(v.xy);
-
-//         /* Compute history sample (with neighborhood clamp) */
-//         ivec2 histUv = ivec2(gid.xy + vel.xy);
-//         vec3 histSample = clamp(imageLoad(gbuffers[6], histUv).rgb, nmin, nmax);
-// //        vec3 histSample = imageLoad(gbuffers[6], histUv).rgb;
-//         vec2 D = imageLoad(gbuffers[2], histUv).xy;
-
-
-//         /* Compute blend factor */
-//         float blend_factor = 1.0;//imageLoad(gbuffers[0], ivec2(gid)).w;
-//         bool reset = (blend_factor < 0.0);
-//         float blend = 0.1;// + (1.0 - blend_factor);
-
-//         bvec2 a = greaterThan(histUv, vec2(push.consts.width-1, push.consts.height-1));
-//         bvec2 b = lessThan(histUv, vec2(0.0, 0.0));
-//         // if history sample is outside screen, switch to aliased image as a fallback.
-//         blend = any(bvec2(any(a), any(b))) ? 1.0 : blend;
-//         // Some materials cannot be reprojected, so dont blend them.
-
-//         // Find out if the history sample was occluded in the previous frame. 
-//         // If so, don't blend it
-//         if (p2p.z - D.y < -.01) reset = true;
-
-//         blend = (reset) ? 1.0 : blend;
-
-//         vec3 curSample = neighbourhood[4];
-//         // finally, blend current and clamped history sample.
-//         histSample = mix(histSample, curSample, vec3(blend)  );        
-//         imageStore(render_image, ivec2(gl_GlobalInvocationID.xy), vec4(histSample, 1.0));
-//         imageStore(gbuffers[6], ivec2(gl_GlobalInvocationID.xy), vec4(histSample, 1.0));
-
-//     }  
-//     else {
-//         /* Set history to current value */
-//         vec3 currVal = imageLoad(render_image, ivec2(gl_GlobalInvocationID.xy)).rgb;
-//         imageStore(gbuffers[6], ivec2(gl_GlobalInvocationID.xy), vec4(currVal, 1.0));
-//     }

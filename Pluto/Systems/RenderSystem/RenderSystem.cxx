@@ -25,6 +25,8 @@
 
 #include "Pluto/Libraries/OpenVR/OpenVR.hxx"
 
+
+
 using namespace Libraries;
 
 namespace Systems
@@ -98,15 +100,15 @@ bool RenderSystem::initialize()
     push_constants.flags = 0;
     
     #ifdef DISABLE_MULTIVIEW
-    push_constants.flags |= (1 << 0);
+    push_constants.flags |= (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW);
     #endif
 
     #ifdef DISABLE_REVERSE_Z
-    push_constants.flags |= ( 1<< 1 );
+    push_constants.flags |= ( 1 << RenderSystemOptions::DISABLE_REVERSE_Z_PROJECTION );
     #endif
 
 	// If temporal antialiasing is enabled
-	push_constants.flags &= ~( 1 << 2 );
+	push_constants.flags &= ~( 1 << RenderSystemOptions::ENABLE_TAA );
 
     initialized = true;
     return true;
@@ -196,7 +198,7 @@ void RenderSystem::record_depth_prepass(Entity &camera_entity, std::vector<std::
                     push_constants.target_id = mask_entity->get_id();
                     push_constants.camera_id = camera_entity.get_id();
                     push_constants.viewIndex = rp_idx;
-                    push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << 0)) : (push_constants.flags & ~(1 << 0)); 
+                    push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
                     draw_entity(command_buffer, rp, *mask_entity, push_constants, RenderMode::RENDER_MODE_VRMASK);
                 }
             }
@@ -217,7 +219,7 @@ void RenderSystem::record_depth_prepass(Entity &camera_entity, std::vector<std::
                     push_constants.target_id = target_id;
                     push_constants.camera_id = camera_entity.get_id();
                     push_constants.viewIndex = rp_idx;
-                    push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << 0)) : (push_constants.flags & ~(1 << 0)); 
+                    push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
                     
                     bool was_visible_last_frame = camera->is_entity_visible(rp_idx, target_id);
                     bool contains_transparency = visible_entities[rp_idx][i].entity->material()->contains_transparency();
@@ -278,7 +280,7 @@ void RenderSystem::record_raster_renderpass(Entity &camera_entity, std::vector<s
 		push_constants.width = texture->get_width();
         push_constants.height = texture->get_height();
 		push_constants.camera_id = camera_entity.get_id();
-		push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << 0)) : (push_constants.flags & ~(1 << 0)); 
+		push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
 
         /* Render visibility masks */
         if (using_openvr && using_vr_hidden_area_masks && !(camera->should_record_depth_prepass()))
@@ -363,8 +365,8 @@ void RenderSystem::record_ray_trace_pass(Entity &camera_entity)
         push_constants.viewIndex = rp_idx;
 		push_constants.width = texture->get_width();
         push_constants.height = texture->get_height();
-        push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << 0)) : (push_constants.flags & ~(1 << 0)); 
-        push_constants.parameter1 = this->max_bounces;
+        push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
+        push_constants.parameter1 = (uint32_t)this->max_bounces;
         
         trace_rays(command_buffer, rp, push_constants, *texture);
     }
@@ -402,7 +404,7 @@ void RenderSystem::record_compute_pass(Entity &camera_entity)
 			push_constants.target_id = -1;
 			push_constants.camera_id = camera_entity.get_id();
 			push_constants.viewIndex = rp_idx;
-			push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << 0)) : (push_constants.flags & ~(1 << 0)); 
+			push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
 			bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 
 			uint32_t local_size_x = 16;
@@ -423,18 +425,18 @@ void RenderSystem::record_compute_pass(Entity &camera_entity)
 		}
 	}
 
-	/* SVGF Remodulate */
-	if (!shadow_caster && ray_tracing_enabled) {
-		for (uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
+	/* SVGF TAA (TODO, move before atrous) */
+	if ((!shadow_caster) && svgf_taa_enabled && ray_tracing_enabled)
+	{
+		for(uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
 			push_constants.target_id = -1;
 			push_constants.camera_id = camera_entity.get_id();
 			push_constants.viewIndex = rp_idx;
-			push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << 0)) : (push_constants.flags & ~(1 << 0)); 
+			push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
 			bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
-
-
-			command_buffer.pushConstants(svgf_remodulate.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-			command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, svgf_remodulate.pipeline);
+			
+			command_buffer.pushConstants(svgf_taa.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+			command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, svgf_taa.pipeline);
 
 			uint32_t local_size_x = 16;
 			uint32_t local_size_y = 16;
@@ -446,18 +448,18 @@ void RenderSystem::record_compute_pass(Entity &camera_entity)
 		}
 	}
 
-	/* SVGF TAA (TODO, move before atrous) */
-	if ((!shadow_caster) && svgf_taa_enabled && ray_tracing_enabled)
-	{
-		for(uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
+	/* SVGF Remodulate */
+	if (!shadow_caster && ray_tracing_enabled) {
+		for (uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
 			push_constants.target_id = -1;
 			push_constants.camera_id = camera_entity.get_id();
 			push_constants.viewIndex = rp_idx;
-			push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << 0)) : (push_constants.flags & ~(1 << 0)); 
+			push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
 			bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
-			
-			command_buffer.pushConstants(svgf_taa.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-			command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, svgf_taa.pipeline);
+
+
+			command_buffer.pushConstants(svgf_remodulate.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+			command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, svgf_remodulate.pipeline);
 
 			uint32_t local_size_x = 16;
 			uint32_t local_size_y = 16;
@@ -476,7 +478,7 @@ void RenderSystem::record_compute_pass(Entity &camera_entity)
 			push_constants.target_id = -1;
 			push_constants.camera_id = camera_entity.get_id();
 			push_constants.viewIndex = rp_idx;
-			push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << 0)) : (push_constants.flags & ~(1 << 0)); 
+			push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
 			bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 
 			if (progressive_refinement_enabled) {
@@ -503,7 +505,9 @@ void RenderSystem::record_compute_pass(Entity &camera_entity)
 			push_constants.target_id = -1;
 			push_constants.camera_id = camera_entity.get_id();
 			push_constants.viewIndex = rp_idx;
-			push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << 0)) : (push_constants.flags & ~(1 << 0)); 
+			push_constants.flags = (!camera->should_use_multiview()) ? 
+				(push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)): 
+				(push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
 			bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 
 
@@ -526,7 +530,9 @@ void RenderSystem::record_compute_pass(Entity &camera_entity)
 			push_constants.target_id = -1;
 			push_constants.camera_id = camera_entity.get_id();
 			push_constants.viewIndex = rp_idx;
-			push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << 0)) : (push_constants.flags & ~(1 << 0)); 
+			push_constants.flags = (!camera->should_use_multiview()) ? 
+				(push_constants.flags | RenderSystemOptions::RASTERIZE_MULTIVIEW): 
+				(push_constants.flags & ~RenderSystemOptions::RASTERIZE_MULTIVIEW); 
 			bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 
 			uint32_t local_size_x = 16;
@@ -1465,7 +1471,7 @@ bool RenderSystem::start()
             /* Regulate the framerate. */
             currentTime = glfwGetTime();
             if ((!using_openvr) && ((currentTime - lastTime) < .008)) continue;
-			ms_per_frame = currentTime - lastTime;
+			ms_per_frame = (float) currentTime - lastTime;
             lastTime = currentTime;
 
             /* Wait until vulkan is initialized before rendering. */
@@ -1974,7 +1980,7 @@ void RenderSystem::setup_graphics_pipelines(vk::RenderPass renderpass, uint32_t 
 			// shadowmap[renderpass].pipelineParameters.blendAttachments[g_idx].dstAlphaBlendFactor = vk::BlendFactor::eZero; // Optional
 			// shadowmap[renderpass].pipelineParameters.blendAttachments[g_idx].alphaBlendOp = vk::BlendOp::eAdd; // Optional
 		}
-		shadowmap[renderpass].pipelineParameters.colorBlending.attachmentCount = shadowmap[renderpass].pipelineParameters.blendAttachments.size();
+		shadowmap[renderpass].pipelineParameters.colorBlending.attachmentCount = (uint32_t)shadowmap[renderpass].pipelineParameters.blendAttachments.size();
 		shadowmap[renderpass].pipelineParameters.colorBlending.pAttachments = shadowmap[renderpass].pipelineParameters.blendAttachments.data();
 
 		create_raster_pipeline(shaderStages, vertexInputBindingDescriptions, vertexInputAttributeDescriptions, 
@@ -3172,7 +3178,7 @@ void RenderSystem::update_gbuffer_descriptor_sets(Entity &camera_entity, uint32_
 	gbufferDescriptorWrites[1].dstSet = gbufferDescriptorSets[key];
 	gbufferDescriptorWrites[1].dstBinding = 1;
 	gbufferDescriptorWrites[1].dstArrayElement = 0;
-	gbufferDescriptorWrites[1].descriptorCount = descriptorGBufferImageInfos.size();
+	gbufferDescriptorWrites[1].descriptorCount = (uint32_t)descriptorGBufferImageInfos.size();
 	gbufferDescriptorWrites[1].descriptorType = vk::DescriptorType::eStorageImage;
 	gbufferDescriptorWrites[1].pImageInfo = descriptorGBufferImageInfos.data();
 
@@ -3188,7 +3194,7 @@ void RenderSystem::update_gbuffer_descriptor_sets(Entity &camera_entity, uint32_
 	gbufferDescriptorWrites[2].dstSet = gbufferDescriptorSets[key];
 	gbufferDescriptorWrites[2].dstBinding = 2;
 	gbufferDescriptorWrites[2].dstArrayElement = 0;
-	gbufferDescriptorWrites[2].descriptorCount = descriptorGBufferTextureImageInfos.size();
+	gbufferDescriptorWrites[2].descriptorCount = (uint32_t)descriptorGBufferTextureImageInfos.size();
 	gbufferDescriptorWrites[2].descriptorType = vk::DescriptorType::eSampledImage;
 	gbufferDescriptorWrites[2].pImageInfo = descriptorGBufferTextureImageInfos.data();
 
@@ -3353,7 +3359,9 @@ void RenderSystem::draw_entity(
 	if (!m) return;
 
 	bool show_bounding_box = m->should_show_bounding_box() | render_bounding_box_override;
-	push_constants.flags = (show_bounding_box) ? (push_constants.flags | (1 << 4)) : (push_constants.flags & ~(1 << 4)); 
+	push_constants.flags = (show_bounding_box) ? 
+		(push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_BOUNDING_BOX)) : 
+		(push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_BOUNDING_BOX)); 
 
 	/* Need a transform to render. */
 	auto transform = entity.get_transform();
@@ -3560,27 +3568,27 @@ void RenderSystem::enable_taa(bool enable) {
 	this->push_constants.frame = 0; 
 	if (this->taa_enabled) {
 		enable_progressive_refinement(false);
-		this->push_constants.flags |= ( 1 << 2 );
+		this->push_constants.flags |= ( 1 << RenderSystemOptions::ENABLE_TAA );
 	} else {
-		this->push_constants.flags &= ~( 1 << 2 );
+		this->push_constants.flags &= ~( 1 << RenderSystemOptions::ENABLE_TAA );
 	}
 };
 
 void RenderSystem::enable_svgf_atrous(bool enable) {
 	this->svgf_atrous_enabled = enable; 
 	if (this->svgf_atrous_enabled) {
-		this->push_constants.flags |= ( 1 << 3 );
+		this->push_constants.flags |= ( 1 << RenderSystemOptions::ENABLE_SVGF_ATROUS );
 	} else {
-		this->push_constants.flags &= ~( 1 << 3 );
+		this->push_constants.flags &= ~( 1 << RenderSystemOptions::ENABLE_SVGF_ATROUS );
 	}
 };
 
 void RenderSystem::enable_svgf_taa(bool enable) {
 	this->svgf_taa_enabled = enable; 
 	if (this->svgf_taa_enabled) {
-		this->push_constants.flags |= ( 1 << 7 );
+		this->push_constants.flags |= ( 1 << RenderSystemOptions::ENABLE_SVGF_TAA );
 	} else {
-		this->push_constants.flags &= ~( 1 << 7 );
+		this->push_constants.flags &= ~( 1 << RenderSystemOptions::ENABLE_SVGF_TAA );
 	}
 };
 
@@ -3597,9 +3605,9 @@ void RenderSystem::enable_progressive_refinement(bool enable) {
 	this->push_constants.frame = 0; 
 	if (this->progressive_refinement_enabled) {
 		enable_taa(false);
-		this->push_constants.flags |= ( 1 << 6 );
+		this->push_constants.flags |= ( 1 << RenderSystemOptions::ENABLE_PROGRESSIVE_REFINEMENT );
 	} else {
-		this->push_constants.flags &= ~( 1 << 6 );
+		this->push_constants.flags &= ~( 1 << RenderSystemOptions::ENABLE_PROGRESSIVE_REFINEMENT );
 	}
 };
 
@@ -3621,14 +3629,44 @@ float RenderSystem::get_seconds_per_frame()
 
 void RenderSystem::enable_blue_noise(bool enable) {
 	if (enable) {
-		this->push_constants.flags |= ( 1 << 5 );
+		this->push_constants.flags |= ( 1 << RenderSystemOptions::ENABLE_BLUE_NOISE );
 	} else {
-		this->push_constants.flags &= ~( 1 << 5 );
+		this->push_constants.flags &= ~( 1 << RenderSystemOptions::ENABLE_BLUE_NOISE );
+	}
+}
+
+void RenderSystem::show_direct_illumination(bool enable)
+{
+	if (enable) {
+		show_indirect_illumination(false);
+		this->push_constants.flags |= ( 1 << RenderSystemOptions::SHOW_DIRECT_ILLUMINATION );
+	} else {
+		this->push_constants.flags &= ~( 1 << RenderSystemOptions::SHOW_DIRECT_ILLUMINATION );
+	}
+}
+
+void RenderSystem::show_indirect_illumination(bool enable)
+{
+	if (enable) {
+		show_direct_illumination(false);
+		this->push_constants.flags |= ( 1 << RenderSystemOptions::SHOW_INDIRECT_ILLUMINATION );
+	} else {
+		this->push_constants.flags &= ~( 1 << RenderSystemOptions::SHOW_INDIRECT_ILLUMINATION );
+	}
+}
+
+void RenderSystem::show_albedo(bool enable)
+{
+	if (enable) {
+		show_direct_illumination(false);
+		this->push_constants.flags |= ( 1 << RenderSystemOptions::SHOW_ALBEDO );
+	} else {
+		this->push_constants.flags &= ~( 1 << RenderSystemOptions::SHOW_ALBEDO );
 	}
 }
 
 void RenderSystem::reset_progressive_refinement() {
-	if ((this->push_constants.flags & ( 1 << 6 )) != 0) this->push_constants.frame = this->push_constants.frame % 3;
+	if ((this->push_constants.flags & ( 1 << RenderSystemOptions::ENABLE_PROGRESSIVE_REFINEMENT )) != 0) this->push_constants.frame = this->push_constants.frame % 3;
 }
 
 } // namespace Systems
