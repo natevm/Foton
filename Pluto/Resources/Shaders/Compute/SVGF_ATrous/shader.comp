@@ -24,15 +24,15 @@ void main() {
 
     const int max_diffuse_iteration = 10;
 
-    const int d_addr_0 = ((iteration%2) == 0) ? 7 : 10;
-    const int i_addr_0 = ((iteration%2) == 0) ? 8 : 11;
-    const int d_addr_1 = ((iteration%2) == 0) ? 10 : 7;
-    const int i_addr_1 = ((iteration%2) == 0) ? 11 : 8;
+    const int d_addr_0 = ((iteration%2) == 0) ? DEMOD_DIRECT_ADDR : ATROUS_HISTORY_1_ADDR;
+    const int i_addr_0 = ((iteration%2) == 0) ? DEMOD_INDIRECT_ADDR : ATROUS_HISTORY_2_ADDR;
+    const int d_addr_1 = ((iteration%2) == 0) ? ATROUS_HISTORY_1_ADDR : DEMOD_DIRECT_ADDR;
+    const int i_addr_1 = ((iteration%2) == 0) ? ATROUS_HISTORY_2_ADDR : DEMOD_INDIRECT_ADDR;
 
-    const int p_addr = 0;
-    const int n_addr = 2;
-    const int c_addr = 4;
-
+    const int p_addr = POSITION_DEPTH_ADDR;
+    const int n_addr = NORMAL_ID_ADDR_PREV;
+    const int c_addr = ALBEDO_ADDR;
+    
     vec3 sum_direct = vec3(0.0);
     vec3 sum_indirect = vec3(0.0);
 
@@ -46,7 +46,7 @@ void main() {
     p_phi = 1. / ((1 << push.consts.iteration) * p_phi); // TODO, upload this...
 
     vec2 gid = gl_GlobalInvocationID.xy;
-    int entity_id = int(imageLoad(gbuffers[0], ivec2(gid)).w);
+    int entity_id = int(imageLoad(gbuffers[n_addr], ivec2(gid)).w);
 
     if (entity_id != -1) {
         vec4 direct = (iteration <= max_diffuse_iteration) ? imageLoad(gbuffers[d_addr_0], ivec2(gid)) : vec4(0);

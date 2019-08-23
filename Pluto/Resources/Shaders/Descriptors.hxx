@@ -34,10 +34,57 @@ layout(set = 1, binding = 4) uniform texture3D texture_3Ds[MAX_TEXTURES];
 /* Rasterizer will only write to these, via framebuffer attachments. */
 #if defined  RAYTRACING || defined COMPUTE
 layout(set = 2, binding = 0, rgba16f) uniform image2D render_image;
-/* GBUFFER 0  - Position */
-/* GBUFFER 1  - Position History */
-/* GBUFFER 2  - Normal */
-/* GBUFFER 3  - Normal History */
+
+// Current step
+// 00: 3 world position, 1 depth
+// 01: 3 world normal, 1 entity id
+// 02: 3 seed, 1 albedo luminance
+// 03: 2 UV, 2 extra
+// 04: 3 Screen Motion Vectors, 1 extra
+// 05: 3 Screen Motion Vectors, 1 extra
+#define POSITION_DEPTH_ADDR 0
+#define NORMAL_ID_ADDR 1
+#define SEED_LUMINANCE_ADDR 2
+#define ALBEDO_ADDR 3
+#define MOTION_ADDR 4
+
+// History
+// 04: 3 world position, 1 depth
+// 05: 3 world normal, 1 entity id
+// 06: 3 seed, 1 albedo luminance
+// 07: 2 UV, 2 extra
+#define POSITION_DEPTH_ADDR_PREV 5
+#define NORMAL_ID_ADDR_PREV 6
+#define SEED_LUMINANCE_ADDR_PREV 7
+#define ALBEDO_ADDR_PREV 8
+
+// Path Tracing Output
+// 09: 3 Demodulated Direct, 1 extra
+// 10: 3 Demodulated Indirect, 1 extra
+#define DEMOD_DIRECT_ADDR 9
+#define DEMOD_INDIRECT_ADDR 10
+
+#define PROGRESSIVE_HISTORY_ADDR 11
+
+#define ATROUS_HISTORY_1_ADDR 12
+#define ATROUS_HISTORY_2_ADDR 13
+
+#define SVGF_TAA_HISTORY_1_ADDR 14
+#define SVGF_TAA_HISTORY_2_ADDR 15
+#define SVGF_TAA_HISTORY_3_ADDR 16
+#define SVGF_TAA_HISTORY_4_ADDR 17
+
+#define TAA_HISTORY_1_ADDR 18
+#define TAA_HISTORY_2_ADDR 19
+
+
+
+
+
+/* GBUFFER 0  - World Position */
+/* GBUFFER 1  - World Position History */
+/* GBUFFER 2  - World Normal */
+/* GBUFFER 3  - World Normal History */
 /* GBUFFER 4  - Albedo */
 /* GBUFFER 5  - Albedo History */
 /* GBUFFER 6  - Motion */
@@ -52,6 +99,7 @@ layout(set = 2, binding = 0, rgba16f) uniform image2D render_image;
 /* GBUFFER 15 - SVGF TAA refinement history (demodulated indirect) */
 /* GBUFFER 16 - TAA refinement history (final image) */
 /* GBUFFER 17 - TAA refinement history (final image) */
+
 layout(set = 2, binding = 1, rgba16f) uniform image2D gbuffers[20];
 
 layout(set = 2, binding = 2) uniform texture2D gbuffer_textures[20];
@@ -119,18 +167,9 @@ struct HitInfo {
     vec3 w_p;
     vec3 m_n;
     vec3 w_n;
-    // vec4 C;
     vec2 uv;
     float distance;
     int entity_id; 
     bool is_shadow_ray;
     bool backface;
-
-    // vec4 WN;
-    // vec4 WP;
-    // Contribution contribution;
-    // vec2 pixel;
-    // int bounce_count;
-    // bool is_specular_ray;
-    // int random_dimension;
 };

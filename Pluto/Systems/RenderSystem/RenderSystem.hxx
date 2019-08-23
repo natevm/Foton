@@ -237,7 +237,7 @@ namespace Systems
             
             std::map<vk::RenderPass, RasterPipelineResources> gbuffers;
 
-            std::map<vk::RenderPass, RaytracingPipelineResources> rttest;
+            std::map<vk::RenderPass, RaytracingPipelineResources> path_tracer;
 
             /* Wrapper for shader module creation.  */
             vk::ShaderModule create_shader_module(std::string name, const std::vector<char>& code);

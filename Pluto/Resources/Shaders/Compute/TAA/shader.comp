@@ -18,8 +18,8 @@ histHdrTex = HDR image of previous frame.
 
 void main() {
     vec2 gid = gl_GlobalInvocationID.xy;
-    int curr_hist_addr = ((push.consts.frame % 2) == 0) ? 16 : 17; 
-    int next_hist_addr = ((push.consts.frame % 2) == 0) ? 17 : 16; 
+    const int curr_hist_addr = ((push.consts.frame % 2) == 0) ? TAA_HISTORY_1_ADDR : TAA_HISTORY_2_ADDR; 
+    const int next_hist_addr = ((push.consts.frame % 2) == 0) ? TAA_HISTORY_2_ADDR : TAA_HISTORY_1_ADDR; 
 
     // first frame, no blending at all.
     if (push.consts.frame > 10) {
@@ -40,7 +40,7 @@ void main() {
         }
     
         float blend = 0.1;
-        vec4 motion_data = imageLoad(gbuffers[6], ivec2(gid));
+        vec4 motion_data = imageLoad(gbuffers[MOTION_ADDR], ivec2(gid));
         if (motion_data.w > 0) blend = 1.0;
         vec2 v = motion_data.xy;
         v = v * vec2(.5, -.5);

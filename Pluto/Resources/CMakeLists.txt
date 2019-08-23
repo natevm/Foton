@@ -38,8 +38,8 @@ set(SHADERS_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/Compute/SVGF_TAA/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/Compute/SVGF_Remodulate/shader.comp
 
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracedMaterials/TutorialShaders/shader.rgen
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracedMaterials/TutorialShaders/shader.rchit
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracedMaterials/TutorialShaders/shader.rmiss
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracedMaterials/PathTracer/shader.rgen
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracedMaterials/PathTracer/shader.rchit
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracedMaterials/PathTracer/shader.rmiss
     PARENT_SCOPE
 )
