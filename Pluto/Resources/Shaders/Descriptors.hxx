@@ -47,6 +47,7 @@ layout(set = 2, binding = 0, rgba16f) uniform image2D render_image;
 #define SEED_LUMINANCE_ADDR 2
 #define ALBEDO_ADDR 3
 #define MOTION_ADDR 4
+#define UV_ADDR 20
 
 // History
 // 04: 3 world position, 1 depth
@@ -57,12 +58,13 @@ layout(set = 2, binding = 0, rgba16f) uniform image2D render_image;
 #define NORMAL_ID_ADDR_PREV 6
 #define SEED_LUMINANCE_ADDR_PREV 7
 #define ALBEDO_ADDR_PREV 8
+#define UV_ADDR_PREV 21
 
 // Path Tracing Output
 // 09: 3 Demodulated Direct, 1 extra
-// 10: 3 Demodulated Indirect, 1 extra
-#define DEMOD_DIRECT_ADDR 9
-#define DEMOD_INDIRECT_ADDR 10
+// 10: 3 Indirect, 1 extra
+#define DIRECT_ILLUM_ADDR 9
+#define INDIRECT_ILLUM_ADDR 10
 
 #define PROGRESSIVE_HISTORY_ADDR 11
 
@@ -76,6 +78,8 @@ layout(set = 2, binding = 0, rgba16f) uniform image2D render_image;
 
 #define TAA_HISTORY_1_ADDR 18
 #define TAA_HISTORY_2_ADDR 19
+
+
 
 
 
@@ -100,9 +104,9 @@ layout(set = 2, binding = 0, rgba16f) uniform image2D render_image;
 /* GBUFFER 16 - TAA refinement history (final image) */
 /* GBUFFER 17 - TAA refinement history (final image) */
 
-layout(set = 2, binding = 1, rgba16f) uniform image2D gbuffers[20];
+layout(set = 2, binding = 1, rgba16f) uniform image2D gbuffers[25];
 
-layout(set = 2, binding = 2) uniform texture2D gbuffer_textures[20];
+layout(set = 2, binding = 2) uniform texture2D gbuffer_textures[25];
 #endif
 
 /* NV Ray tracing needs access to vert data and acceleration structure  */

@@ -24,10 +24,10 @@ void main() {
 
     const int max_diffuse_iteration = 10;
 
-    const int d_addr_0 = ((iteration%2) == 0) ? DEMOD_DIRECT_ADDR : ATROUS_HISTORY_1_ADDR;
-    const int i_addr_0 = ((iteration%2) == 0) ? DEMOD_INDIRECT_ADDR : ATROUS_HISTORY_2_ADDR;
-    const int d_addr_1 = ((iteration%2) == 0) ? ATROUS_HISTORY_1_ADDR : DEMOD_DIRECT_ADDR;
-    const int i_addr_1 = ((iteration%2) == 0) ? ATROUS_HISTORY_2_ADDR : DEMOD_INDIRECT_ADDR;
+    const int d_addr_0 = ((iteration%2) == 0) ? DIRECT_ILLUM_ADDR : ATROUS_HISTORY_1_ADDR;
+    const int i_addr_0 = ((iteration%2) == 0) ? INDIRECT_ILLUM_ADDR : ATROUS_HISTORY_2_ADDR;
+    const int d_addr_1 = ((iteration%2) == 0) ? ATROUS_HISTORY_1_ADDR : DIRECT_ILLUM_ADDR;
+    const int i_addr_1 = ((iteration%2) == 0) ? ATROUS_HISTORY_2_ADDR : INDIRECT_ILLUM_ADDR;
 
     const int p_addr = POSITION_DEPTH_ADDR;
     const int n_addr = NORMAL_ID_ADDR_PREV;

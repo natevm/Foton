@@ -17,15 +17,3 @@ void main() {
     payload.entity_id = -1;
     payload.distance = -1;
 }
-
-// void main() {
-//     payload.N = vec4(0.);
-//     payload.P = vec4(0.);
-//     payload.C = vec4(0.);
-//     payload.UV = vec2(0.);
-//     payload.entity_id = -1;
-//     payload.distance = -1;
-//     payload.contribution.diffuse_radiance = get_environment_color(gl_WorldRayDirectionNV);
-//     payload.contribution.specular_radiance = vec3(0.0);
-//     payload.contribution.alpha = 1.0;
-// }

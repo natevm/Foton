@@ -1,6 +1,8 @@
 #ifndef UTILITIES_HXX
 #define UTILITIES_HXX
 
+#include "Pluto/Resources/Shaders/Random.hxx"
+
 /* MATH UTILITIES */
 float saturate(float v)
 {
@@ -159,8 +161,15 @@ vec3 perturbNormal(inout MaterialStruct material, vec3 w_position, vec3 w_normal
 	// return tangentNormal;
 }
 
-
-
+void get_origin_and_direction(in ivec2 pixel_seed, int frame_seed, in mat4 projinv, in mat4 viewinv, in ivec2 pixel_coords, in ivec2 frame_size, out vec3 origin, out vec3 direction) {
+    const vec2 pixel_center = vec2(pixel_coords.xy) + vec2(random(pixel_seed, frame_seed), random(pixel_seed, frame_seed));
+	const vec2 in_uv = pixel_center/vec2(frame_size);
+	vec2 d = in_uv * 2.0 - 1.0; d.y *= -1.0;
+    vec3 target = (projinv * vec4(d.x, d.y, 1, 1)).xyz ;
+    origin = (viewinv * vec4(0,0,0,1)).xyz;
+    direction = (viewinv * vec4(normalize(target), 0)).xyz ;
+    direction = normalize(direction);
+}
 
 void unpack_entity(
     int entity_id,
@@ -197,6 +206,7 @@ void unpack_material_struct(
     material.base_color = getAlbedo(material, vec4(0.0), uv, m_position);
     float mask = getAlphaMask(material, uv, m_position);
     material.base_color.a = (mask < material.base_color.a) ? mask : material.base_color.a;
+
 }
 
 void unpack_light_struct(

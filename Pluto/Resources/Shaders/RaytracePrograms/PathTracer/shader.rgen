@@ -1,0 +1,310 @@
+#version 460
+#extension GL_NV_ray_tracing : require
+#define RAYTRACING
+
+#include "Pluto/Resources/Shaders/Descriptors.hxx"
+layout(location = 0) rayPayloadNV HitInfo payload;
+#include "Pluto/Resources/Shaders/ShaderCommon.hxx"
+#include "Pluto/Resources/Shaders/Options.hxx"
+#include "Pluto/Resources/Shaders/ShaderConstants.hxx"
+
+void unpack_gbuffer_data(out vec3 w_position, out float depth, out vec3 w_normal, 
+    out int entity_id, out ivec2 pixel_seed, out int frame_seed, out vec3 albedo,
+    out vec2 uv)
+{
+    vec4 temp;
+
+    // Position G Buffer 
+    temp = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ivec2(gl_LaunchIDNV.xy));
+    w_position = temp.xyz;
+    depth = temp.w;
+
+    // Normal G Buffer
+    temp = imageLoad(gbuffers[NORMAL_ID_ADDR], ivec2(gl_LaunchIDNV.xy));
+    w_normal = temp.xyz;
+    entity_id = int(temp.w);
+
+    // Seed / Luminance G Buffer
+    temp = imageLoad(gbuffers[SEED_LUMINANCE_ADDR], ivec2(gl_LaunchIDNV.xy));
+    pixel_seed = ivec2(temp.xy);
+    frame_seed = int(temp.z);
+
+    // UV G Buffer
+    temp = imageLoad(gbuffers[UV_ADDR], ivec2(gl_LaunchIDNV.xy));
+    uv = temp.xy;
+
+    // Raw albedo
+    temp = imageLoad(gbuffers[ALBEDO_ADDR], ivec2(gl_LaunchIDNV.xy));
+    albedo = temp.xyz;
+}
+
+vec3 sample_direct_light(const in ivec2 pixel_seed, const in int frame_seed, const in MaterialStruct mat, bool backface, const in vec3 w_p, const in vec3 w_n,
+	const in vec3 w_x, const in vec3 w_y, const in vec3 w_o, out int light_entity_id)
+{
+    DisneyColor radiance = DisneyColor(vec3(0), vec3(0), vec3(0), vec3(0), vec3(0));
+
+    vec3 w_n_f = (backface) ? -w_n : w_n;
+
+    /* Pick a random light */
+    EntityStruct light_entity; TransformStruct light_transform;
+    LightStruct light; MaterialStruct light_material;
+    bool light_found = false;
+    int tries = 0;
+    while ((!light_found) && (tries < 3) && (push.consts.num_lights > 0)) {
+        tries++;
+        int i = int((random(pixel_seed, frame_seed) - EPSILON) * (push.consts.num_lights));
+        light_entity_id = lidbo.lightIDs[i];
+        if (light_entity_id == -1) continue;
+        unpack_entity(light_entity_id, light_entity, light_transform, light_material, light);
+        if ( (light_entity.initialized != 1) || (light_entity.transform_id == -1)) continue;
+        light_found = true;
+    }
+
+    /* If we didn't find a light, return. (Shouldn't happen except during initialization) */
+    if (!light_found) return vec3(0.0);
+
+    // Importance sample the light directly
+    /* Compute the outgoing radiance for this light */
+    bool light_is_double_sided = bool(light.flags & (1 << 0));
+    mat3 m_inv;
+
+    /* Compute direct specular and diffuse contribution from LTC area lights */
+    // vec2 LTC_UV = vec2(max(mat.roughness, EPSILON), sqrt(1.0 - dot(SI.w_n.xyz, -SI.w_i.xyz)))*LUT_SCALE + LUT_BIAS;
+    // vec4 t1 = texture(sampler2D(texture_2Ds[push.consts.ltc_mat_lut_id], samplers[0]), LTC_UV);
+    // vec4 t2 = texture(sampler2D(texture_2Ds[push.consts.ltc_amp_lut_id], samplers[0]), LTC_UV);
+    // m_inv = mat3(
+    //     vec3(t1.x, 0, t1.y),
+    //     vec3(  0,  1,    0),
+    //     vec3(t1.z, 0, t1.w)
+    // );
+
+    vec3 w_i;
+
+    /* Compute differential irradiance and visibility */
+    vec3 direct_albedo = vec3(0.0);
+    {
+        float light_pdf = 0.;
+        float visibility = 1.;
+        vec3 Li = vec3(0);   
+        if (light.type == LIGHT_TYPE_POINT) {
+            Li = sphereLightSample(pixel_seed, frame_seed, light_entity, light, light_transform, w_p, w_n_f, w_i, light_pdf);
+        }
+        else if( light.type == LIGHT_TYPE_RECTANGLE ) {
+            Li = rectangleLightSample(pixel_seed, frame_seed, light_entity, light, light_transform, w_p, w_n_f, w_i, light_pdf);
+        }
+        else if (light.type == LIGHT_TYPE_DISK) {
+            Li = sphereLightSample(pixel_seed, frame_seed, light_entity, light, light_transform, w_p, w_n_f, w_i, light_pdf);
+        }
+        else if (light.type == LIGHT_TYPE_ROD) {
+            Li = sphereLightSample(pixel_seed, frame_seed, light_entity, light, light_transform, w_p, w_n_f, w_i, light_pdf);
+        }
+        else if( light.type == LIGHT_TYPE_SPHERE ) {
+            Li = sphereLightSample(pixel_seed, frame_seed, light_entity, light, light_transform, w_p, w_n_f, w_i, light_pdf);
+        }
+
+        float bsdf_pdf = disney_pdf(mat, backface, w_n, w_o, w_i, w_x, w_y);
+
+        /* Compute visibility by tracing a shadow ray */
+        {
+            /* Trace a single shadow ray */
+            uint rayFlags = gl_RayFlagsNoneNV;
+            uint cullMask = 0xff;
+            float tmax = INFINITY;
+            payload.is_shadow_ray = true; 
+            traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, w_p, TMIN, w_i, tmax, 0); 
+            visibility = (payload.entity_id == light_entity_id) ? 1.0 : 0.0;
+        }
+
+        float w = 0;
+        DisneyColor bsdf = disney_brdf(mat, backface, w_n, w_o, w_i, w_x, w_y);
+        if (light_pdf >= EPSILON && bsdf_pdf >= EPSILON && visibility == 1.0) {
+            w = power_heuristic(1.f, light_pdf, 1.f, bsdf_pdf);
+            vec3 LightInfluence = Li * abs(dot(w_i, w_n_f)) * w / light_pdf;
+            radiance = add_d_d(radiance, mult_d_v3(bsdf, LightInfluence));
+        }
+    }
+
+    // Sample the BRDF to compute a light sample as well
+    vec3 bsdf_albedo = vec3(0.0);
+	{
+		vec3 w_i;
+		float bsdf_pdf;
+        float visibility = 1.0;
+		DisneyColor bsdf = sample_disney_brdf(pixel_seed, frame_seed, mat, backface, w_n, w_o, w_x, w_y, w_i, bsdf_pdf);
+		
+		float light_dist;
+		vec3 light_pos;
+		if (bsdf_pdf >= EPSILON) {
+			float light_pdf; // = quad_light_pdf(light, light_pos, w_p, w_i);
+            vec3 Li;
+            if (light.type == LIGHT_TYPE_POINT) {
+                light_pdf = sphereLightPDF(light_entity, light, light_transform, w_p, w_n_f);
+            }
+            else if( light.type == LIGHT_TYPE_RECTANGLE ) {
+                light_pdf = rectangleLightPDF(light_entity, light, light_transform, w_p, w_n_f);
+            }
+            else if (light.type == LIGHT_TYPE_DISK) {
+                light_pdf = sphereLightPDF(light_entity, light, light_transform, w_p, w_n_f);
+            }
+            else if (light.type == LIGHT_TYPE_ROD) {
+                light_pdf = sphereLightPDF(light_entity, light, light_transform, w_p, w_n_f);
+            }
+            else if( light.type == LIGHT_TYPE_SPHERE ) {
+                light_pdf = sphereLightPDF(light_entity, light, light_transform, w_p, w_n_f);
+            }
+            Li = light.color.rgb * light.intensity;
+            float w = 0.0;
+			if (light_pdf >= EPSILON) {
+				w = power_heuristic(1.f, bsdf_pdf, 1.f, light_pdf);
+                /* Compute visibility by tracing a shadow ray */
+                {
+                    /* Trace a single shadow ray */
+                    payload.is_shadow_ray = true; 
+                    traceNV(topLevelAS, /*gl_RayFlagsTerminateOnFirstHitNV*/gl_RayFlagsNoneNV, 0xff, 0, 0, 0, w_p, TMIN, w_i, TMAX, 0); // UPDATE TMAX TO BE LIGHT DIST
+                    visibility = (payload.entity_id == light_entity_id) ? 1.0 : 0.0;
+                }
+                
+				if (visibility == 1.0) {
+                    vec3 LightInfluence = Li * abs(dot(w_i, w_n_f)) * w / bsdf_pdf;
+                    radiance = add_d_d(radiance, mult_d_v3(bsdf, LightInfluence));
+				}
+			}
+		}
+	}
+
+	return d_combine(radiance);
+}
+
+void main() 
+{
+    /* These are required for shading purposes. Wait until they're ready. */
+    if ((push.consts.ltc_mat_lut_id < 0) || (push.consts.ltc_mat_lut_id >= MAX_TEXTURES)) return;
+    if ((push.consts.ltc_amp_lut_id < 0) || (push.consts.ltc_amp_lut_id >= MAX_TEXTURES)) return;
+
+    /* Load primary visibility data from G Buffers */
+    vec3 first_position, first_normal, albedo;
+    float first_dist;
+    int first_entity_id, frame_seed;
+    ivec2 pixel_seed;
+    vec2 first_uv;
+    unpack_gbuffer_data(first_position, first_dist, first_normal, first_entity_id, 
+        pixel_seed, frame_seed, albedo, first_uv);
+
+    /* Next, Compute ray origin and direction */
+    randomDimension = 0;
+    int max_path_depth = int(push.consts.parameter1);
+    const ivec2 pixel_coords = ivec2(gl_LaunchIDNV.xy);
+    vec3 origin, direction;
+    EntityStruct camera_entity = ebo.entities[push.consts.camera_id];
+    CameraStruct camera = cbo.cameras[camera_entity.camera_id];
+    TransformStruct camera_transform = tbo.transforms[camera_entity.transform_id];
+    get_origin_and_direction(
+        pixel_seed, frame_seed,
+        camera.multiviews[push.consts.viewIndex].projinv,
+        camera_transform.localToWorld * camera.multiviews[push.consts.viewIndex].viewinv,
+        pixel_coords, ivec2(gl_LaunchSizeNV.xy), origin, direction);
+    
+
+    /* Compute direct and indirect path traced illumination */
+    DisneyColor color = DisneyColor(vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0));
+    int bounce = 0;
+    bool last_event_was_specular = true;
+    DisneyColor path_throughput = DisneyColor(vec3(1.0), vec3(1.0), vec3(1.0), vec3(1.0), vec3(1.0));
+    int last_direct_light_entity_id = -2;
+
+    DisneyColor direct_illumination = DisneyColor(vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0));
+
+    do {
+        /* Unpack Data */
+        int entity_id = (bounce == 0) ? first_entity_id : payload.entity_id;
+        vec3 w_o = -direction;
+        vec3 w_p = (bounce == 0) ? first_position : payload.w_p;
+        vec2 uv = (bounce == 0) ? first_uv : payload.uv;
+        vec3 w_x, w_y, w_z;
+        w_z = (bounce == 0) ? first_normal : payload.w_n;
+        bool backface = dot(w_z, w_o) < 0.0;
+        float dist = (bounce == 0) ? first_dist : payload.distance;
+        directionOfAnisotropicity(w_z, w_x, w_y);
+
+        EntityStruct entity; MaterialStruct mat; LightStruct light;
+        unpack_entity_struct(entity_id, entity);
+        unpack_material_struct(entity_id, entity, uv, w_p, mat); // to do, use primary albedo if bounce is 0
+        unpack_light_struct(entity_id, entity, light);
+
+        if (bounce == 0) mat.base_color.rgb = albedo;
+
+        /* If we hit the sky or a light, stop */
+        if (entity_id == -1) { 
+            vec3 irradiance = (bounce == 0) ? albedo : get_environment_color(direction);
+            /* Include lighting from sky as direct lighting.  */
+            if (bounce <= 1) {
+                direct_illumination = add_d_d(direct_illumination, mult_d_v3(path_throughput, irradiance));
+            }
+            color = add_d_d(color, mult_d_v3(path_throughput, irradiance));
+            break;
+        }
+
+        /* If the object we hit is completely transparent, go through it  */
+        if (mat.base_color.a < EPSILON) {
+            origin = payload.w_p + EPSILON * direction;
+            continue;
+        }
+
+        /* Don't double count light sources */
+        if (entity_id == last_direct_light_entity_id) {
+            break;
+        }
+
+        /* If we hit a light, radiate */
+        if ((entity.light_id >= 0) && (entity.light_id < MAX_LIGHTS)) {
+            color = add_d_d(color, mult_d_v3(path_throughput, light.color.rgb * light.intensity));
+            if (bounce == 0) {
+                direct_illumination = color;
+            }
+            break;
+        }
+
+        /* Next event estimation */
+        // color.rgb += path_throughput * sample_direct_light(pixel_seed, frame_seed, mat, backface, w_p, w_z, w_x, w_y, w_o, last_direct_light_entity_id); 
+        color = add_d_d(color, mult_d_v3(path_throughput, sample_direct_light(pixel_seed, frame_seed, mat, backface, w_p, w_z, w_x, w_y, w_o, last_direct_light_entity_id)));
+        if (bounce == 0) direct_illumination = color;
+
+        /* Increase bounce count*/
+        bounce++;
+
+        /* Avoid sampling the brdf if this is the last path position */
+        if (bounce > max_path_depth) break;
+
+        /* Setup next ray */
+        vec3 w_i; float pdf;
+        DisneyColor bsdf = sample_disney_brdf(pixel_seed, frame_seed, mat, backface, w_z, w_o, w_x, w_y, w_i, pdf);
+        if (pdf < EPSILON || d_all_less_than(bsdf, EPSILON)) {
+            break;
+        }
+
+        path_throughput = conv_d_d(path_throughput, mult_d_v3(bsdf, 1.0 / vec3(pdf)));
+
+        if (d_all_less_than(path_throughput, EPSILON)) {
+            break;
+        }
+
+        origin = w_p;
+        direction = w_i;
+
+        /* Trace a ray through the scene */
+        payload.is_shadow_ray = false;
+        traceNV(topLevelAS, gl_RayFlagsNoneNV, 0xff, 0, 0, 0, origin, TMIN, direction, TMAX, 0);
+    } while (bounce <= max_path_depth);
+
+    /* Write to G Buffers */
+    vec3 final_color = d_combine(color);
+    vec3 final_direct_illumination = d_combine(direct_illumination);
+    
+    // Demodulated direct illumination 
+    vec3 demodulated_direct = final_direct_illumination / (vec3(EPSILON + luminance(albedo))); 
+    imageStore(gbuffers[DIRECT_ILLUM_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(demodulated_direct, 0));
+
+    // indirect illumination
+    vec3 indirect = (final_color - final_direct_illumination);
+    imageStore(gbuffers[INDIRECT_ILLUM_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(indirect, 0));
+}

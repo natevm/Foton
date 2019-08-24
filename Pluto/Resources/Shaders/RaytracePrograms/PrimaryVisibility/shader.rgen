@@ -1,0 +1,142 @@
+#version 460
+#extension GL_NV_ray_tracing : require
+#define RAYTRACING
+
+#include "Pluto/Resources/Shaders/Descriptors.hxx"
+layout(location = 0) rayPayloadNV HitInfo payload;
+#include "Pluto/Resources/Shaders/ShaderCommon.hxx"
+#include "Pluto/Resources/Shaders/Options.hxx"
+#include "Pluto/Resources/Shaders/ShaderConstants.hxx"
+
+void update_history()
+{
+    vec4 temp;
+
+    // Position G Buffer 
+    temp = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ivec2(gl_LaunchIDNV.xy));
+    imageStore(gbuffers[POSITION_DEPTH_ADDR_PREV], ivec2(gl_LaunchIDNV.xy), temp);
+
+    // Normal G Buffer
+    temp = imageLoad(gbuffers[NORMAL_ID_ADDR], ivec2(gl_LaunchIDNV.xy));
+    imageStore(gbuffers[NORMAL_ID_ADDR_PREV], ivec2(gl_LaunchIDNV.xy), temp);
+
+    // Seed / Luminance G Buffer
+    temp = imageLoad(gbuffers[SEED_LUMINANCE_ADDR], ivec2(gl_LaunchIDNV.xy));
+    imageStore(gbuffers[SEED_LUMINANCE_ADDR_PREV], ivec2(gl_LaunchIDNV.xy), temp);
+
+    // UV G Buffer
+    temp = imageLoad(gbuffers[UV_ADDR], ivec2(gl_LaunchIDNV.xy));
+    imageStore(gbuffers[UV_ADDR_PREV], ivec2(gl_LaunchIDNV.xy), temp);
+
+    // Raw albedo
+    temp = imageLoad(gbuffers[ALBEDO_ADDR], ivec2(gl_LaunchIDNV.xy));
+    imageStore(gbuffers[ALBEDO_ADDR_PREV], ivec2(gl_LaunchIDNV.xy), temp);
+}
+
+void main() 
+{    
+    /* First, update G Buffer history */
+    update_history();
+
+    /* Next, Compute ray origin and direction */
+    randomDimension = 0;
+    int max_path_depth = int(push.consts.parameter1);
+    const ivec2 pixel_coords = ivec2(gl_LaunchIDNV.xy);
+    vec3 origin, direction;
+    EntityStruct camera_entity = ebo.entities[push.consts.camera_id];
+    CameraStruct camera = cbo.cameras[camera_entity.camera_id];
+    TransformStruct camera_transform = tbo.transforms[camera_entity.transform_id];
+    get_origin_and_direction(
+        pixel_coords, push.consts.frame, // TODO, reproject a subset of the previous frame's pixel and frame seeds
+        camera.multiviews[push.consts.viewIndex].projinv,
+        camera_transform.localToWorld * camera.multiviews[push.consts.viewIndex].viewinv,
+        pixel_coords, ivec2(gl_LaunchSizeNV.xy), origin, direction);
+
+    /* Trace a ray to compute primary visibility data */
+    vec3 world_position = vec3(INFINITY);
+    vec3 model_position = vec3(INFINITY);
+    vec3 world_normal = vec3(INFINITY);
+    vec3 albedo = vec3(0.0);
+    vec2 uv = vec2(0.0);
+    float dist = INFINITY;
+    int entity_id = -1;
+    EntityStruct entity;
+    entity.initialized = 0;
+    entity.light_id = entity.mesh_id = entity.material_id = entity.transform_id = -1;
+
+    int bounce = 0;
+    do {
+        /* Trace a ray through the scene */
+        payload.is_shadow_ray = false;
+        traceNV(topLevelAS, gl_RayFlagsNoneNV, 0xff, 0, 0, 0, origin, TMIN, direction, TMAX, 0);
+
+        /* If we hit the sky... */
+        if (payload.entity_id == -1) {
+            albedo = get_environment_color(direction);
+            break;
+        }
+
+        MaterialStruct mat; LightStruct light;
+        unpack_entity_struct(payload.entity_id, entity);
+        unpack_material_struct(payload.entity_id, entity, payload.uv, payload.m_p, mat);
+        unpack_light_struct(payload.entity_id, entity, light);
+
+        /* If the object is completely transparent, go through it  */
+        if (mat.base_color.a < EPSILON) {
+            origin = payload.w_p + EPSILON * direction;
+            entity.initialized = 0;
+            bounce++;
+            continue;
+        }
+
+        /* If the object is a light, use its light color as albedo */
+        // Not sure why, but this causes albedo to be black?
+        if ((entity.light_id >= 0) && (entity.light_id < MAX_LIGHTS)) 
+        {
+            // albedo += vec3(1.0, 1.0, 1.0);//light.color.rgb;// * light.intensity;
+        }
+
+        albedo += mat.base_color.rgb;
+        entity_id = payload.entity_id;
+        world_position = payload.w_p;
+        model_position = payload.m_p;
+        world_normal = payload.w_n;
+        dist = payload.distance;
+        uv = payload.uv;
+        break;
+    } while (bounce <= max_path_depth);
+
+    /* Compute motion vector for primary visibility */
+    vec3 motion = vec3(0.0);
+    bool reset = true;
+    if (entity.initialized == 1) {
+        reset = false;
+        TransformStruct transform = tbo.transforms[entity.transform_id];
+        vec4 w_p_prev = transform.localToWorldPrev * vec4(model_position, 1.0);
+
+        vec4 v_p_curr = camera.multiviews[push.consts.viewIndex].viewproj * camera_transform.worldToLocal * vec4(world_position, 1.0);
+        vec4 v_p_prev = camera.multiviews[push.consts.viewIndex].viewproj * camera_transform.worldToLocalPrev * w_p_prev;
+
+        motion = (v_p_prev.xyz / v_p_prev.w) - (v_p_curr.xyz / v_p_curr.w);
+    }
+
+    /* Write to G Buffers */
+
+    // Position G Buffer
+    imageStore(gbuffers[POSITION_DEPTH_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(world_position, dist));
+
+    // Normal G Buffer
+    imageStore(gbuffers[NORMAL_ID_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(world_normal, entity_id));
+
+    // Seed/luminance
+    imageStore(gbuffers[SEED_LUMINANCE_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(pixel_coords.x, pixel_coords.y, push.consts.frame, luminance(albedo)));
+
+    // UV
+    imageStore(gbuffers[UV_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(uv.x, uv.y, 0.0, 0.0));
+
+    // Raw albedo
+    imageStore(gbuffers[ALBEDO_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(albedo, 1.0));
+
+    // Motion Vector G Buffer
+    imageStore(gbuffers[MOTION_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(motion, (reset) ? 1.0 : 0.0));
+}

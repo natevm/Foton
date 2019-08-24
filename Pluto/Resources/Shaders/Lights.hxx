@@ -33,7 +33,7 @@
 //     return 1. / (TWO_PI * (1. - cosThetaMax)); 
 // }
 
-vec3 sphereLightSample(const in ivec2 pixel_coords, const in EntityStruct light_entity, const in LightStruct light, const in TransformStruct light_transform, const in vec3 w_p, const in vec3 w_n, out vec3 w_i, out float lightPdf) {
+vec3 sphereLightSample(const in ivec2 pixel_seed, int frame_seed, const in EntityStruct light_entity, const in LightStruct light, const in TransformStruct light_transform, const in vec3 w_p, const in vec3 w_n, out vec3 w_i, out float lightPdf) {
     vec3 w_light_right =    light_transform.localToWorld[0].xyz;
     vec3 w_light_forward =  light_transform.localToWorld[1].xyz;
     vec3 w_light_up =       light_transform.localToWorld[2].xyz;
@@ -46,7 +46,7 @@ vec3 sphereLightSample(const in ivec2 pixel_coords, const in EntityStruct light_
 
     float light_radius = max(max(abs(s1), abs(s2) ), abs(s3) );
     
-    vec2 u = vec2(random(pixel_coords), random(pixel_coords));
+    vec2 u = vec2(random(pixel_seed, frame_seed), random(pixel_seed, frame_seed));
     
     vec3 tangent = vec3(0.), binormal = vec3(0.);
     createBasis(w_light_dir, tangent, binormal);
@@ -85,7 +85,7 @@ float sphereLightPDF( const in EntityStruct light_entity, const in LightStruct l
     return dist_sqr / (TWO_PI * (1. - cosThetaMax)); 
 }
 
-vec3 rectangleLightSample(const in ivec2 pixel_coords, const in EntityStruct light_entity, const in LightStruct light, const in TransformStruct light_transform, const in vec3 w_p, const in vec3 w_n, out vec3 w_i, out float lightPdf) {
+vec3 rectangleLightSample(const in ivec2 pixel_seed, int frame_seed, const in EntityStruct light_entity, const in LightStruct light, const in TransformStruct light_transform, const in vec3 w_p, const in vec3 w_n, out vec3 w_i, out float lightPdf) {
     vec3 w_light_right =    light_transform.localToWorld[0].xyz;
     vec3 w_light_forward =  light_transform.localToWorld[1].xyz;
     vec3 w_light_up =       light_transform.localToWorld[2].xyz;
@@ -93,7 +93,7 @@ vec3 rectangleLightSample(const in ivec2 pixel_coords, const in EntityStruct lig
     vec3 w_light_dir = normalize(w_light_position - w_p);
 
     /* Compute a random point on a unit plane */
-    vec4 m_light_position = vec4(random(pixel_coords) * 2.0 - 1.0, random(pixel_coords) * 2.0 - 1.0, 0.0, 1.0);
+    vec4 m_light_position = vec4(random(pixel_seed, frame_seed) * 2.0 - 1.0, random(pixel_seed, frame_seed) * 2.0 - 1.0, 0.0, 1.0);
 
     /* Transform that point to where the light actually is */
     vec4 w_light_sample_position = light_transform.localToWorld * m_light_position;

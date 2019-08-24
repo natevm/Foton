@@ -135,12 +135,12 @@ PCGRand get_rng(ivec2 pixel, int seed) {
 // rng.state = uint64_t(uint64_t(pixel.x + pixel.y * push.consts.width) + uint64_t(push.consts.width * push.consts.height * randomDimension)) * uint64_t(push.consts.frame + 1);
 // return pcg32_randomf(rng);
 
-float random(ivec2 pixel) {
+float random(ivec2 pixel_seed, int frame_seed) {
     randomDimension++;
-    if (is_blue_noise_enabled() && (!is_progressive_refinement_enabled() || (push.consts.frame < 128)) ) {
-        return samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_128spp(pixel.x, pixel.y, push.consts.frame, randomDimension);
+    if (is_blue_noise_enabled() && (!is_progressive_refinement_enabled() || (frame_seed < 128)) ) {
+        return samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_128spp(pixel_seed.x, pixel_seed.y, frame_seed, randomDimension);
     } else {
-        return fract(sin(randomDimension + hash12( pixel ) + push.consts.frame) * 43758.5453123);
+        return fract(sin(randomDimension + hash12( pixel_seed ) + frame_seed) * 43758.5453123);
     }
 //    
 }

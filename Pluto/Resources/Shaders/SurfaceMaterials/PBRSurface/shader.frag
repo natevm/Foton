@@ -13,7 +13,7 @@ void main()
 
 	/* Compute ray origin and direction */
 	const ivec2 pixel_coords = ivec2(gl_FragCoord.xy);
-	const vec2 pixel_center = vec2(gl_FragCoord.xy) + vec2(random(pixel_coords), random(pixel_coords));
+	const vec2 pixel_center = vec2(gl_FragCoord.xy) + vec2(random(pixel_coords, push.consts.frame), random(pixel_coords, push.consts.frame));
 	const vec2 in_uv = pixel_center / vec2(push.consts.width, push.consts.height);
 	vec2 d = in_uv * 2.0 - 1.0; d.y *= -1.0;
 

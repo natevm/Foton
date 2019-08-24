@@ -338,6 +338,8 @@ void RenderSystem::record_ray_trace_pass(Entity &camera_entity)
 
     if (!vulkan->is_ray_tracing_enabled()) return;
 
+	auto rayTracingProps = vulkan->get_physical_device_ray_tracing_properties();
+
     build_top_level_bvh(true);
         
     auto camera = camera_entity.get_camera();
@@ -352,6 +354,37 @@ void RenderSystem::record_ray_trace_pass(Entity &camera_entity)
 
     texture->make_general(command_buffer);
 
+	/* Primary visibility */
+	for(uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
+        reset_bound_material();
+
+        /* Get the renderpass for the current camera */
+        vk::RenderPass rp = camera->get_renderpass(rp_idx);
+        
+        bind_raytracing_descriptor_sets(command_buffer, rp, camera_entity, rp_idx);
+
+        push_constants.target_id = -1;
+        push_constants.camera_id = camera_entity.get_id();
+        push_constants.viewIndex = rp_idx;
+		push_constants.width = texture->get_width();
+        push_constants.height = texture->get_height();
+        push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
+        push_constants.parameter1 = (float)this->max_bounces;
+        
+		command_buffer.pushConstants(primary_visibility[rp].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+		command_buffer.bindPipeline(vk::PipelineBindPoint::eRayTracingNV, primary_visibility[rp].pipeline);
+
+		command_buffer.traceRaysNV(
+			primary_visibility[rp].shaderBindingTable, 0,
+			primary_visibility[rp].shaderBindingTable, 1 * rayTracingProps.shaderGroupHandleSize, rayTracingProps.shaderGroupHandleSize,
+			primary_visibility[rp].shaderBindingTable, 2 * rayTracingProps.shaderGroupHandleSize, rayTracingProps.shaderGroupHandleSize,
+			vk::Buffer(), 0, 0,
+			texture->get_width(), texture->get_height(), 1,
+			dldi
+		);	
+    }
+
+	/* Path tracer */
     for(uint32_t rp_idx = 0; rp_idx < camera->get_num_renderpasses(); rp_idx++) {
         reset_bound_material();
 
@@ -366,9 +399,19 @@ void RenderSystem::record_ray_trace_pass(Entity &camera_entity)
 		push_constants.width = texture->get_width();
         push_constants.height = texture->get_height();
         push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
-        push_constants.parameter1 = (uint32_t)this->max_bounces;
+        push_constants.parameter1 = (float)this->max_bounces;
         
-        trace_rays(command_buffer, rp, push_constants, *texture);
+		command_buffer.pushConstants(path_tracer[rp].pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+		command_buffer.bindPipeline(vk::PipelineBindPoint::eRayTracingNV, path_tracer[rp].pipeline);
+
+		command_buffer.traceRaysNV(
+			path_tracer[rp].shaderBindingTable, 0,
+			path_tracer[rp].shaderBindingTable, 1 * rayTracingProps.shaderGroupHandleSize, rayTracingProps.shaderGroupHandleSize,
+			path_tracer[rp].shaderBindingTable, 2 * rayTracingProps.shaderGroupHandleSize, rayTracingProps.shaderGroupHandleSize,
+			vk::Buffer(), 0, 0,
+			texture->get_width(), texture->get_height(), 1,
+			dldi
+		);	
     }
 }
 
@@ -508,6 +551,7 @@ void RenderSystem::record_compute_pass(Entity &camera_entity)
 			push_constants.flags = (!camera->should_use_multiview()) ? 
 				(push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)): 
 				(push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
+			push_constants.parameter1 = (float)gbuffer_override_idx;
 			bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 
 
@@ -2030,6 +2074,7 @@ void RenderSystem::setup_graphics_pipelines(vk::RenderPass renderpass, uint32_t 
 
 	if (!vulkan->is_ray_tracing_enabled()) return;
 	auto dldi = vulkan->get_dldi();
+	auto rayTracingProps = vulkan->get_physical_device_ray_tracing_properties();
 
 	/* RAY TRACING PIPELINES */
 	{
@@ -2037,9 +2082,9 @@ void RenderSystem::setup_graphics_pipelines(vk::RenderPass renderpass, uint32_t 
 
 		/* RAY GEN SHADERS */
 		std::string ResourcePath = Options::GetResourcePath();
-		auto raygenShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracedMaterials/PathTracer/rgen.spv"));
-		auto raychitShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracedMaterials/PathTracer/rchit.spv"));
-		auto raymissShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracedMaterials/PathTracer/rmiss.spv"));
+		auto raygenShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracePrograms/PathTracer/rgen.spv"));
+		auto raychitShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracePrograms/PathTracer/rchit.spv"));
+		auto raymissShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracePrograms/PathTracer/rmiss.spv"));
 		
 		/* Create shader modules */
 		auto raygenShaderModule = create_shader_module("ray_tracing_gen", raygenShaderCode);
@@ -2122,10 +2167,153 @@ void RenderSystem::setup_graphics_pipelines(vk::RenderPass renderpass, uint32_t 
 
 		path_tracer[renderpass].pipeline = device.createRayTracingPipelinesNV(vk::PipelineCache(), 
 			{rayPipelineInfo}, nullptr, dldi)[0];
+
+		const uint32_t groupNum = 3; // 1 group is listed in pGroupNumbers in VkRayTracingPipelineCreateInfoNV
+		const uint32_t shaderBindingTableSize = rayTracingProps.shaderGroupHandleSize * groupNum;
+
+		/* Create binding table buffer */
+		vk::BufferCreateInfo bufferInfo;
+		bufferInfo.size = shaderBindingTableSize;
+		bufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+		bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+		path_tracer[renderpass].shaderBindingTable = device.createBuffer(bufferInfo);
+
+		/* Create memory for binding table */
+		vk::MemoryRequirements memRequirements = device.getBufferMemoryRequirements(path_tracer[renderpass].shaderBindingTable);
+		vk::MemoryAllocateInfo allocInfo;
+		allocInfo.allocationSize = memRequirements.size;
+		allocInfo.memoryTypeIndex = vulkan->find_memory_type(memRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible);
+		path_tracer[renderpass].shaderBindingTableMemory = device.allocateMemory(allocInfo);
+
+		/* Bind buffer to memeory */
+		device.bindBufferMemory(path_tracer[renderpass].shaderBindingTable, path_tracer[renderpass].shaderBindingTableMemory, 0);
+
+		/* Map the binding table, then fill with shader group handles */
+		void* mappedMemory = device.mapMemory(path_tracer[renderpass].shaderBindingTableMemory, 0, shaderBindingTableSize, vk::MemoryMapFlags());
+		device.getRayTracingShaderGroupHandlesNV(path_tracer[renderpass].pipeline, 0, groupNum, shaderBindingTableSize, mappedMemory, dldi);
+		device.unmapMemory(path_tracer[renderpass].shaderBindingTableMemory);
+
 		path_tracer[renderpass].ready = true;
 	}
 
-	setup_raytracing_shader_binding_table(renderpass);
+	{
+		primary_visibility[renderpass] = RaytracingPipelineResources();
+
+		/* RAY GEN SHADERS */
+		std::string ResourcePath = Options::GetResourcePath();
+		auto raygenShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracePrograms/PrimaryVisibility/rgen.spv"));
+		auto raychitShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracePrograms/PrimaryVisibility/rchit.spv"));
+		auto raymissShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracePrograms/PrimaryVisibility/rmiss.spv"));
+		
+		/* Create shader modules */
+		auto raygenShaderModule = create_shader_module("primary_visibility_gen", raygenShaderCode);
+		auto raychitShaderModule = create_shader_module("primary_visibility_chit", raychitShaderCode);
+		auto raymissShaderModule = create_shader_module("primary_visibility_miss", raymissShaderCode);
+
+		/* Info for shader stages */
+		vk::PipelineShaderStageCreateInfo raygenShaderStageInfo;
+		raygenShaderStageInfo.stage = vk::ShaderStageFlagBits::eRaygenNV;
+		raygenShaderStageInfo.module = raygenShaderModule;
+		raygenShaderStageInfo.pName = "main"; 
+
+		vk::PipelineShaderStageCreateInfo raymissShaderStageInfo;
+		raymissShaderStageInfo.stage = vk::ShaderStageFlagBits::eMissNV;
+		raymissShaderStageInfo.module = raymissShaderModule;
+		raymissShaderStageInfo.pName = "main"; 
+
+		vk::PipelineShaderStageCreateInfo raychitShaderStageInfo;
+		raychitShaderStageInfo.stage = vk::ShaderStageFlagBits::eClosestHitNV;
+		raychitShaderStageInfo.module = raychitShaderModule;
+		raychitShaderStageInfo.pName = "main"; 
+
+		std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { raygenShaderStageInfo, raymissShaderStageInfo, raychitShaderStageInfo};
+		
+		vk::PushConstantRange range;
+		range.offset = 0;
+		range.size = sizeof(PushConsts);
+		range.stageFlags = vk::ShaderStageFlagBits::eAll;
+
+		std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout, 
+			positionsDescriptorSetLayout, normalsDescriptorSetLayout, colorsDescriptorSetLayout, texcoordsDescriptorSetLayout, indexDescriptorSetLayout,
+			raytracingDescriptorSetLayout };
+		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+
+		pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)layouts.size();
+		pipelineLayoutCreateInfo.pSetLayouts = layouts.data();
+		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+		pipelineLayoutCreateInfo.pPushConstantRanges = &range;
+		
+		primary_visibility[renderpass].pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+
+		std::vector<vk::RayTracingShaderGroupCreateInfoNV> shaderGroups;
+		
+		// Ray gen group
+		vk::RayTracingShaderGroupCreateInfoNV rayGenGroupInfo;
+		rayGenGroupInfo.type = vk::RayTracingShaderGroupTypeNV::eGeneral;
+		rayGenGroupInfo.generalShader = 0;
+		rayGenGroupInfo.closestHitShader = VK_SHADER_UNUSED_NV;
+		rayGenGroupInfo.anyHitShader = VK_SHADER_UNUSED_NV;
+		rayGenGroupInfo.intersectionShader = VK_SHADER_UNUSED_NV;
+		shaderGroups.push_back(rayGenGroupInfo);
+		
+		// Miss group
+		vk::RayTracingShaderGroupCreateInfoNV rayMissGroupInfo;
+		rayMissGroupInfo.type = vk::RayTracingShaderGroupTypeNV::eGeneral;
+		rayMissGroupInfo.generalShader = 1;
+		rayMissGroupInfo.closestHitShader = VK_SHADER_UNUSED_NV;
+		rayMissGroupInfo.anyHitShader = VK_SHADER_UNUSED_NV;
+		rayMissGroupInfo.intersectionShader = VK_SHADER_UNUSED_NV;
+		shaderGroups.push_back(rayMissGroupInfo);
+		
+		// Intersection group
+		vk::RayTracingShaderGroupCreateInfoNV rayCHitGroupInfo; //VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_NV
+		rayCHitGroupInfo.type = vk::RayTracingShaderGroupTypeNV::eTrianglesHitGroup;
+		rayCHitGroupInfo.generalShader = VK_SHADER_UNUSED_NV;
+		rayCHitGroupInfo.closestHitShader = 2;
+		rayCHitGroupInfo.anyHitShader = VK_SHADER_UNUSED_NV;
+		rayCHitGroupInfo.intersectionShader = VK_SHADER_UNUSED_NV;
+		shaderGroups.push_back(rayCHitGroupInfo);
+
+		vk::RayTracingPipelineCreateInfoNV rayPipelineInfo;
+		rayPipelineInfo.stageCount = (uint32_t) shaderStages.size();
+		rayPipelineInfo.pStages = shaderStages.data();
+		rayPipelineInfo.groupCount = (uint32_t) shaderGroups.size();
+		rayPipelineInfo.pGroups = shaderGroups.data();
+		rayPipelineInfo.maxRecursionDepth = vulkan->get_physical_device_ray_tracing_properties().maxRecursionDepth;
+		rayPipelineInfo.layout = primary_visibility[renderpass].pipelineLayout;
+		rayPipelineInfo.basePipelineHandle = vk::Pipeline();
+		rayPipelineInfo.basePipelineIndex = 0;
+
+		primary_visibility[renderpass].pipeline = device.createRayTracingPipelinesNV(vk::PipelineCache(), 
+			{rayPipelineInfo}, nullptr, dldi)[0];
+
+		const uint32_t groupNum = 3; // 1 group is listed in pGroupNumbers in VkRayTracingPipelineCreateInfoNV
+		const uint32_t shaderBindingTableSize = rayTracingProps.shaderGroupHandleSize * groupNum;
+
+		/* Create binding table buffer */
+		vk::BufferCreateInfo bufferInfo;
+		bufferInfo.size = shaderBindingTableSize;
+		bufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+		bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+		primary_visibility[renderpass].shaderBindingTable = device.createBuffer(bufferInfo);
+
+		/* Create memory for binding table */
+		vk::MemoryRequirements memRequirements = device.getBufferMemoryRequirements(primary_visibility[renderpass].shaderBindingTable);
+		vk::MemoryAllocateInfo allocInfo;
+		allocInfo.allocationSize = memRequirements.size;
+		allocInfo.memoryTypeIndex = vulkan->find_memory_type(memRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible);
+		primary_visibility[renderpass].shaderBindingTableMemory = device.allocateMemory(allocInfo);
+
+		/* Bind buffer to memeory */
+		device.bindBufferMemory(primary_visibility[renderpass].shaderBindingTable, primary_visibility[renderpass].shaderBindingTableMemory, 0);
+
+		/* Map the binding table, then fill with shader group handles */
+		void* mappedMemory = device.mapMemory(primary_visibility[renderpass].shaderBindingTableMemory, 0, shaderBindingTableSize, vk::MemoryMapFlags());
+		device.getRayTracingShaderGroupHandlesNV(primary_visibility[renderpass].pipeline, 0, groupNum, shaderBindingTableSize, mappedMemory, dldi);
+		device.unmapMemory(primary_visibility[renderpass].shaderBindingTableMemory);
+
+		primary_visibility[renderpass].ready = true;
+	}
 }
 
 void RenderSystem::setup_compute_pipelines()
@@ -2260,50 +2448,6 @@ void RenderSystem::setup_compute_pipelines()
         svgf_remodulate.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
 		svgf_remodulate.ready = true;
 	}
-}
-
-void RenderSystem::setup_raytracing_shader_binding_table(vk::RenderPass renderpass)
-{
-	auto vulkan = Libraries::Vulkan::Get();
-	if (!vulkan->is_initialized())
-		throw std::runtime_error("Error: Vulkan not initialized");
-	
-	if (!vulkan->is_ray_tracing_enabled())
-		throw std::runtime_error("Error: Vulkan raytracing is not enabled. ");
-
-	auto device = vulkan->get_device();
-	auto dldi = vulkan->get_dldi();
-
-	auto rayTracingProps = vulkan->get_physical_device_ray_tracing_properties();
-
-
-	/* Currently only works with path_tracer */
-
-	
-	const uint32_t groupNum = 3; // 1 group is listed in pGroupNumbers in VkRayTracingPipelineCreateInfoNV
-	const uint32_t shaderBindingTableSize = rayTracingProps.shaderGroupHandleSize * groupNum;
-
-	/* Create binding table buffer */
-	vk::BufferCreateInfo bufferInfo;
-	bufferInfo.size = shaderBindingTableSize;
-	bufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
-	bufferInfo.sharingMode = vk::SharingMode::eExclusive;
-	path_tracer[renderpass].shaderBindingTable = device.createBuffer(bufferInfo);
-
-	/* Create memory for binding table */
-	vk::MemoryRequirements memRequirements = device.getBufferMemoryRequirements(path_tracer[renderpass].shaderBindingTable);
-	vk::MemoryAllocateInfo allocInfo;
-	allocInfo.allocationSize = memRequirements.size;
-	allocInfo.memoryTypeIndex = vulkan->find_memory_type(memRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible);
-	path_tracer[renderpass].shaderBindingTableMemory = device.allocateMemory(allocInfo);
-
-	/* Bind buffer to memeory */
-	device.bindBufferMemory(path_tracer[renderpass].shaderBindingTable, path_tracer[renderpass].shaderBindingTableMemory, 0);
-
-	/* Map the binding table, then fill with shader group handles */
-	void* mappedMemory = device.mapMemory(path_tracer[renderpass].shaderBindingTableMemory, 0, shaderBindingTableSize, vk::MemoryMapFlags());
-	device.getRayTracingShaderGroupHandlesNV(path_tracer[renderpass].pipeline, 0, groupNum, shaderBindingTableSize, mappedMemory, dldi);
-	device.unmapMemory(path_tracer[renderpass].shaderBindingTableMemory);
 }
 
 void RenderSystem::create_descriptor_set_layouts()
@@ -3336,10 +3480,13 @@ void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffe
 void RenderSystem::bind_raytracing_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &camera_entity, uint32_t rp_idx)
 {
 	if (
+		(primary_visibility[render_pass].ready == false) ||
 		(path_tracer[render_pass].ready == false)
 	) return;
+
 	auto key = std::pair<uint32_t, uint32_t>(camera_entity.get_id(), rp_idx);
 	std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet, gbufferDescriptorSets[key], positionsDescriptorSet, normalsDescriptorSet, colorsDescriptorSet, texcoordsDescriptorSet, indexDescriptorSet, raytracingDescriptorSet};
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, primary_visibility[render_pass].pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, path_tracer[render_pass].pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 }
 
@@ -3522,14 +3669,7 @@ void RenderSystem::trace_rays(
         // width, height, depth, 
 		texture.get_width(), texture.get_height(), 1,
         dldi
-    );
-	
-    // vkCmdTraceRaysNVX(commandBuffer,
-    //     _shaderBindingTable.Buffer, 0,
-    //     _shaderBindingTable.Buffer, 0, _raytracingProperties.shaderHeaderSize,
-    //     _shaderBindingTable.Buffer, 0, _raytracingProperties.shaderHeaderSize,
-    //     _actualWindowWidth, _actualWindowHeight);
-		
+    );	
 }
 
 void RenderSystem::reset_bound_material()
@@ -3663,6 +3803,12 @@ void RenderSystem::show_albedo(bool enable)
 	} else {
 		this->push_constants.flags &= ~( 1 << RenderSystemOptions::SHOW_ALBEDO );
 	}
+}
+
+void RenderSystem::show_gbuffer(uint32_t idx)
+{
+	// NOTE: final render image shows up as gbuffer 0, leading to MAX_G_BUFFERS + 1 buffers
+	gbuffer_override_idx=std::min(idx, (uint32_t)MAX_G_BUFFERS);
 }
 
 void RenderSystem::reset_progressive_refinement() {

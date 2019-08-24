@@ -11,14 +11,10 @@ layout (local_size_x = 16, local_size_y = 16) in;
 
 void main() {
     vec3 raw_albedo = imageLoad(gbuffers[ALBEDO_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
-    vec3 demodulated_direct = imageLoad(gbuffers[DEMOD_DIRECT_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
-    vec3 demodulated_indirect = imageLoad(gbuffers[DEMOD_INDIRECT_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
+    vec3 demodulated_direct = imageLoad(gbuffers[DIRECT_ILLUM_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
+    vec3 demodulated_indirect = imageLoad(gbuffers[INDIRECT_ILLUM_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
     // Note, we add epsilon to albedo here to account for demodulation in the ray gen shader,
     // which is at least divided by a vec3(EPSILON) in case raw albedo is vec3(0)
     vec3 color = (vec3(EPSILON + luminance(raw_albedo))) * (demodulated_direct) + demodulated_indirect;
-
-    if (should_show_direct_illumination()) color = demodulated_direct;
-    if (should_show_indirect_illumination()) color = demodulated_indirect;
-    if (should_show_albedo()) color = raw_albedo;
     imageStore(render_image, ivec2(gl_GlobalInvocationID.xy), vec4(color, 1.0));
 }

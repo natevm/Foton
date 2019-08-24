@@ -21,8 +21,8 @@ float Coefficients[25] =
 /* Temporal SVGF filter over demodulated direct and indirect illumination */
 void main() {
     ivec2 gid = ivec2(gl_GlobalInvocationID.xy);
-    const int direct_illum_addr = DEMOD_DIRECT_ADDR;
-    const int indirect_illum_addr = DEMOD_INDIRECT_ADDR;
+    const int direct_illum_addr = DIRECT_ILLUM_ADDR;
+    const int indirect_illum_addr = INDIRECT_ILLUM_ADDR;
     const int curr_direct_hist_addr = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_1_ADDR : SVGF_TAA_HISTORY_2_ADDR;
     const int next_direct_hist_addr = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_2_ADDR : SVGF_TAA_HISTORY_1_ADDR;
     const int curr_indirect_hist_addr = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_3_ADDR : SVGF_TAA_HISTORY_4_ADDR;
@@ -31,8 +31,8 @@ void main() {
     // first frame, no blending at all.
     if (push.consts.frame < 10) {
         /* Set history to current value */
-        vec3 currDirectVal = imageLoad(gbuffers[DEMOD_DIRECT_ADDR], gid).rgb;
-        vec3 currIndirectVal = imageLoad(gbuffers[DEMOD_INDIRECT_ADDR], gid).rgb;
+        vec3 currDirectVal = imageLoad(gbuffers[DIRECT_ILLUM_ADDR], gid).rgb;
+        vec3 currIndirectVal = imageLoad(gbuffers[INDIRECT_ILLUM_ADDR], gid).rgb;
         imageStore(gbuffers[next_direct_hist_addr], gid, vec4(currDirectVal, 1.0));
         imageStore(gbuffers[next_indirect_hist_addr], gid, vec4(currIndirectVal, 1.0));
     }
@@ -47,8 +47,8 @@ void main() {
         vec2 fudge_factor = vec2(.5, .5); // Some weirdness with numerical precision. This seems to fix slight drift in motion vectors
         ivec2 ihistUv = ivec2(floor(vec2(gid.xy) + (v.xy * vec2(push.consts.width, push.consts.height) + fudge_factor) ));
         
-        vec3 current_direct = imageLoad(gbuffers[DEMOD_DIRECT_ADDR], ivec2(gid)).rgb;
-        vec3 current_indirect = imageLoad(gbuffers[DEMOD_INDIRECT_ADDR], ivec2(gid)).rgb;
+        vec3 current_direct = imageLoad(gbuffers[DIRECT_ILLUM_ADDR], ivec2(gid)).rgb;
+        vec3 current_indirect = imageLoad(gbuffers[INDIRECT_ILLUM_ADDR], ivec2(gid)).rgb;
         vec4 current_albedo_data = imageLoad(gbuffers[ALBEDO_ADDR], ivec2(gid));
         vec4 current_normal_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR], ivec2(gid));
         vec3 current_albedo = current_albedo_data.rgb;
@@ -118,8 +118,8 @@ void main() {
         hist_direct = mix(hist_direct, current_direct, vec3(blend));
         hist_indirect = mix(hist_indirect, current_indirect, vec3(blend));
 
-        imageStore( gbuffers[DEMOD_DIRECT_ADDR],       ivec2(gl_GlobalInvocationID.xy), vec4(hist_direct, 1.0));
-        imageStore( gbuffers[DEMOD_INDIRECT_ADDR],     ivec2(gl_GlobalInvocationID.xy), vec4(hist_indirect, 1.0));
+        imageStore( gbuffers[DIRECT_ILLUM_ADDR],       ivec2(gl_GlobalInvocationID.xy), vec4(hist_direct, 1.0));
+        imageStore( gbuffers[INDIRECT_ILLUM_ADDR],     ivec2(gl_GlobalInvocationID.xy), vec4(hist_indirect, 1.0));
         imageStore( gbuffers[next_direct_hist_addr],   ivec2(gl_GlobalInvocationID.xy), vec4(hist_direct, 1.0));
         imageStore( gbuffers[next_indirect_hist_addr], ivec2(gl_GlobalInvocationID.xy), vec4(hist_indirect, 1.0));
     }

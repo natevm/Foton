@@ -790,7 +790,7 @@ LTCContribution rectangleLightSampleLTC(
     /* Now compute differential irradiance */
     
     // Compute a random point on a unit plane and its pdf
-    vec4 m_light_position = vec4(random(SI.pixel_coords) * 2.0 - 1.0, random(SI.pixel_coords) * 2.0 - 1.0, 0.0, 1.0);
+    vec4 m_light_position = vec4(random(SI.pixel_coords, push.consts.frame) * 2.0 - 1.0, random(SI.pixel_coords, push.consts.frame) * 2.0 - 1.0, 0.0, 1.0);
 
     // Transform that point to where the light actually is
     vec4 w_light_sample_position = light_transform.localToWorld * m_light_position;

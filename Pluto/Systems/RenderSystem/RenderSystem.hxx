@@ -105,6 +105,7 @@ namespace Systems
             void show_direct_illumination(bool enable);
             void show_indirect_illumination(bool enable);
             void show_albedo(bool enable);
+            void show_gbuffer(uint32_t idx);
 
             /* Initializes the vulkan resources required to render during the specified renderpass */
             void setup_graphics_pipelines(vk::RenderPass renderpass, uint32_t sampleCount, bool use_depth_prepass);
@@ -131,6 +132,8 @@ namespace Systems
             float ms_per_frame;
             int max_bounces = 1;
             bool top_level_acceleration_structure_built = false;
+
+            int gbuffer_override_idx = 0;
             
             /* A vector of vertex input binding descriptions, describing binding and stride of per vertex data. */
             std::vector<vk::VertexInputBindingDescription> vertexInputBindingDescriptions;
@@ -237,6 +240,7 @@ namespace Systems
             
             std::map<vk::RenderPass, RasterPipelineResources> gbuffers;
 
+            std::map<vk::RenderPass, RaytracingPipelineResources> primary_visibility;
             std::map<vk::RenderPass, RaytracingPipelineResources> path_tracer;
 
             /* Wrapper for shader module creation.  */
@@ -244,9 +248,6 @@ namespace Systems
 
             /* Cached modules */
             std::unordered_map<std::string, vk::ShaderModule> shaderModuleCache;
-
-            /* EXPLAIN THIS */
-            void setup_raytracing_shader_binding_table(vk::RenderPass renderpass);
 
             ComputePipelineResources edgedetect;
             ComputePipelineResources gaussian_x;

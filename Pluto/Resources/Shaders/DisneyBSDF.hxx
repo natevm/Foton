@@ -474,7 +474,7 @@ float disney_pdf(const in MaterialStruct mat, bool backface,
 
 /* Sample a component of the Disney BRDF, returns the sampled BRDF color,
  * ray reflection direction (w_i) and sample PDF. */
-DisneyColor sample_disney_brdf(ivec2 pixel_coordinates, const in MaterialStruct mat, bool backface, const in vec3 w_n,
+DisneyColor sample_disney_brdf(ivec2 pixel_seed, int frame_seed, const in MaterialStruct mat, bool backface, const in vec3 w_n,
 	const in vec3 w_o, const in vec3 w_x, const in vec3 w_y,
 	out vec3 w_i, out float pdf)
 {
@@ -484,12 +484,12 @@ DisneyColor sample_disney_brdf(ivec2 pixel_coordinates, const in MaterialStruct 
 	vec3 w_y_f = (backface) ? -w_y : w_y;
 	int component = 0;
 	if (mat.transmission == 0.f) {
-		component = int(clamp(random(pixel_coordinates) * 3.f, 0, 2));
+		component = int(clamp(random(pixel_seed, frame_seed) * 3.f, 0, 2));
 	} else {
-		component = int(clamp(random(pixel_coordinates) * 4.f, 0, 3));
+		component = int(clamp(random(pixel_seed, frame_seed) * 4.f, 0, 3));
 	}
 
-	vec2 samples = vec2(random(pixel_coordinates), random(pixel_coordinates));
+	vec2 samples = vec2(random(pixel_seed, frame_seed), random(pixel_seed, frame_seed));
 	if (component == 0) {
 		// Sample diffuse component
 		w_i = sample_lambertian_dir(w_n_f, w_x_f, w_y_f, samples);

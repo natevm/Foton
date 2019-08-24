@@ -21,7 +21,10 @@ vec3 Uncharted2Tonemap(vec3 x)
 }
 
 void main() {
-    vec3 color = imageLoad(render_image, ivec2(gl_GlobalInvocationID.xy)).rgb;
+    int render_image_idx = int(push.consts.parameter1); 
+    vec3 color;
+    if (render_image_idx == 0) color = imageLoad(render_image, ivec2(gl_GlobalInvocationID.xy)).rgb;
+    else color = imageLoad(gbuffers[render_image_idx-1], ivec2(gl_GlobalInvocationID.xy)).rgb;
 
     /* Tone mapping */
     color = Uncharted2Tonemap(color.rgb * push.consts.exposure);

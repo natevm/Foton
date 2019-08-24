@@ -11,7 +11,7 @@
 #include "Pluto/Texture/TextureStruct.hxx"
 
 #ifndef MAX_G_BUFFERS  
-#define MAX_G_BUFFERS 20
+#define MAX_G_BUFFERS 25
 #endif
 
 class Texture : public StaticFactory
