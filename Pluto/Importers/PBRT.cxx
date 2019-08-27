@@ -396,7 +396,7 @@ namespace Pluto {
 
         /* Setup Cameras */
         auto pbrt_camera = scene->cameras[0]; // TODO: Add support for more cameras
-        auto camera_prefab = Prefabs::CreatePrefabCamera("arcball", scene->film->resolution.x, scene->film->resolution.y, glm::radians(pbrt_camera->fov), 1, camera_target, true, name);
+        auto camera_prefab = Prefabs::CreatePrefabCamera("arcball", scene->film->resolution.x, scene->film->resolution.y, glm::radians(pbrt_camera->fov), 1, camera_target, false, name);
         
         auto frame = pbrt_camera->frame;
         glm::mat4 cam_xfm = pbrt_frame_to_glm(frame);

@@ -2,11 +2,11 @@
 #extension GL_NV_ray_tracing : require
 #define RAYTRACING
 
-#include "Pluto/Resources/Shaders/Descriptors.hxx"
+#include "Pluto/Resources/Shaders/Common/Descriptors.hxx"
 layout(location = 0) rayPayloadNV HitInfo payload;
-#include "Pluto/Resources/Shaders/ShaderCommon.hxx"
-#include "Pluto/Resources/Shaders/Options.hxx"
-#include "Pluto/Resources/Shaders/ShaderConstants.hxx"
+#include "Pluto/Resources/Shaders/Common/ShaderCommon.hxx"
+#include "Pluto/Resources/Shaders/Common/Options.hxx"
+#include "Pluto/Resources/Shaders/Common/ShaderConstants.hxx"
 
 void unpack_gbuffer_data(out vec3 w_position, out float depth, out vec3 w_normal, 
     out int entity_id, out ivec2 pixel_seed, out int frame_seed, out vec3 albedo,

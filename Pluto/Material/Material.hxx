@@ -28,10 +28,15 @@ class Entity;
 class Texture;
 class Camera;
 
+enum MaterialFlags : uint32_t { 
+    MATERIAL_FLAGS_HIDDEN = 1, 
+    MATERIAL_FLAGS_SHOW_SKYBOX = 2
+};
+
 class Material : public StaticFactory
 {
     friend class StaticFactory;
-    friend class Systems::RenderSystem; // temporary. Required so rendersystem can read rendermode parameter
+    // friend class Systems::RenderSystem; // temporary. Required so rendersystem can read rendermode parameter
     public:
         /* Creates a new material component */
         static Material* Create(std::string name);
@@ -76,20 +81,22 @@ class Material : public StaticFactory
         std::string to_string();
 
         /* These methods choose which pipeline a material should use when drawing an entity */
-        void show_pbr();
-        void show_normals();
-        void show_base_color();
-        void show_texcoords();
-        void show_blinn();
-        void show_fragment_depth();
-        void show_vr_mask();
-        void show_depth();
-        void show_position();
-        void show_environment();
-        void show_volume();
+        // void show_pbr();
+        // void show_normals();
+        // void show_base_color();
+        // void show_texcoords();
+        // void show_blinn();
+        // void show_fragment_depth();
+        // void show_vr_mask();
+        // void show_depth();
+        // void show_position();
+        // void show_volume();
+
+        /* This method makes an entity render as if it were the sky */
+        void show_environment(bool show);
 
         /* This method prevents an entity from rendering. */
-        void hide();
+        void hidden(bool hide);
 
         /* Accessors / Mutators */
         void set_base_color(glm::vec3 color);
@@ -162,6 +169,8 @@ class Material : public StaticFactory
         void clear_transfer_function_texture();
 
         bool contains_transparency();
+        bool should_show_skybox();
+        bool is_hidden();
 
     private:
         /* Creates an uninitialized material. Useful for preallocation. */
@@ -202,7 +211,4 @@ class Material : public StaticFactory
         
         /* The structure containing all shader material properties. This is what's coppied into the SSBO per instance */
         MaterialStruct material_struct;
-        
-        /* TODO: move this into the material struct... */
-        RenderMode renderMode = RENDER_MODE_PBR;
 };

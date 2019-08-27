@@ -3,7 +3,10 @@
 
 /* If this is more than 0, the corresponding g buffers must be written to by all
 fragment shaders. */
-#define USED_G_BUFFERS 1
+
+// See Descriptors.hxx fragment output attachments 
+#define USED_PRIMARY_VISIBILITY_G_BUFFERS 6
+#define USED_SHADOW_MAP_G_BUFFERS 1
 
 struct PipelineParameters {
 	vk::PipelineInputAssemblyStateCreateInfo inputAssembly;
@@ -11,7 +14,7 @@ struct PipelineParameters {
 	vk::PipelineViewportStateCreateInfo viewportState;
 	vk::PipelineMultisampleStateCreateInfo multisampling;
 	vk::PipelineDepthStencilStateCreateInfo depthStencil;
-	std::array<vk::PipelineColorBlendAttachmentState, 1 + USED_G_BUFFERS> blendAttachments;
+	std::vector<vk::PipelineColorBlendAttachmentState> blendAttachments;
 	vk::PipelineColorBlendStateCreateInfo colorBlending;
 	vk::PipelineDynamicStateCreateInfo dynamicState;
 
@@ -29,7 +32,10 @@ struct PipelineParameters {
 	// 	return pp;
 	// }
 
-	PipelineParameters() {
+	PipelineParameters() {}
+
+	void initialize(uint32_t num_g_buffers)	
+	{
 		/* Default input assembly */
 		inputAssembly.topology = vk::PrimitiveTopology::eTriangleList;
 		inputAssembly.primitiveRestartEnable = false;
@@ -79,7 +85,8 @@ struct PipelineParameters {
 		/* Default Color Blending Attachment States */
 
 		/* G Buffers */
-		for (uint32_t g_idx = 0; g_idx < 1 + USED_G_BUFFERS; ++g_idx) {
+		blendAttachments.resize(num_g_buffers);
+		for (uint32_t g_idx = 0; g_idx < num_g_buffers; ++g_idx) {
 			blendAttachments[g_idx].colorWriteMask = vk::ColorComponentFlagBits::eR | 
 												vk::ColorComponentFlagBits::eG | 
 												vk::ColorComponentFlagBits::eB | 

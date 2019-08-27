@@ -11,39 +11,31 @@ set (
 )
 
 set(SHADERS_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/SurfaceMaterials/PBRSurface/shader.vert
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/SurfaceMaterials/PBRSurface/shader.frag
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/SurfaceMaterials/Skybox/shader.vert
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/SurfaceMaterials/Skybox/shader.frag
-
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/VolumeMaterials/Volume/shader.vert
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/VolumeMaterials/Volume/shader.frag
-
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/GBuffers/ShadowMap/shader.vert
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/GBuffers/ShadowMap/shader.frag
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/GBuffers/FragmentDepth/shader.vert
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/GBuffers/VRMask/shader.vert
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/GBuffers/shader.vert
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/GBuffers/shader.frag
-
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/Compute/EdgeDetect/shader.comp
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/Compute/ProgressiveRefinement/shader.comp
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/Compute/ToneMapping/shader.comp
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/Compute/TAA/shader.comp
-    
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/Compute/VSM/GaussianBlurX/shader.comp
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/Compute/VSM/GaussianBlurY/shader.comp
-    
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/Compute/SVGF_ATrous/shader.comp
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/Compute/SVGF_TAA/shader.comp
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/Compute/SVGF_Remodulate/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RasterPrograms/PrimaryVisibility/shader.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RasterPrograms/PrimaryVisibility/shader.frag
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RasterPrograms/Skybox/shader.frag
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RasterPrograms/Skybox/shader.frag
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RasterPrograms/ShadowMap/shader.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RasterPrograms/ShadowMap/shader.frag
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RasterPrograms/FragmentDepth/shader.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RasterPrograms/VRMask/shader.vert
 
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/PrimaryVisibility/shader.rgen
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/PrimaryVisibility/shader.rchit
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/PrimaryVisibility/shader.rmiss
-    
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/PathTracer/shader.rgen
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/PathTracer/shader.rchit
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/PathTracer/shader.rmiss
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/DeferredFinal/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/EdgeDetect/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ProgressiveRefinement/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ToneMapping/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/TAA/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/VSM/GaussianBlurX/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/VSM/GaussianBlurY/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/SVGF_ATrous/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/SVGF_TAA/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/SVGF_Remodulate/shader.comp
     PARENT_SCOPE
 )

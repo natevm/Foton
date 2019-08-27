@@ -332,7 +332,7 @@ void Light::CreateShadowCameras()
         // Right, Left, Up, Down, Far, Near
         /* Create shadow map textures */
         for (uint32_t i = 0; i < MAX_LIGHTS; ++i) {
-            auto cam = Camera::Create("ShadowCam_" + std::to_string(i), 256, 256, 1, 6, true, false);
+            auto cam = Camera::Create("ShadowCam_" + std::to_string(i), 256, 256, 1, 6, false, false);
             cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 0);
             cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 1);
             cam->set_perspective_projection(3.14f * .5f, 1.f, 1.f, .1f, 2);

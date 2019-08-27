@@ -15,17 +15,10 @@ struct VisibleEntityInfo;
 
 /* An enumeration used to select a pipeline type for use when drawing a given entity. */
 enum RenderMode : uint32_t { 
-    RENDER_MODE_BLINN, 
-    RENDER_MODE_PBR, 
-    RENDER_MODE_NORMAL, 
-    RENDER_MODE_TEXCOORD, 
+    RENDER_MODE_PRIMARY_VISIBILITY, 
     RENDER_MODE_SKYBOX, 
-    RENDER_MODE_BASECOLOR, 
-    RENDER_MODE_DEPTH, 
-    RENDER_MODE_VOLUME, 
     RENDER_MODE_SHADOWMAP, 
     RENDER_MODE_FRAGMENTDEPTH, 
-    RENDER_MODE_FRAGMENTPOSITION, 
     RENDER_MODE_VRMASK, 
     RENDER_MODE_HIDDEN, 
     RENDER_MODE_NONE 
@@ -56,6 +49,8 @@ enum RenderSystemOptions : uint32_t {
 namespace Systems 
 {
     class RenderSystem : public System {
+        friend class Camera; // temporary. Required so camera can read some rendersystem parameters which are being migrated.
+
         public:
             static RenderSystem* Get();
             bool initialize();
@@ -91,6 +86,7 @@ namespace Systems
             void build_top_level_bvh(bool submit_immediately = false);
 
             void enable_ray_tracing(bool enable);
+            void rasterize_primary_visibility(bool enable);
             void enable_svgf_taa(bool enable);
             void enable_svgf_atrous(bool enable);
             void enable_taa(bool enable);
@@ -108,9 +104,26 @@ namespace Systems
             void show_gbuffer(uint32_t idx);
 
             /* Initializes the vulkan resources required to render during the specified renderpass */
-            void setup_graphics_pipelines(vk::RenderPass renderpass, uint32_t sampleCount, bool use_depth_prepass);
+            void setup_primary_visibility_raster_pipelines(vk::RenderPass renderpass, uint32_t sampleCount, bool use_depth_prepass);
+            void setup_depth_prepass_raster_pipelines(vk::RenderPass renderpass, uint32_t sampleCount, bool use_depth_prepass, uint32_t num_g_buffers);
+            void setup_shadow_map_raster_pipelines(vk::RenderPass renderpass, uint32_t sampleCount, bool use_depth_prepass);
+            void setup_raytracing_pipelines();
+            void setup_compute_pipelines();
 
-            float get_seconds_per_frame();
+            float get_milliseconds_per_frame();
+            float get_milliseconds_per_acquire_swapchain_images();
+            float get_milliseconds_per_record_commands();
+            float get_milliseconds_per_record_raster_pass();
+            float get_milliseconds_per_record_ray_trace_pass();
+            float get_milliseconds_per_record_compute_pass();
+            float get_milliseconds_per_enqueue_commands();
+            float get_milliseconds_per_submit_commands();
+            float get_milliseconds_per_present_frames();
+            float get_milliseconds_per_download_visibility_queries();
+            float get_milliseconds_per_upload_ssbo();
+            float get_milliseconds_per_update_push_constants();
+            float get_milliseconds_per_record_cameras();
+            float get_milliseconds_per_record_blit_textures();
 
             void reset_progressive_refinement();
 
@@ -121,15 +134,29 @@ namespace Systems
             bool using_openvr = false;
             bool using_vr_hidden_area_masks = true;
             bool ray_tracing_enabled = false;
+            bool rasterize_primary_visibility_enabled = false;
             bool taa_enabled = false;
             bool svgf_taa_enabled = false;
             bool svgf_atrous_enabled = false;
             bool progressive_refinement_enabled = false;
             bool tone_mapping_enabled = true;
-            double lastTime, currentTime;
+            double last_frame_time, last_raster_time, last_compute_time, last_raytrace_time, current_time;
             float atrous_sigma = 1.0;
             int atrous_iterations = 5;
             float ms_per_frame;
+            float ms_per_acquire_swapchain_images;
+            float ms_per_record_commands;
+            float ms_per_record_raster_pass;
+            float ms_per_record_compute_pass;
+            float ms_per_record_raytrace_pass;
+            float ms_per_enqueue_commands;
+            float ms_per_submit_commands;
+            float ms_per_present_frames;
+            float ms_per_download_visibility_queries;
+            float ms_per_upload_ssbo;
+            float ms_per_update_push_constants;
+            float ms_per_record_cameras;
+            float ms_per_record_blit_textures;
             int max_bounces = 1;
             bool top_level_acceleration_structure_built = false;
 
@@ -225,23 +252,14 @@ namespace Systems
             vk::DescriptorSet raytracingDescriptorSet;
             
             /* The pipeline resources for each of the possible material types */
-            // std::map<vk::RenderPass, RasterPipelineResources> uniformColor;
-            // std::map<vk::RenderPass, RasterPipelineResources> blinn;
-            std::map<vk::RenderPass, RasterPipelineResources> pbr;
-            // std::map<vk::RenderPass, RasterPipelineResources> texcoordsurface;
-            // std::map<vk::RenderPass, RasterPipelineResources> normalsurface;
+            std::map<vk::RenderPass, RasterPipelineResources> raster_primary_visibility;
             std::map<vk::RenderPass, RasterPipelineResources> skybox;
-            // std::map<vk::RenderPass, RasterPipelineResources> depth;
-            std::map<vk::RenderPass, RasterPipelineResources> volume;
             std::map<vk::RenderPass, RasterPipelineResources> shadowmap;
-            std::map<vk::RenderPass, RasterPipelineResources> fragmentdepth;
-            // std::map<vk::RenderPass, RasterPipelineResources> fragmentposition;
-            std::map<vk::RenderPass, RasterPipelineResources> vrmask;
-            
-            std::map<vk::RenderPass, RasterPipelineResources> gbuffers;
+            std::map<vk::RenderPass, RasterPipelineResources> raster_depth_prepass;
+            std::map<vk::RenderPass, RasterPipelineResources> raster_vrmask;
 
-            std::map<vk::RenderPass, RaytracingPipelineResources> primary_visibility;
-            std::map<vk::RenderPass, RaytracingPipelineResources> path_tracer;
+            RaytracingPipelineResources raytrace_primary_visibility;
+            RaytracingPipelineResources path_tracer;
 
             /* Wrapper for shader module creation.  */
             vk::ShaderModule create_shader_module(std::string name, const std::vector<char>& code);
@@ -249,6 +267,7 @@ namespace Systems
             /* Cached modules */
             std::unordered_map<std::string, vk::ShaderModule> shaderModuleCache;
 
+            ComputePipelineResources deferred_final;
             ComputePipelineResources edgedetect;
             ComputePipelineResources gaussian_x;
             ComputePipelineResources gaussian_y;
@@ -258,8 +277,6 @@ namespace Systems
             ComputePipelineResources progressive_refinement;
             ComputePipelineResources tone_mapping;
             ComputePipelineResources taa;
-
-            void setup_compute_pipelines();
 
             /* Wraps the vulkan boilerplate for creation of a graphics pipeline */
             void create_raster_pipeline(
@@ -297,11 +314,13 @@ namespace Systems
             void update_raytracing_descriptor_sets(vk::AccelerationStructureNV &tlas);
 
             /* Records a bind of all descriptor sets to each possible pipeline to the given command buffer. Call this at the beginning of a renderpass. */
-            void bind_raster_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
+            void bind_depth_prepass_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
+            void bind_raster_primary_visibility_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
+            void bind_shadow_map_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
 
             void bind_compute_descriptor_sets(vk::CommandBuffer &command_buffer, Entity &camera_entity, uint32_t rp_idx);
 
-            void bind_raytracing_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass, Entity &camera_entity, uint32_t rp_idx);
+            void bind_raytracing_descriptor_sets(vk::CommandBuffer &command_buffer, Entity &camera_entity, uint32_t rp_idx);
 
             /* Records a draw of the supplied entity to the current command buffer. Call this during a renderpass. */
             void draw_entity(
@@ -314,12 +333,6 @@ namespace Systems
                 bool render_bounding_box_override = false
             ); // int32_t camera_id, int32_t environment_id, int32_t diffuse_id, int32_t irradiance_id, float gamma, float exposure, std::vector<int32_t> &light_entity_ids, double time
 
-            void trace_rays(
-                vk::CommandBuffer &command_buffer, 
-                vk::RenderPass &render_pass, 
-                PushConsts &push_constants,
-                Texture &texture);
-
             /* TODO... */
             void reset_bound_material();
 
@@ -327,7 +340,55 @@ namespace Systems
             
             PipelineType currentlyBoundPipelineType = PipelineType::PIPELINE_TYPE_NORMAL;
 
+            /* Camera data */
+            struct CameraResources 
+            {
+                vk::QueryPool queryPool;
+                std::vector<bool> index_queried;
+                std::vector<bool> next_index_queried;
+                std::vector<uint64_t> previousQueryResults;
+                std::vector<uint64_t> queryResults;
+                std::vector<vk::RenderPass> primary_visibility_depth_prepasses;
+                std::vector<vk::Framebuffer> primary_visibility_depth_prepass_framebuffers;
+                std::vector<vk::RenderPass> primary_visibility_renderpasses;
+                std::vector<vk::Framebuffer> primary_visibility_renderpass_framebuffers;
+                
+                // It seems a bit goofy to have a depth prepass on a shadow map,
+                // but the prepass also allows for occlusion testing
+                std::vector<vk::RenderPass> shadow_map_depth_prepasses;
+                std::vector<vk::Framebuffer> shadow_map_depth_prepass_framebuffers;
+                std::vector<vk::RenderPass> shadow_map_renderpasses;
+                std::vector<vk::Framebuffer> shadow_map_renderpass_framebuffers;
+                vk::CommandBuffer command_buffer;
+                vk::CommandPool command_buffer_pool;
+            };
+
+            std::map<uint32_t, CameraResources> camera_resources;
+
             vk::RenderPass currentRenderpass = vk::RenderPass();
+
+            void create_camera_resources(uint32_t camera_id);
+            void create_camera_render_passes(uint32_t camera_id, uint32_t layers = 1, uint32_t sample_count = 1);
+	        void create_camera_frame_buffers(uint32_t camera_id, uint32_t layers);
+            void create_camera_query_pool(uint32_t camera_id, uint32_t max_views);
+
+            void reset_query_pool(vk::CommandBuffer command_buffer, uint32_t camera_id);
+            std::vector<uint64_t> & get_query_pool_results(uint32_t camera_id);
+            void download_query_pool_results(uint32_t camera_id);
+            void begin_visibility_query(vk::CommandBuffer command_buffer, uint32_t camera_id, uint32_t renderpass_idx, uint32_t entity_id);
+            void end_visibility_query(vk::CommandBuffer command_buffer, uint32_t camera_id, uint32_t renderpass_idx, uint32_t entity_id);
+            bool is_entity_visible(uint32_t camera_id, uint32_t renderpass_idx, uint32_t entity_id);
+            std::vector<std::vector<VisibleEntityInfo>> get_visible_entities(uint32_t camera_id, uint32_t camera_entity_id);
+
+            /* Records vulkan commands to the given command buffer required to 
+            	start a renderpass for the current camera setup. This should only be called by the render 
+            	system, and only after the command buffer has begun recording commands. */
+            /* Records vulkan commands to the given command buffer required to 
+                end a renderpass for the current camera setup. */
+            void begin_renderpass(vk::CommandBuffer command_buffer, vk::RenderPass renderpass, vk::Framebuffer framebuffer, uint32_t camera_id, uint32_t num_g_buffers);
+            void end_renderpass(vk::CommandBuffer command_buffer, uint32_t camera_id);
+            void begin_depth_prepass(vk::CommandBuffer command_buffer, vk::RenderPass renderpass, vk::Framebuffer framebuffer, uint32_t camera_id, uint32_t num_g_buffers);
+            void end_depth_prepass(vk::CommandBuffer command_buffer, uint32_t camera_id);
 
             struct ComputeNode
             {
@@ -468,8 +529,8 @@ namespace Systems
             void record_render_commands();
             void record_ray_trace_pass(Entity &camera_entity);
             void record_compute_pass(Entity &camera_entity);
-            void record_raster_renderpass(Entity &camera_entity, std::vector<std::vector<VisibleEntityInfo>> &visible_entities);
-            void record_depth_prepass(Entity &camera_entity, std::vector<std::vector<VisibleEntityInfo>> &visible_entities);
+            void record_raster_primary_visibility_renderpass(Entity &camera_entity, std::vector<std::vector<VisibleEntityInfo>> &visible_entities);
+            void record_shadow_map_renderpass(Entity &camera_entity, std::vector<std::vector<VisibleEntityInfo>> &visible_entities);
             void record_blit_camera(Entity &camera_entity, std::map<std::string, std::pair<Camera *, uint32_t>> &window_to_cam);
             void record_cameras();
             void record_blit_textures();
@@ -477,7 +538,6 @@ namespace Systems
             void download_visibility_queries();
             void mark_cameras_as_render_complete();
 
-            void stream_frames();
             void update_openvr_transforms();
             void present_openvr_frames();
             void allocate_vulkan_resources();

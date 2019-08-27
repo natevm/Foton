@@ -942,7 +942,7 @@ Material* OpenVR::get_left_eye_hidden_area_material()
 	if (!system) throw std::runtime_error("Error: OpenVR not initialized");
 	if (left_eye_hidden_area_material != nullptr) return left_eye_hidden_area_material;
 	left_eye_hidden_area_material = Material::Create("ovr_left_eye_hidden_area_material");
-	left_eye_hidden_area_material->hide();
+	left_eye_hidden_area_material->hidden(true);
 	return left_eye_hidden_area_material;
 }
 
@@ -951,7 +951,7 @@ Material* OpenVR::get_right_eye_hidden_area_material()
 	if (!system) throw std::runtime_error("Error: OpenVR not initialized");
 	if (right_eye_hidden_area_material != nullptr) return right_eye_hidden_area_material;
 	right_eye_hidden_area_material = Material::Create("ovr_right_eye_hidden_area_material");
-	right_eye_hidden_area_material->hide();
+	right_eye_hidden_area_material->hidden(true);
 	return right_eye_hidden_area_material;
 }
 

@@ -11,6 +11,9 @@
 #include "Pluto/Tools/StaticFactory.hxx"
 #include "Pluto/Camera/CameraStruct.hxx"
 
+#include "Pluto/Systems/RenderSystem/RenderSystem.hxx"
+
+
 class Texture;
 class Entity;
 
@@ -31,6 +34,7 @@ struct VisibleEntityInfo {
 class Camera : public StaticFactory
 {
 	friend class StaticFactory;
+    friend class Systems::RenderSystem;
   public:
 	/* Creates a camera, which can be used to record the scene. Can be used to render to several texture layers for use in cubemap rendering/VR renderpasses. 
 	Note, for VR, max_views must be 2, and for a cubemap, max_views must be 6. */
@@ -113,62 +117,6 @@ class Camera : public StaticFactory
 	/* Returns a json string summarizing the camera. */
 	std::string to_string();
 
-	/* Records vulkan commands to the given command buffer required to 
-		start a renderpass for the current camera setup. This should only be called by the render 
-		system, and only after the command buffer has begun recording commands. */
-	void begin_renderpass(vk::CommandBuffer command_buffer, uint32_t index = 0);
-
-	/* Records vulkan commands to the given command buffer required to 
-		end a renderpass for the current camera setup. */
-	void end_renderpass(vk::CommandBuffer command_buffer, uint32_t index = 0);
-
-	/* Records vulkan commands to the given command buffer required to 
-		start a depth prepass for the current camera setup. This should only be called by the render 
-		system, and only after the command buffer has begun recording commands. */
-	void begin_depth_prepass(vk::CommandBuffer command_buffer, uint32_t index = 0);
-
-	/* Records vulkan commands to the given command buffer required to 
-		end a depth prepass for the current camera setup. */
-	void end_depth_prepass(vk::CommandBuffer command_buffer, uint32_t index = 0);
-
-	/* Returns the vulkan renderpass handle. */
-	vk::RenderPass get_renderpass(uint32_t);
-
-	/* Returns the vulkan depth prepass handle. */
-	vk::RenderPass get_depth_prepass(uint32_t);
-
-	/* Get the number of renderpasses for this camera */
-	uint32_t get_num_renderpasses();
-
-	/* Returns the vulkan command buffer handle. */
-	vk::CommandBuffer get_command_buffer();
-
-	/* TODO: Explain this */
-	vk::QueryPool get_query_pool();
-
-	/* TODO: */
-	void reset_query_pool(vk::CommandBuffer command_buffer);
-
-	/* TODO: Explain this */
-	std::vector<uint64_t> & get_query_pool_results();
-
-	void download_query_pool_results();
-
-	/* TODO: Explain this */
-	void begin_visibility_query(vk::CommandBuffer command_buffer, uint32_t renderpass_idx, uint32_t entity_id);
-	
-	/* TODO: Explain this */
-	void end_visibility_query(vk::CommandBuffer command_buffer, uint32_t renderpass_idx, uint32_t entity_id);
-
-	/* TODO: */
-	bool is_entity_visible(uint32_t renderpass_idx, uint32_t entity_id);
-
-	/* TODO: Explain this */
-	// vk::Semaphore get_semaphore(uint32_t frame_idx);
-	
-	/* TODO: Explain this */
-	vk::Fence get_fence(uint32_t frame_idx);
-
 	/* Sets the clear color to be used to reset the color image of this camera's
 		texture component when beginning a renderpass. */
 	void set_clear_color(float r, float g, float b, float a);
@@ -211,15 +159,6 @@ class Camera : public StaticFactory
 
 	/* TODO: Explain this */
 	bool should_use_multiview();
-
-	/* TODO: Explain this */
-	std::vector<std::vector<VisibleEntityInfo>> get_visible_entities(uint32_t camera_entity_id) ;
-
-	/* Creates a vulkan commandbuffer handle used to record the renderpass. */
-	void create_command_buffers();
-
-	/* TODO: */
-	bool needs_command_buffers();
 
 	/* TODO: */
 	void pause_visibility_testing();
@@ -267,12 +206,6 @@ class Camera : public StaticFactory
 	/* A struct containing all data to be uploaded to the GPU via an SSBO. */
 	CameraStruct camera_struct;
 
-	/* The vulkan renderpass handles, used to begin and end final renderpasses for the given camera. */
-	std::vector<vk::RenderPass> renderpasses;
-
-	/* TODO: Explain this */
-	vk::QueryPool queryPool;
-
 	/* TODO: */
 	bool queryRecorded = false;
 
@@ -284,37 +217,7 @@ class Camera : public StaticFactory
 
 	float max_visibility_distance;
 
-	std::vector<bool> index_queried;
-	std::vector<bool> next_index_queried;
-
-	/* TODO: Explain this */
-	std::vector<uint64_t> previousQueryResults;
-	
-	/* TODO: Explain this */
-	std::vector<uint64_t> queryResults;
-
 	std::vector<std::vector<VisibleEntityInfo>> frustum_culling_results;
-
-	/* The vulkan depth prpass renderpass handles, used to begin and end depth prepasses for the given camera. */
-	std::vector<vk::RenderPass> depthPrepasses;
-	
-	/* The vulkan framebuffer handles, which associates attachments with image views. */
-	std::vector<vk::Framebuffer> framebuffers;
-
-	/* The vulkan prepass framebuffer handles, which associates attachments with image views. */
-	std::vector<vk::Framebuffer> depthPrepassFramebuffers;
-
-	/* The vulkan command buffer handle, used to record the renderpass. */
-	vk::CommandBuffer command_buffer;
-
-	/* A reference to the pool which was used to create the camera's command buffer */
-	vk::CommandPool pool;
-
-	/* TODO: explain this */
-	// std::vector<vk::Semaphore> semaphores;
-
-	/* TODO: explain this */
-	std::vector<vk::Fence> fences;
 
 	/* The texture component attached to the framebuffer, which will be rendered to. */
 	Texture *renderTexture = nullptr;
@@ -364,21 +267,6 @@ class Camera : public StaticFactory
 
 	/* Allocates (and possibly frees existing) textures, renderpass, and framebuffer required for rendering. */
 	void setup(uint32_t tex_width = 0, uint32_t tex_height = 0, uint32_t msaa_samples = 1, uint32_t max_views = 1, bool use_depth_prepass = true, bool use_multiview = false);
-
-	/* Creates a vulkan renderpass handle which will be used when recording from the current camera component. */
-	void create_render_passes(uint32_t layers = 1, uint32_t sample_count = 1);
-
-	/* Creates a vulkan framebuffer handle used by the renderpass, which binds image views to the framebuffer attachments. */
-	void create_frame_buffers(uint32_t layers);
-
-	/* TODO: Explain this */
-	void create_query_pool(uint32_t max_views);
-
-	/* TODO: Explain this */
-	// void create_semaphores();
-
-	/* TODO: Explain this */
-	void create_fences();
 
 	/* Updates the usedViews field to account for a new multiview. This is fixed to the allocated texture layers 
 		when recording is enabled. */

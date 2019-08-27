@@ -124,7 +124,7 @@ namespace Pluto {
         auto sphere = Mesh::CreateSphere("SkyboxSphere");
         auto transform = Transform::Create("SkyboxTransform");
         auto material = Material::Create("SkyboxMaterial");
-        material->show_environment();
+        material->show_environment(true);
         transform->set_scale(100000, 100000, 100000);
         skybox->set_mesh(sphere);
         skybox->set_material(material);

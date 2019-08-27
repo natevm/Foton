@@ -4,11 +4,11 @@
 #define RAYTRACING
 
 
-#include "Pluto/Resources/Shaders/Descriptors.hxx"
+#include "Pluto/Resources/Shaders/Common/Descriptors.hxx"
 
 layout(location = 0) rayPayloadInNV HitInfo payload;
 
-#include "Pluto/Resources/Shaders/ShaderCommon.hxx"
+#include "Pluto/Resources/Shaders/Common/ShaderCommon.hxx"
 
 hitAttributeNV vec2 bary;
 
