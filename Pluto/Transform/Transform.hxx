@@ -107,6 +107,17 @@ class Transform : public StaticFactory
     Transform();
     Transform(std::string name, uint32_t id);
 
+    /* Indicates that one of the components has been edited */
+    static bool Dirty;
+
+    /* Indicates this component has been edited */
+    bool dirty = true;
+
+    void mark_dirty() {
+		Dirty = true;
+		dirty = true;
+	};
+
   public:
     static Transform* Create(std::string name);
     static Transform* Get(std::string name);

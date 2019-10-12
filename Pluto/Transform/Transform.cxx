@@ -9,6 +9,7 @@ vk::DeviceMemory Transform::stagingSSBOMemory;
 vk::DeviceMemory Transform::SSBOMemory;
 std::shared_ptr<std::mutex> Transform::creation_mutex;
 bool Transform::Initialized = false;
+bool Transform::Dirty = true;
 
 void Transform::Initialize()
 {
@@ -68,6 +69,8 @@ bool Transform::IsInitialized()
 
 void Transform::UploadSSBO(vk::CommandBuffer command_buffer) 
 {
+	if (!Dirty) return;
+	Dirty = false;
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
 
@@ -107,7 +110,6 @@ void Transform::UploadSSBO(vk::CommandBuffer command_buffer)
 	vk::BufferCopy copyRegion;
 	copyRegion.size = bufferSize;
 	command_buffer.copyBuffer(stagingSSBO, SSBO, copyRegion);
-
 }
 
 vk::Buffer Transform::GetSSBO() 
@@ -251,6 +253,7 @@ void Transform::rotate_around(vec3 point, float angle, vec3 axis)
 	parentToLocalTranslation = glm::translate(glm::mat4(1.0), -position);
 
 	update_matrix();
+	mark_dirty();
 }
 
 void Transform::rotate_around(vec3 point, glm::quat rot)
@@ -269,6 +272,7 @@ void Transform::rotate_around(vec3 point, glm::quat rot)
 	parentToLocalTranslation = glm::translate(glm::mat4(1.0), -position);
 
 	update_matrix();
+	mark_dirty();
 }
 
 void Transform::set_transform(glm::mat4 transformation, bool decompose)
@@ -298,6 +302,7 @@ void Transform::set_transform(glm::mat4 transformation, bool decompose)
 		this->parentToLocalTransform = glm::inverse(transformation);
 		update_matrix();
 	}
+	mark_dirty();
 }
 
 quat Transform::get_rotation()
@@ -309,22 +314,26 @@ void Transform::set_rotation(quat newRotation)
 {
 	rotation = glm::normalize(newRotation);
 	update_rotation();
+	mark_dirty();
 }
 
 void Transform::set_rotation(float angle, vec3 axis)
 {
 	set_rotation(glm::angleAxis(angle, axis));
+	mark_dirty();
 }
 
 void Transform::add_rotation(quat additionalRotation)
 {
 	set_rotation(get_rotation() * additionalRotation);
 	update_rotation();
+	mark_dirty();
 }
 
 void Transform::add_rotation(float angle, vec3 axis)
 {
 	add_rotation(glm::angleAxis(angle, axis));
+	mark_dirty();
 }
 
 void Transform::update_rotation()
@@ -332,6 +341,7 @@ void Transform::update_rotation()
 	localToParentRotation = glm::toMat4(rotation);
 	parentToLocalRotation = glm::inverse(localToParentRotation);
 	update_matrix();
+	mark_dirty();
 }
 
 vec3 Transform::get_position()
@@ -358,22 +368,26 @@ void Transform::set_position(vec3 newPosition)
 {
 	position = newPosition;
 	update_position();
+	mark_dirty();
 }
 
 void Transform::add_position(vec3 additionalPosition)
 {
 	set_position(get_position() + additionalPosition);
 	update_position();
+	mark_dirty();
 }
 
 void Transform::set_position(float x, float y, float z)
 {
 	set_position(glm::vec3(x, y, z));
+	mark_dirty();
 }
 
 void Transform::add_position(float dx, float dy, float dz)
 {
 	add_position(glm::vec3(dx, dy, dz));
+	mark_dirty();
 }
 
 void Transform::update_position()
@@ -381,6 +395,7 @@ void Transform::update_position()
 	localToParentTranslation = glm::translate(glm::mat4(1.0), position);
 	parentToLocalTranslation = glm::translate(glm::mat4(1.0), -position);
 	update_matrix();
+	mark_dirty();
 }
 
 vec3 Transform::get_scale()
@@ -392,33 +407,39 @@ void Transform::set_scale(vec3 newScale)
 {
 	scale = newScale;
 	update_scale();
+	mark_dirty();
 }
 
 void Transform::set_scale(float newScale)
 {
 	scale = vec3(newScale, newScale, newScale);
 	update_scale();
+	mark_dirty();
 }
 
 void Transform::add_scale(vec3 additionalScale)
 {
 	set_scale(get_scale() + additionalScale);
 	update_scale();
+	mark_dirty();
 }
 
 void Transform::set_scale(float x, float y, float z)
 {
 	set_scale(glm::vec3(x, y, z));
+	mark_dirty();
 }
 
 void Transform::add_scale(float dx, float dy, float dz)
 {
 	add_scale(glm::vec3(dx, dy, dz));
+	mark_dirty();
 }
 
 void Transform::add_scale(float ds)
 {
 	add_scale(glm::vec3(ds, ds, ds));
+	mark_dirty();
 }
 
 void Transform::update_scale()
@@ -426,6 +447,7 @@ void Transform::update_scale()
 	localToParentScale = glm::scale(glm::mat4(1.0), scale);
 	parentToLocalScale = glm::scale(glm::mat4(1.0), glm::vec3(1.0 / scale.x, 1.0 / scale.y, 1.0 / scale.z));
 	update_matrix();
+	mark_dirty();
 }
 
 void Transform::update_matrix()
@@ -439,6 +461,7 @@ void Transform::update_matrix()
 	position = glm::vec3(localToParentMatrix[3]);
 
 	update_children();
+	mark_dirty();
 }
 
 glm::mat4 Transform::compute_world_to_local_matrix()
@@ -467,6 +490,7 @@ void Transform::update_world_matrix()
 		localToWorldMatrix = glm::inverse(worldToLocalMatrix); 
 		glm::decompose(localToWorldMatrix, worldScale, worldRotation, worldTranslation, worldSkew, worldPerspective);
 	}
+	mark_dirty();
 }
 
 glm::mat4 Transform::get_parent_to_local_matrix()
@@ -519,6 +543,7 @@ void Transform::set_parent(uint32_t parent) {
 	this->parent = parent;
 	transforms[parent].children.insert(this->id);
 	update_children();
+	mark_dirty();
 }
 
 void Transform::clear_parent()
@@ -531,6 +556,7 @@ void Transform::clear_parent()
 	transforms[parent].children.erase(this->id);
 	this->parent = -1;
 	update_children();
+	mark_dirty();
 }
 
 void Transform::add_child(uint32_t object) {
@@ -543,6 +569,7 @@ void Transform::add_child(uint32_t object) {
 	children.insert(object);
 	transforms[object].parent = this->id;
 	transforms[object].update_world_matrix();
+	transforms[object].mark_dirty();
 }
 
 void Transform::remove_child(uint32_t object) {
@@ -558,6 +585,7 @@ void Transform::remove_child(uint32_t object) {
 	children.erase(object);
 	transforms[object].parent = -1;
 	transforms[object].update_world_matrix();
+	transforms[object].mark_dirty();
 }
 
 glm::mat4 Transform::get_world_to_local_matrix() {
@@ -622,4 +650,5 @@ void Transform::update_children()
 	}
 
 	update_world_matrix();
+	mark_dirty();
 }

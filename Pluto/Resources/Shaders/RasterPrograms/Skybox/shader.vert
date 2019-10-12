@@ -9,35 +9,36 @@ layout(location = 0) out vec3 w_normal;
 layout(location = 1) out vec3 w_position;
 layout(location = 2) out vec2 fragTexCoord;
 layout(location = 3) out vec3 w_cameraPos;
-layout(location = 4) out vec4 vert_color;
-layout(location = 5) out vec3 m_position;
-layout(location = 6) out vec3 w_cameraDir;
-layout(location = 7) out vec3 m_normal;
-layout(location = 8) out vec4 s_position;
-layout(location = 9) out vec4 s_position_prev;
+layout(location = 4) out vec3 m_position;
+layout(location = 5) out vec2 s_motion;
 
 void main() {
-    EntityStruct target_entity = ebo.entities[push.consts.target_id];
-    EntityStruct camera_entity = ebo.entities[push.consts.camera_id];
-    
-    CameraStruct camera = cbo.cameras[camera_entity.camera_id];
-    
-    TransformStruct camera_transform = tbo.transforms[camera_entity.transform_id];
-    TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
+    int target_entity_transform_id = ebo.entities[push.consts.target_id].transform_id;
+    int camera_entity_transform_id = ebo.entities[push.consts.camera_id].transform_id;
+    int camera_entity_camera_id = ebo.entities[push.consts.camera_id].camera_id;
 
-    w_position = vec3(target_transform.localToWorld * vec4(point.xyz, 1.0));
-    w_normal = normalize(transpose(mat3(target_transform.worldToLocal)) * normal.xyz);
+    mat4 cam_localToWorld = tbo.transforms[camera_entity_transform_id].localToWorld;
+    mat4 cam_worldToLocal = tbo.transforms[camera_entity_transform_id].worldToLocal;
+    mat4 cam_worldToLocalPrev = tbo.transforms[camera_entity_transform_id].worldToLocalPrev;
+
+    mat4 target_localToWorld = tbo.transforms[target_entity_transform_id].localToWorld;
+    mat4 target_localToWorldPrev = tbo.transforms[target_entity_transform_id].localToWorldPrev;
+    mat4 target_worldToLocal = tbo.transforms[target_entity_transform_id].worldToLocal;
+
+    w_position = vec3(target_localToWorld * vec4(point.xyz, 1.0));
+    m_position = point.xyz;
+    w_normal = normalize(transpose(mat3(target_worldToLocal)) * normal.xyz);
+    w_cameraPos = cam_localToWorld[3].xyz; 
+    fragTexCoord = texcoord;
+
     #ifdef DISABLE_MULTIVIEW
     int viewIndex = push.consts.viewIndex;
     #else
     int viewIndex = (is_multiview_enabled() == false) ? push.consts.viewIndex : gl_ViewIndex;
     #endif
-    w_cameraPos = vec3(camera.multiviews[viewIndex].viewinv[3]) + vec3(camera_transform.localToWorld[3]);
+    mat4 viewproj = cbo.cameras[camera_entity_camera_id].multiviews[viewIndex].viewproj;
 
-    fragTexCoord = texcoord;
-
-    mat4 camWorldToLocal = camera_transform.worldToLocal;
-    gl_Position = camera.multiviews[viewIndex].viewproj * camWorldToLocal * vec4(w_position, 1.0);
-    m_position = point.xyz;
-    vert_color = color;
+    vec4 v_p_curr = gl_Position = viewproj * cam_worldToLocal * vec4(w_position, 1.0);
+    vec4 v_p_prev = viewproj * cam_worldToLocalPrev * target_localToWorldPrev * vec4(m_position, 1.0);
+    s_motion = ((v_p_prev.xyz / v_p_prev.w) - (v_p_curr.xyz / v_p_curr.w)).xy;
 }

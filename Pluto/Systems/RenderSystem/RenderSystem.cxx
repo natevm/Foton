@@ -85,6 +85,7 @@ bool RenderSystem::initialize()
     push_constants.time = 0.0f;
     push_constants.frame = 0;
     push_constants.environment_roughness = 0.0f;
+    push_constants.environment_intensity = 1.0f;
     push_constants.target_id = -1;
     push_constants.camera_id = -1;
     push_constants.brdf_lut_id = -1;
@@ -107,6 +108,8 @@ bool RenderSystem::initialize()
 
 	// If temporal antialiasing is enabled
 	push_constants.flags &= ~( 1 << RenderSystemOptions::ENABLE_TAA );
+
+	enable_blue_noise(true);
 
     initialized = true;
     return true;
@@ -140,12 +143,15 @@ bool RenderSystem::update_push_constants()
     push_constants.brdf_lut_id = brdf_id;
     push_constants.ltc_mat_lut_id = ltc_mat_id;
     push_constants.ltc_amp_lut_id = ltc_amp_id;
-    push_constants.sobel_tile_id = sobel->get_id();
-    push_constants.ranking_tile_id = ranking->get_id();
-    push_constants.scramble_tile_id = scramble->get_id();
+    // push_constants.sobel_tile_id = sobel->get_id();
+    // push_constants.ranking_tile_id = ranking->get_id();
+    // push_constants.scramble_tile_id = scramble->get_id();
     push_constants.time = (float) glfwGetTime();
 	push_constants.num_lights = Light::GetNumActiveLights();
     push_constants.frame++;
+
+	if ((!progressive_refinement_enabled) && (push_constants.frame > 1024))
+		push_constants.frame = 0;
     return true;
 }
 
@@ -214,7 +220,7 @@ void RenderSystem::record_raster_primary_visibility_renderpass(Entity &camera_en
                     push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
                     
                     bool was_visible_last_frame = is_entity_visible(camera->get_id(), rp_idx, target_id);
-                    bool contains_transparency = visible_entities[rp_idx][i].entity->material()->contains_transparency();
+                    bool contains_transparency = visible_entities[rp_idx][i].entity->get_material()->contains_transparency();
                     bool disable_depth_write = (was_visible_last_frame) ? contains_transparency : true;
                     
                     bool show_bounding_box = !was_visible_last_frame;
@@ -270,7 +276,7 @@ void RenderSystem::record_raster_primary_visibility_renderpass(Entity &camera_en
         for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i) {
             /* An object must be opaque, have a transform, a mesh, and a material to be rendered. */
             if (!visible_entities[rp_idx][i].visible || visible_entities[rp_idx][i].distance > camera->get_max_visible_distance()) continue;
-            if (visible_entities[rp_idx][i].entity->material()->contains_transparency()) continue;
+            if (visible_entities[rp_idx][i].entity->get_material()->contains_transparency()) continue;
 
             auto target_id = visible_entities[rp_idx][i].entity_index;
             if (is_entity_visible(camera->get_id(), rp_idx, target_id) || (!camera->should_record_depth_prepass())) {
@@ -284,7 +290,7 @@ void RenderSystem::record_raster_primary_visibility_renderpass(Entity &camera_en
         for (int32_t i = (int32_t)visible_entities[rp_idx].size() - 1; i >= 0; --i)
         {
             if (!visible_entities[rp_idx][i].visible || visible_entities[rp_idx][i].distance > camera->get_max_visible_distance()) continue;
-            if (!visible_entities[rp_idx][i].entity->material()->contains_transparency()) continue;
+            if (!visible_entities[rp_idx][i].entity->get_material()->contains_transparency()) continue;
 
             auto target_id = visible_entities[rp_idx][i].entity_index;
             if (is_entity_visible(camera->get_id(), rp_idx, target_id) || (!camera->should_record_depth_prepass())) {
@@ -353,7 +359,7 @@ void RenderSystem::record_shadow_map_renderpass(Entity &camera_entity, std::vect
                     push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
                     
                     bool was_visible_last_frame = is_entity_visible(camera->get_id(), rp_idx, target_id);
-                    bool contains_transparency = visible_entities[rp_idx][i].entity->material()->contains_transparency();
+                    bool contains_transparency = visible_entities[rp_idx][i].entity->get_material()->contains_transparency();
                     bool disable_depth_write = (was_visible_last_frame) ? contains_transparency : true;
                     
                     bool show_bounding_box = !was_visible_last_frame;
@@ -409,7 +415,7 @@ void RenderSystem::record_shadow_map_renderpass(Entity &camera_entity, std::vect
         for (uint32_t i = 0; i < visible_entities[rp_idx].size(); ++i) {
             /* An object must be opaque, have a transform, a mesh, and a material to be rendered. */
             if (!visible_entities[rp_idx][i].visible || visible_entities[rp_idx][i].distance > camera->get_max_visible_distance()) continue;
-            if (visible_entities[rp_idx][i].entity->material()->contains_transparency()) continue;
+            if (visible_entities[rp_idx][i].entity->get_material()->contains_transparency()) continue;
 
             auto target_id = visible_entities[rp_idx][i].entity_index;
             if (is_entity_visible(camera->get_id(), rp_idx, target_id) || (!camera->should_record_depth_prepass())) {
@@ -423,7 +429,7 @@ void RenderSystem::record_shadow_map_renderpass(Entity &camera_entity, std::vect
         for (int32_t i = (int32_t)visible_entities[rp_idx].size() - 1; i >= 0; --i)
         {
             if (!visible_entities[rp_idx][i].visible || visible_entities[rp_idx][i].distance > camera->get_max_visible_distance()) continue;
-            if (!visible_entities[rp_idx][i].entity->material()->contains_transparency()) continue;
+            if (!visible_entities[rp_idx][i].entity->get_material()->contains_transparency()) continue;
 
             auto target_id = visible_entities[rp_idx][i].entity_index;
             if (is_entity_visible(camera->get_id(), rp_idx, target_id) || (!camera->should_record_depth_prepass())) {
@@ -447,8 +453,6 @@ void RenderSystem::record_ray_trace_pass(Entity &camera_entity)
 
 	auto rayTracingProps = vulkan->get_physical_device_ray_tracing_properties();
 
-    build_top_level_bvh(true);
-        
     auto camera = camera_entity.get_camera();
     if (!camera) throw std::runtime_error("Error, camera was null in recording ray trace");
 	auto &cam_res = camera_resources[camera->get_id()];
@@ -493,35 +497,55 @@ void RenderSystem::record_ray_trace_pass(Entity &camera_entity)
 			);	
 		}
 	}
-
-	/* Path tracer */
-    for(uint32_t v_idx = 0; v_idx < camera->maxViews; v_idx++) {
-        reset_bound_material();        
-        bind_raytracing_descriptor_sets(command_buffer, camera_entity, v_idx);
-
-        push_constants.target_id = -1;
-        push_constants.camera_id = camera_entity.get_id();
-        push_constants.viewIndex = v_idx;
-		push_constants.width = texture->get_width();
-        push_constants.height = texture->get_height();
-        push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
-        push_constants.parameter1 = (float)this->max_bounces;
-        
-		command_buffer.pushConstants(path_tracer.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-		command_buffer.bindPipeline(vk::PipelineBindPoint::eRayTracingNV, path_tracer.pipeline);
-
-		command_buffer.traceRaysNV(
-			path_tracer.shaderBindingTable, 0,
-			path_tracer.shaderBindingTable, 1 * rayTracingProps.shaderGroupHandleSize, rayTracingProps.shaderGroupHandleSize,
-			path_tracer.shaderBindingTable, 2 * rayTracingProps.shaderGroupHandleSize, rayTracingProps.shaderGroupHandleSize,
-			vk::Buffer(), 0, 0,
-			texture->get_width(), texture->get_height(), 1,
-			dldi
-		);	
-    }
 }
 
-void RenderSystem::record_compute_pass(Entity &camera_entity)
+void RenderSystem::record_pre_compute_pass(Entity &camera_entity)
+{
+	/* Could use this in the future, although would require transitioning
+	each gbuffer from general to attachment optimal. */
+	// if (!taa_enabled) return;
+	auto vulkan = Vulkan::Get();
+    auto device = vulkan->get_device();
+    auto dldi = vulkan->get_dldi();
+
+    auto camera = camera_entity.get_camera();
+    if (!camera) throw std::runtime_error("Error, camera was null in recording compute pass");
+	auto &cam_res = camera_resources[camera->get_id()];
+    vk::CommandBuffer command_buffer = cam_res.command_buffer;
+	uint32_t num_renderpasses = camera->maxViews;
+    Texture * texture = camera->get_texture();
+
+    /* Camera needs a texture */
+    if (!texture) return;
+	uint32_t width = texture->get_width();
+	uint32_t height = texture->get_height();
+	push_constants.width = texture->get_width();
+	push_constants.height = texture->get_height();
+
+	bool shadow_caster = false;
+	if (camera_entity.get_light() && camera_entity.get_light()->should_cast_shadows())
+		shadow_caster = true;
+
+    texture->make_general(command_buffer);
+
+	if (!shadow_caster) 
+	{
+		/* SVGF DENOISER PATH */
+		if (ray_tracing_enabled) 
+		{
+			auto rayTracingProps = vulkan->get_physical_device_ray_tracing_properties();
+
+			
+		}
+	}
+
+	if (shadow_caster)
+	{
+		
+	}
+}
+
+void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 {
 	// if (!taa_enabled) return;
 	auto vulkan = Vulkan::Get();
@@ -553,8 +577,10 @@ void RenderSystem::record_compute_pass(Entity &camera_entity)
 		/* SVGF DENOISER PATH */
 		if (ray_tracing_enabled) 
 		{
-			/* SVGF TAA (TODO, move before atrous) */
-			if (svgf_taa_enabled)
+			auto rayTracingProps = vulkan->get_physical_device_ray_tracing_properties();
+			
+			/* Reproject seeds */
+			if (asvgf_enabled && asvgf_gradient_enabled)
 			{
 				for(uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
 					push_constants.target_id = -1;
@@ -563,8 +589,57 @@ void RenderSystem::record_compute_pass(Entity &camera_entity)
 					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
 					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 					
-					command_buffer.pushConstants(svgf_taa.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, svgf_taa.pipeline);
+					command_buffer.pushConstants(asvgf_reproject_seeds.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, asvgf_reproject_seeds.pipeline);
+
+					uint32_t local_size_x = 16;
+					uint32_t local_size_y = 16;
+
+					uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+					uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+					uint32_t groupZ = 1;
+					command_buffer.dispatch(groupX, groupY, groupZ);
+				}
+			}
+			
+			/* Path tracer */
+			for(uint32_t v_idx = 0; v_idx < camera->maxViews; v_idx++) {
+				reset_bound_material();        
+				bind_raytracing_descriptor_sets(command_buffer, camera_entity, v_idx);
+
+				push_constants.target_id = -1;
+				push_constants.camera_id = camera_entity.get_id();
+				push_constants.viewIndex = v_idx;
+				push_constants.width = texture->get_width();
+				push_constants.height = texture->get_height();
+				push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
+				push_constants.parameter1 = (float)this->max_bounces;
+				
+				command_buffer.pushConstants(path_tracer.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+				command_buffer.bindPipeline(vk::PipelineBindPoint::eRayTracingNV, path_tracer.pipeline);
+
+				command_buffer.traceRaysNV(
+					path_tracer.shaderBindingTable, 0,
+					path_tracer.shaderBindingTable, 1 * rayTracingProps.shaderGroupHandleSize, rayTracingProps.shaderGroupHandleSize,
+					path_tracer.shaderBindingTable, 2 * rayTracingProps.shaderGroupHandleSize, rayTracingProps.shaderGroupHandleSize,
+					vk::Buffer(), 0, 0,
+					texture->get_width(), texture->get_height(), 1,
+					dldi
+				);	
+			}
+
+			/* Compute Sparse Gradient */
+			if (asvgf_enabled && asvgf_gradient_enabled)
+			{
+				for(uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
+					push_constants.target_id = -1;
+					push_constants.camera_id = camera_entity.get_id();
+					push_constants.viewIndex = rp_idx;
+					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
+					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+					
+					command_buffer.pushConstants(asvgf_compute_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, asvgf_compute_gradient.pipeline);
 
 					uint32_t local_size_x = 16;
 					uint32_t local_size_y = 16;
@@ -576,8 +651,8 @@ void RenderSystem::record_compute_pass(Entity &camera_entity)
 				}
 			}
 
-			/* SVGF A-Trous pass */
-			if (svgf_atrous_enabled )
+			/* A-SVGF reconstruct gradient pass */
+			if (asvgf_enabled && asvgf_gradient_enabled)
 			{
 				for(uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
 					push_constants.target_id = -1;
@@ -593,12 +668,86 @@ void RenderSystem::record_compute_pass(Entity &camera_entity)
 					uint32_t groupY = (height + local_size_y - 1) / local_size_y;
 					uint32_t groupZ = 1;
 
-					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, svgf_atrous_filter.pipeline);
+					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, asvgf_reconstruct_gradient.pipeline);
 					
-					push_constants.parameter1 = atrous_sigma;
-					for (int i = 0; i < 2 * atrous_iterations; i++) {
+					push_constants.parameter1 = asvgf_gradient_reconstruction_sigma;
+					for (int i = (2 * asvgf_gradient_reconstruction_iterations) - 1; i >= 0; i--) {
 						push_constants.iteration = i;
-						command_buffer.pushConstants(svgf_atrous_filter.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+						command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+						command_buffer.dispatch(groupX, groupY, groupZ);
+					}
+				}
+			}
+
+			/* A-SVGF Temporal Accumulation Pass */
+			if (asvgf_enabled && asvgf_temporal_accumulation_enabled)
+			{
+				for(uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
+					push_constants.target_id = -1;
+					push_constants.camera_id = camera_entity.get_id();
+					push_constants.viewIndex = rp_idx;
+					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
+					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+					
+					command_buffer.pushConstants(asvgf_temporal_accumulation.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, asvgf_temporal_accumulation.pipeline);
+
+					uint32_t local_size_x = 16;
+					uint32_t local_size_y = 16;
+
+					uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+					uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+					uint32_t groupZ = 1;
+					command_buffer.dispatch(groupX, groupY, groupZ);
+				}
+			}
+
+			/* A-SVGF Estimate Variance */
+			if (asvgf_enabled && asvgf_variance_estimation_enabled)
+			{
+				for(uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
+					push_constants.target_id = -1;
+					push_constants.camera_id = camera_entity.get_id();
+					push_constants.viewIndex = rp_idx;
+					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
+					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+					
+					command_buffer.pushConstants(asvgf_estimate_variance.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, asvgf_estimate_variance.pipeline);
+
+					uint32_t local_size_x = 16;
+					uint32_t local_size_y = 16;
+
+					uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+					uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+					uint32_t groupZ = 1;
+					command_buffer.dispatch(groupX, groupY, groupZ);
+				}
+			}
+
+			/* A-SVGF Atrous */
+			if (asvgf_enabled && asvgf_atrous_enabled)
+			{
+				for(uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
+					push_constants.target_id = -1;
+					push_constants.camera_id = camera_entity.get_id();
+					push_constants.viewIndex = rp_idx;
+					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
+					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+
+					uint32_t local_size_x = 16;
+					uint32_t local_size_y = 16;
+
+					uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+					uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+					uint32_t groupZ = 1;
+
+					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, asvgf_final_atrous.pipeline);
+					
+					push_constants.parameter1 = asvgf_atrous_sigma;
+					for (int i = (2 * asvgf_atrous_iterations) - 1; i >= 0; i--) {
+						push_constants.iteration = i;
+						command_buffer.pushConstants(asvgf_final_atrous.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
 						command_buffer.dispatch(groupX, groupY, groupZ);
 					}
 				}
@@ -694,6 +843,30 @@ void RenderSystem::record_compute_pass(Entity &camera_entity)
 
 			command_buffer.pushConstants(tone_mapping.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
 			command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, tone_mapping.pipeline);
+
+			uint32_t local_size_x = 16;
+			uint32_t local_size_y = 16;
+
+			uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+			uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+			uint32_t groupZ = 1;
+			command_buffer.dispatch(groupX, groupY, groupZ);
+		}
+
+		/* Copy History pass */
+		for (uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
+			push_constants.target_id = -1;
+			push_constants.camera_id = camera_entity.get_id();
+			push_constants.viewIndex = rp_idx;
+			push_constants.flags = (!camera->should_use_multiview()) ? 
+				(push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)): 
+				(push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
+			push_constants.parameter1 = (float)gbuffer_override_idx;
+			bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+
+
+			command_buffer.pushConstants(copy_history.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+			command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, copy_history.pipeline);
 
 			uint32_t local_size_x = 16;
 			uint32_t local_size_y = 16;
@@ -847,6 +1020,8 @@ void RenderSystem::record_cameras()
 		beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
         command_buffer.begin(beginInfo);
 
+		record_pre_compute_pass(entities[entity_id]);
+
 		/* Ray trace (only non-shadow cameras) */
         if (ray_tracing_enabled && vulkan->is_ray_tracing_enabled() && (entities[entity_id].get_light() == nullptr))
         {
@@ -883,7 +1058,7 @@ void RenderSystem::record_cameras()
 			ms_per_raster += (float) (current_time - last_time) * 1000.f;
 		}
 
-		record_compute_pass(entities[entity_id]);
+		record_post_compute_pass(entities[entity_id]);
         record_blit_camera(entities[entity_id], window_to_cam);
 
 		/* Need to keep track of largest render order number... */
@@ -900,6 +1075,102 @@ void RenderSystem::record_cameras()
 	ms_per_record_compute_pass = ms_per_compute;
 }
 
+void RenderSystem::record_build_top_level_bvh(bool submit_immediately)
+{
+	auto vulkan = Libraries::Vulkan::Get();
+	if (!vulkan->is_initialized()) throw std::runtime_error("Error: vulkan is not initialized");
+
+	if (!vulkan->is_ray_tracing_enabled()) 
+		throw std::runtime_error("Error: Vulkan device extension VK_NVX_raytracing is not currently enabled.");
+	
+	auto dldi = vulkan->get_dldi();
+	auto device = vulkan->get_device();
+	if (!device) 
+		throw std::runtime_error("Error: vulkan device not initialized");
+
+    /* Get geometry count */
+    std::vector<vk::GeometryNV> geometries;
+    auto meshes = Mesh::GetFront();
+    for (uint32_t i = 0; i < Mesh::GetCount(); ++i) {
+        if (!meshes[i].is_initialized()) continue;
+        if (meshes[i].get_nv_geometry() != vk::GeometryNV()) geometries.push_back(meshes[i].get_nv_geometry());
+    }
+
+	vk::CommandBufferBeginInfo beginInfo;
+    beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+    bvh_command_buffer.begin(beginInfo);
+
+	{
+		vk::MemoryBarrier memoryBarrier;
+		memoryBarrier.srcAccessMask  = vk::AccessFlagBits::eAccelerationStructureReadNV;
+		memoryBarrier.srcAccessMask  |= vk::AccessFlagBits::eAccelerationStructureWriteNV;
+		memoryBarrier.dstAccessMask  = vk::AccessFlagBits::eAccelerationStructureReadNV;
+		memoryBarrier.dstAccessMask  |= vk::AccessFlagBits::eAccelerationStructureWriteNV;
+		bvh_command_buffer.pipelineBarrier(
+			vk::PipelineStageFlagBits::eAccelerationStructureBuildNV, 
+			vk::PipelineStageFlagBits::eAccelerationStructureBuildNV, 
+			vk::DependencyFlags(),
+			{memoryBarrier},
+			{},
+			{}
+		);
+	}
+
+	{
+		/* Now we can build our acceleration structure */
+		bool update = top_level_acceleration_structure_built;
+
+		/* TODO: MOVE INSTANCE STUFF INTO HERE */
+		{
+			vk::AccelerationStructureInfoNV asInfo;
+			asInfo.type = vk::AccelerationStructureTypeNV::eTopLevel;
+			asInfo.instanceCount = (uint32_t) MAX_ENTITIES;
+			asInfo.geometryCount = 0;//(uint32_t) geometries.size();
+			asInfo.flags = vk::BuildAccelerationStructureFlagBitsNV::eAllowUpdate;//VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_NV;
+			// asInfo.pGeometries = geometries.data();
+
+            // TODO: change this to update instead of fresh build
+			// UPDATE: Should always rebuild top level BVH...
+			if (!top_level_acceleration_structure_built)
+			{
+				bvh_command_buffer.buildAccelerationStructureNV(&asInfo, 
+					instanceBuffer, 0, VK_FALSE, 
+					topAS, vk::AccelerationStructureNV(),
+					accelerationStructureBuildScratchBuffer, 0, dldi);
+			}
+			else {
+				bvh_command_buffer.buildAccelerationStructureNV(&asInfo, 
+					instanceBuffer, 0, VK_TRUE, 
+					topAS, topAS,
+					accelerationStructureUpdateScratchBuffer, 0, dldi);
+			}
+		}
+	}
+
+	{
+		vk::MemoryBarrier memoryBarrier;
+		memoryBarrier.srcAccessMask  = vk::AccessFlagBits::eAccelerationStructureReadNV;
+		memoryBarrier.srcAccessMask  |= vk::AccessFlagBits::eAccelerationStructureWriteNV;
+		memoryBarrier.dstAccessMask  = vk::AccessFlagBits::eAccelerationStructureReadNV;
+		bvh_command_buffer.pipelineBarrier(
+			vk::PipelineStageFlagBits::eAccelerationStructureBuildNV, 
+			vk::PipelineStageFlagBits::eRayTracingShaderNV, 
+			vk::DependencyFlags(),
+			{memoryBarrier},
+			{},
+			{}
+		);
+	}
+
+	if (submit_immediately)
+		vulkan->end_one_time_graphics_command_immediately(bvh_command_buffer, "build acceleration structure", false);
+	else
+	{
+		bvh_command_buffer.end();
+		bvh_command_buffer_recorded = true;
+	}
+}
+
 void RenderSystem::record_blit_textures()
 {
     /* Blit any textures to windows which request them. */
@@ -907,9 +1178,9 @@ void RenderSystem::record_blit_textures()
     auto window_to_tex = glfw->get_window_to_texture_map();
     vk::CommandBufferBeginInfo beginInfo;
     beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
-    main_command_buffer.begin(beginInfo);
-    main_command_buffer_recorded = true;
-    main_command_buffer_presenting = false;
+    blit_command_buffer.begin(beginInfo);
+    blit_command_buffer_recorded = true;
+    blit_command_buffer_presenting = false;
     for (auto &w2t : window_to_tex) {
         /* Window needs a swapchain */
         auto swapchain = glfw->get_swapchain(w2t.first);
@@ -922,13 +1193,12 @@ void RenderSystem::record_blit_textures()
 
         /* Record blit to swapchain */
         if (swapchain_texture && swapchain_texture->is_initialized()) {
-            w2t.second.first->record_blit_to(main_command_buffer, swapchain_texture, w2t.second.second);
-            main_command_buffer_presenting = true;
+            w2t.second.first->record_blit_to(blit_command_buffer, swapchain_texture, w2t.second.second);
+            blit_command_buffer_presenting = true;
         }
     }
 
-    
-    main_command_buffer.end();
+    blit_command_buffer.end();
 }
 
 void RenderSystem::record_render_commands()
@@ -954,6 +1224,78 @@ void RenderSystem::record_render_commands()
 		ms_per_upload_ssbo = (float) (current_time - last_time) * 1000.f;
 	}
 
+	if (ray_tracing_enabled)
+	{
+		auto vulkan = Libraries::Vulkan::Get();
+		if (!vulkan->is_initialized()) throw std::runtime_error("Error: vulkan is not initialized");
+
+		if (!vulkan->is_ray_tracing_enabled()) 
+			throw std::runtime_error("Error: Vulkan device extension VK_NVX_raytracing is not currently enabled.");
+		
+		auto dldi = vulkan->get_dldi();
+		auto device = vulkan->get_device();
+		if (!device) 
+			throw std::runtime_error("Error: vulkan device not initialized");
+
+
+		/* Gather Instances */
+		auto entities = Entity::GetFront();
+		std::vector<VkGeometryInstance> instances(MAX_ENTITIES);
+		for (uint32_t i = 0; i < MAX_ENTITIES; ++i)
+		{
+			VkGeometryInstance instance;
+
+			if ((!entities[i].is_initialized())
+				|| (!entities[i].get_mesh())
+				|| (!entities[i].get_transform())
+				|| (!entities[i].get_material())
+				|| (entities[i].get_material()->get_name().compare("SkyboxMaterial") == 0)
+				|| (!entities[i].get_mesh()->get_low_level_bvh()))
+			{
+
+				instance.instanceId = i;
+				instance.mask = 0; // means this instance can't be hit.
+				instance.instanceOffset = 0;
+				instance.accelerationStructureHandle = 0; // not sure if this is allowed...
+			}
+			else {
+				auto llas = entities[i].get_mesh()->get_low_level_bvh();
+				if (!llas) continue;
+
+				uint64_t handle = entities[i].get_mesh()->get_low_level_bvh_handle();
+				/* Create Instance */
+				
+				auto local_to_world = entities[i].get_transform()->get_local_to_world_matrix();
+				// Matches a working example
+				float transform[12] = {
+					local_to_world[0][0], local_to_world[1][0], local_to_world[2][0], local_to_world[3][0],
+					local_to_world[0][1], local_to_world[1][1], local_to_world[2][1], local_to_world[3][1],
+					local_to_world[0][2], local_to_world[1][2], local_to_world[2][2], local_to_world[3][2],
+				};
+
+				memcpy(instance.transform, transform, sizeof(instance.transform));
+				instance.instanceId = i;
+				instance.mask = 0xff;
+				instance.instanceOffset = 0;
+				// instance.flags = (uint32_t) (vk::GeometryInstanceFlagBitsNV::e);
+				instance.accelerationStructureHandle = handle;
+			}
+		
+			instances[i] = instance;
+		}
+
+		/* ----- Upload Instances ----- */
+		{
+			uint32_t instanceBufferSize = (uint32_t)(sizeof(VkGeometryInstance) * MAX_ENTITIES);
+			void* ptr = device.mapMemory(instanceBufferMemory, 0, instanceBufferSize);
+			memcpy(ptr, instances.data(), instanceBufferSize);
+			device.unmapMemory(instanceBufferMemory);
+		}
+	}
+
+	if (ray_tracing_enabled) {
+		record_build_top_level_bvh();
+	}
 
     if (Material::IsInitialized()) {
 		bool result = false;
@@ -1062,33 +1404,49 @@ void RenderSystem::enqueue_render_commands() {
     std::vector<std::shared_ptr<ComputeNode>> last_level;
     std::vector<std::shared_ptr<ComputeNode>> current_level;
 
+
     uint32_t level_idx = 0;
+
+	/* Before anything else, enqueue the BVH build (if using RTX) */
+    if (bvh_command_buffer_recorded) {
+        auto node = std::make_shared<ComputeNode>();
+        node->level = level_idx;
+        node->queue_idx = 0;
+        node->command_buffer = bvh_command_buffer;
+		current_level.push_back(node);
+		compute_graph.push_back(current_level);
+		last_level = current_level;
+        current_level = std::vector<std::shared_ptr<ComputeNode>>();
+		level_idx++;
+    }
+
+	/* Now, enqueue camera passes */
     for (int32_t rp_idx = Camera::GetMinRenderOrder(); rp_idx <= Camera::GetMaxRenderOrder(); ++rp_idx)
     {
         uint32_t queue_idx = 0;
         bool command_found = false;
         for (uint32_t e_id = 0; e_id < Entity::GetCount(); ++e_id) {
             if ((!entities[e_id].is_initialized()) ||
-                (!entities[e_id].camera()) ||
-                (!entities[e_id].camera()->get_texture()) ||
-                (entities[e_id].camera()->get_render_order() != rp_idx)
+                (!entities[e_id].get_camera()) ||
+                (!entities[e_id].get_camera()->get_texture()) ||
+                (entities[e_id].get_camera()->get_render_order() != rp_idx)
             ) continue;
 
             /* If the entity is a shadow camera and shouldn't cast shadows, skip it. (TODO: REFACTOR THIS...) */
-            if (entities[e_id].light() && 
-                ((!entities[e_id].light()->should_cast_shadows())
-                    || (!entities[e_id].light()->should_cast_dynamic_shadows()))) continue; 
+            if (entities[e_id].get_light() && 
+                ((!entities[e_id].get_light()->should_cast_shadows())
+                    || (!entities[e_id].get_light()->should_cast_dynamic_shadows()))) continue; 
 
             /* Make a compute node for this command buffer */
             auto node = std::make_shared<ComputeNode>();
             node->level = level_idx;
             node->queue_idx = queue_idx;
-			auto &cam_res = camera_resources[entities[e_id].camera()->get_id()];
+			auto &cam_res = camera_resources[entities[e_id].get_camera()->get_id()];
             node->command_buffer = cam_res.command_buffer;
 
             /* Add any connected windows to this node */
             for (auto w2c : window_to_cam) {
-                if ((w2c.second.first->get_id() == entities[e_id].camera()->get_id())) {
+                if ((w2c.second.first->get_id() == entities[e_id].get_camera()->get_id())) {
                     if (!glfw->get_swapchain(w2c.first)) continue;
                     auto swapchain_texture = glfw->get_texture(w2c.first);
                     if ( (!swapchain_texture) || (!swapchain_texture->is_initialized())) continue;
@@ -1119,18 +1477,18 @@ void RenderSystem::enqueue_render_commands() {
         }
     }
 
-    /* For other misc commands not specific to any camera */
-    if (main_command_buffer_recorded) {
+    /* Enqueue blit/present commands */
+    if (blit_command_buffer_recorded) {
         auto node = std::make_shared<ComputeNode>();
         node->level = level_idx;
         node->queue_idx = 0;
-        node->command_buffer = main_command_buffer;
-        if (main_command_buffer_presenting) {
+        node->command_buffer = blit_command_buffer;
+        if (blit_command_buffer_presenting) {
             for (auto &w2t : window_to_tex) {
                 node->connected_windows.push_back(w2t.first);
             }
         }
-        main_command_buffer_recorded = false;
+        blit_command_buffer_recorded = false;
     }
 
     /* Create semaphores and fences for nodes in the graph */
@@ -1162,6 +1520,11 @@ void RenderSystem::enqueue_render_commands() {
 					level_fences[level_idx] = get_fence();
 			}
         }
+
+		// /* TEMPORARY, trying to force acceleration structure to be built before tracing rays... */
+		// if (bvh_command_buffer_recorded && (level_idx == 0)){
+		// 	level_fences[level_idx] = get_fence(); 
+		// }
 
 		level_idx++;
     }
@@ -1223,6 +1586,13 @@ void RenderSystem::enqueue_render_commands() {
         for (auto &semaphore : wait_semaphores_set) {
             item.waitSemaphores.push_back(semaphore);
             item.waitDstStageMask.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+			// if ((level_idx == 0) && (bvh_command_buffer_recorded)) {
+			// 	item.waitDstStageMask[item.waitDstStageMask.size() - 1] |= vk::PipelineStageFlagBits::eRayTracingShaderNV;
+			// }
+			// if (bvh_command_buffer_recorded) {
+			// 	item.waitDstStageMask[item.waitDstStageMask.size() - 1] |= vk::PipelineStageFlagBits::eAccelerationStructureBuildNV;
+			// 	item.waitDstStageMask[item.waitDstStageMask.size() - 1] |= vk::PipelineStageFlagBits::eRayTracingShaderNV;
+			// }
         }
         
         for (auto &semaphore : signal_semaphores_set) 
@@ -1238,6 +1608,7 @@ void RenderSystem::enqueue_render_commands() {
     for (auto &item : command_queue) vulkan->enqueue_graphics_commands(item);
     semaphores_submitted();
     fences_submitted();
+    bvh_command_buffer_recorded = false;
 }
 
 void RenderSystem::mark_cameras_as_render_complete()
@@ -1285,11 +1656,11 @@ void RenderSystem::release_vulkan_resources()
     if (!vulkan_resources_created) return;
 
     /* Release vulkan resources */
-    device.freeCommandBuffers(vulkan->get_graphics_command_pool(), {main_command_buffer});
-    main_command_buffer = vk::CommandBuffer();
-    // device.destroyFence(main_fence);
-    // for (auto &semaphore : main_command_buffer_semaphores)
-    //     device.destroySemaphore(semaphore);
+    device.freeCommandBuffers(vulkan->get_graphics_command_pool(), {blit_command_buffer});
+    blit_command_buffer = vk::CommandBuffer();
+
+	device.freeCommandBuffers(vulkan->get_graphics_command_pool(), {bvh_command_buffer});
+    bvh_command_buffer = vk::CommandBuffer();
 
     device.destroyDescriptorSetLayout(componentDescriptorSetLayout);
 	device.destroyDescriptorPool(componentDescriptorPool);
@@ -1391,13 +1762,8 @@ void RenderSystem::allocate_vulkan_resources()
     vk::SemaphoreCreateInfo semaphoreInfo;
     vk::FenceCreateInfo fenceInfo;
     
-    main_command_buffer = device.allocateCommandBuffers(mainCmdAllocInfo)[0];
-
-    // for (uint32_t i = 0; i < max_frames_in_flight; ++i) {
-    //     main_command_buffer_semaphores.push_back(device.createSemaphore(semaphoreInfo));
-    // }
-    // main_fence = device.createFence(fenceInfo);
-
+    bvh_command_buffer = device.allocateCommandBuffers(mainCmdAllocInfo)[0];
+    blit_command_buffer = device.allocateCommandBuffers(mainCmdAllocInfo)[0];
 
     // Create top level acceleration structure resources
     if (vulkan->is_ray_tracing_enabled()) {
@@ -1446,7 +1812,7 @@ void RenderSystem::allocate_vulkan_resources()
 
 		vk::BufferCreateInfo instanceBufferInfo;
 		instanceBufferInfo.size = instanceBufferSize;
-		instanceBufferInfo.usage = vk::BufferUsageFlagBits::eRayTracingNV;
+		instanceBufferInfo.usage = vk::BufferUsageFlagBits::eRayTracingNV | vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst;
 		instanceBufferInfo.sharingMode = vk::SharingMode::eExclusive;
 
 		instanceBuffer = device.createBuffer(instanceBufferInfo);
@@ -1497,7 +1863,10 @@ void RenderSystem::allocate_vulkan_resources()
 			device.bindBufferMemory(accelerationStructureBuildScratchBuffer, accelerationStructureBuildScratchMemory, 0);
 		}
 
-		build_top_level_bvh(true);
+		{
+			record_build_top_level_bvh(true);
+			device.getAccelerationStructureHandleNV(topAS, sizeof(uint64_t), &topASHandle, dldi);
+		}
 
 		{
 			vk::DeviceSize scratchBufferSize = GetScratchBufferSize(topAS, vk::AccelerationStructureMemoryRequirementsTypeNV::eUpdateScratch);
@@ -1524,153 +1893,6 @@ void RenderSystem::allocate_vulkan_resources()
 void RenderSystem::enqueue_bvh_rebuild()
 {
 	top_level_acceleration_structure_built = false;
-}
-
-void RenderSystem::build_top_level_bvh(bool submit_immediately)
-{
-	auto vulkan = Libraries::Vulkan::Get();
-	if (!vulkan->is_initialized()) throw std::runtime_error("Error: vulkan is not initialized");
-
-	if (!vulkan->is_ray_tracing_enabled()) 
-		throw std::runtime_error("Error: Vulkan device extension VK_NVX_raytracing is not currently enabled.");
-	
-	auto dldi = vulkan->get_dldi();
-	auto device = vulkan->get_device();
-	if (!device) 
-		throw std::runtime_error("Error: vulkan device not initialized");
-
-    auto entities = Entity::GetFront();
-
-	/* Gather Instances */
-	std::vector<VkGeometryInstance> instances(MAX_ENTITIES);
-	for (uint32_t i = 0; i < MAX_ENTITIES; ++i)
-	{
-        VkGeometryInstance instance;
-
-        if ((!entities[i].is_initialized())
-            || (!entities[i].mesh())
-            || (!entities[i].transform())
-            || (!entities[i].material())
-            || (entities[i].material()->get_name().compare("SkyboxMaterial") == 0)
-            || (!entities[i].mesh()->get_low_level_bvh()))
-        {
-
-            instance.instanceId = i;
-            instance.mask = 0; // means this instance can't be hit.
-            instance.instanceOffset = 0;
-            instance.accelerationStructureHandle = 0; // not sure if this is allowed...
-        }
-        else {
-            auto llas = entities[i].mesh()->get_low_level_bvh();
-            if (!llas) continue;
-
-            uint64_t handle = entities[i].mesh()->get_low_level_bvh_handle();
-            /* Create Instance */
-            
-            auto local_to_world = entities[i].transform()->get_local_to_world_matrix();
-            // Matches a working example
-            float transform[12] = {
-                local_to_world[0][0], local_to_world[1][0], local_to_world[2][0], local_to_world[3][0],
-                local_to_world[0][1], local_to_world[1][1], local_to_world[2][1], local_to_world[3][1],
-                local_to_world[0][2], local_to_world[1][2], local_to_world[2][2], local_to_world[3][2],
-            };
-
-            memcpy(instance.transform, transform, sizeof(instance.transform));
-            instance.instanceId = i;
-            instance.mask = 0xff;
-            instance.instanceOffset = 0;
-            // instance.flags = (uint32_t) (vk::GeometryInstanceFlagBitsNV::e);
-            instance.accelerationStructureHandle = handle;
-        }
-	
-		instances[i] = instance;
-	}
-
-	/* ----- Upload Instances ----- */
-	{
-		uint32_t instanceBufferSize = (uint32_t)(sizeof(VkGeometryInstance) * MAX_ENTITIES);
-        void* ptr = device.mapMemory(instanceBufferMemory, 0, instanceBufferSize);
-		memcpy(ptr, instances.data(), instanceBufferSize);
-		device.unmapMemory(instanceBufferMemory);
-	}
-
-	/* Build top level BVH */
-	// auto GetScratchBufferSize = [&](vk::AccelerationStructureNV handle)
-	// {
-	// 	vk::AccelerationStructureMemoryRequirementsInfoNV memoryRequirementsInfo;
-	// 	memoryRequirementsInfo.accelerationStructure = handle;
-	// 	memoryRequirementsInfo.type = vk::AccelerationStructureMemoryRequirementsTypeNV::eBuildScratch;
-
-	// 	vk::MemoryRequirements2 memoryRequirements;
-	// 	memoryRequirements = device.getAccelerationStructureMemoryRequirementsNV( memoryRequirementsInfo, dldi);
-
-	// 	vk::DeviceSize result = memoryRequirements.memoryRequirements.size;
-	// 	return result;
-	// };
-
-    /* Get geometry count */
-    std::vector<vk::GeometryNV> geometries;
-    auto meshes = Mesh::GetFront();
-    for (uint32_t i = 0; i < Mesh::GetCount(); ++i) {
-        if (!meshes[i].is_initialized()) continue;
-        if (meshes[i].get_nv_geometry() != vk::GeometryNV()) geometries.push_back(meshes[i].get_nv_geometry());
-    }
-
-	{
-		/* Now we can build our acceleration structure */
-		vk::MemoryBarrier memoryBarrier;
-		memoryBarrier.srcAccessMask  = vk::AccessFlagBits::eAccelerationStructureWriteNV;
-		memoryBarrier.srcAccessMask |= vk::AccessFlagBits::eAccelerationStructureReadNV;
-		memoryBarrier.dstAccessMask  = vk::AccessFlagBits::eAccelerationStructureWriteNV;
-		memoryBarrier.dstAccessMask |= vk::AccessFlagBits::eAccelerationStructureReadNV;
-
-		auto cmd = vulkan->begin_one_time_graphics_command();
-
-		bool update = top_level_acceleration_structure_built;
-
-		/* TODO: MOVE INSTANCE STUFF INTO HERE */
-		{
-			vk::AccelerationStructureInfoNV asInfo;
-			asInfo.type = vk::AccelerationStructureTypeNV::eTopLevel;
-			asInfo.instanceCount = (uint32_t) instances.size();
-			asInfo.geometryCount = 0;//(uint32_t) geometries.size();
-			asInfo.flags = vk::BuildAccelerationStructureFlagBitsNV::eAllowUpdate;//VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_NV;
-			// asInfo.pGeometries = geometries.data();
-
-            // TODO: change this to update instead of fresh build
-			if (!top_level_acceleration_structure_built)
-			{
-				cmd.buildAccelerationStructureNV(&asInfo, 
-					instanceBuffer, 0, VK_FALSE, 
-					topAS, vk::AccelerationStructureNV(),
-					accelerationStructureBuildScratchBuffer, 0, dldi);
-			}
-			else {
-				cmd.buildAccelerationStructureNV(&asInfo, 
-					instanceBuffer, 0, VK_TRUE, 
-					topAS, topAS,
-					accelerationStructureUpdateScratchBuffer, 0, dldi);
-			}
-		}
-		
-		// cmd.pipelineBarrier(
-		//     vk::PipelineStageFlagBits::eAccelerationStructureBuildNV, 
-		//     vk::PipelineStageFlagBits::eRayTracingShaderNV, 
-		//     vk::DependencyFlags(), {memoryBarrier}, {}, {});
-
-        // vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, 0, 1, &memoryBarrier, 0, 0, 0, 0);
-
-		if (submit_immediately)
-			vulkan->end_one_time_graphics_command_immediately(cmd, "build acceleration structure", true);
-		else
-			vulkan->end_one_time_graphics_command(cmd, "build acceleration structure", true);
-
-        /* Get a handle to the acceleration structure */
-		// if (!top_level_acceleration_structure_built) {
-		// }
-		device.getAccelerationStructureHandleNV(topAS, sizeof(uint64_t), &topASHandle, dldi);
-		top_level_acceleration_structure_built = true;
-	}
 }
 
 bool RenderSystem::start()
@@ -2494,6 +2716,18 @@ void RenderSystem::setup_compute_pipelines()
 		tone_mapping.ready = true;
 	}
 
+	/* Copy History */
+	{
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/CopyHistory/comp.spv"));
+		auto compShaderModule = create_shader_module("copy_history", compShaderCode);
+		compShaderStageInfo.module = compShaderModule;
+        copy_history.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = copy_history.pipelineLayout;
+        copy_history.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		copy_history.ready = true;
+	}
+
 	/* Gaussian X */
 	{
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/VSM/GaussianBlurX/comp.spv"));
@@ -2530,33 +2764,33 @@ void RenderSystem::setup_compute_pipelines()
 		taa.ready = true;
 	}
 
-	/* ------ SVGF Temporal Antialiasing  ------ */
+	/* ------ ASVGF Temporal Accumulation  ------ */
 	{
-		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/SVGF_TAA/comp.spv"));
-		auto compShaderModule = create_shader_module("svgf_taa", compShaderCode);
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_4_TemporalAccumulation/comp.spv"));
+		auto compShaderModule = create_shader_module("asvgf_temporal_accumulation", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        svgf_taa.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        asvgf_temporal_accumulation.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
-        computeCreateInfo.layout = svgf_taa.pipelineLayout;
-        svgf_taa.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
-		svgf_taa.ready = true;
+        computeCreateInfo.layout = asvgf_temporal_accumulation.pipelineLayout;
+        asvgf_temporal_accumulation.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		asvgf_temporal_accumulation.ready = true;
 	}
 
-	/* SVGF A-Trous Edge Avoiding Filter */
+	/* ASVGF A-Trous Edge Avoiding Filter */
 	{
-		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/SVGF_Atrous/comp.spv"));
-		auto compShaderModule = create_shader_module("svgf_atrous_filter", compShaderCode);
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_6_ReconstructImage/comp.spv"));
+		auto compShaderModule = create_shader_module("asvgf_final_atrous", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        svgf_atrous_filter.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        asvgf_final_atrous.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
-        computeCreateInfo.layout = svgf_atrous_filter.pipelineLayout;
-        svgf_atrous_filter.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
-		svgf_atrous_filter.ready = true;
+        computeCreateInfo.layout = asvgf_final_atrous.pipelineLayout;
+        asvgf_final_atrous.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		asvgf_final_atrous.ready = true;
 	}
 
 	/* SVGF Remodulate */
 	{
-		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/SVGF_Remodulate/comp.spv"));
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_7_Remodulate/comp.spv"));
 		auto compShaderModule = create_shader_module("svgf_remodulate", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
         svgf_remodulate.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
@@ -2564,6 +2798,54 @@ void RenderSystem::setup_compute_pipelines()
         computeCreateInfo.layout = svgf_remodulate.pipelineLayout;
         svgf_remodulate.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
 		svgf_remodulate.ready = true;
+	}
+
+	/* ASVGF Reproject Seeds */
+	{
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_1_ReprojectSeeds/comp.spv"));
+		auto compShaderModule = create_shader_module("asvgf_reproject_seeds", compShaderCode);
+		compShaderStageInfo.module = compShaderModule;
+        asvgf_reproject_seeds.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = asvgf_reproject_seeds.pipelineLayout;
+        asvgf_reproject_seeds.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		asvgf_reproject_seeds.ready = true;
+	}
+
+	/* ASVGF Compute Sparse Gradient */
+	{
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_2_ComputeGradientAndMoments/comp.spv"));
+		auto compShaderModule = create_shader_module("asvgf_compute_gradient", compShaderCode);
+		compShaderStageInfo.module = compShaderModule;
+        asvgf_compute_gradient.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = asvgf_compute_gradient.pipelineLayout;
+        asvgf_compute_gradient.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		asvgf_compute_gradient.ready = true;
+	}
+
+	/* ASVGF Reconstruct Dense Gradient */
+	{
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_3_ReconstructGradientAndMoments/comp.spv"));
+		auto compShaderModule = create_shader_module("asvgf_reconstruct_gradient", compShaderCode);
+		compShaderStageInfo.module = compShaderModule;
+        asvgf_reconstruct_gradient.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = asvgf_reconstruct_gradient.pipelineLayout;
+        asvgf_reconstruct_gradient.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		asvgf_reconstruct_gradient.ready = true;
+	}
+
+	/* ASVGF Estimate Variance */
+	{
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_5_EstimateVariance/comp.spv"));
+		auto compShaderModule = create_shader_module("asvgf_estimate_variance", compShaderCode);
+		compShaderStageInfo.module = compShaderModule;
+        asvgf_estimate_variance.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = asvgf_estimate_variance.pipelineLayout;
+        asvgf_estimate_variance.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		asvgf_estimate_variance.ready = true;
 	}
 }
 
@@ -2691,7 +2973,19 @@ void RenderSystem::create_descriptor_set_layouts()
 		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 	texture3DsBinding.pImmutableSamplers = 0;
 
-	std::array<vk::DescriptorSetLayoutBinding, 5> textureBindings = {txboLayoutBinding, samplerBinding, texture2DsBinding, textureCubesBinding, texture3DsBinding };
+	// Blue Noise Tile
+	vk::DescriptorSetLayoutBinding blueNoiseBinding;
+	blueNoiseBinding.descriptorCount = 1;
+	blueNoiseBinding.binding = 5;
+	blueNoiseBinding.descriptorType = vk::DescriptorType::eSampledImage;
+	blueNoiseBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
+	blueNoiseBinding.pImmutableSamplers = 0;
+
+	std::array<vk::DescriptorSetLayoutBinding, 6> textureBindings = {
+		txboLayoutBinding, samplerBinding, texture2DsBinding, textureCubesBinding, 
+		texture3DsBinding, blueNoiseBinding 
+	};
 	vk::DescriptorSetLayoutCreateInfo textureLayoutInfo;
 	textureLayoutInfo.bindingCount = (uint32_t)textureBindings.size();
 	textureLayoutInfo.pBindings = textureBindings.data();
@@ -2856,7 +3150,7 @@ void RenderSystem::create_descriptor_pools()
 	SSBOPoolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
 
 	/* Texture Descriptor Pool Info */
-	std::array<vk::DescriptorPoolSize, 5> texturePoolSizes = {};
+	std::array<vk::DescriptorPoolSize, 6> texturePoolSizes = {};
 	
 	// TextureSSBO
 	texturePoolSizes[0].type = vk::DescriptorType::eStorageBuffer;
@@ -2877,6 +3171,9 @@ void RenderSystem::create_descriptor_pools()
 	// 3D Texture array
 	texturePoolSizes[4].type = vk::DescriptorType::eSampledImage;
 	texturePoolSizes[4].descriptorCount = MAX_MATERIALS;
+
+	texturePoolSizes[5].type = vk::DescriptorType::eSampledImage;
+	texturePoolSizes[5].descriptorCount = 1;
 	
 	vk::DescriptorPoolCreateInfo texturePoolInfo;
 	texturePoolInfo.poolSizeCount = (uint32_t)texturePoolSizes.size();
@@ -3117,7 +3414,7 @@ void RenderSystem::update_raster_descriptor_sets()
 	
 	/* ------ Texture Descriptor Set  ------ */
 	vk::DescriptorSetLayout textureLayouts[] = { textureDescriptorSetLayout };
-	std::array<vk::WriteDescriptorSet, 5> textureDescriptorWrites = {};
+	std::array<vk::WriteDescriptorSet, 6> textureDescriptorWrites = {};
 	
 	if (textureDescriptorSet == vk::DescriptorSet())
 	{
@@ -3136,10 +3433,22 @@ void RenderSystem::update_raster_descriptor_sets()
 	auto texture3DLayouts = Texture::GetLayouts(vk::ImageViewType::e3D);
 	auto texture3DViews = Texture::GetImageViews(vk::ImageViewType::e3D);
 	auto samplers = Texture::GetSamplers();
+	Texture* blueNoiseTile = nullptr;
+	try {
+        // brdf = Texture::Get("BRDF");
+        // ltc_mat = Texture::Get("LTCMAT");
+        // ltc_amp = Texture::Get("LTCAMP");
+        // ranking = Texture::Get("RANKINGTILE");
+        // scramble = Texture::Get("SCRAMBLETILE");
+        // sobel = Texture::Get("SOBELTILE");
+		blueNoiseTile = Texture::Get("BLUENOISETILE");
+    } catch (...) {}
 
 	if (texture3DLayouts.size() <= 0) return;
 	if (texture2DLayouts.size() <= 0) return;
 	if (textureCubeLayouts.size() <= 0) return;
+	if (blueNoiseTile == nullptr) return;
+	
 
 	// Texture SSBO
 	vk::DescriptorBufferInfo textureBufferInfo;
@@ -3217,6 +3526,19 @@ void RenderSystem::update_raster_descriptor_sets()
 	textureDescriptorWrites[4].descriptorType = vk::DescriptorType::eSampledImage;
 	textureDescriptorWrites[4].descriptorCount = MAX_TEXTURES;
 	textureDescriptorWrites[4].pImageInfo = texture3DDescriptorInfos;
+
+	// Blue Noise Tile
+	vk::DescriptorImageInfo blueNoiseTileDescriptorInfo;
+	blueNoiseTileDescriptorInfo.sampler = nullptr;
+	blueNoiseTileDescriptorInfo.imageLayout = blueNoiseTile->get_color_image_layout();
+	blueNoiseTileDescriptorInfo.imageView = blueNoiseTile->get_color_image_view();
+	
+	textureDescriptorWrites[5].dstSet = textureDescriptorSet;
+	textureDescriptorWrites[5].dstBinding = 5;
+	textureDescriptorWrites[5].dstArrayElement = 0;
+	textureDescriptorWrites[5].descriptorType = vk::DescriptorType::eSampledImage;
+	textureDescriptorWrites[5].descriptorCount = 1;
+	textureDescriptorWrites[5].pImageInfo = &blueNoiseTileDescriptorInfo;
 	
 	device.updateDescriptorSets((uint32_t)textureDescriptorWrites.size(), textureDescriptorWrites.data(), 0, nullptr);
 
@@ -3393,8 +3715,8 @@ void RenderSystem::update_gbuffer_descriptor_sets(Entity &camera_entity, uint32_
 	auto device = vulkan->get_device();
 
     if (!camera_entity.is_initialized()) return;
-	if (!camera_entity.camera()) return;
-	if (!camera_entity.camera()->get_texture()) return;
+	if (!camera_entity.get_camera()) return;
+	if (!camera_entity.get_camera()->get_texture()) return;
 
     // vk::DescriptorSetLayout gbufferLayouts[] = { gbufferDescriptorSetLayout };
 	std::vector<vk::DescriptorSetLayout> gbufferLayouts(1, gbufferDescriptorSetLayout);
@@ -3413,7 +3735,7 @@ void RenderSystem::update_gbuffer_descriptor_sets(Entity &camera_entity, uint32_
 
     std::array<vk::WriteDescriptorSet, 3> gbufferDescriptorWrites = {};
 
-	auto colorImageViewLayers = camera_entity.camera()->get_texture()->get_color_image_view_layers();
+	auto colorImageViewLayers = camera_entity.get_camera()->get_texture()->get_color_image_view_layers();
 
     // Output image 
 	vk::DescriptorImageInfo descriptorOutputImageInfo;
@@ -3432,7 +3754,7 @@ void RenderSystem::update_gbuffer_descriptor_sets(Entity &camera_entity, uint32_
 
 	for (uint32_t g_idx = 0; g_idx < MAX_G_BUFFERS; ++g_idx) {
 		descriptorGBufferImageInfos[g_idx].imageLayout = vk::ImageLayout::eGeneral;
-		auto gbufferImageViewLayers = camera_entity.camera()->get_texture()->get_g_buffer_image_view_layers(g_idx);
+		auto gbufferImageViewLayers = camera_entity.get_camera()->get_texture()->get_g_buffer_image_view_layers(g_idx);
 		descriptorGBufferImageInfos[g_idx].imageView = gbufferImageViewLayers[rp_idx];
 	}
 	
@@ -3448,7 +3770,7 @@ void RenderSystem::update_gbuffer_descriptor_sets(Entity &camera_entity, uint32_
 
 	for (uint32_t g_idx = 0; g_idx < MAX_G_BUFFERS; ++g_idx) {
 		descriptorGBufferTextureImageInfos[g_idx].imageLayout = vk::ImageLayout::eGeneral;
-		auto gbufferImageViewLayers = camera_entity.camera()->get_texture()->get_g_buffer_image_view_layers(g_idx);
+		auto gbufferImageViewLayers = camera_entity.get_camera()->get_texture()->get_g_buffer_image_view_layers(g_idx);
 		descriptorGBufferTextureImageInfos[g_idx].imageView = gbufferImageViewLayers[rp_idx];
 	}
 	
@@ -3588,26 +3910,36 @@ void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffe
 {
 	if (
 		(edgedetect.ready == false) || 
-		(svgf_taa.ready == false) || 
+		(asvgf_temporal_accumulation.ready == false) || 
 		(progressive_refinement.ready == false) || 
 		(tone_mapping.ready == false) || 
+		(copy_history.ready == false) || 
 		(gaussian_x.ready == false) || 
 		(gaussian_y.ready == false) || 
-		(svgf_atrous_filter.ready == false) ||
-		(svgf_remodulate.ready == false)
+		(asvgf_final_atrous.ready == false) ||
+		(svgf_remodulate.ready == false) ||
+		(asvgf_reproject_seeds.ready == false) ||
+		(asvgf_compute_gradient.ready == false) ||
+		(asvgf_reconstruct_gradient.ready == false) ||
+		(asvgf_estimate_variance.ready == false)
 	) return;
 
 	auto key = std::pair<uint32_t, uint32_t>(camera_entity.get_id(), rp_idx);
 	std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet, gbufferDescriptorSets[key]};
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, edgedetect.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
-	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, svgf_taa.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_temporal_accumulation.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, taa.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, progressive_refinement.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, tone_mapping.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, copy_history.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, gaussian_x.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, gaussian_y.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
-	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, svgf_atrous_filter.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_final_atrous.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, svgf_remodulate.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_reproject_seeds.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_compute_gradient.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_reconstruct_gradient.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_estimate_variance.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 }
 
 void RenderSystem::bind_raytracing_descriptor_sets(vk::CommandBuffer &command_buffer, Entity &camera_entity, uint32_t rp_idx)
@@ -3733,6 +4065,7 @@ void RenderSystem::set_exposure(float exposure) { this->push_constants.exposure 
 void RenderSystem::set_environment_map(int32_t id) { this->push_constants.environment_id = id; }
 void RenderSystem::set_environment_map(Texture *texture) { this->push_constants.environment_id = texture->get_id(); }
 void RenderSystem::set_environment_roughness(float roughness) { this->push_constants.environment_roughness = roughness; }
+void RenderSystem::set_environment_intensity(float intensity) { this->push_constants.environment_intensity = intensity; }
 void RenderSystem::clear_environment_map() { this->push_constants.environment_id = -1; }
 void RenderSystem::set_irradiance_map(int32_t id) { this->push_constants.specular_environment_id = id; }
 void RenderSystem::set_irradiance_map(Texture *texture) { this->push_constants.specular_environment_id = texture->get_id(); }
@@ -3771,30 +4104,75 @@ void RenderSystem::enable_taa(bool enable) {
 	}
 };
 
-void RenderSystem::enable_svgf_atrous(bool enable) {
-	this->svgf_atrous_enabled = enable; 
-	if (this->svgf_atrous_enabled) {
-		this->push_constants.flags |= ( 1 << RenderSystemOptions::ENABLE_SVGF_ATROUS );
+void RenderSystem::enable_asvgf(bool enable)
+{
+	this->asvgf_enabled = enable;
+	if (this->asvgf_enabled) {
+		this->push_constants.flags |= ( 1 << RenderSystemOptions::ENABLE_ASVGF );
+		this->enable_progressive_refinement(false);
 	} else {
-		this->push_constants.flags &= ~( 1 << RenderSystemOptions::ENABLE_SVGF_ATROUS );
+		this->push_constants.flags &= ~( 1 << RenderSystemOptions::ENABLE_ASVGF );
 	}
-};
-
-void RenderSystem::enable_svgf_taa(bool enable) {
-	this->svgf_taa_enabled = enable; 
-	if (this->svgf_taa_enabled) {
-		this->push_constants.flags |= ( 1 << RenderSystemOptions::ENABLE_SVGF_TAA );
-	} else {
-		this->push_constants.flags &= ~( 1 << RenderSystemOptions::ENABLE_SVGF_TAA );
-	}
-};
-
-void RenderSystem::set_atrous_sigma(float sigma) {
-	atrous_sigma = sigma;
 }
 
-void RenderSystem::set_atrous_iterations(int iterations) {
-	atrous_iterations = iterations;
+void RenderSystem::enable_asvgf_gradient(bool enable)
+{
+	this->asvgf_gradient_enabled = enable;
+	if (this->asvgf_gradient_enabled) {
+		this->push_constants.flags |= ( 1 << RenderSystemOptions::ENABLE_ASVGF_GRADIENT );
+	} else {
+		this->push_constants.flags &= ~( 1 << RenderSystemOptions::ENABLE_ASVGF_GRADIENT );
+	}
+}
+
+void RenderSystem::set_asvgf_gradient_reconstruction_iterations(int iterations)
+{
+	this->asvgf_gradient_reconstruction_iterations = iterations;
+}
+
+void RenderSystem::set_asvgf_gradient_reconstruction_sigma(float sigma)
+{
+	this->asvgf_gradient_reconstruction_sigma = sigma;
+}
+
+void RenderSystem::enable_asvgf_temporal_accumulation(bool enable)
+{
+	this->asvgf_temporal_accumulation_enabled = enable;
+	if (this->asvgf_temporal_accumulation_enabled) {
+		this->push_constants.flags |= ( 1 << RenderSystemOptions::ENABLE_ASVGF_TEMPORAL_ACCUMULATION );
+	} else {
+		this->push_constants.flags &= ~( 1 << RenderSystemOptions::ENABLE_ASVGF_TEMPORAL_ACCUMULATION );
+	}
+}
+
+void RenderSystem::enable_asvgf_variance_estimation(bool enable)
+{
+	this->asvgf_variance_estimation_enabled = enable;
+	if (this->asvgf_variance_estimation_enabled) {
+		this->push_constants.flags |= ( 1 << RenderSystemOptions::ENABLE_ASVGF_VARIANCE_ESTIMATION );
+	} else {
+		this->push_constants.flags &= ~( 1 << RenderSystemOptions::ENABLE_ASVGF_VARIANCE_ESTIMATION );
+	}
+}
+
+void RenderSystem::enable_asvgf_atrous(bool enable)
+{
+	this->asvgf_atrous_enabled = enable;
+	if (this->asvgf_atrous_enabled) {
+		this->push_constants.flags |= ( 1 << RenderSystemOptions::ENABLE_ASVGF_ATROUS );
+	} else {
+		this->push_constants.flags &= ~( 1 << RenderSystemOptions::ENABLE_ASVGF_ATROUS );
+	}
+}
+
+void RenderSystem::set_asvgf_atrous_iterations(int iterations)
+{
+	this->asvgf_atrous_iterations = iterations;
+}
+
+void RenderSystem::set_asvgf_atrous_sigma(float sigma)
+{
+	this->asvgf_atrous_sigma = sigma;
 }
 
 void RenderSystem::enable_progressive_refinement(bool enable) {
@@ -4729,14 +5107,14 @@ std::vector<std::vector<VisibleEntityInfo>> RenderSystem::get_visible_entities(u
 			visible_entity_maps[view_idx][i].entity_index = i;
 
 			/* If any of these are true, the object is invisible. */
-			if ((i == camera_entity_id) || (!entities[i].is_initialized()) || (!entities[i].mesh()) || (!entities[i].transform()) || (!entities[i].material())) {
+			if ((i == camera_entity_id) || (!entities[i].is_initialized()) || (!entities[i].get_mesh()) || (!entities[i].get_transform()) || (!entities[i].get_material())) {
 				visible_entity_maps[view_idx][i].distance = std::numeric_limits<float>::max();
 				visible_entity_maps[view_idx][i].visible = false;
 			} else {
 				std::array<glm::vec4, 6> planes;
 
 				/* Get projection planes for frustum/sphere intersection */
-				auto m = camera_world_to_local * entities[i].transform()->get_local_to_world_matrix();
+				auto m = camera_world_to_local * entities[i].get_transform()->get_local_to_world_matrix();
 				planes[LEFT].x = m[0].w + m[0].x; planes[LEFT].y = m[1].w + m[1].x; planes[LEFT].z = m[2].w + m[2].x; planes[LEFT].w = m[3].w + m[3].x;
 				planes[RIGHT].x = m[0].w - m[0].x; planes[RIGHT].y = m[1].w - m[1].x; planes[RIGHT].z = m[2].w - m[2].x; planes[RIGHT].w = m[3].w - m[3].x;
 				planes[TOP].x = m[0].w - m[0].y; planes[TOP].y = m[1].w - m[1].y; planes[TOP].z = m[2].w - m[2].y; planes[TOP].w = m[3].w - m[3].y;
@@ -4745,18 +5123,18 @@ std::vector<std::vector<VisibleEntityInfo>> RenderSystem::get_visible_entities(u
 				planes[FRONT].x = m[0].w - m[0].z; planes[FRONT].y = m[1].w - m[1].z; planes[FRONT].z = m[2].w - m[2].z; planes[FRONT].w = m[3].w - m[3].z;
 				for (auto i = 0; i < planes.size(); i++) planes[i] /= sqrtf(planes[i].x * planes[i].x + planes[i].y * planes[i].y + planes[i].z * planes[i].z);
 
-				auto centroid = entities[i].mesh()->get_centroid();
-				auto radius = entities[i].mesh()->get_bounding_sphere_radius();
+				auto centroid = entities[i].get_mesh()->get_centroid();
+				auto radius = entities[i].get_mesh()->get_bounding_sphere_radius();
 				bool entity_seen = checkSphere(planes, centroid, radius);
 				if (entity_seen) {
-					auto m_cam_pos = entities[i].transform()->get_world_to_local_matrix() * glm::vec4(cam_pos.x, cam_pos.y, cam_pos.z, 1.0f);
+					auto m_cam_pos = entities[i].get_transform()->get_world_to_local_matrix() * glm::vec4(cam_pos.x, cam_pos.y, cam_pos.z, 1.0f);
 					auto to_camera = glm::normalize(glm::vec3(m_cam_pos) - centroid);
 					float centroid_dist = glm::distance(glm::vec3(m_cam_pos), centroid);
 					if (radius < centroid_dist)
 						to_camera = to_camera * radius;
 
-					auto w_to_camera = glm::vec3(entities[i].transform()->get_local_to_world_matrix() * glm::vec4(to_camera.x, to_camera.y, to_camera.z, 0.0));
-					auto w_centroid = glm::vec3(entities[i].transform()->get_local_to_world_matrix() * glm::vec4(centroid.x, centroid.y, centroid.z, 1.0));
+					auto w_to_camera = glm::vec3(entities[i].get_transform()->get_local_to_world_matrix() * glm::vec4(to_camera.x, to_camera.y, to_camera.z, 0.0));
+					auto w_centroid = glm::vec3(entities[i].get_transform()->get_local_to_world_matrix() * glm::vec4(centroid.x, centroid.y, centroid.z, 1.0));
 					visible_entity_maps[view_idx][i].visible = true;
 					visible_entity_maps[view_idx][i].distance = glm::distance(cam_pos, w_centroid + w_to_camera);
 				} else {

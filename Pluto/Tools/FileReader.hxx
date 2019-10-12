@@ -3,8 +3,8 @@
 #include <iostream>
 
 /* Helper function for reading in SPIR-V files */
-static std::vector<char> readFile(const std::string& filename) {
-	std::ifstream file(filename, std::ios::ate | std::ios::binary);
+static std::vector<char> readFile(const std::string& filename, std::ios_base::openmode mode = std::ios::ate | std::ios::binary) {
+	std::ifstream file(filename, mode);
 
 	if (!file.is_open()) {
 		std::cout<<"Fatal Error, unable to open file " << filename << std::endl;

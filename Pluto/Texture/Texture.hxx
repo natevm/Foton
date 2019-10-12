@@ -11,7 +11,7 @@
 #include "Pluto/Texture/TextureStruct.hxx"
 
 #ifndef MAX_G_BUFFERS  
-#define MAX_G_BUFFERS 25
+#define MAX_G_BUFFERS 40
 #endif
 
 class Texture : public StaticFactory
@@ -203,6 +203,8 @@ class Texture : public StaticFactory
 		void overrideColorImageLayout(vk::ImageLayout layout);
 		void overrideDepthImageLayout(vk::ImageLayout layout);
 
+		void save_as_ktx(std::string path);
+
 	private:
 		/* Creates an uninitialized texture. Useful for preallocation. */
 		Texture();
@@ -277,4 +279,15 @@ class Texture : public StaticFactory
 
 		/* Creates a texture from a png texture file, replacing any vulkan resources with new ones containing the png data. */
 		void loadPNG(std::string imagePath, bool convert_bump = false, bool submit_immediately = false);
+
+	    /* Indicates that one of the components has been edited */
+		static bool Dirty;
+
+		/* Indicates this component has been edited */
+		bool dirty = true;
+
+		void mark_dirty() {
+			Dirty = true;
+			dirty = true;
+		};
 };

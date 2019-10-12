@@ -17,6 +17,45 @@ float luminance(const in vec3 c) {
 	return 0.2126f * c.r + 0.7152f * c.g + 0.0722f * c.b;
 }
 
+vec3 rgb2hsv(vec3 c)
+{
+    vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+    vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+    vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+
+    float d = q.x - min(q.w, q.y);
+    float e = 1.0e-10;
+    return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+}
+
+vec3 hsv2rgb(vec3 c)
+{
+    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+/* TESTS */
+bool
+test_reprojected_normal(vec3 n1, vec3 n2)
+{
+	return dot(n1, n2) > 0.95;
+}
+
+bool
+test_inside_screen(ivec2 p, ivec2 res)
+{
+	return all(greaterThanEqual(p, ivec2(0)))
+		&& all(lessThan(p, res));
+}
+
+bool
+test_reprojected_depth(float z1, float z2, float dz)
+{
+	float z_diff = abs(z1 - z2);
+	return z_diff < 2.0 * (dz + 1e-3);
+}
+
 
 /* TEXTURE UTILITIES */
 // Texture Lookups --------------------------------------
@@ -52,11 +91,11 @@ float checker(in vec3 uvw, float scale)
 vec4 sample_texture_2D(vec4 default_color, int texture_id, vec2 uv, vec3 m_position)
 {
     vec4 color = default_color; 
-    if ((texture_id < 0) || (texture_id >= MAX_TEXTURES)) return default_color;
+    if ((texture_id < 0) || (texture_id >= max_textures)) return default_color;
 
     TextureStruct tex = txbo.textures[texture_id];
     
-    if ((tex.sampler_id < 0) || (tex.sampler_id >= MAX_SAMPLERS))  return default_color;
+    if ((tex.sampler_id < 0) || (tex.sampler_id >= max_samplers))  return default_color;
 
     /* Raster texture */
     if (tex.type == 0) {
@@ -76,12 +115,12 @@ vec4 sample_texture_2D(vec4 default_color, int texture_id, vec2 uv, vec3 m_posit
 
 vec4 sample_texture_3D(vec4 default_color, int texture_id, vec3 uvw, float lod)
 {
-    if ((texture_id < 0) || (texture_id >= MAX_TEXTURES)) return default_color;
+    if ((texture_id < 0) || (texture_id >= max_textures)) return default_color;
     vec4 color = default_color;
 
     TextureStruct tex = txbo.textures[texture_id];
     
-    if ((tex.sampler_id < 0) || (tex.sampler_id >= MAX_SAMPLERS))  return default_color;
+    if ((tex.sampler_id < 0) || (tex.sampler_id >= max_samplers))  return default_color;
 
     if (tex.type == 0)
     {
@@ -129,7 +168,7 @@ float getTransmissionRoughness(inout MaterialStruct material)
 // See http://www.thetenthplanet.de/archives/1180
 vec3 perturbNormal(inout MaterialStruct material, vec3 w_position, vec3 w_normal, vec2 uv, vec3 m_position)
 {
-    #ifndef RAYTRACING
+    #if !defined(RAYTRACING) && !defined(COMPUTE)
     w_normal = normalize(w_normal);
 	vec3 tangentNormal = sample_texture_2D(vec4(w_normal.xyz, 0.0), material.bump_texture_id, uv, m_position).xyz;// texture(normalMap, inUV).xyz * 2.0 - 1.0;
     if (w_normal == tangentNormal) return w_normal;
@@ -162,12 +201,14 @@ vec3 perturbNormal(inout MaterialStruct material, vec3 w_position, vec3 w_normal
 }
 
 void get_origin_and_direction(in ivec2 pixel_seed, int frame_seed, in mat4 projinv, in mat4 viewinv, in ivec2 pixel_coords, in ivec2 frame_size, out vec3 origin, out vec3 direction) {
-    const vec2 pixel_center = vec2(pixel_coords.xy) + vec2(random(pixel_seed, frame_seed), random(pixel_seed, frame_seed));
+    vec2 pixel_center = vec2(pixel_coords.xy);// + vec2(random(pixel_seed, frame_seed), random(pixel_seed, frame_seed)) * .5;
+    if (is_progressive_refinement_enabled()) pixel_center += vec2(random(), random()) * .5 * PATH_TRACE_TILE_SIZE;
 	const vec2 in_uv = pixel_center/vec2(frame_size);
 	vec2 d = in_uv * 2.0 - 1.0; d.y *= -1.0;
-    vec3 target = (projinv * vec4(d.x, d.y, 1, 1)).xyz ;
+    vec4 t = (projinv * vec4(d.x, d.y, 1, 1));
+    vec3 target = t.xyz / t.w;
     origin = (viewinv * vec4(0,0,0,1)).xyz;
-    direction = (viewinv * vec4(normalize(target), 0)).xyz ;
+    direction = (viewinv * vec4(target, 0)).xyz ;
     direction = normalize(direction);
 }
 
@@ -176,14 +217,14 @@ void unpack_entity(
     inout EntityStruct entity, inout TransformStruct transform,
     inout MaterialStruct material, inout LightStruct light
 ) {
-    if ((entity_id < 0) || (entity_id >= MAX_ENTITIES)) return;
+    if ((entity_id < 0) || (entity_id >= max_entities)) return;
     entity = ebo.entities[entity_id];
     if (entity.initialized != 1) return;
-    if ((entity.transform_id < 0) || (entity.transform_id >= MAX_TRANSFORMS)) return;
+    if ((entity.transform_id < 0) || (entity.transform_id >= max_transforms)) return;
     transform = tbo.transforms[entity.transform_id];
-    if ((entity.material_id >= 0) && (entity.material_id < MAX_MATERIALS)) 
+    if ((entity.material_id >= 0) && (entity.material_id < max_materials)) 
         material = mbo.materials[entity.material_id];
-    if ((entity.light_id >= 0) && (entity.light_id < MAX_LIGHTS))
+    if ((entity.light_id >= 0) && (entity.light_id < max_lights))
         light = lbo.lights[entity.light_id];
 }
 
@@ -192,14 +233,14 @@ void unpack_entity(
 void unpack_entity_struct(
     int entity_id, inout EntityStruct entity
 ) {
-    if ((entity_id < 0) || (entity_id >= MAX_ENTITIES)) return;
+    if ((entity_id < 0) || (entity_id >= max_entities)) return;
     entity = ebo.entities[entity_id];
 }
 
 void unpack_material_struct(
     int entity_id, const in EntityStruct entity, vec2 uv, vec3 m_position, inout MaterialStruct material
 ) {
-    if ((entity_id < 0) || (entity_id >= MAX_ENTITIES)) return;
+    if ((entity_id < 0) || (entity_id >= max_entities)) return;
     if (entity.initialized != 1) return;
     material = mbo.materials[entity.material_id];
 
@@ -212,7 +253,7 @@ void unpack_material_struct(
 void unpack_light_struct(
     int entity_id, const in EntityStruct entity, inout LightStruct light
 ) {
-    if ((entity_id < 0) || (entity_id >= MAX_ENTITIES)) return;
+    if ((entity_id < 0) || (entity_id >= max_entities)) return;
     if (entity.initialized != 1) return;
     light = lbo.lights[entity.light_id];
 }

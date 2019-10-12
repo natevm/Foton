@@ -48,6 +48,7 @@ vk::Buffer Mesh::stagingSSBO;
 vk::DeviceMemory Mesh::stagingSSBOMemory;
 std::shared_ptr<std::mutex> Mesh::creation_mutex;
 bool Mesh::Initialized = false;
+bool Mesh::Dirty = true;
 
 class Vertex
 {
@@ -228,6 +229,7 @@ void Mesh::compute_metadata(bool submit_immediately)
 	if (vulkan->is_ray_tracing_enabled()) {
 		build_low_level_bvh(submit_immediately);
 	}
+	mark_dirty();
 }
 
 void Mesh::save_tetrahedralization(float quality_bound, float maximum_volume)
@@ -451,6 +453,8 @@ bool Mesh::IsInitialized()
 
 void Mesh::UploadSSBO(vk::CommandBuffer command_buffer)
 {
+	if (!Dirty) return;
+	Dirty = false;
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
 
@@ -1407,7 +1411,7 @@ void Mesh::build_low_level_bvh(bool submit_immediately)
 		tris.vertexOffset = 0;
 		tris.vertexCount = (uint32_t) this->positions.size();
 		tris.vertexStride = sizeof(glm::vec4);
-		tris.vertexFormat = vk::Format::eR32G32B32A32Sfloat;
+		tris.vertexFormat = vk::Format::eR32G32B32Sfloat;
 		tris.indexData = this->triangleIndexBuffer;
 		tris.indexOffset = 0;
 		tris.indexCount = this->get_total_triangle_indices();
@@ -2093,10 +2097,12 @@ Mesh* Mesh::CreateFromRaw (
 
 void Mesh::Delete(std::string name) {
 	StaticFactory::Delete(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
+	Dirty = true;
 }
 
 void Mesh::Delete(uint32_t id) {
 	StaticFactory::Delete(creation_mutex, id, "Mesh", lookupTable, meshes, MAX_MESHES);
+	Dirty = true;
 }
 
 Mesh* Mesh::GetFront() {

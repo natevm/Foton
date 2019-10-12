@@ -121,7 +121,7 @@ namespace Pluto {
         Light::CreateShadowCameras();
 
         auto skybox = Entity::Create("Skybox");
-        auto sphere = Mesh::CreateSphere("SkyboxSphere");
+        auto sphere = Mesh::CreateBox("SkyboxSphere");
         auto transform = Transform::Create("SkyboxTransform");
         auto material = Material::Create("SkyboxMaterial");
         material->show_environment(true);

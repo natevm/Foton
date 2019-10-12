@@ -7,83 +7,6 @@
 #include "Pluto/Resources/Shaders/Common/Random.hxx"
 #include "Pluto/Material/MaterialStruct.hxx"
 
-/* Struct containing resulting BSDF values. */
-struct DisneyColor {
-	vec3 diffuse;
-	vec3 gloss;
-	vec3 sheen;
-	vec3 coat;
-	vec3 transmission;
-};
-
-DisneyColor mult_d_d(const in DisneyColor A, const in DisneyColor B)
-{
-	DisneyColor result;
-	result.diffuse = A.diffuse * B.diffuse;
-	result.gloss = A.gloss * B.gloss;
-	result.sheen = A.sheen * B.sheen;
-	result.coat = A.coat * B.coat;
-	result.transmission = A.transmission * B.transmission;
-	return result;
-}
-
-DisneyColor conv_d_d(const in DisneyColor A, const in DisneyColor B)
-{
-	vec3 temp = B.diffuse + B.gloss + B.sheen + B.coat + B.transmission;
-	DisneyColor result;
-	result.diffuse = A.diffuse * temp;
-	result.gloss = A.gloss * temp;
-	result.sheen = A.sheen * temp;
-	result.coat = A.coat * temp;
-	result.transmission = A.transmission * temp;
-	return result;
-}
-
-DisneyColor add_d_d(const in DisneyColor A, const in DisneyColor B)
-{
-	DisneyColor result;
-	result.diffuse = A.diffuse + B.diffuse;
-	result.gloss = A.gloss + B.gloss;
-	result.sheen = A.sheen + B.sheen;
-	result.coat = A.coat + B.coat;
-	result.transmission = A.transmission + B.transmission;
-	return result;
-}
-
-DisneyColor mult_d_v3(const in DisneyColor A, const in vec3 B)
-{
-    DisneyColor result;
-	result.diffuse = A.diffuse * B;
-	
-	result.gloss = A.gloss * B;
-	result.sheen = A.sheen * B;
-	result.coat = A.coat * B;
-	result.transmission = A.transmission * B;
-	return result;
-}
-
-bool d_all_less_than(const in DisneyColor A, float B)
-{
-	return  all(lessThan(A.diffuse, vec3(B))) &&
-			all(lessThan(A.gloss, vec3(B))) &&
-			all(lessThan(A.sheen, vec3(B))) &&
-			all(lessThan(A.coat, vec3(B))) &&
-			all(lessThan(A.transmission, vec3(B)));
-}
-
-vec3 d_combine(const in DisneyColor A)
-{
-	return (A.diffuse + A.sheen) + (A.gloss + A.coat + A.transmission);
-}
-
-vec3 d_get_diffuse(const in DisneyColor A) {
-	return A.diffuse + A.sheen;
-}
-
-vec3 d_get_specular(const in DisneyColor A) {
-	return A.diffuse + A.sheen;
-}
-
 /* Disney BSDF functions, for additional details and examples see:
  * - https://blog.selfshadow.com/publications/s2012-shading-course/burley/s2012_pbs_disney_brdf_notes_v3.pdf
  * - https://www.shadertoy.com/view/XdyyDd
@@ -389,10 +312,13 @@ vec3 disney_sheen(const in MaterialStruct mat, const in vec3 n,
 	return f * mat.sheen * sheen_color;
 }
 
-DisneyColor disney_brdf(const in MaterialStruct mat, bool backface, const in vec3 w_n,
-	const in vec3 w_o, const in vec3 w_i, const in vec3 w_x, const in vec3 w_y)
+void disney_bsdf(const in MaterialStruct mat, bool backface, const in vec3 w_n,
+	const in vec3 w_o, const in vec3 w_i, const in vec3 w_x, const in vec3 w_y,
+	out vec3 bsdf, out vec3 dbsdf, out vec3 sbsdf)
 {
-	DisneyColor result;
+	bsdf = vec3(0.);
+	dbsdf = vec3(0.);
+	sbsdf = vec3(0.);
 
 	vec3 w_n_f = (backface) ? -w_n : w_n;
 	vec3 w_x_f = (backface) ? -w_x : w_x;
@@ -429,16 +355,30 @@ DisneyColor disney_brdf(const in MaterialStruct mat, bool backface, const in vec
 		}
 	}
 
-	result.diffuse = diffuse_color * diffuse * (1.f - mat.metallic) * (1.f - mat.transmission) * abs(dot(w_i, w_n));
-	result.gloss = gloss * abs(dot(w_i, w_n));
-	result.sheen = sheen * abs(dot(w_i, w_n));
-	result.coat = vec3(coat) * abs(dot(w_i, w_n));
-	result.transmission = transmission_color * spec_trans * (1.f - mat.metallic) * mat.transmission * abs(dot(w_i, w_n));
-	return result;
+	/* Combined bsdf */
+	bsdf += diffuse_color * diffuse * (1.f - mat.metallic) * (1.f - mat.transmission);
+	bsdf += sheen;
+	bsdf += gloss;
+	bsdf += vec3(coat);
+	bsdf += transmission_color * spec_trans * (1.f - mat.metallic) * mat.transmission;
+	bsdf *= abs(dot(w_i, w_n));
+
+	/* Just diffuse piece */
+	dbsdf += diffuse_color * diffuse * (1.f - mat.metallic) * (1.f - mat.transmission);
+	dbsdf += sheen;
+	dbsdf *= abs(dot(w_i, w_n));
+	 
+	/* Just specular piece */
+	sbsdf += gloss; 
+	sbsdf += vec3(coat); 
+	sbsdf += transmission_color * spec_trans * (1.f - mat.metallic) * mat.transmission;
+	sbsdf *= abs(dot(w_i, w_n)); 
 }
 
-float disney_pdf(const in MaterialStruct mat, bool backface, 
-	const in vec3 w_n, const in vec3 w_o, const in vec3 w_i, const in vec3 w_x, const in vec3 w_y)
+void disney_pdf(const in MaterialStruct mat, bool backface, 
+	const in vec3 w_n, const in vec3 w_o, const in vec3 w_i, 
+	const in vec3 w_x, const in vec3 w_y, 
+	out float pdf, out float dpdf, out float spdf)
 {
 	vec3 w_n_f = (backface) ? -w_n : w_n;
 	vec3 w_x_f = (backface) ? -w_x : w_x;
@@ -468,28 +408,33 @@ float disney_pdf(const in MaterialStruct mat, bool backface,
 		}
 	}
 
-	float result = ((diffuse + microfacet + microfacet_transmission + clear_coat) / n_comp);
-	return result;
+	pdf = ((diffuse + microfacet + microfacet_transmission + clear_coat) / n_comp);
+	dpdf = diffuse;
+	spdf = (microfacet + microfacet_transmission + clear_coat) / (n_comp - 1);
 }
 
 /* Sample a component of the Disney BRDF, returns the sampled BRDF color,
  * ray reflection direction (w_i) and sample PDF. */
-DisneyColor sample_disney_brdf(ivec2 pixel_seed, int frame_seed, const in MaterialStruct mat, bool backface, const in vec3 w_n,
+vec3 sample_disney_bsdf (
+	ivec2 pixel_seed, int frame_seed, const in MaterialStruct mat, 
+	bool backface, const in vec3 w_n,
 	const in vec3 w_o, const in vec3 w_x, const in vec3 w_y,
-	out vec3 w_i, out float pdf)
+	out vec3 w_i, 
+	out float pdf, out float dpdf, out float spdf,
+	out vec3 bsdf, out vec3 dbsdf, out vec3 sbsdf)
 {
-	DisneyColor bsdf = DisneyColor(vec3(0), vec3(0), vec3(0), vec3(0), vec3(0));
+	bsdf = dbsdf = sbsdf = vec3(0);
 	vec3 w_n_f = (backface) ? -w_n : w_n;
 	vec3 w_x_f = (backface) ? -w_x : w_x;
 	vec3 w_y_f = (backface) ? -w_y : w_y;
 	int component = 0;
 	if (mat.transmission == 0.f) {
-		component = int(clamp(random(pixel_seed, frame_seed) * 3.f, 0, 2));
+		component = int(clamp(random() * 3.f, 0, 2));
 	} else {
-		component = int(clamp(random(pixel_seed, frame_seed) * 4.f, 0, 3));
+		component = int(clamp(random() * 4.f, 0, 3));
 	}
 
-	vec2 samples = vec2(random(pixel_seed, frame_seed), random(pixel_seed, frame_seed));
+	vec2 samples = vec2(random(), random());
 	if (component == 0) {
 		// Sample diffuse component
 		w_i = sample_lambertian_dir(w_n_f, w_x_f, w_y_f, samples);
@@ -501,7 +446,7 @@ DisneyColor sample_disney_brdf(ivec2 pixel_seed, int frame_seed, const in Materi
 
 		// Invalid reflection, terminate ray
 		if (!same_hemisphere(w_o, w_i, w_n_f)) {
-			pdf = 0.f;
+			pdf = dpdf = spdf = 0.f;
 			w_i = vec3(0.f);
 			return bsdf;
 		}
@@ -519,7 +464,7 @@ DisneyColor sample_disney_brdf(ivec2 pixel_seed, int frame_seed, const in Materi
 
 		// Invalid reflection, terminate ray
 		if (!same_hemisphere(w_o, w_i, w_n_f)) {
-			pdf = 0.f;
+			pdf = dpdf = spdf = 0.f;
 			w_i = vec3(0.f);
 			return bsdf;
 		}
@@ -535,14 +480,13 @@ DisneyColor sample_disney_brdf(ivec2 pixel_seed, int frame_seed, const in Materi
 
 		// Total internal reflection. 
 		if (all(equal(w_i, vec3(0.f)))) {
-			pdf = 0.f;
+			pdf = dpdf = spdf = 0.f;
 			w_i = vec3(0.f);
 			return bsdf;
 		}
 	}
-	pdf = disney_pdf(mat, backface, w_n, w_o, w_i, w_x, w_y);
-	bsdf = disney_brdf(mat, backface, w_n, w_o, w_i, w_x, w_y);
-	return bsdf;
+	disney_pdf(mat, backface, w_n, w_o, w_i, w_x, w_y, pdf, dpdf, spdf);
+	disney_bsdf(mat, backface, w_n, w_o, w_i, w_x, w_y, bsdf, dbsdf, sbsdf);
 }
 
 #endif

@@ -211,4 +211,15 @@ class Material : public StaticFactory
         
         /* The structure containing all shader material properties. This is what's coppied into the SSBO per instance */
         MaterialStruct material_struct;
+
+        /* Indicates that one of the components has been edited */
+        static bool Dirty;
+
+        /* Indicates this component has been edited */
+        bool dirty = true;
+
+        void mark_dirty() {
+            Dirty = true;
+            dirty = true;
+        };
 };

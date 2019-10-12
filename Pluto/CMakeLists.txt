@@ -148,13 +148,15 @@ endif()
 # │  Shaders                                                         │
 # └──────────────────────────────────────────────────────────────────┘
 
-if (WIN32)
-set(GLSLC ${PROJECT_SOURCE_DIR}/external/vulkan/glslc.exe)
-else()
 find_program(GLSLC glslc)
-endif()
+find_program(SPIRV_OPT spirv-opt)
 # set(GLSLC_CONFIG ${PROJECT_SOURCE_DIR}/external/vulkan/glsl.config)
 set(GLSLC_OPTIMIZATION -O)
+# set(SPIRV_OPTIMIZATION ${SPIRV_OPTIMIZATION} --loop-fission)
+# set(SPIRV_OPTIMIZATION ${SPIRV_OPTIMIZATION} --loop-fusion)
+set(SPIRV_OPTIMIZATION ${SPIRV_OPTIMIZATION} -O)
+set(SPIRV_OPTIMIZATION ${SPIRV_OPTIMIZATION} --ccp)
+set(SPIRV_OPTIMIZATION ${SPIRV_OPTIMIZATION} --loop-unroll)
 # set(GLSLC_OPTIMIZATION -g -o0)
 
 set(spvfiles "")
@@ -182,6 +184,7 @@ foreach(shader_file ${SHADERS_SRC})
     add_custom_command(
         OUTPUT ${spv_file}_ # force file to regen every time
         COMMAND ${GLSLC} ${GLSLC_OPTIMIZATION} ${extra_flags} -I ${CMAKE_CURRENT_SOURCE_DIR}/.. ${shader_file} -o ${spv_file}
+        COMMAND ${SPIRV_OPT} ${SPIRV_OPTIMIZATION} ${spv_file} -o ${spv_file}
         DEPENDS ${shader_file}
     )
     list(APPEND spvfiles ${spv_file}_)

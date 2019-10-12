@@ -98,4 +98,15 @@ class Collider : public StaticFactory
 
     /* Frees the current collider's resources*/
 	void cleanup();
+
+    /* Indicates that one of the components has been edited */
+    static bool Dirty;
+
+    /* Indicates this component has been edited */
+    bool dirty = true;
+
+    void mark_dirty() {
+		Dirty = true;
+		dirty = true;
+	};
 };

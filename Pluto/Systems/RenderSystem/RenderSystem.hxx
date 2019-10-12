@@ -36,7 +36,12 @@ enum RenderSystemOptions : uint32_t {
     RASTERIZE_MULTIVIEW = 0,
     DISABLE_REVERSE_Z_PROJECTION = 1,
     ENABLE_TAA = 2,
-    ENABLE_SVGF_ATROUS = 3,
+    ENABLE_ASVGF_GRADIENT = 3,
+    ENABLE_ASVGF_GRADIENT_ATROUS = 15,
+    ENABLE_ASVGF_TEMPORAL_ACCUMULATION = 11,
+    ENABLE_ASVGF_VARIANCE_ESTIMATION = 12,
+    ENABLE_ASVGF_ATROUS = 13,
+    ENABLE_ASVGF = 14,
     RASTERIZE_BOUNDING_BOX = 4,
     ENABLE_BLUE_NOISE = 5,
     ENABLE_PROGRESSIVE_REFINEMENT = 6,
@@ -63,6 +68,7 @@ namespace Systems
             void set_environment_map(int32_t id);
             void set_environment_map(Texture *texture);
             void set_environment_roughness(float roughness);
+            void set_environment_intensity(float intensity);
             void clear_environment_map();
             
             void set_irradiance_map(int32_t id);
@@ -82,16 +88,20 @@ namespace Systems
             void use_openvr(bool useOpenVR);
             void use_openvr_hidden_area_masks(bool use_masks);
 
-            /* If RTX Raytracing is enabled, builds a top level BVH for all created meshes. (TODO, account for mesh transformations) */
-            void build_top_level_bvh(bool submit_immediately = false);
-
             void enable_ray_tracing(bool enable);
             void rasterize_primary_visibility(bool enable);
-            void enable_svgf_taa(bool enable);
-            void enable_svgf_atrous(bool enable);
+            
+            void enable_asvgf(bool enable);
+            void enable_asvgf_gradient(bool enable);
+            void set_asvgf_gradient_reconstruction_iterations(int iterations);
+            void set_asvgf_gradient_reconstruction_sigma(float sigma);
+            void enable_asvgf_temporal_accumulation(bool enable);
+            void enable_asvgf_variance_estimation(bool enable);
+            void enable_asvgf_atrous(bool enable);
+            void set_asvgf_atrous_iterations(int iterations);
+            void set_asvgf_atrous_sigma(float sigma);
+            
             void enable_taa(bool enable);
-            void set_atrous_sigma(float sigma);
-            void set_atrous_iterations(int iterations);
             void enable_progressive_refinement(bool enable);
             void enable_tone_mapping(bool enable);
 
@@ -136,13 +146,21 @@ namespace Systems
             bool ray_tracing_enabled = false;
             bool rasterize_primary_visibility_enabled = false;
             bool taa_enabled = false;
-            bool svgf_taa_enabled = false;
-            bool svgf_atrous_enabled = false;
-            bool progressive_refinement_enabled = false;
+            
+            bool asvgf_enabled = false;
+            bool asvgf_gradient_enabled = true;
+            float asvgf_gradient_reconstruction_sigma = 1.0;
+            int asvgf_gradient_reconstruction_iterations = 3;
+            bool asvgf_temporal_accumulation_enabled = true;
+            bool asvgf_variance_estimation_enabled = true;
+            bool asvgf_atrous_enabled = true;
+            float asvgf_atrous_sigma = 1.0;
+            int asvgf_atrous_iterations = 1;
+
             bool tone_mapping_enabled = true;
+            bool progressive_refinement_enabled = false;
+
             double last_frame_time, last_raster_time, last_compute_time, last_raytrace_time, current_time;
-            float atrous_sigma = 1.0;
-            int atrous_iterations = 5;
             float ms_per_frame;
             float ms_per_acquire_swapchain_images;
             float ms_per_record_commands;
@@ -271,11 +289,16 @@ namespace Systems
             ComputePipelineResources edgedetect;
             ComputePipelineResources gaussian_x;
             ComputePipelineResources gaussian_y;
-            ComputePipelineResources svgf_taa;
-            ComputePipelineResources svgf_atrous_filter;
             ComputePipelineResources svgf_remodulate;
+            ComputePipelineResources asvgf_reproject_seeds;
+            ComputePipelineResources asvgf_compute_gradient;
+            ComputePipelineResources asvgf_reconstruct_gradient;
+            ComputePipelineResources asvgf_temporal_accumulation;
+            ComputePipelineResources asvgf_estimate_variance;
+            ComputePipelineResources asvgf_final_atrous;
             ComputePipelineResources progressive_refinement;
             ComputePipelineResources tone_mapping;
+            ComputePipelineResources copy_history;
             ComputePipelineResources taa;
 
             /* Wraps the vulkan boilerplate for creation of a graphics pipeline */
@@ -484,7 +507,8 @@ namespace Systems
 
             uint32_t currentFrame = 0;
             
-            vk::CommandBuffer main_command_buffer;
+            vk::CommandBuffer bvh_command_buffer;
+            vk::CommandBuffer blit_command_buffer;
 
             /* Declaration of an RTX geometry instance. This struct is described in the Khronos 
                 specification to be exactly this, so don't modify! */
@@ -518,8 +542,9 @@ namespace Systems
             // std::vector<vk::Semaphore> main_command_buffer_semaphores;
             // vk::Fence main_fence;
 
-            bool main_command_buffer_recorded = false;
-            bool main_command_buffer_presenting = false;
+            bool bvh_command_buffer_recorded = false;
+            bool blit_command_buffer_recorded = false;
+            bool blit_command_buffer_presenting = false;
 
             std::vector<vk::Semaphore> final_renderpass_semaphores;
             std::vector<vk::Fence> final_fences;
@@ -527,8 +552,10 @@ namespace Systems
 
             bool update_push_constants();
             void record_render_commands();
+            void record_build_top_level_bvh(bool submit_immediately = false);
             void record_ray_trace_pass(Entity &camera_entity);
-            void record_compute_pass(Entity &camera_entity);
+            void record_pre_compute_pass(Entity &camera_entity);
+            void record_post_compute_pass(Entity &camera_entity);
             void record_raster_primary_visibility_renderpass(Entity &camera_entity, std::vector<std::vector<VisibleEntityInfo>> &visible_entities);
             void record_shadow_map_renderpass(Entity &camera_entity, std::vector<std::vector<VisibleEntityInfo>> &visible_entities);
             void record_blit_camera(Entity &camera_entity, std::map<std::string, std::pair<Camera *, uint32_t>> &window_to_cam);

@@ -431,9 +431,7 @@ namespace Libraries {
         */
 
         /* Prefer mailbox mode */
-    
-        /* Only this one is guaranteed, so by default use that.*/
-        window.presentMode = vk::PresentModeKHR::eImmediate;
+        window.presentMode = presentModes[0];
 
         /* Switch to prefered present mode if we can. */
         for (const auto& presentMode : presentModes) {

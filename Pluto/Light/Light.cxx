@@ -21,6 +21,7 @@ vk::DeviceMemory Light::stagingLightEntitiesSSBOMemory;
 std::vector<Camera*> Light::shadowCameras;
 std::shared_ptr<std::mutex> Light::creation_mutex;
 bool Light::Initialized = false;
+bool Light::Dirty = true;
 
 uint32_t Light::numLightEntities = 0;
 
@@ -49,16 +50,19 @@ Light::Light(std::string name, uint32_t id)
 void Light::set_shadow_softness_samples(uint32_t samples)
 {
     light_struct.softnessSamples = std::min(std::max(samples, (uint32_t)1), (uint32_t)20);
+    mark_dirty();
 }
 
 void Light::set_shadow_softness_radius(float radius)
 {
     light_struct.softnessRadius = std::max(radius, 0.0f);
+    mark_dirty();
 }
 
 void Light::set_color(float r, float g, float b)
 {
     light_struct.color = glm::vec4(r, g, b, 1.0);
+    mark_dirty();
 }
 
 void Light::set_temperature(float kelvin)
@@ -89,11 +93,13 @@ void Light::set_temperature(float kelvin)
     }
 
     light_struct.color = glm::vec4(red / 255.f, green / 255.f, blue / 255.f, 1.0);
+    mark_dirty();
 }
 
 void Light::set_intensity(float intensity)
 {
     light_struct.intensity = intensity;
+    mark_dirty();
 }
 
 void Light::set_double_sided(bool double_sided)
@@ -105,6 +111,7 @@ void Light::set_double_sided(bool double_sided)
     {
         light_struct.flags &= (~(1 << 0));
     }
+    mark_dirty();
 }
 
 void Light::show_end_caps(bool show_end_caps)
@@ -116,6 +123,7 @@ void Light::show_end_caps(bool show_end_caps)
     {
         light_struct.flags &= (~(1 << 1));
     }
+    mark_dirty();
 }
 
 void Light::disable(bool disabled) {
@@ -126,11 +134,13 @@ void Light::disable(bool disabled) {
     {
         light_struct.flags &= (~(1 << 4));
     }
+    mark_dirty();
 }
 
 void Light::cast_dynamic_shadows(bool enable_cast_dynamic_shadows)
 {
     castsDynamicShadows = enable_cast_dynamic_shadows;
+    mark_dirty();
 }
 
 bool Light::should_cast_dynamic_shadows()
@@ -148,6 +158,7 @@ void Light::cast_shadows(bool enable_cast_shadows)
     {
         light_struct.flags &= (~(1 << 2));
     }
+    mark_dirty();
 }
 
 bool Light::should_cast_shadows()
@@ -167,6 +178,7 @@ void Light::enable_vsm(bool enabled) {
     {
         light_struct.flags &= (~(1 << 3));
     }
+    mark_dirty();
 }
 
 bool Light::should_use_vsm() {
@@ -176,36 +188,43 @@ bool Light::should_use_vsm() {
 void Light::set_cone_angle(float angle)
 {
     light_struct.coneAngle = angle;
+    mark_dirty();
 }
 
 void Light::set_cone_softness(float softness)
 {
     light_struct.coneSoftness = softness;
+    mark_dirty();
 }
 
 void Light::use_point()
 {
     light_struct.type = 0;
+    mark_dirty();
 }
 
 void Light::use_plane()
 {
     light_struct.type = 1;
+    mark_dirty();
 }
 
 void Light::use_disk()
 {
     light_struct.type = 2;
+    mark_dirty();
 }
 
 void Light::use_rod()
 {
     light_struct.type = 3;
+    mark_dirty();
 }
 
 void Light::use_sphere()
 {
     light_struct.type = 4;
+    mark_dirty();
 }
 
 std::string Light::to_string() {
@@ -356,6 +375,8 @@ void Light::CreateShadowCameras()
 
 void Light::UploadSSBO(vk::CommandBuffer command_buffer)
 {
+    if (!Dirty) return;
+    Dirty = false;
     auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
 
@@ -508,10 +529,12 @@ Light* Light::Get(uint32_t id) {
 
 void Light::Delete(std::string name) {
     StaticFactory::Delete(creation_mutex, name, "Light", lookupTable, lights, MAX_LIGHTS);
+    Dirty = true;
 }
 
 void Light::Delete(uint32_t id) {
     StaticFactory::Delete(creation_mutex, id, "Light", lookupTable, lights, MAX_LIGHTS);
+    Dirty = true;
 }
 
 Light* Light::GetFront() {

@@ -1,10 +1,87 @@
 #version 460
 #pragma optionNV (unroll all)
 
+// #define COMPUTE
+
+// #include "Pluto/Resources/Shaders/Common/Descriptors.hxx"
+// #include "Pluto/Resources/Shaders/Common/ShaderConstants.hxx"
+
+
+// layout (local_size_x = 16, local_size_y = 16) in;
+// /*
+// In my engine, this is the HDR image that we get AFTER the deferred lighting has been done,
+// and BEFORE the tonemapping is applied.
+// hdrTex = HDR image of current frame
+// histHdrTex = HDR image of previous frame.
+// */
+
+// #define RADIUS 1
+
+// void main() {
+//     vec2 gid = gl_GlobalInvocationID.xy;
+//     const int curr_hist_addr = ((push.consts.frame % 2) == 0) ? TAA_HISTORY_1_ADDR : TAA_HISTORY_2_ADDR; 
+//     const int next_hist_addr = ((push.consts.frame % 2) == 0) ? TAA_HISTORY_2_ADDR : TAA_HISTORY_1_ADDR; 
+
+//     // first frame, no blending at all.
+//     if (push.consts.frame > 10) {
+//         /* Compute neighborhood min and max */
+//         vec3 nmin = vec3(0.0), nmax = vec3(0.0);
+//         vec3 current_color;
+//         for (int y = -RADIUS; y <= RADIUS; ++y) {
+//             for (int x = -RADIUS; x <= RADIUS; ++x) {
+//                 vec3 color = imageLoad(render_image, ivec2(gid) + ivec2(x, y)).rgb;
+//                 if ((x == 0) && (y == 0)) current_color = color;
+//                 if ((y == -RADIUS) && (x == -RADIUS)) {
+//                     nmin = nmax = color;
+//                 }
+//                 else {
+//                     nmin = min(nmin, color); nmax = max(nmax, color);
+//                 }
+//             }
+//         }
+    
+//         float blend = 0.1;
+//         vec4 motion_data = imageLoad(gbuffers[MOTION_ADDR], ivec2(gid));
+//         if (motion_data.w > 0) blend = 1.0;
+//         vec2 v = motion_data.xy;
+//         v = v * vec2(.5, -.5);
+//         vec2 histUv = (vec2(gid.xy) / vec2(push.consts.width, push.consts.height)) + v.xy;
+//         vec2 fudge_factor = vec2(.5, .5); // Some weirdness with numerical precision. This seems to fix slight drift in motion vectors
+//         ivec2 ihistUv = ivec2(floor(vec2(gid.xy) + (v.xy * vec2(push.consts.width, push.consts.height) + fudge_factor) ));
+
+//         // sample from history buffer, with neighbourhood clamping.  
+//         vec3 hist_color = (blend < 1.0) ? clamp(imageLoad(gbuffers[curr_hist_addr], ivec2(gid)).rgb, nmin, nmax) : vec3(0.0);
+//         // vec3 color = texture(sampler2D(gbuffer_textures[curr_direct_hist_addr], samplers[0]), histUv + vec2(x/push.consts.width, y/push.consts.height)).rgb;//  imageLoad(gbuffers[9], histUv + ivec2(x, y)).rgb;
+
+//         // Avoid nans
+//         if (any(isnan(hist_color))) {blend = 1.0; hist_color = vec3(0.0);}
+
+//         /* Dont blend if motion vector falls out of the screen */
+//         bvec2 a = greaterThan(histUv, vec2(1.0, 1.0));
+//         bvec2 b = lessThan(histUv, vec2(0.0, 0.0));
+//         blend = any(bvec2(any(a), any(b))) ? 1.0 : blend;
+                
+//         // finally, blend current and clamped history sample.
+//         hist_color = mix(hist_color, current_color, vec3(blend));
+
+//         imageStore(render_image, ivec2(gl_GlobalInvocationID.xy), vec4(hist_color, 1.0));
+//         imageStore(gbuffers[next_hist_addr], ivec2(gl_GlobalInvocationID.xy), vec4(hist_color, 1.0));
+//     }  
+//     else {
+//         /* Set history to current value */
+//         vec3 currVal = imageLoad(render_image, ivec2(gl_GlobalInvocationID.xy)).rgb;
+//         imageStore(gbuffers[next_hist_addr], ivec2(gl_GlobalInvocationID.xy), vec4(currVal, 1.0));
+//     }
+// }
+
+// #version 460
+#pragma optionNV (unroll all)
+
 #define COMPUTE
 
 #include "Pluto/Resources/Shaders/Common/Descriptors.hxx"
 #include "Pluto/Resources/Shaders/Common/ShaderConstants.hxx"
+#include "Pluto/Resources/Shaders/Common/Random.hxx"
 
 
 layout (local_size_x = 16, local_size_y = 16) in;
@@ -15,23 +92,27 @@ hdrTex = HDR image of current frame
 histHdrTex = HDR image of previous frame.
 */
 
-#define RADIUS 1
+#define MIN_MAX_RADIUS 1
+#define SAMPLE_RADIUS 0
+#define ALPHA 0.3
 
 void main() {
-    vec2 gid = gl_GlobalInvocationID.xy;
+    ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
     const int curr_hist_addr = ((push.consts.frame % 2) == 0) ? TAA_HISTORY_1_ADDR : TAA_HISTORY_2_ADDR; 
     const int next_hist_addr = ((push.consts.frame % 2) == 0) ? TAA_HISTORY_2_ADDR : TAA_HISTORY_1_ADDR; 
 
-    // first frame, no blending at all.
-    if (push.consts.frame > 10) {
+    init_random(ipos, push.consts.frame, 0);
+    vec2 rand = vec2(random(), random()) * .5;
+
+    {
         /* Compute neighborhood min and max */
         vec3 nmin = vec3(0.0), nmax = vec3(0.0);
-        vec3 current_color;
-        for (int y = -RADIUS; y <= RADIUS; ++y) {
-            for (int x = -RADIUS; x <= RADIUS; ++x) {
-                vec3 color = imageLoad(render_image, ivec2(gid) + ivec2(x, y)).rgb;
-                if ((x == 0) && (y == 0)) current_color = color;
-                if ((y == -RADIUS) && (x == -RADIUS)) {
+        vec3 color_curr;
+        for (int y = -MIN_MAX_RADIUS; y <= MIN_MAX_RADIUS; ++y) {
+            for (int x = -MIN_MAX_RADIUS; x <= MIN_MAX_RADIUS; ++x) {
+                vec3 color = imageLoad(render_image, ipos + ivec2(x, y)).rgb;
+                if ((x == 0) && (y == 0)) color_curr = color;
+                if ((y == -MIN_MAX_RADIUS) && (x == -MIN_MAX_RADIUS)) {
                     nmin = nmax = color;
                 }
                 else {
@@ -39,37 +120,139 @@ void main() {
                 }
             }
         }
-    
-        float blend = 0.1;
-        vec4 motion_data = imageLoad(gbuffers[MOTION_ADDR], ivec2(gid));
-        if (motion_data.w > 0) blend = 1.0;
-        vec2 v = motion_data.xy;
-        v = v * vec2(.5, -.5);
-        vec2 histUv = (vec2(gid.xy) / vec2(push.consts.width, push.consts.height)) + v.xy;
-        vec2 fudge_factor = vec2(.5, .5); // Some weirdness with numerical precision. This seems to fix slight drift in motion vectors
-        ivec2 ihistUv = ivec2(floor(vec2(gid.xy) + (v.xy * vec2(push.consts.width, push.consts.height) + fudge_factor) ));
 
-        // sample from history buffer, with neighbourhood clamping.  
-        vec3 hist_color = (blend < 1.0) ? clamp(imageLoad(gbuffers[curr_hist_addr], ivec2(gid)).rgb, nmin, nmax) : vec3(0.0);
-        // vec3 color = texture(sampler2D(gbuffer_textures[curr_direct_hist_addr], samplers[0]), histUv + vec2(x/push.consts.width, y/push.consts.height)).rgb;//  imageLoad(gbuffers[9], histUv + ivec2(x, y)).rgb;
+        precise vec4 motion_data = imageLoad(gbuffers[MOTION_ADDR], ipos);
+        precise vec2 v = motion_data.xy * vec2(.5, -.5);
+        precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
+        iv.x = (abs(iv.x) < MOTION_VECTOR_MIN) ? 0 : iv.x;
+        iv.y = (abs(iv.y) < MOTION_VECTOR_MIN) ? 0 : iv.y;
+        ivec2 pos_prev = ivec2(ipos + iv + MOTION_VECTOR_OFFSET);
+        ivec2 p = ivec2(pos_prev - 0.5);
+        vec2  w = (pos_prev - 0.5) - floor(pos_prev - 0.5);
 
-        // Avoid nans
-        if (any(isnan(hist_color))) {blend = 1.0; hist_color = vec3(0.0);}
+        vec3 color_prev = vec3(0.);
+        float sum_w = 0.;
+        for (int y = -SAMPLE_RADIUS; y <= SAMPLE_RADIUS; ++y) {
+            for (int x = -SAMPLE_RADIUS; x <= SAMPLE_RADIUS; ++x) {
+                ivec2 ipos_prev = pos_prev + ivec2(x, y);
 
-        /* Dont blend if motion vector falls out of the screen */
-        bvec2 a = greaterThan(histUv, vec2(1.0, 1.0));
-        bvec2 b = lessThan(histUv, vec2(0.0, 0.0));
-        blend = any(bvec2(any(a), any(b))) ? 1.0 : blend;
+                // vec3 color = imageLoad(gbuffers[curr_hist_addr], ipos_prev).rgb;
+                vec3 color = texture(sampler2D(gbuffer_textures[curr_hist_addr], samplers[0]), 
+                    vec2(ipos_prev + rand) / vec2(push.consts.width, push.consts.height) 
+                ).rgb;
+                color = clamp(color, nmin, nmax);
+                bvec2 a = greaterThan(ipos_prev, vec2(push.consts.width-1, push.consts.height-1));
+                bvec2 b = lessThan(ipos_prev, vec2(0.0, 0.0));
                 
-        // finally, blend current and clamped history sample.
-        hist_color = mix(hist_color, current_color, vec3(blend));
-
-        imageStore(render_image, ivec2(gl_GlobalInvocationID.xy), vec4(hist_color, 1.0));
-        imageStore(gbuffers[next_hist_addr], ivec2(gl_GlobalInvocationID.xy), vec4(hist_color, 1.0));
-    }  
-    else {
-        /* Set history to current value */
-        vec3 currVal = imageLoad(render_image, ivec2(gl_GlobalInvocationID.xy)).rgb;
-        imageStore(gbuffers[next_hist_addr], ivec2(gl_GlobalInvocationID.xy), vec4(currVal, 1.0));
+                bool accept = true;
+                accept = accept && (!any(bvec2(any(a), any(b))));
+                accept = accept && (!any(isnan(color)));
+                accept = accept && (!any(isinf(color)));
+                
+                if (accept) {
+                    color_prev += color;
+                    sum_w += 1.f;
+                }
+            }
+        }
+        
+        if (sum_w > .01) {
+            color_prev /= sum_w;
+            vec4 blended = vec4(mix(color_prev, color_curr, ALPHA), 1.0);
+            imageStore(render_image, ipos, blended);
+            imageStore(gbuffers[next_hist_addr], ipos, blended);
+        } else {
+            imageStore(gbuffers[next_hist_addr], ipos, vec4(color_curr, 1.0));
+        }
+        return;
     }
+
+
+    
+
+    // /* Compute neighborhood min and max */
+    // vec3 nmin = vec3(0.0), nmax = vec3(0.0);
+    // vec3 current_color;
+    // for (int y = -RADIUS; y <= RADIUS; ++y) {
+    //     for (int x = -RADIUS; x <= RADIUS; ++x) {
+    //         vec3 color = imageLoad(render_image, ipos + ivec2(x, y)).rgb;
+    //         if ((x == 0) && (y == 0)) current_color = color;
+    //         if ((y == -RADIUS) && (x == -RADIUS)) {
+    //             nmin = nmax = color;
+    //         }
+    //         else {
+    //             nmin = min(nmin, color); nmax = max(nmax, color);
+    //         }
+    //     }
+    // }
+
+    // float blend = 1.0 / MAX_CUMULATIVE_COUNT;
+    // vec4 motion_data = imageLoad(gbuffers[MOTION_ADDR], ipos);
+    // if (motion_data.w > 0) blend = 1.0;
+    // vec2 v = motion_data.xy * vec2(.5, -.5);
+    // vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
+    // iv.x = (abs(iv.x) < MOTION_VECTOR_MIN) ? 0 : iv.x;
+    // iv.y = (abs(iv.y) < MOTION_VECTOR_MIN) ? 0 : iv.y;
+    // ivec2 pos_prev = ivec2(ipos + iv + MOTION_VECTOR_OFFSET);
+    // ivec2 p = ivec2(pos_prev - 0.5);
+    // vec2  w = (pos_prev - 0.5) - floor(pos_prev - 0.5);
+
+    // float temporal_gradient = 0.0;
+    // vec4 current_albedo_data = imageLoad(gbuffers[ALBEDO_ADDR], ipos);
+    // vec4 current_normal_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
+    // vec3 current_albedo = current_albedo_data.rgb;
+    // int current_entity_id = int(current_normal_id_data.a);
+    // vec4 current_position_depth_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
+    // vec3 current_pos = current_position_depth_data.xyz;
+    // float z_curr = current_position_depth_data.w;
+
+    // vec4 color_prev   = vec4(0);
+    // float sum_w       = 0.0;
+    // // if (blend != 1.0) {
+    //     for (int y = -RADIUS; y <= RADIUS; ++y) {
+    //         for (int x = -RADIUS; x <= RADIUS; ++x) {
+    //             ivec2 ipos_prev = pos_prev + ivec2(x, y);
+    //             vec4 color = imageLoad(gbuffers[curr_hist_addr], ipos_prev);
+    //             vec4 hist_albedo_data = imageLoad(gbuffers[ALBEDO_ADDR_PREV], ipos_prev);
+    //             vec3 hist_albedo = hist_albedo_data.rgb;
+    //             vec4 hist_normal_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR_PREV], ipos_prev);
+    //             int hist_entity_id = int(hist_normal_id_data.a);
+    //             vec4 hist_pos_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR_PREV], ipos_prev);
+    //             vec3 hist_pos = hist_pos_data.xyz;
+    //             float hist_dist = hist_pos_data.w;
+    //             bvec2 a = greaterThan(ipos_prev, vec2(push.consts.width-1, push.consts.height-1));
+    //             bvec2 b = lessThan(ipos_prev, vec2(0.0, 0.0));
+
+    //             bool accept = true;
+    //             accept = accept && (!any(bvec2(any(a), any(b))));
+    //             accept = accept && (!any(isnan(color)));
+    //             accept = accept && (!any(isinf(color)));
+                
+    //             // accept = accept && (hist_entity_id == current_entity_id);
+    //             // accept = accept && (distance(hist_albedo,  current_albedo) < ALBEDO_MAX);
+    //             // accept = accept && (abs(hist_dist - z_curr) < POSITION_MAX);
+    //             // accept = accept && (distance(hist_pos,  current_pos) < DISTANCE_MAX);
+    //             // accept = accept && (dot(hist_normal_id_data.rgb, current_normal_id_data.rgb) > 0.0);
+
+    //             // if (accept) {
+    //                 // float w = (x == 0 ? (1.0 - w.x) : w.x)
+    //                     // * (y == 0 ? (1.0 - w.y) : w.y);
+    //                 float w = 1.;
+    //                 color_prev += color * w;
+    //                 sum_w        += w;
+    //             // }
+    //         }
+    //     }
+    // // }
+
+    // if (sum_w > 0.01) {
+    //     color_prev /= sum_w;
+    //     color_prev = vec4(clamp(color_prev.rgb, nmin, nmax), color_prev.w);
+    //     current_color = mix(color_prev.rgb, current_color, .05);
+    //     imageStore(render_image, ivec2(gl_GlobalInvocationID.xy), vec4(current_color, 1.0));
+    //     imageStore(gbuffers[next_hist_addr], ivec2(gl_GlobalInvocationID.xy), vec4(current_color, 1.0));
+    // }
+    // else {
+    //     imageStore(gbuffers[next_hist_addr], ivec2(gl_GlobalInvocationID.xy), vec4(current_color, 1.0));
+    // }
 }

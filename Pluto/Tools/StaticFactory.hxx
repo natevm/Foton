@@ -4,7 +4,7 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_RIGHT_HANDED
-#define SF_VERBOSE 1
+#define SF_VERBOSE 0
 
 #include <glm/glm.hpp>
 #include <glm/common.hpp>

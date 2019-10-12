@@ -488,4 +488,15 @@ class Mesh : public StaticFactory
 			createTriangleIndexBuffer(allow_edits, submit_immediately);
 			compute_metadata(submit_immediately);
 		}
+
+		/* Indicates that one of the components has been edited */
+		static bool Dirty;
+
+		/* Indicates this component has been edited */
+		bool dirty = true;
+
+		void mark_dirty() {
+			Dirty = true;
+			dirty = true;
+		};
 };

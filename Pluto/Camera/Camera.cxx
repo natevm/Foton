@@ -24,6 +24,7 @@ vk::Buffer Camera::stagingSSBO;
 vk::DeviceMemory Camera::stagingSSBOMemory;
 std::shared_ptr<std::mutex> Camera::creation_mutex;
 bool Camera::Initialized = false;
+bool Camera::Dirty = true;
 int32_t Camera::minRenderOrder = 0;
 int32_t Camera::maxRenderOrder = 0;
 
@@ -73,6 +74,7 @@ void Camera::setup(uint32_t tex_width, uint32_t tex_height, uint32_t msaa_sample
 	rs->create_camera_resources(get_id());
 
 	this->max_visibility_distance = std::numeric_limits<float>::max();
+	mark_dirty();
 }
 
 void Camera::update_used_views(uint32_t multiview) {
@@ -147,6 +149,7 @@ void Camera::set_perspective_projection(float fov_in_radians, float width, float
 	set_clear_depth(1.0);
 	#endif
 	camera_struct.multiviews[multiview].projinv = glm::inverse(camera_struct.multiviews[multiview].proj);
+	mark_dirty();
 };
 
 void Camera::set_custom_projection(glm::mat4 custom_projection, float near_pos, uint32_t multiview)
@@ -155,6 +158,7 @@ void Camera::set_custom_projection(glm::mat4 custom_projection, float near_pos, 
 	camera_struct.multiviews[multiview].near_pos = near_pos;
 	camera_struct.multiviews[multiview].proj = custom_projection;
 	camera_struct.multiviews[multiview].projinv = glm::inverse(custom_projection);
+	mark_dirty();
 }
 
 float Camera::get_near_pos(uint32_t multiview) { 
@@ -173,6 +177,7 @@ void Camera::set_view(glm::mat4 view, uint32_t multiview)
 	update_used_views(multiview + 1);
 	camera_struct.multiviews[multiview].view = view;
 	camera_struct.multiviews[multiview].viewinv = glm::inverse(view);
+	mark_dirty();
 };
 
 void Camera::set_render_order(int32_t order) {
@@ -341,6 +346,8 @@ bool Camera::IsInitialized()
 
 void Camera::UploadSSBO(vk::CommandBuffer command_buffer)
 {
+	if (!Dirty) return;
+	Dirty = false;
 	auto vulkan = Libraries::Vulkan::Get();
     auto device = vulkan->get_device();
 
@@ -434,10 +441,12 @@ Camera* Camera::Get(uint32_t id) {
 
 void Camera::Delete(std::string name) {
 	StaticFactory::Delete(creation_mutex, name, "Camera", lookupTable, cameras, MAX_CAMERAS);
+	Dirty = true;
 }
 
 void Camera::Delete(uint32_t id) {
 	StaticFactory::Delete(creation_mutex, id, "Camera", lookupTable, cameras, MAX_CAMERAS);
+	Dirty = true;
 }
 
 Camera* Camera::GetFront() {

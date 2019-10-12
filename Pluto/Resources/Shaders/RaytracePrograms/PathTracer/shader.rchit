@@ -26,11 +26,11 @@ void main() {
 	payload.entity_id = -1;
 	
 	/* Invalid Entity Check */
-	if (gl_InstanceID < 0 || gl_InstanceID >= MAX_ENTITIES) return;
+	if (gl_InstanceID < 0 || gl_InstanceID >= max_entities) return;
 	EntityStruct entity = ebo.entities[gl_InstanceID];
-	if (entity.mesh_id < 0 || entity.mesh_id >= MAX_MESHES) return;
-	if (entity.transform_id < 0 || entity.transform_id >= MAX_TRANSFORMS) return;
-	if (entity.material_id < 0 || entity.material_id >= MAX_MATERIALS) return;
+	if (entity.mesh_id < 0 || entity.mesh_id >= max_meshes) return;
+	if (entity.transform_id < 0 || entity.transform_id >= max_transforms) return;
+	if (entity.material_id < 0 || entity.material_id >= max_materials) return;
 
 	/* Shadow ray */
 	if (payload.is_shadow_ray)
@@ -94,11 +94,11 @@ void main() {
 // 	payload.contribution.alpha = 0;
 	
 // 	/* Invalid Entity Check */
-// 	if (gl_InstanceID < 0 || gl_InstanceID >= MAX_ENTITIES) return;
+// 	if (gl_InstanceID < 0 || gl_InstanceID >= max_entities) return;
 // 	EntityStruct entity = ebo.entities[gl_InstanceID];
-// 	if (entity.mesh_id < 0 || entity.mesh_id >= MAX_MESHES) return;
-// 	if (entity.transform_id < 0 || entity.transform_id >= MAX_TRANSFORMS) return;
-// 	if (entity.material_id < 0 || entity.material_id >= MAX_MATERIALS) return;
+// 	if (entity.mesh_id < 0 || entity.mesh_id >= max_meshes) return;
+// 	if (entity.transform_id < 0 || entity.transform_id >= max_transforms) return;
+// 	if (entity.material_id < 0 || entity.material_id >= max_materials) return;
 
 // 	/* Shadow ray */
 // 	if (payload.is_shadow_ray)

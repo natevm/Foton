@@ -1,0 +1,111 @@
+#version 460
+// We're interested in computing the temporal gradient for the current frame i
+// at a forward projected pixel location j.
+
+// This cam be computed by taking the difference between two shading sample 
+// functions, f_[i] - f_[i-1]
+
+// This shading sample function is parameterized by a surface sample G and a 
+// random seed S
+
+// Specificly, the current shading sample function f_[i] is parameterized by the
+// surface sample G from the frame i-1, forward projected to the current frame
+// using motion vectors. It's parameterized by a seed as well, which is 
+// forward projected to the current frame.
+
+// The previous shading sample function f_[i-1] is parameterized by the surface 
+// sample G from the frame i-1 (not forward projected), and by the seed from 
+// the previous frame i-1 (also not forward projected). The result of this 
+// shading sample function is the sample from the previous frame.
+
+// Note that only a subset of the previous samples satisfy the above criteria.
+// specifically, only a subset use reprojected samples.
+
+// In practice, we only care about the luminance of the sample from the previous
+// frame, which is stored alongside the seed.
+
+#define COMPUTE
+
+#include "Pluto/Resources/Shaders/Common/Descriptors.hxx"
+#include "Pluto/Resources/Shaders/Common/ShaderConstants.hxx"
+#include "Pluto/Resources/Shaders/Common/Random.hxx"
+
+layout (local_size_x = 16, local_size_y = 16) in;
+
+void main() {
+    // Stride of the gradient tile
+    const int stride = GRADIENT_TILE_SIZE * PATH_TRACE_TILE_SIZE;
+    if (int(gl_GlobalInvocationID.x * stride) >= push.consts.width) return;
+    if (int(gl_GlobalInvocationID.y * stride) >= push.consts.height) return;
+
+    // Compute random offset within tile
+    init_random(ivec2(gl_GlobalInvocationID.xy), push.consts.frame, 0);
+    int rand_curr = int(random() * stride * stride);
+    ivec2 tile = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 offset_curr = ivec2(rand_curr / stride, rand_curr % stride);
+
+    // Compute motion vector
+    ivec2 ipos = (stride * tile + offset_curr);
+    precise vec4 motion_data = imageLoad(gbuffers[MOTION_ADDR], ipos);
+    precise vec2 v = motion_data.xy * vec2(.5, -.5);
+    precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
+    iv.x = (abs(iv.x) < MOTION_VECTOR_MIN) ? 0 : iv.x;
+    iv.y = (abs(iv.y) < MOTION_VECTOR_MIN) ? 0 : iv.y;
+    ivec2 ipos_prev = ivec2(ipos + (iv + MOTION_VECTOR_OFFSET));
+
+    // Detect if the current pixel was rendered as a gradient sample
+    // Note: A pixel is a reprojected seed if all seed values match
+    vec4 curr_seed_luminance = imageLoad(gbuffers[SEED_LUMINANCE_ADDR], ipos);
+    vec4 prev_seed_luminance = imageLoad(gbuffers[SEED_LUMINANCE_ADDR_PREV], ipos_prev);
+    bool is_reproj_grad = all(equal(prev_seed_luminance.xyz, curr_seed_luminance.xyz));// && (current_pixel_new_albedo_gradmarker.w == float(-2));
+    
+    // Compute the temporal gradient
+    float l_prev = isnan(prev_seed_luminance.w) ? 0.0 : clamp(prev_seed_luminance.w, 0, 10);
+    float l_curr = isnan(curr_seed_luminance.w) ? 0.0 : clamp(curr_seed_luminance.w, 0, 10);
+    float temporal_gradient = (is_reproj_grad) ? abs(l_curr - l_prev) : 0.0;
+
+    // Compute maximum luminance
+    float max_luminance = max(l_curr, l_prev);
+
+    // Compute first and second moments over the tile
+    vec4 current_pixel_new_normal_id = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
+    int mesh_id = int(current_pixel_new_normal_id.w);
+    vec2 moments = vec2(l_curr, l_curr * l_curr);
+    float sum_w = 1.0;
+    for (int y = 0; y < stride; y++) {
+        for (int x = 0; x < stride; x++) {
+            ivec2 p = stride * tile + ivec2(x,y);
+            // skip the center pixel, we already account for it.
+            if(all(equal(ipos, p))) continue;
+            
+            vec4 pixel_seed_luminance = imageLoad(gbuffers[SEED_LUMINANCE_ADDR], p);
+            vec4 pixel_normal_id      = imageLoad(gbuffers[NORMAL_ID_ADDR], p);
+            int mesh_id_p = int(pixel_normal_id.w);
+            
+            // ignore luminance values which belong to different objects
+            float w = mesh_id_p == mesh_id ? 1.0 : 0.0;
+            float l = isnan(pixel_seed_luminance.w) ? 0.0 : clamp(pixel_seed_luminance.w, 0.0, 10.0);
+            moments += vec2(l, l * l) * w;
+            sum_w += w;
+        }
+    }
+    moments /= sum_w;
+
+    // Compute variance (second moment minus first moment squared)
+    float variance = abs(moments[1] - moments[0] * moments[0]);
+    if (isnan(variance)) variance = 200;
+
+    // Store fragment depth for easier reconstruction
+    vec4 current_pixel_new_position_depth = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
+    float z_curr = current_pixel_new_position_depth.w;
+
+    /* BAD. FOR NOW, REPLICATE RESULTS */
+    vec4 max_lum_grad = vec4(max_luminance, temporal_gradient, 1.0, 0.0);
+    vec4 avg_lum_variance = vec4(moments[0], variance, z_curr, z_curr);
+    for (int y = 0; y < stride; y++) {
+        for (int x = 0; x < stride; x++) {
+            imageStore(gbuffers[TEMPORAL_GRADIENT_ADDR], stride * tile + ivec2(x,y), max_lum_grad);
+            imageStore(gbuffers[LUMINANCE_VARIANCE_ADDR], stride * tile + ivec2(x,y), avg_lum_variance);
+        }
+    }
+}

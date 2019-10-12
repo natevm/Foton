@@ -22,6 +22,7 @@ vk::Buffer Texture::stagingSSBO;
 vk::DeviceMemory Texture::stagingSSBOMemory;
 std::shared_ptr<std::mutex> Texture::creation_mutex;
 bool Texture::Initialized = false;
+bool Texture::Dirty = true;
 
 Texture::Texture()
 {
@@ -102,7 +103,8 @@ std::vector<float> Texture::download_color_data(uint32_t width, uint32_t height,
 	vk::ImageCreateInfo imInfo;
 	// imInfo.flags; // May need this later for cubemaps, texture arrays, etc
 	imInfo.imageType = data.imageType;
-	imInfo.format = vk::Format::eR32G32B32A32Sfloat;
+	// Note this is the format we want to blit the image to. 
+	imInfo.format = vk::Format::eR32G32B32A32Sfloat; 
 	imInfo.extent = vk::Extent3D{width, height, depth};
 	imInfo.mipLevels = 1;
 	imInfo.arrayLayers = 1;
@@ -502,6 +504,7 @@ void Texture::Initialize()
 		CreateFromKTX("RANKINGTILE", resource_path + "/Defaults/rankingTile_128_128_8.ktx");
 		CreateFromKTX("SCRAMBLETILE", resource_path + "/Defaults/scrambleTile_128_128_8.ktx");
 		CreateFromKTX("SOBELTILE", resource_path + "/Defaults/sobelTile.ktx");
+		CreateFromKTX("BLUENOISETILE", resource_path + "/Defaults/BlueNoise.ktx");
 	});
 
     t.detach();
@@ -555,20 +558,36 @@ void Texture::Initialize()
 	}
 
 	/* Create a sampler to sample from the attachment in the fragment shader */
-	vk::SamplerCreateInfo sInfo;
-	sInfo.magFilter = vk::Filter::eLinear;
-	sInfo.minFilter = vk::Filter::eLinear;
-	sInfo.mipmapMode = vk::SamplerMipmapMode::eLinear;
-	sInfo.addressModeU = vk::SamplerAddressMode::eRepeat;
-	sInfo.addressModeV = vk::SamplerAddressMode::eRepeat;
-	sInfo.addressModeW = vk::SamplerAddressMode::eRepeat;
-	sInfo.mipLodBias = 0.0;
-	sInfo.maxAnisotropy = vulkan->get_max_anisotropy();
-	sInfo.anisotropyEnable = (sInfo.maxAnisotropy > 0.0) ? VK_TRUE : VK_FALSE;
-	sInfo.minLod = 0.0;
-	sInfo.maxLod = 8.0;
-	sInfo.borderColor = vk::BorderColor::eFloatTransparentBlack;
-	samplers[0] = device.createSampler(sInfo);
+	vk::SamplerCreateInfo linearSamplerInfo;
+	linearSamplerInfo.magFilter = vk::Filter::eLinear;
+	linearSamplerInfo.minFilter = vk::Filter::eLinear;
+	linearSamplerInfo.mipmapMode = vk::SamplerMipmapMode::eLinear;
+	linearSamplerInfo.addressModeU = vk::SamplerAddressMode::eRepeat;
+	linearSamplerInfo.addressModeV = vk::SamplerAddressMode::eRepeat;
+	linearSamplerInfo.addressModeW = vk::SamplerAddressMode::eRepeat;
+	linearSamplerInfo.mipLodBias = 0.0;
+	linearSamplerInfo.maxAnisotropy = vulkan->get_max_anisotropy();
+	linearSamplerInfo.anisotropyEnable = (linearSamplerInfo.maxAnisotropy > 0.0) ? VK_TRUE : VK_FALSE;
+	linearSamplerInfo.minLod = 0.0;
+	linearSamplerInfo.maxLod = 8.0;
+	linearSamplerInfo.borderColor = vk::BorderColor::eFloatTransparentBlack;
+	samplers[0] = device.createSampler(linearSamplerInfo);
+
+
+	vk::SamplerCreateInfo nearestSamplerInfo;
+	nearestSamplerInfo.magFilter = vk::Filter::eNearest;
+	nearestSamplerInfo.minFilter = vk::Filter::eNearest;
+	nearestSamplerInfo.mipmapMode = vk::SamplerMipmapMode::eNearest;
+	nearestSamplerInfo.addressModeU = vk::SamplerAddressMode::eRepeat;
+	nearestSamplerInfo.addressModeV = vk::SamplerAddressMode::eRepeat;
+	nearestSamplerInfo.addressModeW = vk::SamplerAddressMode::eRepeat;
+	nearestSamplerInfo.mipLodBias = 0.0;
+	nearestSamplerInfo.maxAnisotropy = 0.0;
+	nearestSamplerInfo.anisotropyEnable = VK_FALSE;
+	nearestSamplerInfo.minLod = 0.0;
+	nearestSamplerInfo.maxLod = 0.0;
+	nearestSamplerInfo.borderColor = vk::BorderColor::eFloatTransparentBlack;
+	samplers[1] = device.createSampler(nearestSamplerInfo);
 
 	Initialized = true;
 }
@@ -585,6 +604,8 @@ bool Texture::is_ready()
 
 void Texture::UploadSSBO(vk::CommandBuffer command_buffer)
 {
+	if (!Dirty) return;
+	Dirty = false;
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
 
@@ -912,8 +933,7 @@ void Texture::loadKTX(std::string imagePath, bool submit_immediately)
 		data.depth = (uint32_t)(tex3D.extent().z);
 
 		data.colorBuffer.mipLevels = (uint32_t)(tex3D.levels());
-		//data.colorBuffer.format = (vk::Format)tex3D.format();
-		data.colorBuffer.format = vk::Format::eR8G8B8A8Unorm;
+		data.colorBuffer.format = (vk::Format)tex3D.format();
 		data.viewType = vk::ImageViewType::e3D;
 		textureSize = (uint32_t)tex3D.size();
 		textureData = tex3D.data();
@@ -1123,6 +1143,7 @@ void Texture::loadKTX(std::string imagePath, bool submit_immediately)
 	data.colorBuffer.imageView = device.createImageView(vInfo);
 
 	ready = true;
+	mark_dirty();
 }
 
 
@@ -1394,7 +1415,7 @@ void Texture::create_color_image_resources(ImageData &imageData, bool submit_imm
 		device.freeMemory(imageData.imageMemory);
 
 	/* For now, assume the following format: */
-	imageData.format = vk::Format::eR32G32B32A32Sfloat;
+	imageData.format = vk::Format::eR16G16B16A16Sfloat;
 
 	imageData.imageLayout = vk::ImageLayout::eUndefined;
 
@@ -1721,6 +1742,7 @@ Texture *Texture::CreateFromKTX(std::string name, std::string filepath, bool sub
 	try {
 		tex->loadKTX(filepath, submit_immediately);
 		tex->texture_struct.sampler_id = 0;
+		tex->mark_dirty();
 		return tex;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
@@ -1734,6 +1756,7 @@ Texture *Texture::CreateFromPNG(std::string name, std::string filepath, bool sub
 	try {
 		tex->loadPNG(filepath, false, submit_immediately);
 		tex->texture_struct.sampler_id = 0;
+		tex->mark_dirty();
 		return tex;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
@@ -1747,6 +1770,7 @@ Texture *Texture::CreateFromBumpPNG(std::string name, std::string filepath, bool
 	try {
 		tex->loadPNG(filepath, true, submit_immediately);
 		tex->texture_struct.sampler_id = 0;
+		tex->mark_dirty();
 		return tex;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
@@ -1768,6 +1792,7 @@ Texture* Texture::CreateCubemap(
 		if (hasDepth) tex->create_depth_stencil_resources(tex->data.depthBuffer, submit_immediately);
 		tex->texture_struct.sampler_id = 0;
 		tex->ready = true;
+		tex->mark_dirty();
 		return tex;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
@@ -1803,6 +1828,7 @@ Texture* Texture::CreateCubemapGBuffers(
 		tex->create_depth_stencil_resources(tex->data.depthBuffer, submit_immediately);
 		tex->texture_struct.sampler_id = 0;
 		tex->ready = true;
+		tex->mark_dirty();
 		return tex;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
@@ -1818,6 +1844,7 @@ Texture* Texture::CreateChecker(std::string name, bool submit_immediately)
 	tex->texture_struct.mip_levels = 0;
 	tex->texture_struct.sampler_id = 0;
 	tex->ready = true;
+	tex->mark_dirty();
 	return tex;
 }
 
@@ -1848,7 +1875,7 @@ Texture* Texture::Create2D(
 		if (hasDepth) tex->create_depth_stencil_resources(tex->data.depthBuffer, submit_immediately);
 		tex->ready = true;
 		tex->texture_struct.sampler_id = 0;
-
+		tex->mark_dirty();
 		return tex;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
@@ -1886,6 +1913,7 @@ Texture* Texture::Create2DGBuffers (
 
 		tex->texture_struct.sampler_id = 0;
 		tex->ready = true;
+		tex->mark_dirty();
 		return tex;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
@@ -1916,7 +1944,7 @@ Texture* Texture::Create3D (
 
 		tex->texture_struct.sampler_id = 0;
 		tex->ready = true;
-
+		tex->mark_dirty();
 		return tex;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
@@ -1940,6 +1968,7 @@ Texture* Texture::Create2DFromColorData (
 
 		tex->texture_struct.sampler_id = 0;
 		tex->ready = true;
+		tex->mark_dirty();
 		return tex;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
@@ -1955,6 +1984,7 @@ Texture* Texture::CreateFromExternalData(std::string name, Data data)
 		tex->setData(data);
 		tex->texture_struct.sampler_id = 0;
 		tex->ready = true;
+		tex->mark_dirty();
 		return tex;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
@@ -1980,10 +2010,12 @@ Texture* Texture::Get(uint32_t id) {
 
 void Texture::Delete(std::string name) {
 	StaticFactory::Delete(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
+	Dirty = true;
 }
 
 void Texture::Delete(uint32_t id) {
 	StaticFactory::Delete(creation_mutex, id, "Texture", lookupTable, textures, MAX_TEXTURES);
+	Dirty = true;
 }
 
 Texture* Texture::GetFront() {
@@ -2142,4 +2174,19 @@ void Texture::make_general(vk::CommandBuffer commandBuffer,
 			this->data.gBuffers[i].imageLayout = vk::ImageLayout::eGeneral;
 		}
 	}
+}
+
+void Texture::save_as_ktx(std::string rawfilepath) {
+	auto float_data = download_color_data(data.width, data.height, data.depth);
+
+	gli::target target;
+	if (data.viewType == vk::ImageViewType::e3D) target = gli::target::TARGET_3D;
+	if (data.viewType == vk::ImageViewType::e2D) target = gli::target::TARGET_2D;
+
+	gli::extent3d extent = gli::extent3d(data.width, data.height, data.depth);
+
+	auto texture = gli::texture(target, gli::format::FORMAT_RGBA32_SFLOAT_PACK32, extent, 1, 1, 1);
+	memcpy(texture.data(), float_data.data(), float_data.size() * sizeof(float));
+
+	gli::save_ktx(texture, rawfilepath);
 }

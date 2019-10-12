@@ -13,7 +13,7 @@ set (
 set(SHADERS_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RasterPrograms/PrimaryVisibility/shader.vert
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RasterPrograms/PrimaryVisibility/shader.frag
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RasterPrograms/Skybox/shader.frag
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RasterPrograms/Skybox/shader.vert
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RasterPrograms/Skybox/shader.frag
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RasterPrograms/ShadowMap/shader.vert
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RasterPrograms/ShadowMap/shader.frag
@@ -34,8 +34,13 @@ set(SHADERS_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/TAA/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/VSM/GaussianBlurX/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/VSM/GaussianBlurY/shader.comp
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/SVGF_ATrous/shader.comp
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/SVGF_TAA/shader.comp
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/SVGF_Remodulate/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_1_ReprojectSeeds/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_2_ComputeGradientAndMoments/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_3_ReconstructGradientAndMoments/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_4_TemporalAccumulation/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_5_EstimateVariance/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_6_ReconstructImage/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_7_Remodulate/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/CopyHistory/shader.comp
     PARENT_SCOPE
 )

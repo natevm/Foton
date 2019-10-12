@@ -21,6 +21,7 @@ vk::DeviceMemory Material::stagingSSBOMemory;
 
 std::shared_ptr<std::mutex> Material::creation_mutex;
 bool Material::Initialized = false;
+bool Material::Dirty = true;
 
 Material::Material() {
 	this->initialized = false;
@@ -149,6 +150,8 @@ void Material::CreateSSBO()
 
 void Material::UploadSSBO(vk::CommandBuffer command_buffer)
 {
+	if (!Dirty) return;
+	Dirty = false;
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
 
@@ -237,10 +240,12 @@ Material* Material::Get(uint32_t id) {
 
 void Material::Delete(std::string name) {
 	StaticFactory::Delete(creation_mutex, name, "Material", lookupTable, materials, MAX_MATERIALS);
+	Dirty = true;
 }
 
 void Material::Delete(uint32_t id) {
 	StaticFactory::Delete(creation_mutex, id, "Material", lookupTable, materials, MAX_MATERIALS);
+	Dirty = true;
 }
 
 Material* Material::GetFront() {
@@ -256,6 +261,7 @@ void Material::set_base_color_texture(uint32_t texture_id)
 	if (texture_id > MAX_TEXTURES)
 		throw std::runtime_error( std::string("Invalid texture handle"));
 	this->material_struct.base_color_texture_id = texture_id;
+	mark_dirty();
 }
 
 void Material::set_base_color_texture(Texture *texture) 
@@ -263,10 +269,12 @@ void Material::set_base_color_texture(Texture *texture)
 	if (!texture) 
 		throw std::runtime_error( std::string("Invalid texture handle"));
 	this->material_struct.base_color_texture_id = texture->get_id();
+	mark_dirty();
 }
 
 void Material::clear_base_color_texture() {
 	this->material_struct.base_color_texture_id = -1;
+	mark_dirty();
 }
 
 void Material::set_roughness_texture(uint32_t texture_id) 
@@ -274,6 +282,7 @@ void Material::set_roughness_texture(uint32_t texture_id)
 	if (texture_id > MAX_TEXTURES)
 		throw std::runtime_error( std::string("Invalid texture handle"));
 	this->material_struct.roughness_texture_id = texture_id;
+	mark_dirty();
 }
 
 void Material::set_roughness_texture(Texture *texture) 
@@ -281,6 +290,7 @@ void Material::set_roughness_texture(Texture *texture)
 	if (!texture) 
 		throw std::runtime_error( std::string("Invalid texture handle"));
 	this->material_struct.roughness_texture_id = texture->get_id();
+	mark_dirty();
 }
 
 void Material::set_bump_texture(uint32_t texture_id)
@@ -288,6 +298,7 @@ void Material::set_bump_texture(uint32_t texture_id)
 	if (texture_id > MAX_TEXTURES)
 		throw std::runtime_error( std::string("Invalid texture handle"));
 	this->material_struct.bump_texture_id = texture_id;
+	mark_dirty();
 }
 
 void Material::set_bump_texture(Texture *texture)
@@ -295,11 +306,13 @@ void Material::set_bump_texture(Texture *texture)
 	if (!texture)
 		throw std::runtime_error( std::string("Invalid texture handle"));
 	this->material_struct.bump_texture_id = texture->get_id();
+	mark_dirty();
 }
 
 void Material::clear_bump_texture()
 {
 	this->material_struct.bump_texture_id = -1;
+	mark_dirty();
 }
 
 void Material::set_alpha_texture(uint32_t texture_id)
@@ -307,6 +320,7 @@ void Material::set_alpha_texture(uint32_t texture_id)
 	if (texture_id > MAX_TEXTURES)
 		throw std::runtime_error( std::string("Invalid texture handle"));
 	this->material_struct.alpha_texture_id = texture_id;
+	mark_dirty();
 }
 
 void Material::set_alpha_texture(Texture *texture)
@@ -314,11 +328,13 @@ void Material::set_alpha_texture(Texture *texture)
 	if (!texture)
 		throw std::runtime_error( std::string("Invalid texture handle"));
 	this->material_struct.alpha_texture_id = texture->get_id();
+	mark_dirty();
 }
 
 void Material::clear_alpha_texture()
 {
 	this->material_struct.alpha_texture_id = -1;
+	mark_dirty();
 }
 
 void Material::use_vertex_colors(bool use)
@@ -328,11 +344,13 @@ void Material::use_vertex_colors(bool use)
 	} else {
 		this->material_struct.flags &= ~(1 << 0);
 	}
+	mark_dirty();
 }
 
 void Material::set_volume_texture(uint32_t texture_id)
 {
 	this->material_struct.volume_texture_id = texture_id;
+	mark_dirty();
 }
 
 void Material::set_volume_texture(Texture *texture)
@@ -340,15 +358,18 @@ void Material::set_volume_texture(Texture *texture)
 	if (!texture) 
 		throw std::runtime_error( std::string("Invalid texture handle"));
 	this->material_struct.volume_texture_id = texture->get_id();
+	mark_dirty();
 }
 
 void Material::clear_roughness_texture() {
 	this->material_struct.roughness_texture_id = -1;
+	mark_dirty();
 }
 
 void Material::set_transfer_function_texture(uint32_t texture_id)
 {
 	this->material_struct.transfer_function_texture_id = texture_id;
+	mark_dirty();
 }
 
 void Material::set_transfer_function_texture(Texture *texture)
@@ -356,11 +377,13 @@ void Material::set_transfer_function_texture(Texture *texture)
 	if (!texture) 
 		throw std::runtime_error( std::string("Invalid texture handle"));
 	this->material_struct.transfer_function_texture_id = texture->get_id();
+	mark_dirty();
 }
 
 void Material::clear_transfer_function_texture()
 {
 	this->material_struct.transfer_function_texture_id = -1;
+	mark_dirty();
 }
 
 
@@ -421,6 +444,7 @@ void Material::show_environment(bool show) {
 	else {
 		this->material_struct.flags &= ~(1 << MaterialFlags::MATERIAL_FLAGS_SHOW_SKYBOX);
 	}
+	mark_dirty();
 }
 
 void Material::hidden(bool hide) {
@@ -436,12 +460,14 @@ void Material::set_base_color(glm::vec3 color) {
 	this->material_struct.base_color.r = color.r;
 	this->material_struct.base_color.g = color.g;
 	this->material_struct.base_color.b = color.b;
+	mark_dirty();
 }
 
 void Material::set_base_color(float r, float g, float b) {
 	this->material_struct.base_color.r = r;
 	this->material_struct.base_color.g = g;
 	this->material_struct.base_color.b = b;
+	mark_dirty();
 }
 
 glm::vec3 Material::get_base_color() {
@@ -452,12 +478,14 @@ void Material::set_subsurface_color(glm::vec3 color) {
 	this->material_struct.subsurface_color.r = color.r;
 	this->material_struct.subsurface_color.g = color.g;
 	this->material_struct.subsurface_color.b = color.b;
+	mark_dirty();
 }
 
 void Material::set_subsurface_color(float r, float g, float b) {
 	this->material_struct.subsurface_color.r = r;
 	this->material_struct.subsurface_color.g = g;
 	this->material_struct.subsurface_color.b = b;
+	mark_dirty();
 }
 
 glm::vec3 Material::get_subsurface_color() {
@@ -466,10 +494,12 @@ glm::vec3 Material::get_subsurface_color() {
 
 void Material::set_subsurface_radius(glm::vec3 radius) {
 	this->material_struct.subsurface_radius = glm::vec4(radius.x, radius.y, radius.z, 0.0);
+	mark_dirty();
 }
 
 void Material::set_subsurface_radius(float x, float y, float z) {
 	this->material_struct.subsurface_radius = glm::vec4(x, y, z, 0.0);
+	mark_dirty();
 }
 
 glm::vec3 Material::get_subsurface_radius() {
@@ -479,6 +509,7 @@ glm::vec3 Material::get_subsurface_radius() {
 void Material::set_alpha(float a) 
 {
 	this->material_struct.base_color.a = a;
+	mark_dirty();
 }
 
 float Material::get_alpha()
@@ -488,6 +519,7 @@ float Material::get_alpha()
 
 void Material::set_subsurface(float subsurface) {
 	this->material_struct.subsurface = subsurface;
+	mark_dirty();
 }
 
 float Material::get_subsurface() {
@@ -496,6 +528,7 @@ float Material::get_subsurface() {
 
 void Material::set_metallic(float metallic) {
 	this->material_struct.metallic = metallic;
+	mark_dirty();
 }
 
 float Material::get_metallic() {
@@ -504,6 +537,7 @@ float Material::get_metallic() {
 
 void Material::set_specular(float specular) {
 	this->material_struct.specular = specular;
+	mark_dirty();
 }
 
 float Material::get_specular() {
@@ -512,6 +546,7 @@ float Material::get_specular() {
 
 void Material::set_specular_tint(float specular_tint) {
 	this->material_struct.specular_tint = specular_tint;
+	mark_dirty();
 }
 
 float Material::get_specular_tint() {
@@ -520,6 +555,7 @@ float Material::get_specular_tint() {
 
 void Material::set_roughness(float roughness) {
 	this->material_struct.roughness = roughness;
+	mark_dirty();
 }
 
 float Material::get_roughness() {
@@ -528,6 +564,7 @@ float Material::get_roughness() {
 
 void Material::set_anisotropic(float anisotropic) {
 	this->material_struct.anisotropic = anisotropic;
+	mark_dirty();
 }
 
 float Material::get_anisotropic() {
@@ -536,6 +573,7 @@ float Material::get_anisotropic() {
 
 void Material::set_anisotropic_rotation(float anisotropic_rotation) {
 	this->material_struct.anisotropic_rotation = anisotropic_rotation;
+	mark_dirty();
 }
 
 float Material::get_anisotropic_rotation() {
@@ -544,6 +582,7 @@ float Material::get_anisotropic_rotation() {
 
 void Material::set_sheen(float sheen) {
 	this->material_struct.sheen = sheen;
+	mark_dirty();
 }
 
 float Material::get_sheen() {
@@ -552,6 +591,7 @@ float Material::get_sheen() {
 
 void Material::set_sheen_tint(float sheen_tint) {
 	this->material_struct.sheen_tint = sheen_tint;
+	mark_dirty();
 }
 
 float Material::get_sheen_tint() {
@@ -560,6 +600,7 @@ float Material::get_sheen_tint() {
 
 void Material::set_clearcoat(float clearcoat) {
 	this->material_struct.clearcoat = clearcoat;
+	mark_dirty();
 }
 
 float Material::get_clearcoat() {
@@ -568,6 +609,7 @@ float Material::get_clearcoat() {
 
 void Material::set_clearcoat_roughness(float clearcoat_roughness) {
 	this->material_struct.clearcoat_roughness = clearcoat_roughness;
+	mark_dirty();
 }
 
 float Material::get_clearcoat_roughness() {
@@ -576,6 +618,7 @@ float Material::get_clearcoat_roughness() {
 
 void Material::set_ior(float ior) {
 	this->material_struct.ior = ior;
+	mark_dirty();
 }
 
 float Material::get_ior() {
@@ -584,6 +627,7 @@ float Material::get_ior() {
 
 void Material::set_transmission(float transmission) {
 	this->material_struct.transmission = transmission;
+	mark_dirty();
 }
 
 float Material::get_transmission() {
@@ -592,6 +636,7 @@ float Material::get_transmission() {
 
 void Material::set_transmission_roughness(float transmission_roughness) {
 	this->material_struct.transmission_roughness = transmission_roughness;
+	mark_dirty();
 }
 
 float Material::get_transmission_roughness() {

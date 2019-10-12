@@ -4,6 +4,7 @@ Collider Collider::colliders[MAX_COLLIDERS];
 std::map<std::string, uint32_t> Collider::lookupTable;
 std::shared_ptr<std::mutex> Collider::creation_mutex;
 bool Collider::Initialized = false;
+bool Collider::Dirty = true;
 
 Collider::Collider()
 {

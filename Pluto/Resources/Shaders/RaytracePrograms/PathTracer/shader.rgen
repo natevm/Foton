@@ -8,40 +8,63 @@ layout(location = 0) rayPayloadNV HitInfo payload;
 #include "Pluto/Resources/Shaders/Common/Options.hxx"
 #include "Pluto/Resources/Shaders/Common/ShaderConstants.hxx"
 
-void unpack_gbuffer_data(out vec3 w_position, out float depth, out vec3 w_normal, 
-    out int entity_id, out ivec2 pixel_seed, out int frame_seed, out vec3 albedo,
-    out vec2 uv)
+void unpack_gbuffer_data(in ivec2 tile, in ivec2 offset, out ivec2 ipos, out bool seed_found, out vec3 w_position, out float depth, out vec3 w_normal, 
+    out int entity_id, out ivec2 pixel_seed, out int frame_seed, out vec3 albedo, out vec2 uv)
 {
     vec4 temp;
+    ipos = tile * PATH_TRACE_TILE_SIZE + offset;
+
+    // Seed / Luminance G Buffer
+    temp = imageLoad(gbuffers[SEED_LUMINANCE_ADDR], ipos);
+    pixel_seed = ivec2(temp.xy);
+    frame_seed = int(temp.z);
+
+    /* Search for gradient seed */
+    seed_found = false;
+    // for (int yy = 0; yy < PATH_TRACE_TILE_SIZE; ++yy) {
+    //     for (int xx = 0; xx < PATH_TRACE_TILE_SIZE; ++xx) {
+    //         ivec2 p = tile * PATH_TRACE_TILE_SIZE + ivec2(xx, yy);
+    //         vec4 motion_data = imageLoad(gbuffers[MOTION_ADDR], p);
+    //         vec2 v = motion_data.xy * vec2(.5, -.5);
+    //         vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
+    //         iv.x = (abs(iv.x) < MOTION_VECTOR_MIN) ? 0 : iv.x;
+    //         iv.y = (abs(iv.y) < MOTION_VECTOR_MIN) ? 0 : iv.y;
+    //         ivec2 p_prev = ivec2(ipos + iv + MOTION_VECTOR_OFFSET);
+    //         vec4 seed_prev = imageLoad(gbuffers[SEED_LUMINANCE_ADDR_PREV], p_prev);
+    //         vec4 seed_curr = imageLoad(gbuffers[SEED_LUMINANCE_ADDR], p);
+    //         if (all(equal(seed_curr.xyz, seed_prev.xyz))) {
+    //             ipos = p;
+    //             pixel_seed = ivec2(seed_curr.xy);
+    //             frame_seed = int(seed_curr.z);
+    //             seed_found = true;
+    //             break;
+    //         }
+    //     }
+    // }
 
     // Position G Buffer 
-    temp = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ivec2(gl_LaunchIDNV.xy));
+    temp = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
     w_position = temp.xyz;
     depth = temp.w;
 
     // Normal G Buffer
-    temp = imageLoad(gbuffers[NORMAL_ID_ADDR], ivec2(gl_LaunchIDNV.xy));
+    temp = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
     w_normal = temp.xyz;
     entity_id = int(temp.w);
 
-    // Seed / Luminance G Buffer
-    temp = imageLoad(gbuffers[SEED_LUMINANCE_ADDR], ivec2(gl_LaunchIDNV.xy));
-    pixel_seed = ivec2(temp.xy);
-    frame_seed = int(temp.z);
-
     // UV G Buffer
-    temp = imageLoad(gbuffers[UV_ADDR], ivec2(gl_LaunchIDNV.xy));
+    temp = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos);
     uv = temp.xy;
 
     // Raw albedo
-    temp = imageLoad(gbuffers[ALBEDO_ADDR], ivec2(gl_LaunchIDNV.xy));
+    temp = imageLoad(gbuffers[ALBEDO_ADDR], ipos);
     albedo = temp.xyz;
 }
 
 vec3 sample_direct_light(const in ivec2 pixel_seed, const in int frame_seed, const in MaterialStruct mat, bool backface, const in vec3 w_p, const in vec3 w_n,
 	const in vec3 w_x, const in vec3 w_y, const in vec3 w_o, out int light_entity_id)
 {
-    DisneyColor radiance = DisneyColor(vec3(0), vec3(0), vec3(0), vec3(0), vec3(0));
+    vec3 radiance = vec3(0.0);
 
     vec3 w_n_f = (backface) ? -w_n : w_n;
 
@@ -52,7 +75,7 @@ vec3 sample_direct_light(const in ivec2 pixel_seed, const in int frame_seed, con
     int tries = 0;
     while ((!light_found) && (tries < 3) && (push.consts.num_lights > 0)) {
         tries++;
-        int i = int((random(pixel_seed, frame_seed) - EPSILON) * (push.consts.num_lights));
+        int i = int((random() - EPSILON) * (push.consts.num_lights));
         light_entity_id = lidbo.lightIDs[i];
         if (light_entity_id == -1) continue;
         unpack_entity(light_entity_id, light_entity, light_transform, light_material, light);
@@ -102,7 +125,8 @@ vec3 sample_direct_light(const in ivec2 pixel_seed, const in int frame_seed, con
             Li = sphereLightSample(pixel_seed, frame_seed, light_entity, light, light_transform, w_p, w_n_f, w_i, light_pdf);
         }
 
-        float bsdf_pdf = disney_pdf(mat, backface, w_n, w_o, w_i, w_x, w_y);
+        float bsdf_pdf, dpdf, spdf;
+        disney_pdf(mat, backface, w_n, w_o, w_i, w_x, w_y, bsdf_pdf, dpdf, spdf);
 
         /* Compute visibility by tracing a shadow ray */
         {
@@ -116,11 +140,12 @@ vec3 sample_direct_light(const in ivec2 pixel_seed, const in int frame_seed, con
         }
 
         float w = 0;
-        DisneyColor bsdf = disney_brdf(mat, backface, w_n, w_o, w_i, w_x, w_y);
+        vec3 bsdf, dbsdf, sbsdf;
+        disney_bsdf(mat, backface, w_n, w_o, w_i, w_x, w_y, bsdf, dbsdf, sbsdf);
         if (light_pdf >= EPSILON && bsdf_pdf >= EPSILON && visibility == 1.0) {
             w = power_heuristic(1.f, light_pdf, 1.f, bsdf_pdf);
             vec3 LightInfluence = Li * abs(dot(w_i, w_n_f)) * w / light_pdf;
-            radiance = add_d_d(radiance, mult_d_v3(bsdf, LightInfluence));
+            radiance += bsdf * LightInfluence;
         }
     }
 
@@ -130,7 +155,10 @@ vec3 sample_direct_light(const in ivec2 pixel_seed, const in int frame_seed, con
 		vec3 w_i;
 		float bsdf_pdf;
         float visibility = 1.0;
-		DisneyColor bsdf = sample_disney_brdf(pixel_seed, frame_seed, mat, backface, w_n, w_o, w_x, w_y, w_i, bsdf_pdf);
+        float dpdf, spdf;
+		vec3 bsdf, dbsdf, sbsdf;
+        sample_disney_bsdf(pixel_seed, frame_seed, mat, backface, 
+            w_n, w_o, w_x, w_y, w_i, bsdf_pdf, dpdf, spdf, bsdf, dbsdf, sbsdf);
 		
 		float light_dist;
 		vec3 light_pos;
@@ -166,53 +194,77 @@ vec3 sample_direct_light(const in ivec2 pixel_seed, const in int frame_seed, con
                 
 				if (visibility == 1.0) {
                     vec3 LightInfluence = Li * abs(dot(w_i, w_n_f)) * w / bsdf_pdf;
-                    radiance = add_d_d(radiance, mult_d_v3(bsdf, LightInfluence));
+                    radiance += bsdf * LightInfluence;
 				}
 			}
 		}
 	}
 
-	return d_combine(radiance);
+	return radiance;
 }
 
 void main() 
 {
-    /* These are required for shading purposes. Wait until they're ready. */
-    if ((push.consts.ltc_mat_lut_id < 0) || (push.consts.ltc_mat_lut_id >= MAX_TEXTURES)) return;
-    if ((push.consts.ltc_amp_lut_id < 0) || (push.consts.ltc_amp_lut_id >= MAX_TEXTURES)) return;
+    if (int(gl_LaunchIDNV.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
+    if (int(gl_LaunchIDNV.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
 
+    init_random(ivec2(gl_LaunchIDNV.xy), push.consts.frame, 0);
+    float rand = random();
+    
+    init_random(ivec2(gl_LaunchIDNV.xy), push.consts.frame, 0);
+    int rand_curr = 0;//int(random(ivec2(gl_LaunchIDNV.xy), (push.consts.frame)) * PATH_TRACE_TILE_SIZE * PATH_TRACE_TILE_SIZE);
+    ivec2 tile = ivec2(gl_LaunchIDNV.xy);
+    ivec2 offset_curr = ivec2(rand_curr / PATH_TRACE_TILE_SIZE, rand_curr % PATH_TRACE_TILE_SIZE);
+
+    /* These are required for shading purposes. Wait until they're ready. */
+    if ((push.consts.ltc_mat_lut_id < 0) || (push.consts.ltc_mat_lut_id >= max_textures)) return;
+    if ((push.consts.ltc_amp_lut_id < 0) || (push.consts.ltc_amp_lut_id >= max_textures)) return;
+    
     /* Load primary visibility data from G Buffers */
+    ivec2 pixel_coords;
     vec3 first_position, first_normal, albedo;
     float first_dist;
     int first_entity_id, frame_seed;
     ivec2 pixel_seed;
     vec2 first_uv;
-    unpack_gbuffer_data(first_position, first_dist, first_normal, first_entity_id, 
+    bool gradient_seed_found;
+    unpack_gbuffer_data(tile, offset_curr, pixel_coords, gradient_seed_found, first_position, first_dist, first_normal, first_entity_id, 
         pixel_seed, frame_seed, albedo, first_uv);
 
     /* Next, Compute ray origin and direction */
     randomDimension = 0;
     int max_path_depth = int(push.consts.parameter1);
-    const ivec2 pixel_coords = ivec2(gl_LaunchIDNV.xy);
     vec3 origin, direction;
     EntityStruct camera_entity = ebo.entities[push.consts.camera_id];
     CameraStruct camera = cbo.cameras[camera_entity.camera_id];
     TransformStruct camera_transform = tbo.transforms[camera_entity.transform_id];
+    int multiview_idx = push.consts.viewIndex;
+    multiview_idx = 0; // temporary
     get_origin_and_direction(
         pixel_seed, frame_seed,
-        camera.multiviews[push.consts.viewIndex].projinv,
-        camera_transform.localToWorld * camera.multiviews[push.consts.viewIndex].viewinv,
+        camera.multiviews[multiview_idx].projinv,
+        camera_transform.localToWorld * camera.multiviews[multiview_idx].viewinv,
         pixel_coords, ivec2(gl_LaunchSizeNV.xy), origin, direction);
     
 
     /* Compute direct and indirect path traced illumination */
-    DisneyColor color = DisneyColor(vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0));
+    vec3 color = vec3(0.0);
     int bounce = 0;
+    int transparency_continues = 0;
     bool last_event_was_specular = true;
-    DisneyColor path_throughput = DisneyColor(vec3(1.0), vec3(1.0), vec3(1.0), vec3(1.0), vec3(1.0));
+    
+    vec3 path_throughput = vec3(1.0);
+
+    vec3 first_hit_path_throughput = vec3(1.0);
     int last_direct_light_entity_id = -2;
 
-    DisneyColor direct_illumination = DisneyColor(vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0));
+    vec3 direct_illumination = vec3(0.0);
+    vec3 first_bsdf = vec3(0.0);
+
+    vec3 incoming_path_throughput = vec3(1.0);
+    vec3 glossy_path_throughput = vec3(1.0);
+    vec3 incoming_illumination = vec3(0.0);
+    vec3 glossy_illumination = vec3(0.0);
 
     do {
         /* Unpack Data */
@@ -238,14 +290,17 @@ void main()
             vec3 irradiance = (bounce == 0) ? albedo : get_environment_color(direction);
             /* Include lighting from sky as direct lighting.  */
             if (bounce <= 1) {
-                direct_illumination = add_d_d(direct_illumination, mult_d_v3(path_throughput, irradiance));
+                direct_illumination += path_throughput * irradiance;
             }
-            color = add_d_d(color, mult_d_v3(path_throughput, irradiance));
+            incoming_illumination += incoming_path_throughput * irradiance;
+            glossy_illumination += glossy_path_throughput * irradiance;
+            color += path_throughput * irradiance;
             break;
         }
 
         /* If the object we hit is completely transparent, go through it  */
-        if (mat.base_color.a < EPSILON) {
+        if ((mat.base_color.a < EPSILON) && (transparency_continues < MAX_TRANSPARENCY_CONTINUES)) {
+            transparency_continues++;
             origin = payload.w_p + EPSILON * direction;
             continue;
         }
@@ -256,19 +311,19 @@ void main()
         }
 
         /* If we hit a light, radiate */
-        if ((entity.light_id >= 0) && (entity.light_id < MAX_LIGHTS)) {
-            color = add_d_d(color, mult_d_v3(path_throughput, light.color.rgb * light.intensity));
+        if ((entity.light_id >= 0) && (entity.light_id < max_lights)) {
+            color += path_throughput * light.color.rgb * light.intensity;
             if (bounce == 0) {
-                direct_illumination = color;
+                direct_illumination = path_throughput * light.color.rgb * light.intensity;
             }
+            incoming_illumination += incoming_path_throughput * light.color.rgb * light.intensity;
+            glossy_illumination += glossy_path_throughput * light.color.rgb * light.intensity;
             break;
         }
 
         /* Next event estimation */
-        // color.rgb += path_throughput * sample_direct_light(pixel_seed, frame_seed, mat, backface, w_p, w_z, w_x, w_y, w_o, last_direct_light_entity_id); 
-        color = add_d_d(color, mult_d_v3(path_throughput, sample_direct_light(pixel_seed, frame_seed, mat, backface, w_p, w_z, w_x, w_y, w_o, last_direct_light_entity_id)));
-        if (bounce == 0) direct_illumination = color;
-
+        vec3 direct_radiance = sample_direct_light(pixel_seed, frame_seed, mat, backface, w_p, w_z, w_x, w_y, w_o, last_direct_light_entity_id);
+        
         /* Increase bounce count*/
         bounce++;
 
@@ -277,14 +332,36 @@ void main()
 
         /* Setup next ray */
         vec3 w_i; float pdf;
-        DisneyColor bsdf = sample_disney_brdf(pixel_seed, frame_seed, mat, backface, w_z, w_o, w_x, w_y, w_i, pdf);
-        if (pdf < EPSILON || d_all_less_than(bsdf, EPSILON)) {
+        float dpdf, spdf;
+        vec3 bsdf, dbsdf, sbsdf;
+        sample_disney_bsdf(pixel_seed, frame_seed, mat, backface,
+            w_z, w_o, w_x, w_y, w_i, pdf, dpdf, spdf, bsdf, dbsdf, sbsdf);
+        if (bounce == 1) {
+            first_bsdf = bsdf;
+        }
+        if (pdf < EPSILON || (all(lessThan(bsdf, vec3(EPSILON))))) {
             break;
         }
 
-        path_throughput = conv_d_d(path_throughput, mult_d_v3(bsdf, 1.0 / vec3(pdf)));
+        path_throughput *= bsdf / pdf;
+        /* for denoising, we factor out the diffuse and specular bsdfs for primary hits */
+        if (bounce > 1) {
+            incoming_path_throughput *= dbsdf / pdf;
+            glossy_path_throughput *= bsdf / pdf;
+        }
+        else if (bounce == 1) {
+            // incoming_path_throughput *= dbsdf / dpdf;
+            glossy_path_throughput *= sbsdf / spdf; 
+        }
 
-        if (d_all_less_than(path_throughput, EPSILON)) {
+        color += path_throughput * direct_radiance;
+        incoming_illumination += incoming_path_throughput * direct_radiance;
+        glossy_illumination += glossy_path_throughput * direct_radiance;
+        if (bounce == 1) {
+            direct_illumination = color;
+        }
+
+        if (all(lessThan(path_throughput, vec3(EPSILON)))) {
             break;
         }
 
@@ -297,14 +374,28 @@ void main()
     } while (bounce <= max_path_depth);
 
     /* Write to G Buffers */
-    vec3 final_color = d_combine(color);
-    vec3 final_direct_illumination = d_combine(direct_illumination);
-    
-    // Demodulated direct illumination 
-    vec3 demodulated_direct = final_direct_illumination / (vec3(EPSILON + luminance(albedo))); 
-    imageStore(gbuffers[DIRECT_ILLUM_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(demodulated_direct, 0));
+    vec3 final_color = color;
+    vec3 final_direct_illumination = direct_illumination;
+    vec4 demodulation = vec4(1.0);//vec4(luminance(albedo) + vec3(EPSILON), luminance(albedo) + (EPSILON));
 
-    // indirect illumination
-    vec3 indirect = (final_color - final_direct_illumination);
-    imageStore(gbuffers[INDIRECT_ILLUM_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(indirect, 0));
+    for (int yy = 0; yy < PATH_TRACE_TILE_SIZE; yy++){
+        for (int xx = 0; xx < PATH_TRACE_TILE_SIZE; xx++) {
+            ivec2 p = tile * PATH_TRACE_TILE_SIZE + ivec2(xx,yy);
+            
+            // diffuse illumination
+            vec3 final_incoming_illumination = incoming_illumination / demodulation.rgb;
+            imageStore(gbuffers[DIFFUSE_ILLUM_VAR_ADDR], p, vec4(final_incoming_illumination, 0));
+           
+            // glossy illumination
+            vec3 final_glossy_illumination = glossy_illumination / demodulation.a;
+            imageStore(gbuffers[SPECULAR_ILLUM_VAR_ADDR], p, vec4(final_glossy_illumination, 0));
+
+            // Seed/luminance
+            imageStore(gbuffers[SEED_LUMINANCE_ADDR], p, vec4(pixel_seed, frame_seed, luminance(final_color)));
+            
+            /* for now, store an example random value. Testing to see if we're really getting blue noise...*/
+            imageStore(gbuffers[DEBUG_ADDR_NOISE], p, vec4(rand));
+        }
+    }
+    
 }

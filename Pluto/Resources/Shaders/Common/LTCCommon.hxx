@@ -731,6 +731,7 @@ vec3 sampleOffsetDirections[20] = vec3[]
 );   
 
 LTCContribution rectangleLightSampleLTC(
+    const in int frame_id,
     const in EntityStruct light_entity, 
     const in LightStruct light, 
     const in TransformStruct light_transform,
@@ -790,7 +791,7 @@ LTCContribution rectangleLightSampleLTC(
     /* Now compute differential irradiance */
     
     // Compute a random point on a unit plane and its pdf
-    vec4 m_light_position = vec4(random(SI.pixel_coords, push.consts.frame) * 2.0 - 1.0, random(SI.pixel_coords, push.consts.frame) * 2.0 - 1.0, 0.0, 1.0);
+    vec4 m_light_position = vec4(random() * 2.0 - 1.0, random() * 2.0 - 1.0, 0.0, 1.0);
 
     // Transform that point to where the light actually is
     vec4 w_light_sample_position = light_transform.localToWorld * m_light_position;
@@ -813,7 +814,7 @@ LTCContribution rectangleLightSampleLTC(
 
 //     vec3 specular_irradiance = vec3(0.0);
 //     vec3 diffuse_irradiance = vec3(0.0);
-//     for (int i = 0; i < MAX_LIGHTS; ++i) {
+//     for (int i = 0; i < max_lights; ++i) {
 //     // #else
 //     // float rand0 = samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_128spp(int(payload.pixel.x), int(payload.pixel.y), push.consts.frame, payload.bounce_count * 9);
 //     // int selected = max(int(rand0 * active_lights), active_lights - 1);
@@ -882,7 +883,7 @@ LTCContribution rectangleLightSampleLTC(
 //             payload.is_shadow_ray = true; 
 //             payload.random_dimension = randomDimension;
 //             traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, w_position.xyz + w_normal * .01, tmin, dir, tmax, 0);
-//             if ((payload.distance < 0.0) || (payload.entity_id < 0) || (payload.entity_id >= MAX_ENTITIES) || (payload.entity_id == light_entity_id)) 
+//             if ((payload.distance < 0.0) || (payload.entity_id < 0) || (payload.entity_id >= max_entities) || (payload.entity_id == light_entity_id)) 
 //             {
 //                 shadow_term = 1.0;
 //             } else if (payload.distance < dist) {                

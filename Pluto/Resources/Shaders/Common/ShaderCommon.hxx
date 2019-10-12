@@ -16,12 +16,12 @@
 // BRDF Lookup Tables --------------------------------------
 vec2 sampleBRDF(vec3 N, vec3 V, float roughness)
 {
-    if ((push.consts.brdf_lut_id < 0) || (push.consts.brdf_lut_id >= MAX_TEXTURES))
+    if ((push.consts.brdf_lut_id < 0) || (push.consts.brdf_lut_id >= max_textures))
         return vec2(0.0, 0.0);
 
     TextureStruct tex = txbo.textures[push.consts.brdf_lut_id];
 
-    if ((tex.sampler_id < 0) || (tex.sampler_id >= MAX_SAMPLERS)) 
+    if ((tex.sampler_id < 0) || (tex.sampler_id >= max_samplers)) 
         return vec2(0.0, 0.0);
 
 	return texture( 
@@ -107,7 +107,7 @@ float get_shadow_contribution(EntityStruct light_entity, LightStruct light, vec3
     int tex_id = light_camera.multiviews[0].tex_id;
 
     TextureStruct tex = txbo.textures[tex_id];
-    if ((tex.sampler_id < 0) || (tex.sampler_id >= MAX_TEXTURES)) return 1.0;
+    if ((tex.sampler_id < 0) || (tex.sampler_id >= max_textures)) return 1.0;
 
     TransformStruct light_transform = tbo.transforms[light_entity.transform_id];
     vec3 l_position = (light_transform.worldToLocalRotation * light_transform.worldToLocalTranslation * vec4(w_position, 1.0)).xyz;
@@ -238,10 +238,10 @@ vec3 get_environment_color(vec3 dir) {
 			samplerCube(texture_cubes[push.consts.environment_id], samplers[tex.sampler_id]), 
 			adjusted, lodc).rgb;
 
-		return mix(a, b, lod - lodf);
+		return mix(a, b, lod - lodf) * push.consts.environment_intensity;
 	}
 
-    return getSky(adjusted);
+    return getSky(adjusted) * push.consts.environment_intensity;
 
 
 	// vec3 up = vec3(0.0, 1.0, 0.0);
@@ -251,12 +251,12 @@ vec3 get_environment_color(vec3 dir) {
 
 vec3 sampleIrradiance(vec3 N)
 {
-    if ((push.consts.diffuse_environment_id < 0 ) || (push.consts.diffuse_environment_id >= MAX_TEXTURES))
+    if ((push.consts.diffuse_environment_id < 0 ) || (push.consts.diffuse_environment_id >= max_textures))
 	    return getSky(N.xzy);
 
     TextureStruct tex = txbo.textures[push.consts.diffuse_environment_id];
     
-    if ((tex.sampler_id < 0 ) || (tex.sampler_id >= MAX_SAMPLERS))
+    if ((tex.sampler_id < 0 ) || (tex.sampler_id >= max_samplers))
         return getSky(N.xzy);
 
     return texture(
@@ -266,7 +266,7 @@ vec3 sampleIrradiance(vec3 N)
 
 vec3 getPrefilteredReflection(vec3 R, float roughness)
 {
-	if ((push.consts.specular_environment_id < 0) || (push.consts.specular_environment_id >= MAX_TEXTURES))
+	if ((push.consts.specular_environment_id < 0) || (push.consts.specular_environment_id >= max_textures))
 		return mix(getSky(R.xzy), (push.consts.top_sky_color.rgb + push.consts.bottom_sky_color.rgb) * .5, roughness);
 
     TextureStruct tex = txbo.textures[push.consts.specular_environment_id];
@@ -290,8 +290,8 @@ vec3 getPrefilteredReflection(vec3 R, float roughness)
 vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 albedo_mix, vec3 albedo, float metallic, float roughness)
 {    
     /* Need a linear cosine transform lookup table for LTC... */
-    if ((push.consts.ltc_mat_lut_id < 0) || (push.consts.ltc_mat_lut_id >= MAX_TEXTURES) ) return vec3(0.0);
-    if ((push.consts.ltc_amp_lut_id < 0) || (push.consts.ltc_amp_lut_id >= MAX_TEXTURES)) return vec3(0.0);
+    if ((push.consts.ltc_mat_lut_id < 0) || (push.consts.ltc_mat_lut_id >= max_textures) ) return vec3(0.0);
+    if ((push.consts.ltc_amp_lut_id < 0) || (push.consts.ltc_amp_lut_id >= max_textures)) return vec3(0.0);
 
     vec3 final_color = vec3(0.0);
     float dotNV = clamp(dot(w_normal, w_view), 0.0, 1.0);
@@ -316,7 +316,7 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
     vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);	
 
     /* For each light */
-    for (int i = 0; i < MAX_LIGHTS; ++i) {
+    for (int i = 0; i < max_lights; ++i) {
         /* Skip unused lights */
         int light_entity_id = lidbo.lightIDs[i];
         if (light_entity_id == -1) continue;
@@ -613,9 +613,9 @@ struct PBRInfo
     
 //     /* Load target entity information */
 //     EntityStruct target_entity = ebo.entities[info.entity_id];
-//     if (target_entity.transform_id < 0 || target_entity.transform_id >= MAX_TRANSFORMS) vec3(0.0);
+//     if (target_entity.transform_id < 0 || target_entity.transform_id >= max_transforms) vec3(0.0);
 //     TransformStruct target_transform = tbo.transforms[target_entity.transform_id];
-//     if (target_entity.material_id < 0 || target_entity.material_id >= MAX_MATERIALS) vec3(0.0);
+//     if (target_entity.material_id < 0 || target_entity.material_id >= max_materials) vec3(0.0);
 //     MaterialStruct target_material = mbo.materials[target_entity.material_id];
 
 //     /* Hidden flag */
@@ -685,7 +685,7 @@ struct PBRInfo
 //     vec3 emissiveContribution = vec3(0.0);
 
 //     // int active_lights = 0; 
-//     // for (int i = 0; i < MAX_LIGHTS; ++i) {
+//     // for (int i = 0; i < max_lights; ++i) {
 //     //     int light_entity_id = lidbo.lightIDs[i];
 //     //     if (light_entity_id != -1) active_lights++;
 //     // }
@@ -693,7 +693,7 @@ struct PBRInfo
 //     // #ifndef RAYTRACING
 //     vec3 specular_irradiance = vec3(0.0);
 //     vec3 diffuse_irradiance = vec3(0.0);
-//     for (int i = 0; i < MAX_LIGHTS; ++i) {
+//     for (int i = 0; i < max_lights; ++i) {
 //     // #else
 //     // float rand0 = samplerBlueNoiseErrorDistribution_128x128_OptimizedFor_2d2d2d2d_128spp(int(payload.pixel.x), int(payload.pixel.y), push.consts.frame, payload.bounce_count * 9);
 //     // int selected = max(int(rand0 * active_lights), active_lights - 1);
@@ -762,7 +762,7 @@ struct PBRInfo
 //             payload.is_shadow_ray = true; 
 //             payload.random_dimension = randomDimension;
 //             traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, w_position.xyz + w_normal * .01, tmin, dir, tmax, 0);
-//             if ((payload.distance < 0.0) || (payload.entity_id < 0) || (payload.entity_id >= MAX_ENTITIES) || (payload.entity_id == light_entity_id)) 
+//             if ((payload.distance < 0.0) || (payload.entity_id < 0) || (payload.entity_id >= max_entities) || (payload.entity_id == light_entity_id)) 
 //             {
 //                 shadow_term = 1.0;
 //             } else if (payload.distance < dist) {                
@@ -996,7 +996,7 @@ struct PBRInfo
 //         payload.is_shadow_ray = false;
 //         payload.random_dimension = randomDimension;
 //         traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, w_position.xyz/*  + w_normal * .01*/, tmin, dir, tmax, 0);
-//         if ((payload.distance < 0.0) || (payload.entity_id < 0) || (payload.entity_id >= MAX_ENTITIES)) {
+//         if ((payload.distance < 0.0) || (payload.entity_id < 0) || (payload.entity_id >= max_entities)) {
 //             final_color.specular_radiance += indirectSpecularReflectionContribution;
 //         } 
 //         else {
@@ -1030,7 +1030,7 @@ struct PBRInfo
 //         payload.random_dimension = randomDimension;
 //         // float sign = (inside) ? -1.0 : 1.0;
 //         traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, w_position.xyz/*  + w_normal * .1*/, tmin, dir, tmax, 0);
-//         if ((payload.distance < 0.0) || (payload.entity_id < 0) || (payload.entity_id >= MAX_ENTITIES)) {
+//         if ((payload.distance < 0.0) || (payload.entity_id < 0) || (payload.entity_id >= max_entities)) {
 //             final_color.specular_radiance += indirectSpecularRefractionContribution;
 //         } 
 //         else {
@@ -1155,7 +1155,7 @@ void directionOfAnisotropicity(vec3 normal, out vec3 tangent, out vec3 binormal)
 //     /* If the drawn object has a light component, radiate the light */
 //     EntityStruct interaction_entity = ebo.entities[interaction.entity_id];
 //     vec3 emission = vec3(0.0);
-//     if ((interaction_entity.light_id >= 0) && (interaction_entity.light_id < MAX_LIGHTS)) {
+//     if ((interaction_entity.light_id >= 0) && (interaction_entity.light_id < max_lights)) {
 //         LightStruct light = lbo.lights[interaction_entity.light_id];
 //         emission = light.color.rgb * light.intensity;
 //         if (interaction.entity_id == light_entity_id) return emission;
@@ -1251,12 +1251,12 @@ void directionOfAnisotropicity(vec3 normal, out vec3 tangent, out vec3 binormal)
 //     contribution.alpha = 1.0;
     
 //     EntityStruct interaction_entity = ebo.entities[interaction.entity_id];
-//     if (interaction_entity.transform_id < 0 || interaction_entity.transform_id >= MAX_TRANSFORMS) return contribution;
+//     if (interaction_entity.transform_id < 0 || interaction_entity.transform_id >= max_transforms) return contribution;
 
 //     /* If the source object has a light component, radiate the light, but only if primary visibility or immediately following a specular event */
 //     vec3 emission = vec3(0.0);
 //     if (
-//         ((interaction_entity.light_id >= 0) && (interaction_entity.light_id < MAX_LIGHTS)) && 
+//         ((interaction_entity.light_id >= 0) && (interaction_entity.light_id < max_lights)) && 
 //         ((interaction.is_specular) || (interaction.bounce_count == 0))
 //     ) {
 //         LightStruct light = lbo.lights[interaction_entity.light_id];

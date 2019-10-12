@@ -74,6 +74,7 @@ using namespace Systems;
 }
 
 %include "Tools/Typemaps.i"
+%include <attribute.i>
 
 /* NOTE: using namespace doesnt work for this template. */
 %shared_ptr(StaticFactory)
@@ -147,6 +148,15 @@ using namespace Systems;
 
 %ignore Initialized;
 %ignore Texture::Data;
+
+/* Some properties to make entity creation and modification easier */
+%attribute(Entity, RigidBody*, rigid_body, get_rigid_body, set_rigid_body);
+%attribute(Entity, Collider*, collider, get_collider, set_collider);
+%attribute(Entity, Transform*, transform, get_transform, set_transform);
+%attribute(Entity, Mesh*, mesh, get_mesh, set_mesh);
+%attribute(Entity, Material*, material, get_material, set_material);
+%attribute(Entity, Light*, light, get_light, set_light);
+%attribute(Entity, Camera*, camera, get_camera, set_camera);
 
 %include "Pluto/Pluto.hxx"
 %include "Pluto/Importers/Importers.hxx"
@@ -246,7 +256,7 @@ using namespace Systems;
 %template(LightVector) vector<Light*>;
 %template(MaterialVector) vector<Material*>;
 
-/* Some properties to make entity creation and modification easier */
+/*
 %extend Entity{
 	%pythoncode %{
 		__swig_getmethods__["rigid_body"] = get_rigid_body
@@ -278,3 +288,4 @@ using namespace Systems;
 		if _newclass: camera = property(get_camera, set_camera)
 	%}
 };
+*/

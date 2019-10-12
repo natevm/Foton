@@ -215,4 +215,15 @@ class Light : public StaticFactory
 
         /* Flag to enable variance shadow mapping effect */
         bool enableVSM = false;
+
+        /* Indicates that one of the components has been edited */
+        static bool Dirty;
+
+        /* Indicates this component has been edited */
+        bool dirty = true;
+
+        void mark_dirty() {
+		Dirty = true;
+		dirty = true;
+	};
 };

@@ -4,7 +4,12 @@
 #define RASTERIZE_MULTIVIEW 0
 #define DISABLE_REVERSE_Z_PROJECTION 1
 #define ENABLE_TAA 2
-#define ENABLE_SVGF_ATROUS 3
+#define ENABLE_ASVGF_GRADIENT 3
+#define ENABLE_ASVGF_GRADIENT_ATROUS 15
+#define ENABLE_ASVGF_TEMPORAL_ACCUMULATION 11
+#define ENABLE_ASVGF_VARIANCE_ESTIMATION 12
+#define ENABLE_ASVGF_ATROUS 13
+#define ENABLE_ASVGF 14
 #define RASTERIZE_BOUNDING_BOX 4
 #define ENABLE_BLUE_NOISE 5
 #define ENABLE_PROGRESSIVE_REFINEMENT 6
@@ -28,9 +33,9 @@ bool is_progressive_refinement_enabled()
     return (push.consts.flags & (1 << ENABLE_PROGRESSIVE_REFINEMENT)) != 0;
 }
 
-bool is_atrous_enabled()
+bool is_asvgf_atrous_enabled()
 {
-    return (push.consts.flags & (1 << ENABLE_SVGF_ATROUS)) != 0;
+    return (push.consts.flags & (1 << ENABLE_ASVGF_ATROUS)) != 0;
 }
 
 bool show_bounding_box()
@@ -47,6 +52,11 @@ bool is_reverse_z_enabled()
 bool is_blue_noise_enabled()
 {
     return (push.consts.flags & (1 << ENABLE_BLUE_NOISE)) != 0;
+}
+
+bool is_gradient_estimation_enabled()
+{
+    return (push.consts.flags & (1 << ENABLE_ASVGF_GRADIENT)) != 0;
 }
 
 bool should_show_direct_illumination()

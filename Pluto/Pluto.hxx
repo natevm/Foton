@@ -26,13 +26,7 @@ namespace Pluto {
         std::set<std::string> validation_layers = std::set<std::string>(), 
         std::set<std::string> instance_extensions = std::set<std::string>(), 
         std::set<std::string> device_extensions = std::set<std::string>(), 
-        std::set<std::string> device_features = std::set<std::string>({
-            "shaderUniformBufferArrayDynamicIndexing",
-            "shaderSampledImageArrayDynamicIndexing",
-            "shaderStorageBufferArrayDynamicIndexing",
-            "shaderStorageImageArrayDynamicIndexing",
-            "vertexPipelineStoresAndAtomics", 
-            "fragmentStoresAndAtomics"})
+        std::set<std::string> device_features = std::set<std::string>()
     );
 
     void WaitForStartupCallback();

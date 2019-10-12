@@ -138,6 +138,11 @@ void CameraPrefab::update_arcball()
 
         dp *= .9f;
         dr *= .9f;
+
+        if (abs(dr.x) < .00001) dr.x = 0.0;
+        if (abs(dr.y) < .00001) dr.y = 0.0;
+        if (abs(dp.y) < .00001) dp.y = 0.0;
+        if (abs(dp.y) < .00001) dp.y = 0.0;
         
         
         // Move the camera
@@ -148,8 +153,8 @@ void CameraPrefab::update_arcball()
 
         transform->set_position(p);
         
-        if ((std::abs(dr.x) > .000001) || (std::abs(dr.y) > .000001)) rs->reset_progressive_refinement();
-        if (glm::distance(p, p_orig) > .000001) rs->reset_progressive_refinement();
+        if ((std::abs(dr.x) > .00001) || (std::abs(dr.y) > .00001)) rs->reset_progressive_refinement();
+        if (glm::distance(p, p_orig) > .00001) rs->reset_progressive_refinement();
 
         // Arcball camera controls 
 
@@ -197,6 +202,7 @@ void CameraPrefab::update_fps()
         auto right_arrow_action = g->get_key_action(window_name, GLFW::get_key_code("RIGHT"));
         auto up_arrow_action    = g->get_key_action(window_name, GLFW::get_key_code("UP"));
         auto down_arrow_action  = g->get_key_action(window_name, GLFW::get_key_code("DOWN"));
+        auto shift_action       = g->get_key_action(window_name, GLFW::get_key_code("LEFT_SHIFT"));
 
         auto w_action  = g->get_key_action(window_name, GLFW::get_key_code("W"));
         auto s_action = g->get_key_action(window_name, GLFW::get_key_code("S"));
@@ -206,6 +212,8 @@ void CameraPrefab::update_fps()
         auto e_action  = g->get_key_action(window_name, GLFW::get_key_code("E"));
 
         auto window_extent = g->get_size(window_name);
+
+        float translation_speed = (shift_action > 0) ? .05 : .02;
 
         // # Compute delta position/rotation from event data
         if ((right_mouse_action == 1) || ((left_mouse_action == 1) && (left_mouse_mods == 2))) {
@@ -225,15 +233,20 @@ void CameraPrefab::update_fps()
 
         auto p_orig = p;
 
-        if ((left_arrow_action >= 1) || (a_action >= 1)) p -= right * .05f;
-        if ((right_arrow_action >= 1) || (d_action >= 1)) p += right * .05f;
-        if ((up_arrow_action >= 1) || (w_action >= 1)) p += forward * .05f;
-        if ((down_arrow_action >= 1) || (s_action >= 1)) p -= forward * .05f;            
-        if (q_action >= 1) p -= up * .05f;
-        if (e_action >= 1) p += up * .05f;
+        if ((left_arrow_action >= 1) || (a_action >= 1)) p -= right * translation_speed;
+        if ((right_arrow_action >= 1) || (d_action >= 1)) p += right * translation_speed;
+        if ((up_arrow_action >= 1) || (w_action >= 1)) p += forward * translation_speed;
+        if ((down_arrow_action >= 1) || (s_action >= 1)) p -= forward * translation_speed;            
+        if (q_action >= 1) p -= up * translation_speed;
+        if (e_action >= 1) p += up * translation_speed;
 
         dp *= .9f;
         dr *= .9f;
+
+        if (abs(dr.x) < .01) dr.x = 0.0;
+        if (abs(dr.y) < .01) dr.y = 0.0;
+        if (abs(dp.y) < .00001) dp.y = 0.0;
+        if (abs(dp.y) < .00001) dp.y = 0.0;
         
         // Move the camera
         right = transform->get_right();
@@ -241,8 +254,8 @@ void CameraPrefab::update_fps()
         p += (right * (float)dp[0]) + (up * (float)dp[1]);
         transform->set_position(p);
         
-        if ((std::abs(dr.x) > .000001) || (std::abs(dr.y) > .000001)) rs->reset_progressive_refinement();
-        if (glm::distance(p, p_orig) > .000001) rs->reset_progressive_refinement();
+        if ((std::abs(dr.x) > .00001) || (std::abs(dr.y) > .00001)) rs->reset_progressive_refinement();
+        if (glm::distance(p, p_orig) > .00001) rs->reset_progressive_refinement();
 
 
         right = transform->get_right();

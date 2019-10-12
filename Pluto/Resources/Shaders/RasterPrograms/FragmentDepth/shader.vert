@@ -1,7 +1,6 @@
 #version 450
 #include "Pluto/Resources/Shaders/Common/Descriptors.hxx"
 #include "Pluto/Resources/Shaders/Common/Attributes.hxx"
-#include "Pluto/Resources/Shaders/Common/VertexVaryings.hxx"
 #include "Pluto/Resources/Shaders/Common/Options.hxx"
 
 void main() {

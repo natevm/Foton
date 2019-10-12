@@ -21,5 +21,35 @@
 
 #define ALPHA_MINIMUM .01
 
-#define TMIN .001
-#define TMAX 1000 /*1e20f*/
+#define TMIN .01
+// #define TMAX 1000 /*1e20f*/
+#define TMAX 1000
+
+#define MOTION_VECTOR_OFFSET vec2(.5, .5)
+#define MOTION_VECTOR_MIN .0
+
+#define MAX_TRANSPARENCY_CONTINUES 10
+
+#define MIN_SAMPLES 2
+#define MAX_CUMULATIVE_COUNT 128
+#define TEMPORAL_ALPHA (1.0 / float(MAX_CUMULATIVE_COUNT))
+
+// The larger max cumulative count is, the more powerful soft reset rate should be?
+#define MIN_SOFT_RESET_COUNT 4
+#define SOFT_RESET_RATE .2
+#define DIRECTION_WEIGHT 1.0
+#define DISTANCE_MAX .1
+#define POSITION_MAX 1.0
+#define ALBEDO_MAX .1
+#define NORMAL_WEIGHT 1.0
+#define ENTITY_WEIGHT 1.0
+#define GRADIENT_WEIGHT 0.5
+
+#define GRADIENT_ALPHA 0.9
+#define MAX_ERROR 10.
+
+// used during TAA
+#define GRADIENT_FILTER_RADIUS 2
+
+#define PATH_TRACE_TILE_SIZE 3
+#define GRADIENT_TILE_SIZE 3

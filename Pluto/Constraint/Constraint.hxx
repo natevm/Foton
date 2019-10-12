@@ -160,4 +160,15 @@ class Constraint : public StaticFactory
 
 	glm::vec3 linear_spring_stiffness;
 	glm::vec3 angular_spring_stiffness;
+
+	/* Indicates that one of the components has been edited */
+    static bool Dirty;
+
+    /* Indicates this component has been edited */
+    bool dirty = true;
+
+	void mark_dirty() {
+		Dirty = true;
+		dirty = true;
+	};
 };

@@ -6,6 +6,7 @@ Constraint Constraint::constraints[MAX_CONSTRAINTS];
 std::map<std::string, uint32_t> Constraint::lookupTable;
 std::shared_ptr<std::mutex> Constraint::creation_mutex;
 bool Constraint::Initialized = false;
+bool Constraint::Dirty = true;
 
 Constraint::Constraint()
 {

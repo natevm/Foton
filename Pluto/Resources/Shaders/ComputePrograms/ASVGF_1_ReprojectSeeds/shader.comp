@@ -1,0 +1,68 @@
+#version 460
+
+#define COMPUTE
+
+#include "Pluto/Resources/Shaders/Common/Descriptors.hxx"
+#include "Pluto/Resources/Shaders/Common/ShaderConstants.hxx"
+#include "Pluto/Resources/Shaders/Common/Random.hxx"
+
+layout (local_size_x = 16, local_size_y = 16) in;
+
+void main() {
+    // Stride of the gradient tile
+    const int stride = GRADIENT_TILE_SIZE * PATH_TRACE_TILE_SIZE;
+    if (int(gl_GlobalInvocationID.x * stride) >= push.consts.width) return;
+    if (int(gl_GlobalInvocationID.y * stride) >= push.consts.height) return;
+
+    // Compute random offset within tile
+    init_random(ivec2(gl_GlobalInvocationID.xy), push.consts.frame, 0);
+    int rand_curr = int(floor(clamp(random(), 0.0, .999) * stride * stride));
+    ivec2 tile = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 offset_curr = ivec2(rand_curr / stride, rand_curr % stride);
+
+    // Compute motion vector
+    ivec2 ipos = (stride * tile + offset_curr);
+    precise vec4 motion_data = imageLoad(gbuffers[MOTION_ADDR], ipos);
+    precise vec2 v = motion_data.xy * vec2(.5, -.5);
+    precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
+    iv.x = (abs(iv.x) < MOTION_VECTOR_MIN) ? 0 : iv.x;
+    iv.y = (abs(iv.y) < MOTION_VECTOR_MIN) ? 0 : iv.y;
+    ivec2 ipos_prev = ivec2(ipos + (iv + MOTION_VECTOR_OFFSET));
+    
+    // Load previous
+    vec4 seed_data = imageLoad(gbuffers[SEED_LUMINANCE_ADDR_PREV], ipos_prev);
+
+    // Load previous GBuffer data
+    vec4 position_depth = imageLoad(gbuffers[POSITION_DEPTH_ADDR_PREV], ipos_prev);
+    vec4 normal_id = imageLoad(gbuffers[NORMAL_ID_ADDR_PREV], ipos_prev);
+    vec4 albedo = imageLoad(gbuffers[ALBEDO_ADDR_PREV], ipos_prev);
+    vec4 uv = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR_PREV], ipos_prev);
+
+    // Test if reprojected seed is valid
+    bool accept = true;
+    vec4 target_depth_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
+    vec4 target_normal_id = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
+    vec4 target_albedo = imageLoad(gbuffers[ALBEDO_ADDR], ipos);
+    // accept = accept && ( abs(position_depth.w - target_depth_data.w) < .1 ); // This seems to mess up large reflective surfaces
+    // accept = accept && (int(normal_id.w) == int(normal_id.w));
+    // accept = accept && (distance(albedo,  target_albedo) < ALBEDO_MAX);
+    bvec2 a = greaterThan(ipos_prev, vec2(push.consts.width-1, push.consts.height-1));
+    bvec2 b = lessThan(ipos_prev, vec2(0.0, 0.0));
+    accept = accept && (!any(bvec2(any(a), any(b))));
+    accept = accept && (dot(normal_id.rgb, target_normal_id.rgb) > 0.5); // This will not change with respect to shading, so we can use it.
+
+    // Store reprojected seed and gbuffer data.
+    // Note, reprojecting gbuffer data gives us some control on what causes 
+    // a temporal gradient. We're more likely to have an accurate gradient 
+    // if we use the exact same gbuffer data as before. However, changes 
+    // to albedo, metallic/roughness, etc may not be detected if reprojected.
+    if (accept)
+    {
+        // target_albedo.w = float(-2); // dont know why, but setting this breaks everything
+        imageStore(gbuffers[SEED_LUMINANCE_ADDR], ipos, seed_data);
+        imageStore(gbuffers[POSITION_DEPTH_ADDR], ipos, position_depth);
+        imageStore(gbuffers[NORMAL_ID_ADDR], ipos, normal_id);
+        imageStore(gbuffers[ALBEDO_ADDR], ipos, albedo);
+        imageStore(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos, uv);
+    }
+}

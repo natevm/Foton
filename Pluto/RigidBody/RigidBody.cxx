@@ -5,6 +5,7 @@ RigidBody RigidBody::rigidbodies[MAX_RIGIDBODIES];
 std::map<std::string, uint32_t> RigidBody::lookupTable;
 std::shared_ptr<std::mutex> RigidBody::creation_mutex;
 bool RigidBody::Initialized = false;
+bool RigidBody::Dirty = true;
 
 RigidBody::RigidBody()
 {
