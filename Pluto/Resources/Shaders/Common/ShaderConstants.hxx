@@ -20,8 +20,10 @@
 #define USE_LTC true
 
 #define ALPHA_MINIMUM .01
+#define CLEARCOAT_ALPHA_MINIMUM .001
 
-#define TMIN .01
+#define TMIN .001
+// #define TMIN .0
 // #define TMAX 1000 /*1e20f*/
 #define TMAX 1000
 
@@ -30,8 +32,10 @@
 
 #define MAX_TRANSPARENCY_CONTINUES 10
 
-#define MIN_SAMPLES 2
-#define MAX_CUMULATIVE_COUNT 128
+// Min samples increases temporal coherence during disocclusions, 
+// but introduces artifacts due to temporal gradient not properly causing sample reset
+#define MIN_SAMPLES 0
+#define MAX_CUMULATIVE_COUNT 256
 #define TEMPORAL_ALPHA (1.0 / float(MAX_CUMULATIVE_COUNT))
 
 // The larger max cumulative count is, the more powerful soft reset rate should be?
@@ -43,13 +47,18 @@
 #define ALBEDO_MAX .1
 #define NORMAL_WEIGHT 1.0
 #define ENTITY_WEIGHT 1.0
-#define GRADIENT_WEIGHT 0.5
+// would be cool to have this as a parameter, or figure out how to get rid of it.
+// #define GRADIENT_WEIGHT 1.1 
 
-#define GRADIENT_ALPHA 0.9
+#define GRADIENT_ALPHA 1.0
 #define MAX_ERROR 10.
 
 // used during TAA
-#define GRADIENT_FILTER_RADIUS 2
+// #define GRADIENT_FILTER_RADIUS 8
+#define GRADIENT_FILTER_RADIUS 4
+// #define GRADIENT_DOWNSAMPLE 1.0
 
 #define PATH_TRACE_TILE_SIZE 3
-#define GRADIENT_TILE_SIZE 3
+#define GRADIENT_TILE_SIZE 2
+
+#define GRADIENT_DOWNSAMPLE (1.0/float(10))

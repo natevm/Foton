@@ -7,6 +7,7 @@ layout(location = 0) rayPayloadNV HitInfo payload;
 #include "Pluto/Resources/Shaders/Common/ShaderCommon.hxx"
 #include "Pluto/Resources/Shaders/Common/Options.hxx"
 #include "Pluto/Resources/Shaders/Common/ShaderConstants.hxx"
+#include "Pluto/Resources/Shaders/Common/OffsetRay.hxx"
 
 void main() 
 {

@@ -204,6 +204,13 @@ float gtr_2_aniso_pdf(const in vec3 w_o, const in vec3 w_i, const in vec3 n,
 	return d * cos_theta_h / (4.f * dot(w_o, w_h));
 }
 
+float lambertian_diffuse(const in MaterialStruct mat, const in vec3 n,
+	const in vec3 w_o, const in vec3 w_i, out vec3 diffuse_color)
+{
+	diffuse_color = mat.base_color.rgb;
+	return 1.0f/M_PI;
+}
+
 float disney_diffuse(const in MaterialStruct mat, const in vec3 n,
 	const in vec3 w_o, const in vec3 w_i, out vec3 diffuse_color)
 {
@@ -293,7 +300,8 @@ float disney_clear_coat(const in MaterialStruct mat, const in vec3 n,
 	const in vec3 w_o, const in vec3 w_i, out vec3 clear_coat_color)
 {
 	vec3 w_h = normalize(w_i + w_o);
-	float alpha = mix(0.1f, ALPHA_MINIMUM, (1.0f - mat.clearcoat_roughness));
+	// float alpha = mix(0.1f, CLEARCOAT_ALPHA_MINIMUM, (1.0f - sqrt(mat.clearcoat_roughness)));
+	float alpha = max(ALPHA_MINIMUM, mat.clearcoat_roughness * mat.clearcoat_roughness);	
 	float d = gtr_1(dot(n, w_h), alpha);
 	float f = mix(0.04f, 1.f, schlick_weight(dot(w_i, n)));
 	float g = smith_shadowing_ggx(dot(n, w_i), 0.25f) * smith_shadowing_ggx(dot(n, w_o), 0.25f);
@@ -348,11 +356,12 @@ void disney_bsdf(const in MaterialStruct mat, bool backface, const in vec3 w_n,
 		coat = disney_clear_coat(mat, w_n_f, w_o, w_i, coat_color);
 		sheen = disney_sheen(mat, w_n_f, w_o, w_i, sheen_color);
 		diffuse = disney_diffuse(mat, w_n_f, w_o, w_i, diffuse_color);
-		if (mat.anisotropic == 0.f) {
-			gloss = disney_microfacet_isotropic(mat, w_n_f, w_o, w_i, gloss_color);
-		} else {
-			gloss = disney_microfacet_anisotropic(mat, w_n_f, w_o, w_i, w_x_f, w_y_f, gloss_color);
-		}
+		// diffuse = lambertian_diffuse(mat, w_n_f, w_o, w_i, diffuse_color);
+		// if (mat.anisotropic == 0.f) {
+		gloss = disney_microfacet_isotropic(mat, w_n_f, w_o, w_i, gloss_color);
+		// } else {
+			// gloss = disney_microfacet_anisotropic(mat, w_n_f, w_o, w_i, w_x_f, w_y_f, gloss_color);
+		// }
 	}
 
 	/* Combined bsdf */
@@ -365,10 +374,10 @@ void disney_bsdf(const in MaterialStruct mat, bool backface, const in vec3 w_n,
 
 	/* Just diffuse piece */
 	dbsdf += diffuse_color * diffuse * (1.f - mat.metallic) * (1.f - mat.transmission);
-	dbsdf += sheen;
 	dbsdf *= abs(dot(w_i, w_n));
 	 
 	/* Just specular piece */
+	sbsdf += sheen;
 	sbsdf += gloss; 
 	sbsdf += vec3(coat); 
 	sbsdf += transmission_color * spec_trans * (1.f - mat.metallic) * mat.transmission;
@@ -388,7 +397,8 @@ void disney_pdf(const in MaterialStruct mat, bool backface,
 	float aspect = sqrt(1.f - mat.anisotropic * 0.9f);
 	vec2 alpha_aniso = vec2(max(ALPHA_MINIMUM, alpha / aspect), max(ALPHA_MINIMUM, alpha * aspect));
 
-	float clearcoat_alpha = mix(0.1f, ALPHA_MINIMUM, (1.0f - mat.clearcoat_roughness));
+	// float clearcoat_alpha = mix(0.1f, CLEARCOAT_ALPHA_MINIMUM, (1.0f - sqrt(mat.clearcoat_roughness)));
+	float clearcoat_alpha = max(ALPHA_MINIMUM, mat.clearcoat_roughness * mat.clearcoat_roughness);
 
 	float diffuse = lambertian_pdf(w_i, w_n_f);
 	float clear_coat = gtr_1_pdf(w_o, w_i, w_n_f, clearcoat_alpha);
@@ -409,6 +419,8 @@ void disney_pdf(const in MaterialStruct mat, bool backface,
 	}
 
 	pdf = ((diffuse + microfacet + microfacet_transmission + clear_coat) / n_comp);
+	// dpdf = ((diffuse + microfacet + microfacet_transmission + clear_coat) / n_comp);
+	// spdf = ((diffuse + microfacet + microfacet_transmission + clear_coat) / n_comp);
 	dpdf = diffuse;
 	spdf = (microfacet + microfacet_transmission + clear_coat) / (n_comp - 1);
 }
@@ -419,6 +431,7 @@ vec3 sample_disney_bsdf (
 	ivec2 pixel_seed, int frame_seed, const in MaterialStruct mat, 
 	bool backface, const in vec3 w_n,
 	const in vec3 w_o, const in vec3 w_x, const in vec3 w_y,
+	// bool force_diffuse,
 	out vec3 w_i, 
 	out float pdf, out float dpdf, out float spdf,
 	out vec3 bsdf, out vec3 dbsdf, out vec3 sbsdf)
@@ -427,6 +440,9 @@ vec3 sample_disney_bsdf (
 	vec3 w_n_f = (backface) ? -w_n : w_n;
 	vec3 w_x_f = (backface) ? -w_x : w_x;
 	vec3 w_y_f = (backface) ? -w_y : w_y;
+
+	bool sample_diffuse = (random() < (mat.roughness * (1.f - mat.metallic) * (1.f - mat.transmission))); 
+
 	int component = 0;
 	if (mat.transmission == 0.f) {
 		component = int(clamp(random() * 3.f, 0, 2));
@@ -434,13 +450,18 @@ vec3 sample_disney_bsdf (
 		component = int(clamp(random() * 4.f, 0, 3));
 	}
 
+	// component = 0;
+
+	// if (component == 1) component = 2; // clear coat is breaking things...
+	
 	vec2 samples = vec2(random(), random());
-	if (component == 0) {
+	if (sample_diffuse || (component == 0)) {
 		// Sample diffuse component
 		w_i = sample_lambertian_dir(w_n_f, w_x_f, w_y_f, samples);
 	} else if (component == 1) {
 		// Sample clear coat component
-		float alpha = mix(0.1f, ALPHA_MINIMUM, (1.0f - mat.clearcoat_roughness));
+		// float alpha = mix(0.1f, CLEARCOAT_ALPHA_MINIMUM, (1.0f - sqrt(mat.clearcoat_roughness)));
+		float alpha = max(ALPHA_MINIMUM, mat.clearcoat_roughness * mat.clearcoat_roughness);
 		vec3 w_h = sample_gtr_1_h(w_n_f, w_x_f, w_y_f, alpha, samples);
 		w_i = reflect(-w_o, w_h);
 

@@ -35,7 +35,7 @@ layout (local_size_x = 16, local_size_y = 16) in;
 
 void main()
 {
-	const int max_rad = 3 * PATH_TRACE_TILE_SIZE;
+	const int max_rad = 3;// * PATH_TRACE_TILE_SIZE;
 	const float hist_len_thresh = max_rad + MIN_SAMPLES;
 
 	ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
@@ -46,17 +46,19 @@ void main()
 
 	vec4 direct = vec4(0.); 
 	vec4 indirect = vec4(0.); 
+	float avg_luminance = 0.0;
+	float avg_luminance_w = 0.0;
 
 	vec4 normal_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
 	vec3 n_center = normal_id_data.xyz;
 	int mesh_id_center = int(normal_id_data.w);
 
 	// TODO if history_length < 4, estimate variance spatially
-	if( ((histlen < hist_len_thresh) && (mesh_id_center != -1))) {
+	if( /*((histlen < hist_len_thresh) &&*/ (mesh_id_center != -1)) {
 		float alpha = (hist_len_thresh - clamp(histlen, 0, hist_len_thresh) ) / hist_len_thresh;
 		float sum_w = 0.0;
 		float sum_m_w = 0.0;
-		const int r = int(mix(0, max_rad, alpha)) * 2;
+		const int r = int(mix(2, max_rad, alpha)) * 2;
 		for(int yy = -r; yy <= r; yy++) {
 			for(int xx = -r; xx <= r; xx++) {
 				ivec2 p = ipos + ivec2(xx, yy) * PATH_TRACE_TILE_SIZE;
@@ -80,15 +82,18 @@ void main()
 				float w = exp(-w_z) * w_n * (mesh_id_center == mesh_id_p ? 1.0 : 0.0);
 				
 				if(isnan(w)) continue;
+				w *= exp(-pow(length(vec2(xx,yy)), 2) / (pow(max(r,1)*.5, 2)));
 
 				sum_m_w += w;
 				moments += vec2(l, l * l) * w;
 				
-				w *= exp(-pow(length(vec2(xx,yy)), 2) / (pow(max(r,1)*.5, 2)));
 				sum_w += w;
 
 				direct.rgb += d_p.rgb * w;
 				indirect.rgb += i_p.rgb * w;
+
+				avg_luminance += l;
+				avg_luminance_w += 1;
 			}
 		}
 
@@ -99,10 +104,34 @@ void main()
 			direct.rgb /= sum_w;
 			indirect.rgb /= sum_w;
 		}
+
+		// /*TESTING firefly supression */
+		vec4 curr_direct = imageLoad(gbuffers[DIFFUSE_ILLUM_VAR_ADDR], ipos);
+		vec4 curr_indirect = imageLoad(gbuffers[SPECULAR_ILLUM_VAR_ADDR], ipos);
+
+		// if (alpha > .1) {
+			curr_direct.rgb = direct.rgb;
+			curr_indirect.rgb = indirect.rgb;
+		// }
+		// if (avg_luminance_w > 0) {
+		// 	avg_luminance /= avg_luminance_w;
+
+		// 	if (luminance(direct.rgb) > avg_luminance ) {
+		// 		curr_direct.rgb = direct.rgb;
+		// 	}
+
+		// 	if (luminance(indirect.rgb) > avg_luminance ) {
+		// 		curr_indirect.rgb = indirect.rgb;
+		// 	}
+		// }
 			
+
 		float variance_temporal = abs(moments.y - moments.x * moments.x);
-        imageStore(gbuffers[DIFFUSE_ILLUM_VAR_ADDR], ipos, vec4(direct.rgb, variance_temporal));
-        imageStore(gbuffers[SPECULAR_ILLUM_VAR_ADDR], ipos, vec4(indirect.rgb, variance_temporal));
+        imageStore(gbuffers[DIFFUSE_ILLUM_VAR_ADDR], ipos, vec4(curr_direct.rgb, variance_temporal));
+        imageStore(gbuffers[SPECULAR_ILLUM_VAR_ADDR], ipos, vec4(curr_indirect.rgb, variance_temporal));
+
+		
+		imageStore( gbuffers[VARIANCE_ADDR], ipos, vec4(variance_temporal));
 	}
 	else if (mesh_id_center == -1)
 	{
@@ -113,10 +142,12 @@ void main()
 		return;
 	}
 	else {
-		direct = imageLoad(gbuffers[DIFFUSE_ILLUM_VAR_ADDR], ipos);
-		indirect = imageLoad(gbuffers[SPECULAR_ILLUM_VAR_ADDR], ipos);
-		float variance_temporal = max(0.0, moments.y - moments.x * moments.x);
-        imageStore(gbuffers[DIFFUSE_ILLUM_VAR_ADDR], ipos, vec4(direct.rgb, variance_temporal));
-        imageStore(gbuffers[SPECULAR_ILLUM_VAR_ADDR], ipos, vec4(indirect.rgb, variance_temporal));
+		// direct = imageLoad(gbuffers[DIFFUSE_ILLUM_VAR_ADDR], ipos);
+		// indirect = imageLoad(gbuffers[SPECULAR_ILLUM_VAR_ADDR], ipos);
+		// float variance_temporal = max(0.0, moments.y - moments.x * moments.x);
+        // imageStore(gbuffers[DIFFUSE_ILLUM_VAR_ADDR], ipos, vec4(direct.rgb, variance_temporal));
+        // imageStore(gbuffers[SPECULAR_ILLUM_VAR_ADDR], ipos, vec4(indirect.rgb, variance_temporal));
+
+		// imageStore( gbuffers[VARIANCE_ADDR], ipos, vec4(variance_temporal));
     }
 }

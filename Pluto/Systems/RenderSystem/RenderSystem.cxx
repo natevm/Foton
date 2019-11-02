@@ -687,6 +687,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 					push_constants.camera_id = camera_entity.get_id();
 					push_constants.viewIndex = rp_idx;
 					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
+					push_constants.parameter1 = this->asvgf_gradient_influence;
 					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 					
 					command_buffer.pushConstants(asvgf_temporal_accumulation.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
@@ -746,6 +747,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 					
 					push_constants.parameter1 = asvgf_atrous_sigma;
 					for (int i = (2 * asvgf_atrous_iterations) - 1; i >= 0; i--) {
+					// for (int i = 0; i < (2 * asvgf_atrous_iterations); i++) {
 						push_constants.iteration = i;
 						command_buffer.pushConstants(asvgf_final_atrous.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
 						command_buffer.dispatch(groupX, groupY, groupZ);
@@ -4135,6 +4137,11 @@ void RenderSystem::set_asvgf_gradient_reconstruction_sigma(float sigma)
 	this->asvgf_gradient_reconstruction_sigma = sigma;
 }
 
+void RenderSystem::set_asvgf_gradient_influence(float influence)
+{
+	this->asvgf_gradient_influence = influence;
+}
+
 void RenderSystem::enable_asvgf_temporal_accumulation(bool enable)
 {
 	this->asvgf_temporal_accumulation_enabled = enable;
@@ -5111,6 +5118,7 @@ std::vector<std::vector<VisibleEntityInfo>> RenderSystem::get_visible_entities(u
 				visible_entity_maps[view_idx][i].distance = std::numeric_limits<float>::max();
 				visible_entity_maps[view_idx][i].visible = false;
 			} else {
+
 				std::array<glm::vec4, 6> planes;
 
 				/* Get projection planes for frustum/sphere intersection */

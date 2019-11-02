@@ -100,6 +100,7 @@ namespace Systems
             void enable_asvgf_atrous(bool enable);
             void set_asvgf_atrous_iterations(int iterations);
             void set_asvgf_atrous_sigma(float sigma);
+            void set_asvgf_gradient_influence(float influence);
             
             void enable_taa(bool enable);
             void enable_progressive_refinement(bool enable);
@@ -156,6 +157,7 @@ namespace Systems
             bool asvgf_atrous_enabled = true;
             float asvgf_atrous_sigma = 1.0;
             int asvgf_atrous_iterations = 1;
+            float asvgf_gradient_influence = 1.1;
 
             bool tone_mapping_enabled = true;
             bool progressive_refinement_enabled = false;

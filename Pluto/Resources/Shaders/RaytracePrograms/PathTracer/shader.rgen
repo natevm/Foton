@@ -7,6 +7,19 @@ layout(location = 0) rayPayloadNV HitInfo payload;
 #include "Pluto/Resources/Shaders/Common/ShaderCommon.hxx"
 #include "Pluto/Resources/Shaders/Common/Options.hxx"
 #include "Pluto/Resources/Shaders/Common/ShaderConstants.hxx"
+#include "Pluto/Resources/Shaders/Common/OffsetRay.hxx"
+
+vec3 Uncharted2Tonemap(vec3 x)
+{
+    x = max(x, vec3(0));
+	float A = 0.15;
+	float B = 0.50;
+	float C = 0.10;
+	float D = 0.20;
+	float E_ = 0.02;
+	float F = 0.30;
+	return max(vec3(0.0f), ((x*(A*x+C*B)+D*E_)/(x*(A*x+B)+D*F))-E_/F);
+}
 
 void unpack_gbuffer_data(in ivec2 tile, in ivec2 offset, out ivec2 ipos, out bool seed_found, out vec3 w_position, out float depth, out vec3 w_normal, 
     out int entity_id, out ivec2 pixel_seed, out int frame_seed, out vec3 albedo, out vec2 uv)
@@ -130,12 +143,14 @@ vec3 sample_direct_light(const in ivec2 pixel_seed, const in int frame_seed, con
 
         /* Compute visibility by tracing a shadow ray */
         {
+            vec3 w_p_off = offset_ray(w_p, w_n);
+            
             /* Trace a single shadow ray */
             uint rayFlags = gl_RayFlagsNoneNV;
             uint cullMask = 0xff;
             float tmax = INFINITY;
             payload.is_shadow_ray = true; 
-            traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, w_p, TMIN, w_i, tmax, 0); 
+            traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, w_p_off, TMIN, w_i, tmax, 0); 
             visibility = (payload.entity_id == light_entity_id) ? 1.0 : 0.0;
         }
 
@@ -186,9 +201,11 @@ vec3 sample_direct_light(const in ivec2 pixel_seed, const in int frame_seed, con
 				w = power_heuristic(1.f, bsdf_pdf, 1.f, light_pdf);
                 /* Compute visibility by tracing a shadow ray */
                 {
+                    vec3 w_p_off = offset_ray(w_p, w_n);
+
                     /* Trace a single shadow ray */
                     payload.is_shadow_ray = true; 
-                    traceNV(topLevelAS, /*gl_RayFlagsTerminateOnFirstHitNV*/gl_RayFlagsNoneNV, 0xff, 0, 0, 0, w_p, TMIN, w_i, TMAX, 0); // UPDATE TMAX TO BE LIGHT DIST
+                    traceNV(topLevelAS, /*gl_RayFlagsTerminateOnFirstHitNV*/gl_RayFlagsNoneNV, 0xff, 0, 0, 0, w_p_off, TMIN, w_i, TMAX, 0); // UPDATE TMAX TO BE LIGHT DIST
                     visibility = (payload.entity_id == light_entity_id) ? 1.0 : 0.0;
                 }
                 
@@ -211,7 +228,6 @@ void main()
     init_random(ivec2(gl_LaunchIDNV.xy), push.consts.frame, 0);
     float rand = random();
     
-    init_random(ivec2(gl_LaunchIDNV.xy), push.consts.frame, 0);
     int rand_curr = 0;//int(random(ivec2(gl_LaunchIDNV.xy), (push.consts.frame)) * PATH_TRACE_TILE_SIZE * PATH_TRACE_TILE_SIZE);
     ivec2 tile = ivec2(gl_LaunchIDNV.xy);
     ivec2 offset_curr = ivec2(rand_curr / PATH_TRACE_TILE_SIZE, rand_curr % PATH_TRACE_TILE_SIZE);
@@ -230,6 +246,12 @@ void main()
     bool gradient_seed_found;
     unpack_gbuffer_data(tile, offset_curr, pixel_coords, gradient_seed_found, first_position, first_dist, first_normal, first_entity_id, 
         pixel_seed, frame_seed, albedo, first_uv);
+
+
+    init_random(pixel_seed, frame_seed, 0);
+    
+
+    first_position += first_normal * .01; // bad precision in position g buffer... getting lots of self intersections...
 
     /* Next, Compute ray origin and direction */
     randomDimension = 0;
@@ -287,7 +309,7 @@ void main()
 
         /* If we hit the sky or a light, stop */
         if (entity_id == -1) { 
-            vec3 irradiance = (bounce == 0) ? albedo : get_environment_color(direction);
+            vec3 irradiance = (bounce == 0) ? albedo : get_environment_color(direction) * push.consts.environment_intensity;
             /* Include lighting from sky as direct lighting.  */
             if (bounce <= 1) {
                 direct_illumination += path_throughput * irradiance;
@@ -312,12 +334,14 @@ void main()
 
         /* If we hit a light, radiate */
         if ((entity.light_id >= 0) && (entity.light_id < max_lights)) {
-            color += path_throughput * light.color.rgb * light.intensity;
-            if (bounce == 0) {
-                direct_illumination = path_throughput * light.color.rgb * light.intensity;
+            /* Ignoring primary visibility hit, since it causes issues with temporal accumulation. 
+            Instead, emitting primary visibility in remodulation */
+            if (bounce != 0) {
+                color += path_throughput * light.color.rgb * light.intensity;
+                    // direct_illumination = path_throughput * light.color.rgb * light.intensity;
+                incoming_illumination += incoming_path_throughput * light.color.rgb * light.intensity;
+                glossy_illumination += glossy_path_throughput * light.color.rgb * light.intensity;
             }
-            incoming_illumination += incoming_path_throughput * light.color.rgb * light.intensity;
-            glossy_illumination += glossy_path_throughput * light.color.rgb * light.intensity;
             break;
         }
 
@@ -346,12 +370,21 @@ void main()
         path_throughput *= bsdf / pdf;
         /* for denoising, we factor out the diffuse and specular bsdfs for primary hits */
         if (bounce > 1) {
-            incoming_path_throughput *= dbsdf / pdf;
+            if (dpdf > EPSILON || (all(greaterThan(dbsdf, vec3(EPSILON))))) {
+                incoming_path_throughput *= dbsdf / dpdf;
+            } else {
+                incoming_path_throughput *= 0;
+            }
+            
             glossy_path_throughput *= bsdf / pdf;
         }
         else if (bounce == 1) {
-            // incoming_path_throughput *= dbsdf / dpdf;
-            glossy_path_throughput *= sbsdf / spdf; 
+            if (spdf > EPSILON || (all(greaterThan(sbsdf, vec3(EPSILON))))) {
+                // incoming_path_throughput *= dbsdf / dpdf;
+                glossy_path_throughput *= sbsdf / spdf; 
+            } else {
+                glossy_path_throughput *= 0;
+            }
         }
 
         color += path_throughput * direct_radiance;
@@ -365,7 +398,7 @@ void main()
             break;
         }
 
-        origin = w_p;
+        origin = offset_ray(w_p, w_z);
         direction = w_i;
 
         /* Trace a ray through the scene */
@@ -377,6 +410,12 @@ void main()
     vec3 final_color = color;
     vec3 final_direct_illumination = direct_illumination;
     vec4 demodulation = vec4(1.0);//vec4(luminance(albedo) + vec3(EPSILON), luminance(albedo) + (EPSILON));
+
+    // incoming_illumination = Uncharted2Tonemap(incoming_illumination.rgb * push.consts.exposure);
+    // incoming_illumination = incoming_illumination * (1.0f / Uncharted2Tonemap(vec3(11.2f)));
+
+    // glossy_illumination = Uncharted2Tonemap(glossy_illumination.rgb * push.consts.exposure);
+    // glossy_illumination = glossy_illumination * (1.0f / Uncharted2Tonemap(vec3(11.2f)));
 
     for (int yy = 0; yy < PATH_TRACE_TILE_SIZE; yy++){
         for (int xx = 0; xx < PATH_TRACE_TILE_SIZE; xx++) {
@@ -391,7 +430,7 @@ void main()
             imageStore(gbuffers[SPECULAR_ILLUM_VAR_ADDR], p, vec4(final_glossy_illumination, 0));
 
             // Seed/luminance
-            imageStore(gbuffers[SEED_LUMINANCE_ADDR], p, vec4(pixel_seed, frame_seed, luminance(final_color)));
+            imageStore(gbuffers[SEED_LUMINANCE_ADDR], p, vec4(pixel_seed, frame_seed, luminance(incoming_illumination)));
             
             /* for now, store an example random value. Testing to see if we're really getting blue noise...*/
             imageStore(gbuffers[DEBUG_ADDR_NOISE], p, vec4(rand));

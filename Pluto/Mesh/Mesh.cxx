@@ -1572,6 +1572,7 @@ Mesh* Mesh::CreateBox(std::string name, bool allow_edits, bool submit_immediatel
 	try {
 		generator::BoxMesh gen_mesh{{1, 1, 1}, {1, 1, 1}};
 		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1585,6 +1586,7 @@ Mesh* Mesh::CreateCappedCone(std::string name, bool allow_edits, bool submit_imm
 	try {
 		generator::CappedConeMesh gen_mesh{radius, height * .5};
 		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1598,6 +1600,7 @@ Mesh* Mesh::CreateCappedCylinder(std::string name, float radius, float size, int
 	try {		
 		generator::CappedCylinderMesh gen_mesh{radius, size, slices, segments, rings, start, sweep};
 		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1611,6 +1614,7 @@ Mesh* Mesh::CreateCappedTube(std::string name, bool allow_edits, bool submit_imm
 	try {
 		generator::CappedTubeMesh gen_mesh{};
 		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1624,6 +1628,7 @@ Mesh* Mesh::CreateCapsule(std::string name, float radius, float size, int slices
 	try {
 		generator::CapsuleMesh gen_mesh{radius, size, slices, segments, rings, start, sweep};
 		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1637,6 +1642,7 @@ Mesh* Mesh::CreateCone(std::string name, bool allow_edits, bool submit_immediate
 	try {
 		generator::ConeMesh gen_mesh{radius, height * .5};
 		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1650,6 +1656,7 @@ Mesh* Mesh::CreatePentagon(std::string name, bool allow_edits, bool submit_immed
 	try {
 		generator::ConvexPolygonMesh gen_mesh{};
 		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1663,6 +1670,7 @@ Mesh* Mesh::CreateCylinder(std::string name, bool allow_edits, bool submit_immed
 	try {
 		generator::CylinderMesh gen_mesh{};
 		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1676,6 +1684,7 @@ Mesh* Mesh::CreateDisk(std::string name, bool allow_edits, bool submit_immediate
 	try {
 		generator::DiskMesh gen_mesh{};
 		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1689,6 +1698,7 @@ Mesh* Mesh::CreateDodecahedron(std::string name, bool allow_edits, bool submit_i
 	try {
 		generator::DodecahedronMesh gen_mesh{};
 		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1702,6 +1712,7 @@ Mesh* Mesh::CreatePlane(std::string name, bool allow_edits, bool submit_immediat
 	try {
 		generator::PlaneMesh gen_mesh{{1, 1}, {1, 1}};
 		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1715,6 +1726,7 @@ Mesh* Mesh::CreateIcosahedron(std::string name, bool allow_edits, bool submit_im
 	try {
 		generator::IcosahedronMesh gen_mesh{};
 		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1728,6 +1740,7 @@ Mesh* Mesh::CreateIcosphere(std::string name, bool allow_edits, bool submit_imme
 	try {
 		generator::IcoSphereMesh gen_mesh{};
 		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1753,6 +1766,7 @@ Mesh* Mesh::CreateRoundedBox(std::string name, float radius, glm::vec3 size, int
 			radius, size, slices, segments
 		};
 		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1766,6 +1780,7 @@ Mesh* Mesh::CreateSphere(std::string name, float radius, int slices, int segment
 	try {
 		generator::SphereMesh gen_mesh{radius, slices, segments, slice_start, slice_sweep, segment_start, segment_sweep};
 		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1779,6 +1794,7 @@ Mesh* Mesh::CreateSphericalCone(std::string name, bool allow_edits, bool submit_
 	try {
 		generator::SphericalConeMesh gen_mesh{};
 		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1792,6 +1808,7 @@ Mesh* Mesh::CreateSphericalTriangle(std::string name, bool allow_edits, bool sub
 	try {
 		generator::SphericalTriangleMesh gen_mesh{};
 		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1805,6 +1822,7 @@ Mesh* Mesh::CreateSpring(std::string name, bool allow_edits, bool submit_immedia
 	try {
 		generator::SpringMesh gen_mesh{};
 		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1818,6 +1836,7 @@ Mesh* Mesh::CreateTeapotahedron(std::string name, uint32_t segments, bool allow_
 	try {
 		generator::TeapotMesh gen_mesh(segments);
 		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1831,6 +1850,7 @@ Mesh* Mesh::CreateTorus(std::string name, bool allow_edits, bool submit_immediat
 	try {
 		generator::TorusMesh gen_mesh{};
 		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1844,6 +1864,7 @@ Mesh* Mesh::CreateTorusKnot(std::string name, bool allow_edits, bool submit_imme
 	try {
 		generator::TorusKnotMesh gen_mesh{};
 		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1857,6 +1878,7 @@ Mesh* Mesh::CreateTriangle(std::string name, bool allow_edits, bool submit_immed
 	try {
 		generator::TriangleMesh gen_mesh{};
 		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1870,6 +1892,7 @@ Mesh* Mesh::CreateTube(std::string name, bool allow_edits, bool submit_immediate
 	try {
 		generator::TubeMesh gen_mesh{};
 		mesh->make_primitive(gen_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1920,6 +1943,7 @@ Mesh* Mesh::CreateTubeFromPolyline(std::string name, std::vector<glm::vec3> posi
 		CircleShape circle_shape(radius, segments);
 		ExtrudeMesh extrude_mesh(circle_shape, parametricPath);
 		mesh->make_primitive(extrude_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -1970,6 +1994,7 @@ Mesh* Mesh::CreateRoundedRectangleTubeFromPolyline(std::string name, std::vector
 		RoundedRectangleShape rounded_rectangle_shape(radius, {size_x, size_y}, 4, {1, 1});
 		ExtrudeMesh extrude_mesh(rounded_rectangle_shape, parametricPath);
 		mesh->make_primitive(extrude_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -2019,6 +2044,7 @@ Mesh* Mesh::CreateRectangleTubeFromPolyline(std::string name, std::vector<glm::v
 		RectangleShape rectangle_shape({size_x, size_y}, {1, 1});
 		ExtrudeMesh extrude_mesh(rectangle_shape, parametricPath);
 		mesh->make_primitive(extrude_mesh, allow_edits, false, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -2032,6 +2058,7 @@ Mesh* Mesh::CreateFromOBJ(std::string name, std::string objPath, bool allow_edit
 	auto mesh = StaticFactory::Create(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		mesh->load_obj(objPath, allow_edits, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -2044,6 +2071,7 @@ Mesh* Mesh::CreateFromSTL(std::string name, std::string stlPath, bool allow_edit
 	auto mesh = StaticFactory::Create(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		mesh->load_stl(stlPath, allow_edits, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -2056,6 +2084,7 @@ Mesh* Mesh::CreateFromGLB(std::string name, std::string glbPath, bool allow_edit
 	auto mesh = StaticFactory::Create(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		mesh->load_glb(glbPath, allow_edits, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -2068,6 +2097,7 @@ Mesh* Mesh::CreateFromTetgen(std::string name, std::string path, bool allow_edit
 	auto mesh = StaticFactory::Create(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		mesh->load_tetgen(path, allow_edits, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
@@ -2088,6 +2118,7 @@ Mesh* Mesh::CreateFromRaw (
 	auto mesh = StaticFactory::Create(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);
 	try {
 		mesh->load_raw(positions, normals, colors, texcoords, indices, allow_edits, submit_immediately);
+		Dirty = true;
 		return mesh;
 	} catch (...) {
 		StaticFactory::DeleteIfExists(creation_mutex, name, "Mesh", lookupTable, meshes, MAX_MESHES);

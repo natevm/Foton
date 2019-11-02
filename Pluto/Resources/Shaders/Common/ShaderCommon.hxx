@@ -238,10 +238,10 @@ vec3 get_environment_color(vec3 dir) {
 			samplerCube(texture_cubes[push.consts.environment_id], samplers[tex.sampler_id]), 
 			adjusted, lodc).rgb;
 
-		return mix(a, b, lod - lodf) * push.consts.environment_intensity;
+		return mix(a, b, lod - lodf);
 	}
 
-    return getSky(adjusted) * push.consts.environment_intensity;
+    return getSky(adjusted);
 
 
 	// vec3 up = vec3(0.0, 1.0, 0.0);

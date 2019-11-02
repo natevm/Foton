@@ -14,6 +14,18 @@
 
 layout (local_size_x = 16, local_size_y = 16) in;
 
+vec3 Uncharted2Tonemap(vec3 x)
+{
+    x = max(x, vec3(0));
+	float A = 0.15;
+	float B = 0.50;
+	float C = 0.10;
+	float D = 0.20;
+	float E_ = 0.02;
+	float F = 0.30;
+	return max(vec3(0.0f), ((x*(A*x+C*B)+D*E_)/(x*(A*x+B)+D*F))-E_/F);
+}
+
 void main() {
     init_random(ivec2(gl_GlobalInvocationID.xy), push.consts.frame, 0);
     const ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
@@ -43,6 +55,8 @@ void main() {
 
     if (entity_id == -1) {
         color = get_environment_color(direction);
+        // color = Uncharted2Tonemap(color.rgb * push.consts.exposure);
+        // color = color * (1.0f / Uncharted2Tonemap(vec3(11.2f)));
     }
     else {
         // Position G Buffer 
@@ -80,6 +94,10 @@ void main() {
         vec3 indirect = imageLoad(gbuffers[DIFFUSE_ILLUM_VAR_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
         vec3 glossy = imageLoad(gbuffers[SPECULAR_ILLUM_VAR_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
         color = indirect * mat_estimator * diffuse_color + glossy * specular_estimator;
+
+        if ((entity.light_id >= 0) && (entity.light_id < max_lights)) {
+            color += light.color.rgb * light.intensity;
+        }
     }
 
     imageStore(render_image, ivec2(gl_GlobalInvocationID.xy), vec4(color, 1.0));

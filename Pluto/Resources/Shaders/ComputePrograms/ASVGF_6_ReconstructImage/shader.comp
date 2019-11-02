@@ -109,20 +109,32 @@ void main() {
                 float l_q = luminance(q_direct_var.rgb) + luminance(q_indirect_var.rgb);
                 float wp = min(exp(-(dist2)/p_sigma), 1.0);
                 float wn = pow(max(0.0, dot(p_norm_id_data.xyz, q_norm_id_data.xyz)), n_sigma);
+
+
+                // float gvl = 0.001;
+                // for (int y0 = -GAUSS_RADIUS; y0 <= GAUSS_RADIUS; y0++) {
+                //     for (int x0 = -GAUSS_RADIUS; x0 <= GAUSS_RADIUS; x0++) {
+                //         gvl += gaussian_kernel[yy + GAUSS_RADIUS][xx + GAUSS_RADIUS] * imageLoad(gbuffers[d_addr_0], ivec2(st) + ivec2(x0, y0)).a;
+                //     }
+                // }
+                // float wl = min(1.0, exp(-abs(l_p - l_q) / (l_sigma * sqrt(gvl) + EPSILON)));
+
+
                 // float wl = clamp(abs(l_q - l_p) / (l_sigma + 1e-10), 0.0, 1.0); 
+                float wl = clamp(exp(-abs(l_p - l_q) / (l_sigma + 1e-10)), 0.0, 1.0); 
                 if (isnan(l_q)) continue;
                 if (isnan(l_p)) continue;
                 if (isnan(l_sigma)) continue;
                 // float wl = abs(l_q - l_p) / (l_sigma + 1e-10); 
                 // float wl = ((xx != 0) && (yy != 0)) ? max(1.0 - l_sigma, 0.0) : 1;
-                float wl = 1.0;
+                // float wl = 1.0;
 
                 float w = wp * wn *  wl;
                 float weight = h[yy + RADIUS][xx + RADIUS] * w;
 
                 sum_direct += weight * q_direct_var.rgb;
                 sum_indirect += weight * q_indirect_var.rgb;
-                sum_var += weight * q_direct_var.w;
+                sum_var += weight * weight * q_direct_var.w;
                 weights += weight;
             }
         }

@@ -153,7 +153,9 @@ void Transform::CleanUp()
 
 /* Static Factory Implementations */
 Transform* Transform::Create(std::string name) {
-	return StaticFactory::Create(creation_mutex, name, "Transform", lookupTable, transforms, MAX_TRANSFORMS);
+	auto t = StaticFactory::Create(creation_mutex, name, "Transform", lookupTable, transforms, MAX_TRANSFORMS);
+	Dirty = true;
+	return t;
 }
 
 Transform* Transform::Get(std::string name) {

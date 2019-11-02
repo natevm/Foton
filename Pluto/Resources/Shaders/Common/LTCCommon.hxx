@@ -730,7 +730,7 @@ vec3 sampleOffsetDirections[20] = vec3[]
    vec3( 0,  1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0,  1, -1)
 );   
 
-LTCContribution rectangleLightSampleLTC(
+LTCContribution rectangleLightSampleLTC (
     const in int frame_id,
     const in EntityStruct light_entity, 
     const in LightStruct light, 

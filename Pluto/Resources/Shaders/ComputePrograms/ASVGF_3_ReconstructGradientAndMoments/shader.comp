@@ -16,7 +16,6 @@ const float gaussian_kernel[3][3] = {
 	{ 1.0 / 16.0, 1.0 / 8.0, 1.0 / 16.0 }
 };
 
-#define GRADIENT_DOWNSAMPLE (1.0/float(GRADIENT_TILE_SIZE * PATH_TRACE_TILE_SIZE))
 
 // const float gaussian_kernel[3][3] = {
 // 	{ 1.0 / 16.0, 1.0 / 8.0, 1.0 / 16.0 },
@@ -46,7 +45,7 @@ const float gaussian_kernel[3][3] = {
 
 void main() {
     // Stride of the gradient tile
-    const int stride = GRADIENT_TILE_SIZE * PATH_TRACE_TILE_SIZE;
+    const int stride = GRADIENT_TILE_SIZE;
     if (int(gl_GlobalInvocationID.x * stride) >= push.consts.width) return;
     if (int(gl_GlobalInvocationID.y * stride) >= push.consts.height) return;
 
@@ -90,6 +89,8 @@ void main() {
     float sum_weight      = 0.0;
     for (int y = -RADIUS; y <= RADIUS; y++) {
         for (int x = -RADIUS; x <= RADIUS; x++) {
+            /* EXPERIMENTAL */
+            // if ((x == 0) && (y == 0)) continue;
             // The tap coordinate
             ivec2 p = q + (ivec2(x,y) * curr_step_width * stride); 
     

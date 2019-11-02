@@ -201,8 +201,8 @@ vec3 perturbNormal(inout MaterialStruct material, vec3 w_position, vec3 w_normal
 }
 
 void get_origin_and_direction(in ivec2 pixel_seed, int frame_seed, in mat4 projinv, in mat4 viewinv, in ivec2 pixel_coords, in ivec2 frame_size, out vec3 origin, out vec3 direction) {
-    vec2 pixel_center = vec2(pixel_coords.xy);// + vec2(random(pixel_seed, frame_seed), random(pixel_seed, frame_seed)) * .5;
-    if (is_progressive_refinement_enabled()) pixel_center += vec2(random(), random()) * .5 * PATH_TRACE_TILE_SIZE;
+    vec2 pixel_center = vec2(pixel_coords.xy) + vec2(random(), random()) * .5 * PATH_TRACE_TILE_SIZE;
+    // if (is_progressive_refinement_enabled()) pixel_center += vec2(random(), random()) * .5 * PATH_TRACE_TILE_SIZE;
 	const vec2 in_uv = pixel_center/vec2(frame_size);
 	vec2 d = in_uv * 2.0 - 1.0; d.y *= -1.0;
     vec4 t = (projinv * vec4(d.x, d.y, 1, 1));
@@ -247,7 +247,6 @@ void unpack_material_struct(
     material.base_color = getAlbedo(material, vec4(0.0), uv, m_position);
     float mask = getAlphaMask(material, uv, m_position);
     material.base_color.a = (mask < material.base_color.a) ? mask : material.base_color.a;
-
 }
 
 void unpack_light_struct(

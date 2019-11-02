@@ -10,7 +10,7 @@ layout (local_size_x = 16, local_size_y = 16) in;
 
 void main() {
     // Stride of the gradient tile
-    const int stride = GRADIENT_TILE_SIZE * PATH_TRACE_TILE_SIZE;
+    const int stride = GRADIENT_TILE_SIZE;
     if (int(gl_GlobalInvocationID.x * stride) >= push.consts.width) return;
     if (int(gl_GlobalInvocationID.y * stride) >= push.consts.height) return;
 
@@ -28,6 +28,7 @@ void main() {
     iv.x = (abs(iv.x) < MOTION_VECTOR_MIN) ? 0 : iv.x;
     iv.y = (abs(iv.y) < MOTION_VECTOR_MIN) ? 0 : iv.y;
     ivec2 ipos_prev = ivec2(ipos + (iv + MOTION_VECTOR_OFFSET));
+    // ivec2 ipos_prev = ivec2(ipos - (iv + MOTION_VECTOR_OFFSET));
     
     // Load previous
     vec4 seed_data = imageLoad(gbuffers[SEED_LUMINANCE_ADDR_PREV], ipos_prev);
@@ -44,12 +45,13 @@ void main() {
     vec4 target_normal_id = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
     vec4 target_albedo = imageLoad(gbuffers[ALBEDO_ADDR], ipos);
     // accept = accept && ( abs(position_depth.w - target_depth_data.w) < .1 ); // This seems to mess up large reflective surfaces
-    // accept = accept && (int(normal_id.w) == int(normal_id.w));
-    // accept = accept && (distance(albedo,  target_albedo) < ALBEDO_MAX);
+    accept = accept && ( distance(position_depth.xyz,  target_depth_data.xyz) < .01 ); 
+    accept = accept && (int(normal_id.w) == int(target_normal_id.w));
+    accept = accept && (distance(albedo,  target_albedo) < ALBEDO_MAX);
     bvec2 a = greaterThan(ipos_prev, vec2(push.consts.width-1, push.consts.height-1));
     bvec2 b = lessThan(ipos_prev, vec2(0.0, 0.0));
     accept = accept && (!any(bvec2(any(a), any(b))));
-    accept = accept && (dot(normal_id.rgb, target_normal_id.rgb) > 0.5); // This will not change with respect to shading, so we can use it.
+    accept = accept && (dot(normal_id.rgb, target_normal_id.rgb) > 0.9); // This will not change with respect to shading, so we can use it.
 
     // Store reprojected seed and gbuffer data.
     // Note, reprojecting gbuffer data gives us some control on what causes 

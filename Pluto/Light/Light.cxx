@@ -502,7 +502,9 @@ void Light::CleanUp()
 
 /* Static Factory Implementations */
 Light* Light::Create(std::string name) {
-    return StaticFactory::Create(creation_mutex, name, "Light", lookupTable, lights, MAX_LIGHTS);
+    auto l = StaticFactory::Create(creation_mutex, name, "Light", lookupTable, lights, MAX_LIGHTS);
+    Dirty = true;
+    return l;
 }
 
 Light* Light::CreateTemperature(std::string name, float kelvin, float intensity) {

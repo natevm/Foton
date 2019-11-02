@@ -73,6 +73,8 @@ layout(std430, push_constant) uniform PushConstants {
 #define SVGF_TAA_HISTORY_6_ADDR 25
 #define SVGF_TAA_HISTORY_7_ADDR 32
 #define SVGF_TAA_HISTORY_8_ADDR 33
+#define SVGF_TAA_HISTORY_9_ADDR 37
+#define SVGF_TAA_HISTORY_10_ADDR 38
 #define TAA_HISTORY_1_ADDR 20
 #define TAA_HISTORY_2_ADDR 21
 #define TEMPORAL_GRADIENT_ADDR 26

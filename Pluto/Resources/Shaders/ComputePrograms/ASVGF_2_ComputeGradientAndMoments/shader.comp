@@ -29,14 +29,20 @@
 #include "Pluto/Resources/Shaders/Common/Descriptors.hxx"
 #include "Pluto/Resources/Shaders/Common/ShaderConstants.hxx"
 #include "Pluto/Resources/Shaders/Common/Random.hxx"
+#include "Pluto/Resources/Shaders/Common/ShaderCommon.hxx"
 
 layout (local_size_x = 16, local_size_y = 16) in;
 
 void main() {
     // Stride of the gradient tile
-    const int stride = GRADIENT_TILE_SIZE * PATH_TRACE_TILE_SIZE;
+    const int stride = GRADIENT_TILE_SIZE;
     if (int(gl_GlobalInvocationID.x * stride) >= push.consts.width) return;
     if (int(gl_GlobalInvocationID.y * stride) >= push.consts.height) return;
+
+    // TESTING
+    // const int curr_direct_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_1_ADDR : SVGF_TAA_HISTORY_2_ADDR;
+    // const int next_direct_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_2_ADDR : SVGF_TAA_HISTORY_1_ADDR;
+
 
     // Compute random offset within tile
     init_random(ivec2(gl_GlobalInvocationID.xy), push.consts.frame, 0);
@@ -52,17 +58,25 @@ void main() {
     iv.x = (abs(iv.x) < MOTION_VECTOR_MIN) ? 0 : iv.x;
     iv.y = (abs(iv.y) < MOTION_VECTOR_MIN) ? 0 : iv.y;
     ivec2 ipos_prev = ivec2(ipos + (iv + MOTION_VECTOR_OFFSET));
+    // ivec2 ipos_prev = ivec2(ipos - (iv + MOTION_VECTOR_OFFSET));
 
     // Detect if the current pixel was rendered as a gradient sample
     // Note: A pixel is a reprojected seed if all seed values match
     vec4 curr_seed_luminance = imageLoad(gbuffers[SEED_LUMINANCE_ADDR], ipos);
     vec4 prev_seed_luminance = imageLoad(gbuffers[SEED_LUMINANCE_ADDR_PREV], ipos_prev);
-    bool is_reproj_grad = all(equal(prev_seed_luminance.xyz, curr_seed_luminance.xyz));// && (current_pixel_new_albedo_gradmarker.w == float(-2));
-    
+    vec4 prev_norm_id = imageLoad(gbuffers[NORMAL_ID_ADDR_PREV], ipos);
+    vec4 curr_norm_id = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos_prev);
+    bool is_reproj_grad = all(equal(prev_seed_luminance.xyz, curr_seed_luminance.xyz)) && (int(prev_norm_id.w) == int(curr_norm_id.w));
+
+    // TESTING    
+    // float temporal_luminance = luminance(imageLoad(gbuffers[curr_direct_hist_addr], ipos).rgb);
+
+
     // Compute the temporal gradient
     float l_prev = isnan(prev_seed_luminance.w) ? 0.0 : clamp(prev_seed_luminance.w, 0, 10);
     float l_curr = isnan(curr_seed_luminance.w) ? 0.0 : clamp(curr_seed_luminance.w, 0, 10);
     float temporal_gradient = (is_reproj_grad) ? abs(l_curr - l_prev) : 0.0;
+    // float temporal_gradient = (is_reproj_grad) ? abs(l_curr - temporal_luminance) : 0.0;
 
     // Compute maximum luminance
     float max_luminance = max(l_curr, l_prev);

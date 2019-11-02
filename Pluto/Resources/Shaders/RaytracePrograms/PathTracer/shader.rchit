@@ -9,6 +9,7 @@
 layout(location = 0) rayPayloadInNV HitInfo payload;
 
 #include "Pluto/Resources/Shaders/Common/ShaderCommon.hxx"
+#include "Pluto/Resources/Shaders/Common/OffsetRay.hxx"
 
 hitAttributeNV vec2 bary;
 
@@ -80,11 +81,14 @@ void main() {
 	// payload.C = C;
 	payload.m_n = N;
 	payload.m_p = P.xyz;
-	payload.w_n = normalize(transpose(mat3(gl_WorldToObjectNV)) * N);
-	payload.w_p = (gl_ObjectToWorldNV * P).xyz;
+	payload.m_p = offset_ray(P.xyz, N);
+	
+	payload.w_n = normalize(transpose(mat3(gl_WorldToObjectNV)) * payload.m_n);
+	payload.w_p = (gl_ObjectToWorldNV * vec4(payload.m_p, 1.0)).xyz;
 	payload.entity_id = gl_InstanceID;
 	payload.distance = gl_RayTmaxNV;
 	payload.backface = dot(N, -gl_ObjectRayDirectionNV) < 0.0;
+
 }
 
 // void main() {

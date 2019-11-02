@@ -227,7 +227,9 @@ void Material::CleanUp()
 
 /* Static Factory Implementations */
 Material* Material::Create(std::string name) {
-	return StaticFactory::Create(creation_mutex, name, "Material", lookupTable, materials, MAX_MATERIALS);
+	auto mat = StaticFactory::Create(creation_mutex, name, "Material", lookupTable, materials, MAX_MATERIALS);
+	Dirty = true;
+	return mat;
 }
 
 Material* Material::Get(std::string name) {
