@@ -193,11 +193,11 @@ add_subdirectory(external/pbrt-parser EXCLUDE_FROM_ALL)
 set_property(TARGET pbrtParser_static PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 # swig
-find_package(SWIG 3.0.8)
+find_package(SWIG 4.0.1)
 if (UNIX AND NOT APPLE)
   if (NOT SWIG_FOUND)
-    message(FATAL_ERROR "SWIG 3 is missing! "
-      "You probably dont have swig 3 installed on your system. It is possible to recover "
+    message(FATAL_ERROR "SWIG 4 is missing! "
+      "You probably dont have swig 4 installed on your system. It is possible to recover "
       "by running \"sudo apt install swig\" (or equivalent on your unix distro)")
   endif()  
 endif()
@@ -213,19 +213,21 @@ endif(APPLE)
 include_directories(${Vulkan_INCLUDE_DIRS})
 
 # glslc compiler
-if (UNIX AND NOT APPLE)
-  find_program(GLSLC glslc)
-  if (NOT DEFINED GLSLC) 
-    message(FATAL_ERROR "the glslc compiler is missing! "
-        "You probably dont have glslc on your system path. It is possible to recover "
-        "by running \n \"wget -qO - http://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -\""
-        "\n \"sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.1.97-bionic.list http://packages.lunarg.com/vulkan/1.1.97/lunarg-vulkan-1.1.97-bionic.list\""
-        "\n \"sudo apt update\""
-        "\n \"sudo apt install lunarg-vulkan-sdk shaderc\""
-        "\n\n OR alternatively download the vulkan sdk tarball from https://vulkan.lunarg.com/sdk/home#linux and add glslc to your system path."
-        )
-  endif()
-endif()
+find_program(GLSLC glslc PATHS ${VULKAN_SDK}/bin )
+find_program(SPIRV_OPT spirv-opt PATHS ${VULKAN_SDK}/bin )
+
+# if (UNIX AND NOT APPLE)
+#   if (NOT DEFINED GLSLC) 
+#     message(FATAL_ERROR "the glslc compiler is missing! "
+#         "You probably dont have glslc on your system path. It is possible to recover "
+#         "by running \n \"wget -qO - http://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -\""
+#         "\n \"sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.1.97-bionic.list http://packages.lunarg.com/vulkan/1.1.97/lunarg-vulkan-1.1.97-bionic.list\""
+#         "\n \"sudo apt update\""
+#         "\n \"sudo apt install lunarg-vulkan-sdk shaderc\""
+#         "\n\n OR alternatively download the vulkan sdk tarball from https://vulkan.lunarg.com/sdk/home#linux and add glslc to your system path."
+#         )
+#   endif()
+# endif()
 
 
 # zeromq
@@ -237,11 +239,11 @@ else()
 endif(${ZMQ_FOUND})
 
 # python
-find_package(Python3 3.6 COMPONENTS Development REQUIRED)
+find_package(Python3 3.8 COMPONENTS Development REQUIRED)
 if (UNIX AND NOT APPLE)
   if (NOT Python3_FOUND)
     message(FATAL_ERROR "Python 3 development libraries missing!"
-      "You probably dont have python 3.6 or later development libraries installed on your system. It is possible to recover "
+      "You probably dont have python 3.8 or later development libraries installed on your system. It is possible to recover "
       "by running \"sudo apt install python3-dev\" (or equivalent on your unix distro)")
   endif()  
 endif()

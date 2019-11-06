@@ -148,8 +148,6 @@ endif()
 # │  Shaders                                                         │
 # └──────────────────────────────────────────────────────────────────┘
 
-find_program(GLSLC glslc)
-find_program(SPIRV_OPT spirv-opt)
 # set(GLSLC_CONFIG ${PROJECT_SOURCE_DIR}/external/vulkan/glsl.config)
 set(GLSLC_OPTIMIZATION -O)
 # set(SPIRV_OPTIMIZATION ${SPIRV_OPTIMIZATION} --loop-fission)

@@ -160,9 +160,7 @@ namespace Foton {
         /* All systems must be stopped before we can cleanup (Causes DeviceLost otherwise) */
         Foton::CleanUp();
         
-        std::cout<<"Shutting down Foton"<<std::endl;
-        
-        Py_Finalize();
+        std::cout<<"Shutting down Foton"<<std::endl;        
     }
 
     void CleanUp()
