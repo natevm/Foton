@@ -37,7 +37,6 @@ Light::Light(std::string name, uint32_t id)
     this->id = id;
     this->light_struct.coneAngle = 0.0;
     this->light_struct.coneSoftness = 0.5;
-    this->light_struct.type = 1;
     this->light_struct.ambient = glm::vec4(1.0, 1.0, 1.0, 1.0);
     this->light_struct.color = glm::vec4(1.0, 1.0, 1.0, 1.0);
     this->light_struct.intensity = 1.0;
@@ -105,11 +104,11 @@ void Light::set_intensity(float intensity)
 void Light::set_double_sided(bool double_sided)
 {
     if (double_sided) {
-        light_struct.flags |= (1 << 0);
+        light_struct.flags |= LIGHT_FLAGS_DOUBLE_SIDED;
     }
     else
     {
-        light_struct.flags &= (~(1 << 0));
+        light_struct.flags &= (~LIGHT_FLAGS_DOUBLE_SIDED);
     }
     mark_dirty();
 }
@@ -117,22 +116,22 @@ void Light::set_double_sided(bool double_sided)
 void Light::show_end_caps(bool show_end_caps)
 {
     if (show_end_caps) {
-        light_struct.flags |= (1 << 1);
+        light_struct.flags |= LIGHT_FLAGS_SHOW_END_CAPS;
     }
     else
     {
-        light_struct.flags &= (~(1 << 1));
+        light_struct.flags &= (~LIGHT_FLAGS_SHOW_END_CAPS);
     }
     mark_dirty();
 }
 
 void Light::disable(bool disabled) {
     if (disabled) {
-        light_struct.flags |= (1 << 4);
+        light_struct.flags |= LIGHT_FLAGS_DISABLED;
     }
     else
     {
-        light_struct.flags &= (~(1 << 4));
+        light_struct.flags &= (~LIGHT_FLAGS_DISABLED);
     }
     mark_dirty();
 }
@@ -152,18 +151,18 @@ bool Light::should_cast_dynamic_shadows()
 void Light::cast_shadows(bool enable_cast_shadows)
 {
     if (enable_cast_shadows) {
-        light_struct.flags |= (1 << 2);
+        light_struct.flags |= LIGHT_FLAGS_CAST_SHADOWS;
     }
     else
     {
-        light_struct.flags &= (~(1 << 2));
+        light_struct.flags &= (~LIGHT_FLAGS_CAST_SHADOWS);
     }
     mark_dirty();
 }
 
 bool Light::should_cast_shadows()
 {
-    if ((light_struct.flags & (1 << 2)) != 0)
+    if ((light_struct.flags & LIGHT_FLAGS_CAST_SHADOWS) != 0)
         return true;
     return false;
 }
@@ -172,11 +171,11 @@ void Light::enable_vsm(bool enabled) {
     enableVSM = enabled;
 
     if (enabled) {
-        light_struct.flags |= (1 << 3);
+        light_struct.flags |= LIGHT_FLAGS_USE_VSM;
     }
     else
     {
-        light_struct.flags &= (~(1 << 3));
+        light_struct.flags &= (~LIGHT_FLAGS_USE_VSM);
     }
     mark_dirty();
 }
@@ -199,31 +198,51 @@ void Light::set_cone_softness(float softness)
 
 void Light::use_point()
 {
-    light_struct.type = 0;
+    light_struct.flags &= (~LIGHT_FLAGS_SPHERE);
+    light_struct.flags &= (~LIGHT_FLAGS_ROD);
+    light_struct.flags &= (~LIGHT_FLAGS_DISK);
+    light_struct.flags &= (~LIGHT_FLAGS_PLANE);
+    light_struct.flags |= LIGHT_FLAGS_POINT;
     mark_dirty();
 }
 
 void Light::use_plane()
 {
-    light_struct.type = 1;
+    light_struct.flags &= (~LIGHT_FLAGS_SPHERE);
+    light_struct.flags &= (~LIGHT_FLAGS_ROD);
+    light_struct.flags &= (~LIGHT_FLAGS_DISK);
+    light_struct.flags &= (~LIGHT_FLAGS_POINT);
+    light_struct.flags |= LIGHT_FLAGS_PLANE;
     mark_dirty();
 }
 
 void Light::use_disk()
 {
-    light_struct.type = 2;
+    light_struct.flags &= (~LIGHT_FLAGS_SPHERE);
+    light_struct.flags &= (~LIGHT_FLAGS_ROD);
+    light_struct.flags &= (~LIGHT_FLAGS_POINT);
+    light_struct.flags &= (~LIGHT_FLAGS_PLANE);
+    light_struct.flags |= LIGHT_FLAGS_DISK;
     mark_dirty();
 }
 
 void Light::use_rod()
 {
-    light_struct.type = 3;
+    light_struct.flags &= (~LIGHT_FLAGS_SPHERE);
+    light_struct.flags &= (~LIGHT_FLAGS_POINT);
+    light_struct.flags &= (~LIGHT_FLAGS_DISK);
+    light_struct.flags &= (~LIGHT_FLAGS_PLANE);
+    light_struct.flags |= LIGHT_FLAGS_ROD;
     mark_dirty();
 }
 
 void Light::use_sphere()
 {
-    light_struct.type = 4;
+    light_struct.flags &= (~LIGHT_FLAGS_POINT);
+    light_struct.flags &= (~LIGHT_FLAGS_ROD);
+    light_struct.flags &= (~LIGHT_FLAGS_DISK);
+    light_struct.flags &= (~LIGHT_FLAGS_PLANE);
+    light_struct.flags |= LIGHT_FLAGS_SPHERE;
     mark_dirty();
 }
 

@@ -8,12 +8,6 @@
 #define EPSILON 0.001
 #define INFINITY 1000000.
 
-#define LIGHT_TYPE_POINT 0
-#define LIGHT_TYPE_RECTANGLE 1
-#define LIGHT_TYPE_DISK 2
-#define LIGHT_TYPE_ROD 3
-#define LIGHT_TYPE_SPHERE 4
-
 // #define USE_MIS
 #define MAX_BOUNCES 5
 

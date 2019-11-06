@@ -83,6 +83,10 @@ bool PythonSystem::start()
             std::string connectionFile = Options::GetConnectionFile();
             argv[2] = GetWC(connectionFile.c_str());
             PySys_SetArgv(3, argv.data());
+            #ifdef _WIN32
+            // workaround for python38...
+            PyRun_SimpleString("import pywintypes");
+            #endif
             PyRun_SimpleString("import sys");
             PyRun_SimpleString("import os");
             // PyRun_SimpleString("import importlib");
@@ -113,6 +117,10 @@ bool PythonSystem::start()
         {
             PyRun_SimpleString("import sys");
             PyRun_SimpleString("import os");
+            #ifdef _WIN32
+            // workaround for python38...
+            PyRun_SimpleString("import pywintypes");
+            #endif
             // PyRun_SimpleString("import importlib");
             
             PyRun_SimpleString(std::string(std::string("sys.path.insert(0, r\"") + executable_path + std::string("\")")).c_str());

@@ -127,19 +127,19 @@ vec3 sample_direct_light(const in ivec2 pixel_seed, const in int frame_seed, con
         float light_visibility = 1.;
         vec3 Li = vec3(0);   
         float dist = 0;
-        if (light.type == LIGHT_TYPE_POINT) {
+        if ((light.flags & LIGHT_FLAGS_POINT) != 0) {
             Li = sphereLightSample(pixel_seed, frame_seed, light_entity, light, light_transform, w_p, w_n_f, w_i, light_pdf, dist);
         }
-        else if( light.type == LIGHT_TYPE_RECTANGLE ) {
+        else if ((light.flags & LIGHT_FLAGS_PLANE) != 0) {
             Li = rectangleLightSample(pixel_seed, frame_seed, light_entity, light, light_transform, w_p, w_n_f, w_i, light_pdf);
         }
-        else if (light.type == LIGHT_TYPE_DISK) {
+        else if ((light.flags & LIGHT_FLAGS_DISK) != 0) {
             Li = sphereLightSample(pixel_seed, frame_seed, light_entity, light, light_transform, w_p, w_n_f, w_i, light_pdf, dist);
         }
-        else if (light.type == LIGHT_TYPE_ROD) {
+        else if ((light.flags & LIGHT_FLAGS_ROD) != 0) {
             Li = sphereLightSample(pixel_seed, frame_seed, light_entity, light, light_transform, w_p, w_n_f, w_i, light_pdf, dist);
         }
-        else if( light.type == LIGHT_TYPE_SPHERE ) {
+        else if ((light.flags & LIGHT_FLAGS_SPHERE) != 0) {
             Li = sphereLightSample(pixel_seed, frame_seed, light_entity, light, light_transform, w_p, w_n_f, w_i, light_pdf, dist);
         }
 
@@ -190,19 +190,19 @@ vec3 sample_direct_light(const in ivec2 pixel_seed, const in int frame_seed, con
 		if (bsdf_pdf >= EPSILON) {
 			float light_pdf; // = quad_light_pdf(light, light_pos, w_p, w_i);
             vec3 Li;
-            if (light.type == LIGHT_TYPE_POINT) {
+            if ((light.flags & LIGHT_FLAGS_POINT) != 0) {
                 light_pdf = sphereLightPDF(light_entity, light, light_transform, w_p, w_n_f);
             }
-            else if( light.type == LIGHT_TYPE_RECTANGLE ) {
+            else if ((light.flags & LIGHT_FLAGS_PLANE) != 0) {
                 light_pdf = rectangleLightPDF(light_entity, light, light_transform, w_p, w_n_f);
             }
-            else if (light.type == LIGHT_TYPE_DISK) {
+            else if ((light.flags & LIGHT_FLAGS_DISK) != 0) {
                 light_pdf = sphereLightPDF(light_entity, light, light_transform, w_p, w_n_f);
             }
-            else if (light.type == LIGHT_TYPE_ROD) {
+            else if ((light.flags & LIGHT_FLAGS_ROD) != 0) {
                 light_pdf = sphereLightPDF(light_entity, light, light_transform, w_p, w_n_f);
             }
-            else if( light.type == LIGHT_TYPE_SPHERE ) {
+            else if ((light.flags & LIGHT_FLAGS_SPHERE) != 0) {
                 light_pdf = sphereLightPDF(light_entity, light, light_transform, w_p, w_n_f);
             }
             Li = light.color.rgb * light.intensity;
@@ -297,7 +297,7 @@ vec3 sample_direct_light_ltc(const in ivec2 pixel_seed, const in int frame_seed,
     float dfn = dot(normalize(w_light_forward), w_n);
 
     /* Rectangle light */
-    if (light.type == 1)
+    if ((light.flags & LIGHT_FLAGS_PLANE) != 0)
     {
         /* Verify the area light isn't degenerate */
         // if (distance(w_light_right, w_light_forward) < .01) continue;
@@ -332,7 +332,7 @@ vec3 sample_direct_light_ltc(const in ivec2 pixel_seed, const in int frame_seed,
     }
 
     /* Disk Light */
-    else if (light.type == 2)
+    else if ((light.flags & LIGHT_FLAGS_DISK) != 0)
     {
         /* Verify the area light isn't degenerate */
         // if (distance(w_light_right, w_light_forward) < .1) continue;
@@ -363,7 +363,7 @@ vec3 sample_direct_light_ltc(const in ivec2 pixel_seed, const in int frame_seed,
     }
     
     /* Rod light */
-    else if (light.type == 3) {
+    else if ((light.flags & LIGHT_FLAGS_ROD) != 0) {
         vec3 points[2];
         points[0] = w_light_position - w_light_up;
         points[1] = w_light_position + w_light_up;
@@ -394,7 +394,7 @@ vec3 sample_direct_light_ltc(const in ivec2 pixel_seed, const in int frame_seed,
     }
     
     // Sphere light / Point light
-    else if ((light.type == 4) || (light.type == 0)) {
+    else if (((light.flags & LIGHT_FLAGS_SPHERE) != 0) || ((light.flags & LIGHT_FLAGS_POINT) != 0)) {
         /* construct orthonormal basis around L */
         vec3 T1, T2;
         generate_basis(w_light_dir, T1, T2);

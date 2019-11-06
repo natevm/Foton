@@ -381,13 +381,13 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
         float over_dist_squared = 1.0 / max(sqr(length(w_light_position - w_position)), 1.0);
         
         /* Point light */
-        if (light.type == 0) {
+        if ((light.flags & LIGHT_FLAGS_POINT) != 0) {
             vec3 spec = (D * F * G / (4.0 * dotNL * dotNV + 0.001));
             final_color += shadow_term * over_dist_squared * lcol * dotNL * (kD * albedo + spec);
         }
         
         /* Rectangle light */
-        else if (light.type == 1)
+        else if ((light.flags & LIGHT_FLAGS_PLANE) != 0)
         {
             /* Verify the area light isn't degenerate */
             if (distance(w_light_right, w_light_forward) < .01) continue;
@@ -417,7 +417,7 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
         }
 
         /* Disk Light */
-        else if (light.type == 2)
+        else if ((light.flags & LIGHT_FLAGS_DISK) != 0)
         {
             /* Verify the area light isn't degenerate */
             if (distance(w_light_right, w_light_forward) < .1) continue;
@@ -446,7 +446,7 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
         }
         
         /* Rod light */
-        else if (light.type == 3) {
+        else if ((light.flags & LIGHT_FLAGS_ROD) != 0) {
             vec3 points[2];
             points[0] = w_light_position - w_light_up;
             points[1] = w_light_position + w_light_up;
@@ -475,7 +475,7 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
         }
         
         /* Sphere light */
-        else if (light.type == 4)
+        else if ((light.flags & LIGHT_FLAGS_SPHERE) != 0)
         {
             /* construct orthonormal basis around L */
             vec3 T1, T2;
