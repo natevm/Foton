@@ -250,7 +250,7 @@ else()
 endif(${ZMQ_FOUND})
 
 # python
-find_package(Python3 3.8 COMPONENTS Development REQUIRED)
+find_package(Python3 3.7 COMPONENTS Development REQUIRED)
 if (UNIX AND NOT APPLE)
   if (NOT Python3_FOUND)
     message(FATAL_ERROR "Python 3 development libraries missing!"
