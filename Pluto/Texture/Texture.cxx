@@ -499,8 +499,8 @@ void Texture::Initialize()
 	std::thread t([](){
 		std::string resource_path = Options::GetResourcePath();
 		CreateFromKTX("BRDF", resource_path + "/Defaults/brdf-lut.ktx");
-		CreateFromKTX("LTCMAT", resource_path + "/Defaults/ltc1-lut.ktx");
-		CreateFromKTX("LTCAMP", resource_path + "/Defaults/ltc2-lut.ktx");
+		CreateFromKTX("LTCMAT", resource_path + "/Defaults/ltc_mat.ktx");
+		CreateFromKTX("LTCAMP", resource_path + "/Defaults/ltc_amp.ktx");
 		CreateFromKTX("RANKINGTILE", resource_path + "/Defaults/rankingTile_128_128_8.ktx");
 		CreateFromKTX("SCRAMBLETILE", resource_path + "/Defaults/scrambleTile_128_128_8.ktx");
 		CreateFromKTX("SOBELTILE", resource_path + "/Defaults/sobelTile.ktx");
@@ -578,9 +578,9 @@ void Texture::Initialize()
 	nearestSamplerInfo.magFilter = vk::Filter::eNearest;
 	nearestSamplerInfo.minFilter = vk::Filter::eNearest;
 	nearestSamplerInfo.mipmapMode = vk::SamplerMipmapMode::eNearest;
-	nearestSamplerInfo.addressModeU = vk::SamplerAddressMode::eRepeat;
-	nearestSamplerInfo.addressModeV = vk::SamplerAddressMode::eRepeat;
-	nearestSamplerInfo.addressModeW = vk::SamplerAddressMode::eRepeat;
+	nearestSamplerInfo.addressModeU = vk::SamplerAddressMode::eClampToEdge;
+	nearestSamplerInfo.addressModeV = vk::SamplerAddressMode::eClampToEdge;
+	nearestSamplerInfo.addressModeW = vk::SamplerAddressMode::eClampToEdge;
 	nearestSamplerInfo.mipLodBias = 0.0;
 	nearestSamplerInfo.maxAnisotropy = 0.0;
 	nearestSamplerInfo.anisotropyEnable = VK_FALSE;

@@ -33,7 +33,7 @@
 //     return 1. / (TWO_PI * (1. - cosThetaMax)); 
 // }
 
-vec3 sphereLightSample(const in ivec2 pixel_seed, int frame_seed, const in EntityStruct light_entity, const in LightStruct light, const in TransformStruct light_transform, const in vec3 w_p, const in vec3 w_n, out vec3 w_i, out float lightPdf) {
+vec3 sphereLightSample(const in ivec2 pixel_seed, int frame_seed, const in EntityStruct light_entity, const in LightStruct light, const in TransformStruct light_transform, const in vec3 w_p, const in vec3 w_n, out vec3 w_i, out float lightPdf, out float dist) {
     vec3 w_light_right =    light_transform.localToWorld[0].xyz;
     vec3 w_light_forward =  light_transform.localToWorld[1].xyz;
     vec3 w_light_up =       light_transform.localToWorld[2].xyz;
@@ -55,12 +55,15 @@ vec3 sphereLightSample(const in ivec2 pixel_seed, int frame_seed, const in Entit
     float cosThetaMax = sqrt(max(EPSILON, 1. - sinThetaMax2));
     w_i = uniformSampleCone(u, cosThetaMax, tangent, binormal, w_light_dir);
     
+    vec3 to_pt = w_light_position - w_p;
+    dist = length(to_pt);
     if (dot(w_i, w_n) > 0.) {
         // lightPdf = 1. / (TWO_PI * (1. - cosThetaMax));
-        vec3 to_pt = w_light_position - w_p;
         float dist_sqr = dot(to_pt, to_pt);
         lightPdf = dist_sqr / (TWO_PI * (1. - cosThetaMax)); 
+        // lightPdf = 1.0 / (TWO_PI * (1. - cosThetaMax)); 
     }
+
     
 	return light.color.rgb * light.intensity;
 }
@@ -82,6 +85,7 @@ float sphereLightPDF( const in EntityStruct light_entity, const in LightStruct l
     float cosThetaMax = sqrt(max(EPSILON, 1. - sinThetaMax2));
     vec3 to_pt = w_light_position - w_p;
 	float dist_sqr = dot(to_pt, to_pt);
+	// float dist_sqr = 1.0;
     return dist_sqr / (TWO_PI * (1. - cosThetaMax)); 
 }
 

@@ -614,6 +614,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 				push_constants.height = texture->get_height();
 				push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
 				push_constants.parameter1 = (float)this->max_bounces;
+				push_constants.parameter2 = this->test_param;
 				
 				command_buffer.pushConstants(path_tracer.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
 				command_buffer.bindPipeline(vk::PipelineBindPoint::eRayTracingNV, path_tracer.pipeline);
@@ -4280,6 +4281,14 @@ void RenderSystem::enable_blue_noise(bool enable) {
 		this->push_constants.flags |= ( 1 << RenderSystemOptions::ENABLE_BLUE_NOISE );
 	} else {
 		this->push_constants.flags &= ~( 1 << RenderSystemOptions::ENABLE_BLUE_NOISE );
+	}
+}
+
+void RenderSystem::enable_analytical_arealights(bool enable) {
+	if (enable) {
+		this->push_constants.flags |= ( 1 << RenderSystemOptions::ENABLE_ANALYTICAL_AREA_LIGHTS );
+	} else {
+		this->push_constants.flags &= ~( 1 << RenderSystemOptions::ENABLE_ANALYTICAL_AREA_LIGHTS );
 	}
 }
 

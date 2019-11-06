@@ -17,6 +17,7 @@
 #define SHOW_DIRECT_ILLUMINATION 8
 #define SHOW_INDIRECT_ILLUMINATION 9
 #define SHOW_ALBEDO 10
+#define ENABLE_ANALYICAL_AREA_LIGHTS 16
 
 bool is_multiview_enabled()
 {
@@ -52,6 +53,11 @@ bool is_reverse_z_enabled()
 bool is_blue_noise_enabled()
 {
     return (push.consts.flags & (1 << ENABLE_BLUE_NOISE)) != 0;
+}
+
+bool is_ltc_enabled()
+{
+    return (push.consts.flags & (1 << ENABLE_ANALYICAL_AREA_LIGHTS)) != 0;
 }
 
 bool is_gradient_estimation_enabled()

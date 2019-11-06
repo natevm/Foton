@@ -49,6 +49,7 @@ enum RenderSystemOptions : uint32_t {
     SHOW_DIRECT_ILLUMINATION = 8,
     SHOW_INDIRECT_ILLUMINATION = 9,
     SHOW_ALBEDO = 10,
+    ENABLE_ANALYTICAL_AREA_LIGHTS=16,
 };
 
 namespace Systems 
@@ -108,6 +109,13 @@ namespace Systems
 
             void set_max_bounces(uint32_t max_bounces);
             void enable_blue_noise(bool enable);
+
+            void enable_analytical_arealights(bool enable);
+            float test_param = 1.0;
+            void set_debug_parameter(float param) 
+            {
+                test_param = param;
+            }
 
             void show_direct_illumination(bool enable);
             void show_indirect_illumination(bool enable);

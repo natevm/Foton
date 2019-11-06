@@ -17,6 +17,10 @@ float luminance(const in vec3 c) {
 	return 0.2126f * c.r + 0.7152f * c.g + 0.0722f * c.b;
 }
 
+float average_vec(const in vec3 c) {
+    return (c.x + c.y + c.z) * .3333333;
+}
+
 vec3 rgb2hsv(vec3 c)
 {
     vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
