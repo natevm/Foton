@@ -1258,9 +1258,9 @@ void Mesh::compute_smooth_normals(bool upload)
 		uint32_t i3 = triangle_indices[f + 2];
 
 		// p1, p2 and p3 are the positions in the face (f)
-		auto &p1 = glm::vec3(positions[i1]);
-		auto &p2 = glm::vec3(positions[i2]);
-		auto &p3 = glm::vec3(positions[i3]);
+		auto p1 = glm::vec3(positions[i1]);
+		auto p2 = glm::vec3(positions[i2]);
+		auto p3 = glm::vec3(positions[i3]);
 
 		// calculate facet normal of the triangle  using cross product;
 		// both components are "normalized" against a common point chosen as the base
