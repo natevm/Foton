@@ -8,7 +8,7 @@ matrix:
         apt:
           sources:
             - sourceline: 'ppa:ubuntu-toolchain-r/test'
-            - sourceline: 'ppa:jonathonf/python-3.6'
+            - sourceline: 'ppa:jonathonf/python-3.7'
             - sourceline: 'deb https://packages.lunarg.com/vulkan/1.1.97 xenial main'
               key_url: 'http://packages.lunarg.com/lunarg-signing-key-pub.asc'
           packages:
@@ -16,7 +16,7 @@ matrix:
             - xorg-dev
             - libglfw3-dev
             - swig
-            - python3.6-dev
+            - python3.7-dev
             - gcc-8
             - g++-8
             - lunarg-vulkan-sdk
