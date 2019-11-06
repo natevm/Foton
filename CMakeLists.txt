@@ -193,11 +193,11 @@ add_subdirectory(external/pbrt-parser EXCLUDE_FROM_ALL)
 set_property(TARGET pbrtParser_static PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 # swig
-find_package(SWIG 4.0.1)
+find_package(SWIG 3.0.1)
 if (UNIX AND NOT APPLE)
   if (NOT SWIG_FOUND)
-    message(FATAL_ERROR "SWIG 4 is missing! "
-      "You probably dont have swig 4 installed on your system. It is possible to recover "
+    message(FATAL_ERROR "SWIG 3 is missing! "
+      "You probably dont have swig 3 installed on your system. It is possible to recover "
       "by running \"sudo apt install swig\" (or equivalent on your unix distro)")
   endif()  
 endif()
