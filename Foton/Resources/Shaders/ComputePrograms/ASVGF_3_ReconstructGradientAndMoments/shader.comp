@@ -1,0 +1,190 @@
+#version 460
+#pragma optionNV (unroll all)
+
+#define COMPUTE
+
+#include "Foton/Resources/Shaders/Common/Descriptors.hxx"
+#include "Foton/Resources/Shaders/Common/ShaderConstants.hxx"
+#include "Foton/Resources/Shaders/Common/Random.hxx"
+
+layout (local_size_x = 16, local_size_y = 16) in;
+
+#define RADIUS 1
+const float gaussian_kernel[3][3] = {
+	{ 1.0 / 16.0, 1.0 / 8.0, 1.0 / 16.0 },
+	{ 1.0 / 8.0,  1.0 / 4.0, 1.0 / 8.0  },
+	{ 1.0 / 16.0, 1.0 / 8.0, 1.0 / 16.0 }
+};
+
+
+// const float gaussian_kernel[3][3] = {
+// 	{ 1.0 / 16.0, 1.0 / 8.0, 1.0 / 16.0 },
+// 	{ 1.0 / 8.0,  1.0 / 4.0, 1.0 / 8.0  },
+// 	{ 1.0 / 16.0, 1.0 / 8.0, 1.0 / 16.0 }
+// };
+
+// float compute_sigma_luminance(float center, ivec2 ipos)
+// {
+// 	const int r = 1;
+
+// 	float sum = center * gaussian_kernel[0][0];
+
+// 	for(int yy = -r; yy <= r; yy++) {
+// 		for(int xx = -r; xx <= r; xx++) {
+// 			if(xx != 0 || yy != 0) {
+// 				ivec2 p = ipos + ivec2(xx, yy);
+// 				float v = texelFetch(tex_color2, p, 0).g;
+// 				float w = gaussian_kernel[xx + 1][yy + 1];
+// 				sum += v * w;
+// 			}
+// 		}
+// 	}
+
+// 	return sqrt(max(sum, 0.0));
+// }
+
+void main() {
+    // Stride of the gradient tile
+    const int stride = GRADIENT_TILE_SIZE;
+    if (int(gl_GlobalInvocationID.x * stride) >= push.consts.width) return;
+    if (int(gl_GlobalInvocationID.y * stride) >= push.consts.height) return;
+
+    ivec2 tile = ivec2(gl_GlobalInvocationID.xy);
+    const ivec2 ipos = tile * stride;
+    ivec2 q = ipos;
+    
+    int minor_iteration = push.consts.iteration % 2;
+    int major_iteration = push.consts.iteration;
+    int curr_step_width = 1 << major_iteration;
+
+    // This reconstruction uses an iterative atrous bilateral filter. 
+    // These are the current iteration gbuffer addresses
+    const int g_addr_0 = ((minor_iteration%2) != 0) ? TEMPORAL_GRADIENT_ADDR : ATROUS_HISTORY_1_ADDR;
+    const int g_addr_1 = ((minor_iteration%2) != 0) ? ATROUS_HISTORY_1_ADDR : TEMPORAL_GRADIENT_ADDR;
+    const int l_addr_0 = ((minor_iteration%2) != 0) ? LUMINANCE_VARIANCE_ADDR : ATROUS_HISTORY_2_ADDR;
+    const int l_addr_1 = ((minor_iteration%2) != 0) ? ATROUS_HISTORY_2_ADDR : LUMINANCE_VARIANCE_ADDR;
+
+    // Compute current atrous luminance sigma
+    float sum = 0.0;
+    for(int yy = -RADIUS; yy <= RADIUS; yy++) {
+		for(int xx = -RADIUS; xx <= RADIUS; xx++) {
+            ivec2 p = ipos + ivec2(xx, yy) * stride;
+            // Note, g channel is variance
+            float v = imageLoad(gbuffers[l_addr_0], p).g;
+            float w = gaussian_kernel[xx + 1][yy + 1];
+            sum += v * w;
+		}
+	}
+    float sigma_l = sqrt(abs(sum)) * push.consts.parameter1;
+
+    // Now, we'll reconstruct gradient and moments using an atrous bilateral
+    const vec2  max_lum_grad  = imageLoad(gbuffers[g_addr_0], q).rg;
+    const vec4  avg_lum_var_depth  = imageLoad(gbuffers[l_addr_0], q);
+    const vec2  z_center             = avg_lum_var_depth.ba;
+    const float avg_center_lum       = avg_lum_var_depth.r;
+
+    vec4  sum_max_lum_grad       = vec4(0.0);
+    float sum_luminance   = 0.0;
+    float sum_variance    = 0.0;
+    float sum_weight      = 0.0;
+    for (int y = -RADIUS; y <= RADIUS; y++) {
+        for (int x = -RADIUS; x <= RADIUS; x++) {
+            /* EXPERIMENTAL */
+            // if ((x == 0) && (y == 0)) continue;
+            // The tap coordinate
+            ivec2 p = q + (ivec2(x,y) * curr_step_width * stride); 
+    
+            // load max luminance, temporal gradient, average luminance, variance, and depth
+            vec4  max_lum_grad        = imageLoad(gbuffers[g_addr_0], p);
+            vec4  p_lum_var_depth     = imageLoad(gbuffers[l_addr_0], p);
+            float z_p         = p_lum_var_depth.b;
+            float l_p         = p_lum_var_depth.r;
+
+            // if (any(isnan(max_lum_grad))) continue;
+            // if (any(isnan(p_lum_var_depth))) continue;
+            // if (isnan(z_p)) continue;
+            // if (isnan(l_p)) continue;
+
+            // Luminance weight is difference between sample luminance and current luminance
+            float w_l = abs(l_p - avg_center_lum) / (sigma_l + 1e-10); 
+            // if (isnan(avg_center_lum)) continue;
+            // if (isnan(l_p)) continue;
+            // if (isnan(sigma_l)) continue;
+
+            // Depth weight is difference between sample depth and current depth,
+            // and weakens by distance away from center
+            float w_z = abs(z_p - z_center.x) / (z_center.y * length(vec2(x,y) * curr_step_width * GRADIENT_DOWNSAMPLE) + 1e-2); 
+
+            // Compute final reconstruction weight
+            float w = exp(-w_l * w_l - w_z) * gaussian_kernel[x + RADIUS][y + RADIUS];
+
+            // if (isnan(w)) continue;
+
+            sum_max_lum_grad     += max_lum_grad * w; 
+            sum_luminance += l_p * w;
+            sum_variance  += w * w * p_lum_var_depth.g; 
+            sum_weight    += w; 
+        }
+    }
+    if (sum_weight > 0) {
+        sum_max_lum_grad    /= sum_weight;
+        sum_luminance       /= sum_weight;
+        sum_variance        /= sum_weight * sum_weight;
+    }
+
+    
+
+    // Store the filtered results
+    /* BAD. FOR NOW, REPLICATE RESULTS */
+    for (int y = 0; y < stride; y++) {
+        for (int x = 0; x < stride; x++) {
+            imageStore(gbuffers[g_addr_1], stride * tile + ivec2(x,y), sum_max_lum_grad);
+            imageStore(gbuffers[l_addr_1], stride * tile + ivec2(x,y), vec4(sum_luminance, sum_variance, z_center));
+        }
+    }
+}
+
+
+
+
+
+    // randomDimension = 0;
+    // int rand_curr = int(random(ivec2(gl_GlobalInvocationID.xy), push.consts.frame) * GRADIENT_TILE_SIZE * GRADIENT_TILE_SIZE);
+    // ivec2 offset_curr = ivec2(rand_curr / GRADIENT_TILE_SIZE, rand_curr % GRADIENT_TILE_SIZE);
+
+    // ivec2 tile = ivec2(gl_GlobalInvocationID.xy);
+    // ivec2 pixel = tile * GRADIENT_TILE_SIZE + offset_curr;
+    // ivec2 q = pixel;
+
+    
+
+    
+
+    
+    // for (int y = -RADIUS; y <= RADIUS; y++) {
+    //     for (int x = -RADIUS; x <= RADIUS; x++) {
+    //         ivec2 p = pixel + (ivec2(x,y) * curr_step_width * GRADIENT_TILE_SIZE); // Address from current iteration
+
+    //         vec4  color1_p     = imageLoad(gbuffers[g_addr_0], p);
+    //         vec4  color2_p     = imageLoad(gbuffers[l_addr_0], p);
+    //         float z_p         = color2_p.b;
+
+    //         float l_p         = color2_p.r;
+
+    //         float w_l = abs(l_p - l_center) / (sigma_l + 1e-10); 
+    //         float w_z = abs(z_p - z_center.x) / (z_center.y * length(vec2(x,y) * curr_step_width * GRADIENT_DOWNSAMPLE) + 1e-2); 
+
+    //         float w = exp(-w_l * w_l - w_z) * gaussian_kernel[x + RADIUS][y + RADIUS];
+
+    //         sum_color     += color1_p * w; 
+    //         sum_luminance += l_p * w;
+    //         sum_variance  += w * w * color2_p.g; 
+    //         sum_weight    += w; 
+    //     }
+    // }
+
+    // sum_color     /= sum_weight;
+	// sum_luminance /= sum_weight;
+	// sum_variance  /= sum_weight * sum_weight;
+
+    

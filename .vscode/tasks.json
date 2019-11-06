@@ -6,22 +6,22 @@
         {
             "label": "Compile Uniform Color Vertex Shader",
             "type": "shell",
-            "command": "${workspaceFolder}/external/vulkan/glslc.exe -I ${workspaceFolder} ${workspaceFolder}/Pluto/Resources/Shaders/SurfaceMaterials/UniformColor/shader.vert -o ${workspaceFolder}/Pluto/Resources/Shaders/SurfaceMaterials/UniformColor/vert.spv"
+            "command": "${workspaceFolder}/external/vulkan/glslc.exe -I ${workspaceFolder} ${workspaceFolder}/Foton/Resources/Shaders/SurfaceMaterials/UniformColor/shader.vert -o ${workspaceFolder}/Foton/Resources/Shaders/SurfaceMaterials/UniformColor/vert.spv"
         },
         {
             "label": "Compile Uniform Color Fragment Shader",
             "type": "shell",
-            "command": "${workspaceFolder}/external/vulkan/glslc.exe -I ${workspaceFolder} ${workspaceFolder}/Pluto/Resources/Shaders/SurfaceMaterials/UniformColor/shader.frag -o ${workspaceFolder}/Pluto/Resources/Shaders/SurfaceMaterials/UniformColor/frag.spv"
+            "command": "${workspaceFolder}/external/vulkan/glslc.exe -I ${workspaceFolder} ${workspaceFolder}/Foton/Resources/Shaders/SurfaceMaterials/UniformColor/shader.frag -o ${workspaceFolder}/Foton/Resources/Shaders/SurfaceMaterials/UniformColor/frag.spv"
         },
         {
             "label": "Compile Blinn Vertex Shader",
             "type": "shell",
-            "command": "${workspaceFolder}/external/vulkan/glslc.exe -I ${workspaceFolder} ${workspaceFolder}/Pluto/Resources/Shaders/SurfaceMaterials/Blinn/shader.vert -o ${workspaceFolder}/Pluto/Resources/Shaders/SurfaceMaterials/Blinn/vert.spv"
+            "command": "${workspaceFolder}/external/vulkan/glslc.exe -I ${workspaceFolder} ${workspaceFolder}/Foton/Resources/Shaders/SurfaceMaterials/Blinn/shader.vert -o ${workspaceFolder}/Foton/Resources/Shaders/SurfaceMaterials/Blinn/vert.spv"
         },
         {
             "label": "Compile Blinn Fragment Shader",
             "type": "shell",
-            "command": "${workspaceFolder}/external/vulkan/glslc.exe -I ${workspaceFolder} ${workspaceFolder}/Pluto/Resources/Shaders/SurfaceMaterials/Blinn/shader.frag -o ${workspaceFolder}/Pluto/Resources/Shaders/SurfaceMaterials/Blinn/frag.spv"
+            "command": "${workspaceFolder}/external/vulkan/glslc.exe -I ${workspaceFolder} ${workspaceFolder}/Foton/Resources/Shaders/SurfaceMaterials/Blinn/shader.frag -o ${workspaceFolder}/Foton/Resources/Shaders/SurfaceMaterials/Blinn/frag.spv"
         }
     ]
 }

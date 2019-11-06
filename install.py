@@ -7,11 +7,11 @@ from jupyter_client.kernelspec import KernelSpecManager
 from IPython.utils.tempdir import TemporaryDirectory
 
 kernel_json = {
-    "argv": [os.path.dirname(os.path.realpath(__file__)) + "/pluto",
+    "argv": [os.path.dirname(os.path.realpath(__file__)) + "/Foton",
         "-ipykernel",
         "{connection_file}"
     ],
-    "display_name": "Pluto",
+    "display_name": "Foton",
     "language": "Python 3",
 }
 
@@ -25,7 +25,7 @@ def install_my_kernel_spec(user=True, prefix=None):
         # TODO: Copy any resources
 
         print('Installing Jupyter kernel spec')
-        KernelSpecManager().install_kernel_spec(td, 'Pluto', user=user, prefix=prefix)
+        KernelSpecManager().install_kernel_spec(td, 'Foton', user=user, prefix=prefix)
 
 def _is_root():
     try:

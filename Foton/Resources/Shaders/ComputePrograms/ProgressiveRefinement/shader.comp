@@ -1,0 +1,33 @@
+#version 460
+
+#define COMPUTE
+
+#include "Foton/Resources/Shaders/Common/Descriptors.hxx"
+
+layout (local_size_x = 16, local_size_y = 16) in;
+
+void main() {
+    vec2 gid = gl_GlobalInvocationID.xy;
+
+    /* first frame, no blending at all. */
+    if (push.consts.frame < 5) {
+        /* Set history to current value */
+        vec3 currVal = imageLoad(render_image, ivec2(gl_GlobalInvocationID.xy)).rgb;
+        imageStore(gbuffers[PROGRESSIVE_HISTORY_ADDR], ivec2(gl_GlobalInvocationID.xy), vec4(currVal, 1.0));
+    }
+    /* Otherwise, do refinement */
+    else {
+        /* Read the new value */
+        vec3 newVal = imageLoad(render_image, ivec2(gl_GlobalInvocationID.xy)).rgb;
+        
+        /* Read from history buffer */
+        vec3 history = imageLoad(gbuffers[PROGRESSIVE_HISTORY_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
+        
+        /* Mix current and history together */
+        history = history + (newVal - history) / (push.consts.frame);
+
+        /* Store the results */
+        imageStore(render_image, ivec2(gl_GlobalInvocationID.xy), vec4(history, 1.0));
+        imageStore(gbuffers[PROGRESSIVE_HISTORY_ADDR], ivec2(gl_GlobalInvocationID.xy), vec4(history, 1.0));
+    }
+}

@@ -1,0 +1,57 @@
+#version 460
+
+#define COMPUTE
+
+#include "Foton/Resources/Shaders/Common/Descriptors.hxx"
+
+layout (local_size_x = 16, local_size_y = 16) in;
+
+void main() {
+    vec4 temp;
+
+    // Position G Buffer 
+    temp = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ivec2(gl_GlobalInvocationID.xy));
+    imageStore(gbuffers[POSITION_DEPTH_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
+
+    // Normal G Buffer
+    temp = imageLoad(gbuffers[NORMAL_ID_ADDR], ivec2(gl_GlobalInvocationID.xy));
+    imageStore(gbuffers[NORMAL_ID_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
+
+    // Seed / Luminance G Buffer
+    temp = imageLoad(gbuffers[SEED_LUMINANCE_ADDR], ivec2(gl_GlobalInvocationID.xy));
+    imageStore(gbuffers[SEED_LUMINANCE_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
+
+    // UV G Buffer
+    temp = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ivec2(gl_GlobalInvocationID.xy));
+    imageStore(gbuffers[UV_METALLIC_ROUGHESS_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
+
+    // Raw albedo
+    temp = imageLoad(gbuffers[ALBEDO_ADDR], ivec2(gl_GlobalInvocationID.xy));
+    imageStore(gbuffers[ALBEDO_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
+
+    // Temporal Gradient
+    temp = imageLoad(gbuffers[TEMPORAL_GRADIENT_ADDR], ivec2(gl_GlobalInvocationID.xy));
+    imageStore(gbuffers[TEMPORAL_GRADIENT_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
+
+    // Temporal Gradient
+    temp = imageLoad(gbuffers[LUMINANCE_VARIANCE_ADDR], ivec2(gl_GlobalInvocationID.xy));
+    imageStore(gbuffers[LUMINANCE_VARIANCE_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
+
+    // Sample Count
+    temp = imageLoad(gbuffers[SAMPLE_COUNT_ADDR], ivec2(gl_GlobalInvocationID.xy));
+    imageStore(gbuffers[SAMPLE_COUNT_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
+
+    // // TEMPORARY, DEBUG
+    // temp = imageLoad(gbuffers[DIRECT_ILLUM_VAR_ADDR], ivec2(gl_GlobalInvocationID.xy));
+    // temp = abs(temp);
+    // if (any(isnan(temp)))
+    //     imageStore(gbuffers[DEBUG_ADDR],  ivec2(gl_GlobalInvocationID.xy), vec4(1.0, 0.0, 0.0, 0.0));
+    // else if (any(lessThan(temp, vec4(0.0))))
+    //     imageStore(gbuffers[DEBUG_ADDR],  ivec2(gl_GlobalInvocationID.xy), vec4(1.0, 0.0, 0.0, 0.0));
+    // else 
+    //     imageStore(gbuffers[DEBUG_ADDR],  ivec2(gl_GlobalInvocationID.xy), vec4(temp.w));
+
+    /* TEMPORARY, GENERATE NEW PIXEL SEEDS */
+    imageStore(gbuffers[SEED_LUMINANCE_ADDR], ivec2(gl_GlobalInvocationID.xy), 
+        vec4(gl_GlobalInvocationID.xy, push.consts.frame+1, 0.f));
+}

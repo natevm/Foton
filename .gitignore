@@ -1,8 +1,8 @@
 build
 install
-Pluto/Tools/version.h
+Foton/Tools/version.h
 *.code-workspace
-PlutoEngine.code-workspace
+FotonEngine.code-workspace
 *_wrap.cxx
 __pycache__
 *.swp

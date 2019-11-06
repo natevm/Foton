@@ -1,4 +1,4 @@
 include README.md
-graft Pluto
+graft Foton
 include install.py
 global-exclude __pycache__ *.pdb

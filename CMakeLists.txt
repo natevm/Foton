@@ -3,7 +3,7 @@
 # └──────────────────────────────────────────────────────────────────┘
 cmake_minimum_required (VERSION 3.13)
 cmake_policy( VERSION 3.13...3.14 )
-project(Pluto)
+project(Foton)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
@@ -100,7 +100,7 @@ set(CMAKE_SHARED_LIBRARY_SUFFIX ".so")
 endif(APPLE)
 
 # Default RPATH settings for *NIX distros
-set(RPATHS "${CMAKE_INSTALL_PREFIX};${CMAKE_INSTALL_PREFIX}/Pluto;${CMAKE_INSTALL_PREFIX}/Pluto/lib;")
+set(RPATHS "${CMAKE_INSTALL_PREFIX};${CMAKE_INSTALL_PREFIX}/Foton;${CMAKE_INSTALL_PREFIX}/Foton/lib;")
 set(CMAKE_INSTALL_RPATH "${RPATHS}")
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
 set(CMAKE_INSTALL_NAME_DIR "${RPATHS}")
@@ -111,6 +111,22 @@ SET(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  External Dependencies                                           │
 # └──────────────────────────────────────────────────────────────────┘
+
+# Git (for auto submodule cloning)
+find_package(Git QUIET)
+if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
+  # Update submodules as needed
+  option(GIT_SUBMODULE "Check submodules during build" ON)
+  if(GIT_SUBMODULE)
+      message(STATUS "Submodule update")
+      execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+                      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                      RESULT_VARIABLE GIT_SUBMOD_RESULT)
+      if(NOT GIT_SUBMOD_RESULT EQUAL "0")
+          message(FATAL_ERROR "git submodule update --init failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
+      endif()
+  endif()
+endif()
 
 # glfw
 #    note: on linux, xorg-dev might be required
@@ -323,5 +339,5 @@ endif(MSVC)
 # │  Add source files                                                │
 # └──────────────────────────────────────────────────────────────────┘
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR})
-add_subdirectory(Pluto)
+add_subdirectory(Foton)
 

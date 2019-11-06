@@ -1,5 +1,8 @@
 {
     "files.associations": {
+        "*.rgen": "glsl",
+        "*.rchit": "glsl",
+        "*.rmiss": "glsl",
         "*.i": "python",
         "array": "cpp",
         "*.tcc": "cpp",
@@ -95,17 +98,22 @@
         "__threading_support": "cpp",
         "__tree": "cpp",
         "__tuple": "cpp",
-        "bitset": "cpp"
+        "bitset": "cpp",
+        "complex": "cpp",
+        "hash_map": "cpp",
+        "random": "cpp",
+        "stack": "cpp",
+        "unordered_set": "cpp"
     },
     "C_Cpp.intelliSenseEngineFallback": "Enabled",
     "python.linting.enabled": true,
 
-    "python.unitTest.cwd": "${workspaceFolder}",
+    "python.testing.cwd": "${workspaceFolder}",
 
-    "python.unitTest.pyTestEnabled": false,
-    "python.unitTest.nosetestsEnabled": false,
-    "python.unitTest.unittestEnabled": false,
-    "python.unitTest.pyTestArgs": [
+    "python.testing.pytestEnabled": false,
+    "python.testing.nosetestsEnabled": false,
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestArgs": [
         "--rootdir=./tests",
         "--exitfirst",
         "--verbose"
@@ -121,5 +129,5 @@
     "python.pythonPath": "C:\\Users\\Nathan Morrical\\AppData\\Local\\Programs\\Python\\Python36\\python.exe",
     "cmake.configureOnOpen": true,
     "C_Cpp.configurationWarnings": "Disabled",
-    "python.unitTest.promptToConfigure": false
+    "python.testing.promptToConfigure": false
 }
