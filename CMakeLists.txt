@@ -3,7 +3,7 @@
 # └──────────────────────────────────────────────────────────────────┘
 cmake_minimum_required (VERSION 3.13)
 cmake_policy( VERSION 3.13...3.14 )
-project(Foton)
+project(Foton CXX C)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
