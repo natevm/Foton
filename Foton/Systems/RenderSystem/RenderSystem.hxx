@@ -148,6 +148,8 @@ namespace Systems
 
             void enqueue_bvh_rebuild();
 
+            // todo: make this private...
+            void create_camera_resources(uint32_t camera_id);
         private:
             PushConsts push_constants;            
             bool using_openvr = false;
@@ -400,7 +402,6 @@ namespace Systems
 
             vk::RenderPass currentRenderpass = vk::RenderPass();
 
-            void create_camera_resources(uint32_t camera_id);
             void create_camera_render_passes(uint32_t camera_id, uint32_t layers = 1, uint32_t sample_count = 1);
 	        void create_camera_frame_buffers(uint32_t camera_id, uint32_t layers);
             void create_camera_query_pool(uint32_t camera_id, uint32_t max_views);
