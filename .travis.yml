@@ -15,7 +15,7 @@ matrix:
             - curl
             - xorg-dev
             - libglfw3-dev
-            - swig3.0
+            - swig4.0.1
             - python3.6-dev
             - gcc-8
             - g++-8
