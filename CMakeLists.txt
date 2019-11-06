@@ -205,6 +205,11 @@ include(${SWIG_USE_FILE})
 
 # vulkan
 find_package(Vulkan 1.1.97 REQUIRED)
+
+if (NOT DEFINED VULKAN_SDK)
+set (VULKAN_SDK $ENV{VULKAN_SDK})
+endif()
+
 if(APPLE)
 if(NOT DEFINED ENV{VULKAN_SDK})
     message(ERROR "Error: VULKAN_SDK environment variable must be set!")
@@ -215,6 +220,12 @@ include_directories(${Vulkan_INCLUDE_DIRS})
 # glslc compiler
 find_program(GLSLC glslc PATHS ${VULKAN_SDK}/bin )
 find_program(SPIRV_OPT spirv-opt PATHS ${VULKAN_SDK}/bin )
+if (${GLSLC} STREQUAL GLSLC-NOTFOUND)
+message(ERROR "Error, glslc not found!")
+endif()
+if (${SPIRV_OPT} STREQUAL SPIRV_OPT-NOTFOUND)
+message(ERROR "Error, spirv-opt not found!")
+endif()
 
 # if (UNIX AND NOT APPLE)
 #   if (NOT DEFINED GLSLC) 

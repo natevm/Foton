@@ -52,7 +52,7 @@ matrix:
         - mv download vulkan.tar.gz
         - tar -xzf vulkan.tar.gz
         - cd build
-        - cmake -G "Visual Studio 15 2017 Win64" -DCMAKE_BUILD_TYPE=Release -DVulkan_INCLUDE_DIR:PATH=$(pwd)/../1.1.97.0/Include/ -DVulkan_LIBRARY:FILEPATH=$(pwd)/../1.1.97.0/Lib/vulkan-1.lib ../
+        - cmake -G "Visual Studio 15 2017 Win64" -DCMAKE_BUILD_TYPE=Release -DVULKAN_SDK:PATH=$(pwd)/../1.1.97.0/ -DVulkan_INCLUDE_DIR:PATH=$(pwd)/../1.1.97.0/Include/ -DVulkan_LIBRARY:FILEPATH=$(pwd)/../1.1.97.0/Lib/vulkan-1.lib ../
         - cmake --build . --target install --config Release
 
 
