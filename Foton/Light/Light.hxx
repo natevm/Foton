@@ -94,6 +94,12 @@ class Light : public StaticFactory
         /* Sets a realistic emission color via a temperature. */
         void set_temperature(float kelvin);
 
+        /* Sets the intensity cutoff for the light. */
+        void set_intensity_cutoff(float intensity);
+
+        /* Sets the attenuation radius, such that any point more than radius distance away from the light is not illuminated. */
+        void set_attenuation_radius(float radius);
+
         /* Sets the intensity, or brightness, that this light component will emit its color */
         void set_intensity(float intensity);
         

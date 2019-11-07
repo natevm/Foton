@@ -42,7 +42,9 @@ Light::Light(std::string name, uint32_t id)
     this->light_struct.intensity = 1.0;
     this->light_struct.flags = 0;
     this->light_struct.softnessSamples = 20;
-    this->light_struct.softnessRadius = .1;
+    this->light_struct.softnessRadius = .1f;
+    this->light_struct.intensity_cutoff = .01f;
+    this->light_struct.radius = 10.0f;
     enable_vsm(true);
 }
 
@@ -98,6 +100,18 @@ void Light::set_temperature(float kelvin)
 void Light::set_intensity(float intensity)
 {
     light_struct.intensity = intensity;
+    mark_dirty();
+}
+
+void Light::set_attenuation_radius(float radius)
+{
+    light_struct.radius = radius;
+    mark_dirty();
+}
+
+void Light::set_intensity_cutoff(float intensity)
+{
+    light_struct.intensity_cutoff = intensity;
     mark_dirty();
 }
 

@@ -84,7 +84,7 @@ void main() {
         vec3 w_i = w_s;
         vec3 w_h = (w_i+w_o)/length(w_i+w_o);
 
-        float f0 = 0.00;
+        float f0 = 0.01;
         float F = f0 + (1.0 - f0) * pow(1.0 - max(0, dot(w_h, w_i )), 5);
 
         float m = disney_diffuse(mat, w_n_f, w_o, w_i, diffuse_color);

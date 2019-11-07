@@ -39,13 +39,46 @@ struct LightStruct {
 	float intensity;
 	float coneAngle, coneSoftness;
 	float softnessRadius;
-	float ph3;
-	float ph4; 
+	float intensity_cutoff; 
+	float radius;
 	int softnessSamples;
 	// 100 - double sided
 	// 010 - show end caps
 	// 001 - cast shadows
 	int flags;
 };
+
+#ifdef GLSL
+float get_light_radius(inout LightStruct light_struct)
+#else
+inline float get_light_radius(LightStruct &light_struct)
+#endif
+{
+	return light_struct.radius * (sqrt(light_struct.intensity / light_struct.intensity_cutoff) - 1.0f);
+}
+
+
+#ifdef GLSL
+float get_light_attenuation(inout LightStruct light_struct, float distance)
+#else
+inline float get_light_attenuation(LightStruct &light_struct, float distance)
+#endif
+{
+	float attenuation = 1.0f / pow(((distance/light_struct.radius) + 1.f), 2);
+	attenuation = (attenuation - light_struct.intensity_cutoff) / (1.0f - light_struct.intensity_cutoff);
+	#ifndef GLSL
+	attenuation = std::max(attenuation, 0.0f);
+	#else
+	attenuation = max(attenuation, 0.0f);
+	#endif
+
+	// #ifndef GLSL
+	// attenuation *= glm::clamp( (light_struct.radius - distance) / light_struct.radius , 0.0f, 1.0f);
+	// #else
+	// attenuation *= clamp( (light_struct.radius - distance) / light_struct.radius , 0.0f, 1.0f);
+	// #endif
+
+	return attenuation;
+}
 
 #endif
