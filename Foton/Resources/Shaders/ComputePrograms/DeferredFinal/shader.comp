@@ -6,10 +6,73 @@
 #include "Foton/Resources/Shaders/Common/ShaderConstants.hxx"
 #include "Foton/Resources/Shaders/Common/Options.hxx"
 #include "Foton/Resources/Shaders/Common/Utilities.hxx"
+#include "Foton/Resources/Shaders/Common/Lights.hxx"
 
 layout (local_size_x = 16, local_size_y = 16) in;
 
 void main() {
-    vec3 raw_albedo = imageLoad(gbuffers[ALBEDO_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
-    imageStore(render_image, ivec2(gl_GlobalInvocationID.xy), vec4(raw_albedo, 1.0));
+    /* These are required for shading purposes. Wait until they're ready. */
+    if ((push.consts.ltc_mat_lut_id < 0) || (push.consts.ltc_mat_lut_id >= max_textures)) return;
+    if ((push.consts.ltc_amp_lut_id < 0) || (push.consts.ltc_amp_lut_id >= max_textures)) return;
+    ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
+
+    init_random(ipos, push.consts.frame, 0);
+    
+    vec4 temp;
+
+    // Seed / Luminance G Buffer
+    temp = imageLoad(gbuffers[SEED_LUMINANCE_ADDR], ipos);
+    ivec2 pixel_seed = ivec2(temp.xy);
+    int frame_seed = int(temp.z);
+
+    // Position G Buffer 
+    temp = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
+    vec3 w_p = temp.xyz;
+    float depth = temp.w;
+
+    // Normal G Buffer
+    temp = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
+    vec3 w_n = temp.xyz;
+    vec3 w_t, w_b;
+    directionOfAnisotropicity(w_n, w_t, w_b);
+    int entity_id = int(temp.w);
+
+    // UV G Buffer
+    temp = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos);
+    vec2 uv = temp.xy;
+
+    // Raw albedo
+    temp = imageLoad(gbuffers[ALBEDO_ADDR], ipos);
+    vec3 albedo = temp.xyz;
+
+    // Compute ray origin and direction
+    vec3 origin, direction;
+    EntityStruct camera_entity = ebo.entities[push.consts.camera_id];
+    CameraStruct camera = cbo.cameras[camera_entity.camera_id];
+    TransformStruct camera_transform = tbo.transforms[camera_entity.transform_id];
+    int multiview_idx = push.consts.viewIndex;
+    multiview_idx = 0; // temporary
+    get_origin_and_direction(
+        pixel_seed, frame_seed,
+        camera.multiviews[multiview_idx].projinv,
+        camera_transform.localToWorld * camera.multiviews[multiview_idx].viewinv,
+        ipos, ivec2(push.consts.width, push.consts.height), origin, direction);
+
+    vec3 w_o = -direction;
+    bool backface = dot(w_n, w_o) < 0.0;
+    
+
+    // Unpack data
+    EntityStruct entity; MaterialStruct mat; LightStruct light;
+    unpack_entity_struct(entity_id, entity);
+    unpack_material_struct(entity_id, entity, uv, w_p, mat); // to do, use primary albedo if bounce is 0
+    unpack_light_struct(entity_id, entity, light);
+
+    // Compute radiance
+    Radiance radiance = sample_direct_light_analytic(mat, backface, w_p, w_n, w_t, w_b, w_o) ;
+    
+    
+
+    // vec3 raw_albedo = albedo * radiance.diffuse + radiance.specular;
+    imageStore(render_image, ipos, vec4(albedo * (radiance.diffuse + radiance.specular), 1.0));
 }

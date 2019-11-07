@@ -1,4 +1,5 @@
 #define GLSL
+#include "Foton/Resources/Shaders/Common/ShaderConstants.hxx"
 
 /* Extensions */
 #extension GL_ARB_separate_shader_objects : enable
@@ -177,3 +178,59 @@ struct HitInfo {
     bool is_shadow_ray;
     bool backface;
 };
+
+#if defined  RAYTRACING || defined COMPUTE
+
+void unpack_gbuffer_data(in ivec2 tile, in ivec2 offset, out ivec2 ipos, out bool seed_found, out vec3 w_position, out float depth, out vec3 w_normal, 
+    out int entity_id, out ivec2 pixel_seed, out int frame_seed, out vec3 albedo, out vec2 uv)
+{
+    vec4 temp;
+    ipos = tile * PATH_TRACE_TILE_SIZE + offset;
+
+    // Seed / Luminance G Buffer
+    temp = imageLoad(gbuffers[SEED_LUMINANCE_ADDR], ipos);
+    pixel_seed = ivec2(temp.xy);
+    frame_seed = int(temp.z);
+
+    /* Search for gradient seed */
+    seed_found = false;
+    // for (int yy = 0; yy < PATH_TRACE_TILE_SIZE; ++yy) {
+    //     for (int xx = 0; xx < PATH_TRACE_TILE_SIZE; ++xx) {
+    //         ivec2 p = tile * PATH_TRACE_TILE_SIZE + ivec2(xx, yy);
+    //         vec4 motion_data = imageLoad(gbuffers[MOTION_ADDR], p);
+    //         vec2 v = motion_data.xy * vec2(.5, -.5);
+    //         vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
+    //         iv.x = (abs(iv.x) < MOTION_VECTOR_MIN) ? 0 : iv.x;
+    //         iv.y = (abs(iv.y) < MOTION_VECTOR_MIN) ? 0 : iv.y;
+    //         ivec2 p_prev = ivec2(ipos + iv + MOTION_VECTOR_OFFSET);
+    //         vec4 seed_prev = imageLoad(gbuffers[SEED_LUMINANCE_ADDR_PREV], p_prev);
+    //         vec4 seed_curr = imageLoad(gbuffers[SEED_LUMINANCE_ADDR], p);
+    //         if (all(equal(seed_curr.xyz, seed_prev.xyz))) {
+    //             ipos = p;
+    //             pixel_seed = ivec2(seed_curr.xy);
+    //             frame_seed = int(seed_curr.z);
+    //             seed_found = true;
+    //             break;
+    //         }
+    //     }
+    // }
+
+    // Position G Buffer 
+    temp = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
+    w_position = temp.xyz;
+    depth = temp.w;
+
+    // Normal G Buffer
+    temp = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
+    w_normal = temp.xyz;
+    entity_id = int(temp.w);
+
+    // UV G Buffer
+    temp = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos);
+    uv = temp.xy;
+
+    // Raw albedo
+    temp = imageLoad(gbuffers[ALBEDO_ADDR], ipos);
+    albedo = temp.xyz;
+}
+#endif

@@ -428,7 +428,7 @@ void disney_pdf(const in MaterialStruct mat, bool backface,
 /* Sample a component of the Disney BRDF, returns the sampled BRDF color,
  * ray reflection direction (w_i) and sample PDF. */
 vec3 sample_disney_bsdf (
-	ivec2 pixel_seed, int frame_seed, const in MaterialStruct mat, 
+	const in MaterialStruct mat, 
 	bool backface, const in vec3 w_n,
 	const in vec3 w_o, const in vec3 w_x, const in vec3 w_y,
 	// bool force_diffuse,

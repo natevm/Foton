@@ -93,7 +93,7 @@ void main() {
 
         vec3 indirect = imageLoad(gbuffers[DIFFUSE_ILLUM_VAR_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
         vec3 glossy = imageLoad(gbuffers[SPECULAR_ILLUM_VAR_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
-        color = indirect * mat_estimator * diffuse_color + glossy * specular_estimator;
+        color = indirect * mat_estimator * diffuse_color + glossy;// * specular_estimator;
 
         if ((entity.light_id >= 0) && (entity.light_id < max_lights)) {
             color += light.color.rgb * light.intensity;

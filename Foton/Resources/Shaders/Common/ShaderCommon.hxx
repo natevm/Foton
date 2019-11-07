@@ -1065,11 +1065,7 @@ struct PBRInfo
 /* DISNEY BRDF */
 
 
-void directionOfAnisotropicity(vec3 normal, out vec3 tangent, out vec3 binormal){
-    tangent = cross(normal, vec3(1.,0.,1.));
-    binormal = normalize(cross(normal, tangent));
-    tangent = normalize(cross(normal,binormal));
-}
+
 
 // float visibilityTest(int light_entity_id, const in SurfaceInteraction interaction, vec3 ro, vec3 rd) {
 //     #ifndef RAYTRACING
