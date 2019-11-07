@@ -49,46 +49,65 @@ layout(std430, push_constant) uniform PushConstants {
 } push;
 
 /* G buffer locations */
+
+// Parameter buffers
 #define POSITION_DEPTH_ADDR 0
 #define NORMAL_ID_ADDR 1
-#define SEED_LUMINANCE_ADDR 2
-#define ALBEDO_ADDR 3
-#define MOTION_ADDR 4
-#define UV_METALLIC_ROUGHESS_ADDR 5
-#define POSITION_DEPTH_ADDR_PREV 6
-#define NORMAL_ID_ADDR_PREV 7
-#define SEED_LUMINANCE_ADDR_PREV 8
+#define ALBEDO_ADDR 2
+#define UV_METALLIC_ROUGHESS_ADDR 3
+#define SEED_LUMINANCE_ADDR 4
+#define DIFFUSE_MOTION_ADDR 5
+#define SPECULAR_MOTION_ADDR 6
+
+
+// Previous parameter buffers
+#define POSITION_DEPTH_ADDR_PREV 7
+#define NORMAL_ID_ADDR_PREV 8
 #define ALBEDO_ADDR_PREV 9
 #define UV_METALLIC_ROUGHESS_ADDR_PREV 10
-#define DIFFUSE_ILLUM_VAR_ADDR 11
-#define SPECULAR_ILLUM_VAR_ADDR 12
-#define PROGRESSIVE_HISTORY_ADDR 13
-#define ATROUS_HISTORY_1_ADDR 14
-#define ATROUS_HISTORY_2_ADDR 15
-#define ATROUS_HISTORY_3_ADDR 22
-#define SVGF_TAA_HISTORY_1_ADDR 16
-#define SVGF_TAA_HISTORY_2_ADDR 17
-#define SVGF_TAA_HISTORY_3_ADDR 18
-#define SVGF_TAA_HISTORY_4_ADDR 19
-#define SVGF_TAA_HISTORY_5_ADDR 24
-#define SVGF_TAA_HISTORY_6_ADDR 25
-#define SVGF_TAA_HISTORY_7_ADDR 32
-#define SVGF_TAA_HISTORY_8_ADDR 33
-#define SVGF_TAA_HISTORY_9_ADDR 37
-#define SVGF_TAA_HISTORY_10_ADDR 38
-#define TAA_HISTORY_1_ADDR 20
-#define TAA_HISTORY_2_ADDR 21
-#define TEMPORAL_GRADIENT_ADDR 26
-#define TEMPORAL_GRADIENT_ADDR_PREV 27
-#define LUMINANCE_VARIANCE_ADDR 28
-#define LUMINANCE_VARIANCE_ADDR_PREV 23
-#define DEBUG_ADDR 29
-#define SAMPLE_COUNT_ADDR 30
-#define SAMPLE_COUNT_ADDR_PREV 31
-#define VARIANCE_ADDR 34
+#define SEED_LUMINANCE_ADDR_PREV 11
 
-#define DEBUG_ADDR_NOISE 35
-#define DEMODULATION_ADDR 36
+// Motion buffers
+
+// Raytracing buffers
+#define SAMPLE_COUNT_ADDR 12
+#define SAMPLE_COUNT_ADDR_PREV 13
+#define DIFFUSE_ILLUM_VAR_ADDR 14
+#define SPECULAR_ILLUM_VAR_ADDR 15
+
+// Progressive refinement buffers
+#define PROGRESSIVE_HISTORY_ADDR 16
+
+// Atrous iterative buffers
+#define ATROUS_HISTORY_1_ADDR 17
+#define ATROUS_HISTORY_2_ADDR 18
+#define ATROUS_HISTORY_3_ADDR 19
+
+// Temporal gradient buffers
+#define TEMPORAL_GRADIENT_ADDR 20
+#define TEMPORAL_GRADIENT_ADDR_PREV 21
+#define LUMINANCE_VARIANCE_ADDR 22
+#define LUMINANCE_VARIANCE_ADDR_PREV 23
+#define VARIANCE_ADDR 24
+
+// TAA history buffers
+#define TAA_HISTORY_1_ADDR 25
+#define TAA_HISTORY_2_ADDR 26
+#define SVGF_TAA_HISTORY_1_ADDR 27
+#define SVGF_TAA_HISTORY_2_ADDR 28
+#define SVGF_TAA_HISTORY_3_ADDR 29
+#define SVGF_TAA_HISTORY_4_ADDR 30
+#define SVGF_TAA_HISTORY_5_ADDR 31
+#define SVGF_TAA_HISTORY_6_ADDR 32
+#define SVGF_TAA_HISTORY_7_ADDR 33
+#define SVGF_TAA_HISTORY_8_ADDR 34
+#define SVGF_TAA_HISTORY_9_ADDR 35
+#define SVGF_TAA_HISTORY_10_ADDR 36
+
+// Free
+// #define DEBUG_ADDR 
+// #define DEBUG_ADDR_NOISE 35
+// #define DEMODULATION_ADDR 36
 // #define RAY_DIRECTION_ADDR_PREV 23 // free g buffer
 
 /* If used for primary visibility, rasterizer will write to these g buffers via corresponding framebuffer attachments. */
@@ -97,7 +116,7 @@ layout(location = POSITION_DEPTH_ADDR) out vec4 position_depth;
 layout(location = NORMAL_ID_ADDR) out vec4 normal_id;
 layout(location = SEED_LUMINANCE_ADDR) out vec4 seed_luminance;
 layout(location = ALBEDO_ADDR) out vec4 albedo;
-layout(location = MOTION_ADDR) out vec4 motion;
+layout(location = DIFFUSE_MOTION_ADDR) out vec4 motion;
 layout(location = UV_METALLIC_ROUGHESS_ADDR) out vec4 uv;
 #endif
 

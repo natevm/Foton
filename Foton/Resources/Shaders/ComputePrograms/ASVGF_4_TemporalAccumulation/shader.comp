@@ -60,7 +60,7 @@ void main() {
     // Note, the w component indicates an invalid motion vector, which can 
     // occur for pixels containing the background
     bool reset = false;
-    precise vec4 motion_data = imageLoad(gbuffers[MOTION_ADDR], ipos);
+    precise vec4 motion_data = imageLoad(gbuffers[DIFFUSE_MOTION_ADDR], ipos);
     if (motion_data.w > 0) reset = true; // reset history if motion data is invalid
     precise vec2 v = motion_data.xy * vec2(.5, -.5);
     precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
@@ -258,7 +258,7 @@ void main() {
         imageStore( gbuffers[next_sample_count_addr],       ivec2(gl_GlobalInvocationID.xy), vec4(accum_histlen));
         imageStore( gbuffers[next_grad_addr],       ivec2(gl_GlobalInvocationID.xy), vec4(accum_antilag));
 
-        imageStore( gbuffers[DEBUG_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(abs(accum_antilag)));
+        // imageStore( gbuffers[DEBUG_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(abs(accum_antilag)));
     } else {
         /* encodes variance */
         direct_curr.w = 200;
@@ -275,6 +275,6 @@ void main() {
         imageStore( gbuffers[next_sample_count_addr],       ivec2(gl_GlobalInvocationID.xy), vec4(1));
         imageStore( gbuffers[next_grad_addr],               ivec2(gl_GlobalInvocationID.xy), vec4(0));
 
-        imageStore( gbuffers[DEBUG_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(0));
+        // imageStore( gbuffers[DEBUG_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(0));
     }
 }

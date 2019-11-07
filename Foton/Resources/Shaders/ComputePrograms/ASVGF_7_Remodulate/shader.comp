@@ -89,11 +89,11 @@ void main() {
 
         float m = disney_diffuse(mat, w_n_f, w_o, w_i, diffuse_color);
         float mat_estimator = pow2(1.0 - F)*m*M_PI;
-        float specular_estimator = F;
+        float specular_estimator = F + (1.0 - F) * (max(mat.metallic, 1.0 - (mat.roughness * mat.roughness)));
 
         vec3 indirect = imageLoad(gbuffers[DIFFUSE_ILLUM_VAR_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
         vec3 glossy = imageLoad(gbuffers[SPECULAR_ILLUM_VAR_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
-        color = indirect * mat_estimator * diffuse_color + glossy;// * specular_estimator;
+        color = indirect * mat_estimator * diffuse_color + glossy * specular_estimator;
 
         if ((entity.light_id >= 0) && (entity.light_id < max_lights)) {
             color += light.color.rgb * light.intensity;

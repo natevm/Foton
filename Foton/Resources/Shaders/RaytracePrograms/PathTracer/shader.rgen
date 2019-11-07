@@ -279,9 +279,6 @@ void main()
 
             // Seed/luminance
             imageStore(gbuffers[SEED_LUMINANCE_ADDR], p, vec4(pixel_seed, frame_seed, luminance(incoming_illumination)));
-            
-            /* for now, store an example random value. Testing to see if we're really getting blue noise...*/
-            imageStore(gbuffers[DEBUG_ADDR_NOISE], p, vec4(rand));
         }
     }
     

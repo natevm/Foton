@@ -127,5 +127,5 @@ void main()
     imageStore(gbuffers[ALBEDO_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(albedo, 1.0));
 
     // Motion Vector G Buffer
-    imageStore(gbuffers[MOTION_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(motion, (reset) ? 1.0 : 0.0));
+    imageStore(gbuffers[DIFFUSE_MOTION_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(motion, (reset) ? 1.0 : 0.0));
 }

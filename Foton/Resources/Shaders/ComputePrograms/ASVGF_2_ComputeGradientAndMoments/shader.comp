@@ -52,7 +52,7 @@ void main() {
 
     // Compute motion vector
     ivec2 ipos = (stride * tile + offset_curr);
-    precise vec4 motion_data = imageLoad(gbuffers[MOTION_ADDR], ipos);
+    precise vec4 motion_data = imageLoad(gbuffers[DIFFUSE_MOTION_ADDR], ipos);
     precise vec2 v = motion_data.xy * vec2(.5, -.5);
     precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
     iv.x = (abs(iv.x) < MOTION_VECTOR_MIN) ? 0 : iv.x;

@@ -42,7 +42,7 @@ void main()
     vec2 moments = imageLoad(gbuffers[LUMINANCE_VARIANCE_ADDR_PREV], ipos).rg;
     float histlen = imageLoad(gbuffers[SAMPLE_COUNT_ADDR_PREV], ipos).a;
 	vec4 current_position_depth_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
-    vec4 motion_data = imageLoad(gbuffers[MOTION_ADDR], ipos);
+    vec4 motion_data = imageLoad(gbuffers[DIFFUSE_MOTION_ADDR], ipos);
 
 	vec4 direct = vec4(0.); 
 	vec4 indirect = vec4(0.); 
