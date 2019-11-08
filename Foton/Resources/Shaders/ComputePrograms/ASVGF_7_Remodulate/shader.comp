@@ -101,5 +101,10 @@ void main() {
     }
 
     imageStore(render_image, ivec2(gl_GlobalInvocationID.xy), vec4(color, 1.0));
+    // testing...
+    // vec4 seed_lum = imageLoad(gbuffers[SEED_LUMINANCE_ADDR], ivec2(gl_GlobalInvocationID.xy));
+    // seed_lum.w += luminance(color);
+    // seed_lum.w *= .5;
+    // imageStore(gbuffers[SEED_LUMINANCE_ADDR], ivec2(gl_GlobalInvocationID.xy), seed_lum);
     // imageStore(render_image, ivec2(gl_GlobalInvocationID.xy), vec4(direction, 1.0));
 }

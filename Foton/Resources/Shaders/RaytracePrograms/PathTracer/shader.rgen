@@ -267,12 +267,14 @@ void main()
             break;
         }
 
-        path_throughput *= bsdf / pdf;
+
+
+        path_throughput *= bsdf / max(pdf, PDF_CLAMP);
 
         /* for denoising, we factor out the diffuse and specular bsdfs for primary hits */
         if (bounce > 1) {
-            if (dpdf > EPSILON || (all(greaterThan(dbsdf, vec3(EPSILON))))) {
-                incoming_path_throughput *= dbsdf / dpdf;
+            if ((dpdf > EPSILON) && (all(greaterThan(dbsdf, vec3(EPSILON)))) && ((spdf > EPSILON) && (all(lessThan(sbsdf, vec3(EPSILON)))))) {
+                incoming_path_throughput *= (dbsdf / max(dpdf, PDF_CLAMP));
             } else {
                 incoming_path_throughput *= 0;
             }
@@ -280,9 +282,13 @@ void main()
             glossy_path_throughput *= bsdf / pdf;
         }
         else if (bounce == 1) {
-            if (spdf > EPSILON || (all(greaterThan(sbsdf, vec3(EPSILON))))) {
-                // incoming_path_throughput *= dbsdf / dpdf;
-                glossy_path_throughput *= sbsdf / spdf; 
+            if ((spdf > EPSILON) && (all(greaterThan(sbsdf, vec3(EPSILON))))) {
+                if ((spdf > EPSILON) && ((all(lessThan(sbsdf, vec3(EPSILON)))))) {
+                    incoming_path_throughput *= (dbsdf / max(dpdf, PDF_CLAMP));
+                } else {
+                    incoming_path_throughput *= 0;
+                }
+                glossy_path_throughput *= sbsdf / max(spdf, PDF_CLAMP); 
             } else {
                 glossy_path_throughput *= 0;
             }

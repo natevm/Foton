@@ -305,7 +305,8 @@ namespace Systems
             ComputePipelineResources asvgf_reproject_seeds;
             ComputePipelineResources asvgf_compute_gradient;
             ComputePipelineResources asvgf_reconstruct_gradient;
-            ComputePipelineResources asvgf_temporal_accumulation;
+            ComputePipelineResources asvgf_diffuse_temporal_accumulation;
+            ComputePipelineResources asvgf_specular_temporal_accumulation;
             ComputePipelineResources asvgf_estimate_variance;
             ComputePipelineResources asvgf_final_atrous;
             ComputePipelineResources progressive_refinement;

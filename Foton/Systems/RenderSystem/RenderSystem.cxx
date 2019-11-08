@@ -691,8 +691,28 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 					push_constants.parameter1 = this->asvgf_gradient_influence;
 					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 					
-					command_buffer.pushConstants(asvgf_temporal_accumulation.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, asvgf_temporal_accumulation.pipeline);
+					command_buffer.pushConstants(asvgf_diffuse_temporal_accumulation.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, asvgf_diffuse_temporal_accumulation.pipeline);
+
+					uint32_t local_size_x = 16;
+					uint32_t local_size_y = 16;
+
+					uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+					uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+					uint32_t groupZ = 1;
+					command_buffer.dispatch(groupX, groupY, groupZ);
+				}
+
+				for(uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
+					push_constants.target_id = -1;
+					push_constants.camera_id = camera_entity.get_id();
+					push_constants.viewIndex = rp_idx;
+					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
+					push_constants.parameter1 = this->asvgf_gradient_influence;
+					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+					
+					command_buffer.pushConstants(asvgf_specular_temporal_accumulation.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, asvgf_specular_temporal_accumulation.pipeline);
 
 					uint32_t local_size_x = 16;
 					uint32_t local_size_y = 16;
@@ -2767,16 +2787,28 @@ void RenderSystem::setup_compute_pipelines()
 		taa.ready = true;
 	}
 
-	/* ------ ASVGF Temporal Accumulation  ------ */
+	/* ------ ASVGF Diffuse Temporal Accumulation  ------ */
 	{
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_4_DiffuseTemporalAccumulation/comp.spv"));
-		auto compShaderModule = create_shader_module("asvgf_temporal_accumulation", compShaderCode);
+		auto compShaderModule = create_shader_module("asvgf_diffuse_temporal_accumulation", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        asvgf_temporal_accumulation.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        asvgf_diffuse_temporal_accumulation.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
-        computeCreateInfo.layout = asvgf_temporal_accumulation.pipelineLayout;
-        asvgf_temporal_accumulation.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
-		asvgf_temporal_accumulation.ready = true;
+        computeCreateInfo.layout = asvgf_diffuse_temporal_accumulation.pipelineLayout;
+        asvgf_diffuse_temporal_accumulation.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		asvgf_diffuse_temporal_accumulation.ready = true;
+	}
+
+	/* ------ ASVGF Specular Temporal Accumulation  ------ */
+	{
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_4_SpecularTemporalAccumulation/comp.spv"));
+		auto compShaderModule = create_shader_module("asvgf_specular_temporal_accumulation", compShaderCode);
+		compShaderStageInfo.module = compShaderModule;
+        asvgf_specular_temporal_accumulation.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = asvgf_specular_temporal_accumulation.pipelineLayout;
+        asvgf_specular_temporal_accumulation.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		asvgf_specular_temporal_accumulation.ready = true;
 	}
 
 	/* ASVGF A-Trous Edge Avoiding Filter */
@@ -3913,7 +3945,8 @@ void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffe
 {
 	if (
 		(edgedetect.ready == false) || 
-		(asvgf_temporal_accumulation.ready == false) || 
+		(asvgf_diffuse_temporal_accumulation.ready == false) || 
+		(asvgf_specular_temporal_accumulation.ready == false) || 
 		(progressive_refinement.ready == false) || 
 		(tone_mapping.ready == false) || 
 		(copy_history.ready == false) || 
@@ -3930,7 +3963,8 @@ void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffe
 	auto key = std::pair<uint32_t, uint32_t>(camera_entity.get_id(), rp_idx);
 	std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet, gbufferDescriptorSets[key]};
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, edgedetect.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
-	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_temporal_accumulation.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_diffuse_temporal_accumulation.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_specular_temporal_accumulation.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, taa.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, progressive_refinement.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, tone_mapping.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);

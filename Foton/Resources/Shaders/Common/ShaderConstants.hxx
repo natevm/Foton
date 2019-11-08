@@ -31,6 +31,7 @@
 #define MIN_SAMPLES 0
 #define MAX_CUMULATIVE_COUNT 64
 #define TEMPORAL_ALPHA (1.0 / float(MAX_CUMULATIVE_COUNT))
+#define MAX_SPECULAR_CUMULATIVE_COUNT 256
 
 // The larger max cumulative count is, the more powerful soft reset rate should be?
 #define MIN_SOFT_RESET_COUNT 4
@@ -56,3 +57,5 @@
 #define GRADIENT_TILE_SIZE 2
 
 #define GRADIENT_DOWNSAMPLE (1.0/float(10))
+
+#define PDF_CLAMP .1

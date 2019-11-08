@@ -45,20 +45,20 @@ void main() {
 
     // This temporal accumulation uses two ping pong buffers per accumulated
     // g buffer. These are the current and next gbuffer addreses for each.
-    const int curr_diffuse_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_1_ADDR : SVGF_TAA_HISTORY_2_ADDR;
-    const int next_diffuse_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_2_ADDR : SVGF_TAA_HISTORY_1_ADDR;
-    const int curr_moments_addr       = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_5_ADDR : SVGF_TAA_HISTORY_6_ADDR;
-    const int next_moments_addr       = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_6_ADDR : SVGF_TAA_HISTORY_5_ADDR;
-    const int curr_sample_count_addr  = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_7_ADDR : SVGF_TAA_HISTORY_8_ADDR;
-    const int next_sample_count_addr  = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_8_ADDR : SVGF_TAA_HISTORY_7_ADDR;
-    const int curr_grad_addr  = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_9_ADDR : SVGF_TAA_HISTORY_10_ADDR;
-    const int next_grad_addr  = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_10_ADDR : SVGF_TAA_HISTORY_9_ADDR;
+    const int curr_specular_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_3_ADDR : SVGF_TAA_HISTORY_4_ADDR;
+    const int next_specular_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_4_ADDR : SVGF_TAA_HISTORY_3_ADDR;
+    // const int curr_moments_addr       = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_5_ADDR : SVGF_TAA_HISTORY_6_ADDR;
+    // const int next_moments_addr       = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_6_ADDR : SVGF_TAA_HISTORY_5_ADDR;
+    // const int curr_sample_count_addr  = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_7_ADDR : SVGF_TAA_HISTORY_8_ADDR;
+    // const int next_sample_count_addr  = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_8_ADDR : SVGF_TAA_HISTORY_7_ADDR;
+    // const int curr_grad_addr  = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_9_ADDR : SVGF_TAA_HISTORY_10_ADDR;
+    // const int next_grad_addr  = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_10_ADDR : SVGF_TAA_HISTORY_9_ADDR;
 
     // Compute motion vector
     // Note, the w component indicates an invalid motion vector, which can 
     // occur for pixels containing the background
     bool reset = false;
-    precise vec4 motion_data = imageLoad(gbuffers[DIFFUSE_MOTION_ADDR], ipos);
+    precise vec4 motion_data = imageLoad(gbuffers[SPECULAR_MOTION_ADDR], ipos);
     if (motion_data.w > 0) reset = true; // reset history if motion data is invalid
     precise vec2 v = motion_data.xy * vec2(.5, -.5);
     precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
@@ -71,7 +71,7 @@ void main() {
     vec4 curr_albedo_data = imageLoad(gbuffers[ALBEDO_ADDR], ipos);
     vec4 curr_normal_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
     vec4 curr_position_depth_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
-    int samples = int(imageLoad(gbuffers[curr_sample_count_addr], ipos).r);
+    // int samples = int(imageLoad(gbuffers[curr_sample_count_addr], ipos).r);
 
     // vec4 curr_uv_metallic_roughness_data = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos);
     vec3 curr_albedo = curr_albedo_data.rgb;
@@ -82,22 +82,24 @@ void main() {
     // float roughness = curr_uv_metallic_roughness_data.w;
 
     // Load g buffer data to be temporally accumulated
-	vec4  diffuse_curr     = imageLoad(gbuffers[DIFFUSE_ILLUM_VAR_ADDR], ipos);
+	vec4  specular_curr     = imageLoad(gbuffers[SPECULAR_ILLUM_VAR_ADDR], ipos);
 	vec2  moments_curr = imageLoad(gbuffers[LUMINANCE_VARIANCE_ADDR], ipos).rg;
     // vec4  grad_curr = imageLoad(gbuffers[TEMPORAL_GRADIENT_ADDR], ipos); 
 
     // We'll be estimating these values by a simple filter surrounding the reprojected position
-    vec4 diffuse_prev  = vec4(0);
+    vec4 specular_prev  = vec4(0);
     float antilag_prev = 0;
     vec4 hist_prev    = vec4(0);
 	vec2 moments_prev = vec2(0);
 	float sum_w       = 0.0;
 	float histlen     = 0.0;
     if (!reset) {
-        const int max_rad = 1;// * PATH_TRACE_TILE_SIZE;
-	    const float hist_len_thresh = max_rad + MIN_SAMPLES;
-        float alpha = (hist_len_thresh - clamp(samples, 0, hist_len_thresh) ) / hist_len_thresh;
-        const int r = int(mix(1, max_rad, alpha));
+        // const int max_rad = 1;// * PATH_TRACE_TILE_SIZE;
+	    // const float hist_len_thresh = max_rad + MIN_SAMPLES;
+        // float alpha = (hist_len_thresh - clamp(samples, 0, hist_len_thresh) ) / hist_len_thresh;
+        // const int r = int(mix(1, max_rad, alpha));
+
+        const int r = 0;
         for (int y = -r; y <= r; ++y) {
             for (int x = -r; x <= r; ++x) {
                 ivec2 ipos_prev = pos_prev + ivec2(x, y);
@@ -113,12 +115,12 @@ void main() {
                 float hist_dist = hist_pos_data.w;
                 
                 // Load prior gbuffer data to accumulate temporally 
-                vec4 diffuse = imageLoad(gbuffers[curr_diffuse_hist_addr], ipos_prev);
-                vec2 moments = imageLoad(gbuffers[curr_moments_addr], ipos_prev).rg;
-                int samples = int(imageLoad(gbuffers[curr_sample_count_addr], ipos_prev).r);
-                vec4 luminance_data = imageLoad(gbuffers[curr_moments_addr], ipos_prev);
+                vec4 specular = imageLoad(gbuffers[curr_specular_hist_addr], ipos_prev);
+                // vec2 moments = imageLoad(gbuffers[curr_moments_addr], ipos_prev).rg;
+                // int samples = int(imageLoad(gbuffers[curr_sample_count_addr], ipos_prev).r);
+                // vec4 luminance_data = imageLoad(gbuffers[curr_moments_addr], ipos_prev);
                 // vec4 grad = imageLoad(gbuffers[curr_grad_addr], ipos_prev);
-                float antilag = imageLoad(gbuffers[curr_grad_addr], ipos_prev).r;
+                // float antilag = imageLoad(gbuffers[curr_grad_addr], ipos_prev).r;
 
                 bvec2 a = greaterThan(ipos_prev, vec2(push.consts.width-1, push.consts.height-1));
                 bvec2 b = lessThan(ipos_prev, vec2(0.0, 0.0));
@@ -126,12 +128,12 @@ void main() {
                 // Determine if this prior sample is a disocclusion. If not, accept it.
                 bool accept = true;
                 accept = accept && (!any(bvec2(any(a), any(b))));
-                accept = accept && (!any(isnan(diffuse)));
-                accept = accept && (!any(isinf(diffuse)));
-                accept = accept && (!any(isnan(moments)));
-                accept = accept && (!any(isinf(moments)));
-                accept = accept && (!isnan(antilag));
-                accept = accept && (!isinf(antilag));
+                accept = accept && (!any(isnan(specular)));
+                accept = accept && (!any(isinf(specular)));
+                // accept = accept && (!any(isnan(moments)));
+                // accept = accept && (!any(isinf(moments)));
+                // accept = accept && (!isnan(antilag));
+                // accept = accept && (!isinf(antilag));
 
                 // accept = accept && (!any(isnan(gradient_data)));
                 // accept = accept && (!any(isinf(gradient_data)));                
@@ -145,10 +147,10 @@ void main() {
 
                 if (accept) {
                     float w = 1.;
-                    diffuse_prev += diffuse * w;
-                    moments_prev += moments * w;
-                    antilag_prev += antilag * w;
-                    histlen      += samples * w;
+                    specular_prev += specular * w;
+                    // moments_prev += moments * w;
+                    // antilag_prev += antilag * w;
+                    // histlen      += samples * w;
                     sum_w        += w;
                 }
             }
@@ -190,21 +192,22 @@ void main() {
 	}
 
     if (sum_w > 0.01) { /* found sufficiently reliable history information */
-        diffuse_prev   /= sum_w;
-		moments_prev  /= sum_w;
-		antilag_prev  /= sum_w;
-		histlen       /= sum_w;
+        specular_prev   /= sum_w;
+		// moments_prev  /= sum_w;
+		// antilag_prev  /= sum_w;
+		// histlen       /= sum_w;
 
-        float accum_antilag = mix(antilag_prev, antilag_alpha, GRADIENT_ALPHA);
+        // float accum_antilag = mix(antilag_prev, antilag_alpha, GRADIENT_ALPHA);
 
-        float alpha_color   = max(1.0 / MAX_CUMULATIVE_COUNT, 1.0 / (histlen + 1.0));
-		float alpha_moments = max(0.6, 1.0 / (histlen + 1.0));
+        // float alpha_color   = max(1.0 / MAX_CUMULATIVE_COUNT, 1.0 / (histlen + 1.0));
+        float alpha_color   = 1.0 / MAX_SPECULAR_CUMULATIVE_COUNT;
+		// float alpha_moments = max(0.6, 1.0 / (histlen + 1.0));
 
-        alpha_color   = mix(alpha_color,   (1.0 / MAX_CUMULATIVE_COUNT) * 10.0, accum_antilag);
-		alpha_moments = mix(alpha_moments, (1.0 / MAX_CUMULATIVE_COUNT) * 10.0, accum_antilag);
-		vec2 accum_moments = mix(moments_prev, moments_curr, alpha_moments);
+        // alpha_color   = mix(alpha_color,   (1.0 / MAX_CUMULATIVE_COUNT) * 10.0, accum_antilag);
+		// alpha_moments = mix(alpha_moments, (1.0 / MAX_CUMULATIVE_COUNT) * 10.0, accum_antilag);
+		// vec2 accum_moments = mix(moments_prev, moments_curr, alpha_moments);
         
-        float variance = abs(accum_moments.y - accum_moments.x * accum_moments.x);  
+        // float variance = abs(accum_moments.y - accum_moments.x * accum_moments.x);  
 
         
 
@@ -212,50 +215,50 @@ void main() {
 
 
 
-		float color_count   = clamp(histlen, MIN_SAMPLES, MAX_CUMULATIVE_COUNT);
-        float moments_count = clamp(histlen, MIN_SAMPLES, MAX_CUMULATIVE_COUNT);
+		// float color_count   = clamp(histlen, MIN_SAMPLES, MAX_CUMULATIVE_COUNT);
+        // float moments_count = clamp(histlen, MIN_SAMPLES, MAX_CUMULATIVE_COUNT);
 
         
         // I don't know why, but mix seems to lose precision... always seems to reduce alpha color. 
 		// alpha_color   = mix(alpha_color,   1.0, accum_antilag); 
-        color_count = mix(color_count, 1.0, clamp(accum_antilag, 0.0, 1.0));
-		moments_count = mix(moments_count, 1.0, clamp(accum_antilag, 0.0, 1.0));
+        // color_count = mix(color_count, 1.0, clamp(accum_antilag, 0.0, 1.0));
+		// moments_count = mix(moments_count, 1.0, clamp(accum_antilag, 0.0, 1.0));
 		
         // float accum_a = min(MAX_CUMULATIVE_COUNT, histlen);
-        float accum_histlen = color_count + 1.0;
+        // float accum_histlen = color_count + 1.0;
 	// vec2 accum_moments = mix(moments_prev, moments_curr, 1.0 / moments_count);
         // if (moments_count <= 1) accum_moments.y = 1;
         
     // float variance = abs(accum_moments.y - accum_moments.x * accum_moments.x);
-        if (isnan(variance) ) variance = 200;
+        // if (isnan(variance) ) variance = 200;
         
-        vec4 accum_diffuse = vec4(mix(diffuse_prev.rgb, diffuse_curr.rgb, alpha_color), variance);
+        vec4 accum_specular = vec4(mix(specular_prev.rgb, specular_curr.rgb, alpha_color), 1.0); // note, pass variance as w for bilateral filtering
         
 
-        imageStore( gbuffers[DIFFUSE_ILLUM_VAR_ADDR],        ivec2(gl_GlobalInvocationID.xy), accum_diffuse);
-        imageStore( gbuffers[LUMINANCE_VARIANCE_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(accum_moments, z_curr, accum_histlen));
-        imageStore( gbuffers[SAMPLE_COUNT_ADDR],            ivec2(gl_GlobalInvocationID.xy), vec4(accum_histlen));
-        imageStore( gbuffers[VARIANCE_ADDR],                ivec2(gl_GlobalInvocationID.xy), vec4(variance));
+        imageStore( gbuffers[SPECULAR_ILLUM_VAR_ADDR],        ivec2(gl_GlobalInvocationID.xy), accum_specular);
+        // imageStore( gbuffers[LUMINANCE_VARIANCE_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(accum_moments, z_curr, accum_histlen));
+        // imageStore( gbuffers[SAMPLE_COUNT_ADDR],            ivec2(gl_GlobalInvocationID.xy), vec4(accum_histlen));
+        // imageStore( gbuffers[VARIANCE_ADDR],                ivec2(gl_GlobalInvocationID.xy), vec4(variance));
         // imageStore( gbuffers[TEMPORAL_GRADIENT_ADDR],       ivec2(gl_GlobalInvocationID.xy), vec4(accum_antilag));
 
-        imageStore( gbuffers[next_diffuse_hist_addr],        ivec2(gl_GlobalInvocationID.xy), accum_diffuse );
-        imageStore( gbuffers[next_moments_addr],            ivec2(gl_GlobalInvocationID.xy), vec4(accum_moments, z_curr, z_curr));
-        imageStore( gbuffers[next_sample_count_addr],       ivec2(gl_GlobalInvocationID.xy), vec4(accum_histlen));
-        imageStore( gbuffers[next_grad_addr],       ivec2(gl_GlobalInvocationID.xy), vec4(accum_antilag));
+        imageStore( gbuffers[next_specular_hist_addr],        ivec2(gl_GlobalInvocationID.xy), accum_specular );
+        // imageStore( gbuffers[next_moments_addr],            ivec2(gl_GlobalInvocationID.xy), vec4(accum_moments, z_curr, z_curr));
+        // imageStore( gbuffers[next_sample_count_addr],       ivec2(gl_GlobalInvocationID.xy), vec4(accum_histlen));
+        // imageStore( gbuffers[next_grad_addr],       ivec2(gl_GlobalInvocationID.xy), vec4(accum_antilag));
 
         // imageStore( gbuffers[DEBUG_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(abs(accum_antilag)));
     } else {
         /* encodes variance */
-        diffuse_curr.w = 200;
+        // diffuse_curr.w = 200;
 
-        imageStore( gbuffers[DIFFUSE_ILLUM_VAR_ADDR],        ivec2(gl_GlobalInvocationID.xy), diffuse_curr);
-        imageStore( gbuffers[LUMINANCE_VARIANCE_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(moments_curr, z_curr, z_curr));
-        imageStore( gbuffers[SAMPLE_COUNT_ADDR],            ivec2(gl_GlobalInvocationID.xy), vec4(1));
-        imageStore( gbuffers[VARIANCE_ADDR],                ivec2(gl_GlobalInvocationID.xy), vec4(200));
-        imageStore( gbuffers[next_diffuse_hist_addr],        ivec2(gl_GlobalInvocationID.xy), diffuse_curr);
-        imageStore( gbuffers[next_moments_addr],            ivec2(gl_GlobalInvocationID.xy), vec4(moments_curr, z_curr, z_curr));
-        imageStore( gbuffers[next_sample_count_addr],       ivec2(gl_GlobalInvocationID.xy), vec4(1));
-        imageStore( gbuffers[next_grad_addr],               ivec2(gl_GlobalInvocationID.xy), vec4(0));
+        imageStore( gbuffers[SPECULAR_ILLUM_VAR_ADDR],        ivec2(gl_GlobalInvocationID.xy), specular_curr);
+        // imageStore( gbuffers[LUMINANCE_VARIANCE_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(moments_curr, z_curr, z_curr));
+        // imageStore( gbuffers[SAMPLE_COUNT_ADDR],            ivec2(gl_GlobalInvocationID.xy), vec4(1));
+        // imageStore( gbuffers[VARIANCE_ADDR],                ivec2(gl_GlobalInvocationID.xy), vec4(200));
+        imageStore( gbuffers[next_specular_hist_addr],        ivec2(gl_GlobalInvocationID.xy), specular_curr);
+        // imageStore( gbuffers[next_moments_addr],            ivec2(gl_GlobalInvocationID.xy), vec4(moments_curr, z_curr, z_curr));
+        // imageStore( gbuffers[next_sample_count_addr],       ivec2(gl_GlobalInvocationID.xy), vec4(1));
+        // imageStore( gbuffers[next_grad_addr],               ivec2(gl_GlobalInvocationID.xy), vec4(0));
 
         // imageStore( gbuffers[DEBUG_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(0));
     }

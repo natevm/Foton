@@ -68,15 +68,18 @@ void main() {
     vec4 curr_norm_id = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos_prev);
     bool is_reproj_grad = all(equal(prev_seed_luminance.xyz, curr_seed_luminance.xyz)) && (int(prev_norm_id.w) == int(curr_norm_id.w));
 
+
     // TESTING    
-    // float temporal_luminance = luminance(imageLoad(gbuffers[curr_direct_hist_addr], ipos).rgb);
+    // float l_denoise_prev = luminance(imageLoad(gbuffers[DEBUG_ADDR], ipos_prev).rgb);
+    // l_denoise_prev = isnan(l_denoise_prev) ? 0.0 : l_denoise_prev;
+    // l_denoise_prev = isinf(l_denoise_prev) ? 0.0 : l_denoise_prev;
 
 
     // Compute the temporal gradient
-    float l_prev = isnan(prev_seed_luminance.w) ? 0.0 : clamp(prev_seed_luminance.w, 0, 10);
-    float l_curr = isnan(curr_seed_luminance.w) ? 0.0 : clamp(curr_seed_luminance.w, 0, 10);
+    float l_prev = isnan(prev_seed_luminance.w) ? 0.0 : prev_seed_luminance.w;
+    float l_curr = isnan(curr_seed_luminance.w) ? 0.0 : curr_seed_luminance.w;
     float temporal_gradient = (is_reproj_grad) ? abs(l_curr - l_prev) : 0.0;
-    // float temporal_gradient = (is_reproj_grad) ? abs(l_curr - temporal_luminance) : 0.0;
+    // float temporal_gradient = (is_reproj_grad) ? abs(l_curr - l_denoise_prev) : 0.0;
 
     // Compute maximum luminance
     float max_luminance = max(l_curr, l_prev);
