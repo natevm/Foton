@@ -37,9 +37,9 @@ set(SHADERS_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_1_ReprojectSeeds/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_2_ComputeGradientAndMoments/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_3_ReconstructGradientAndMoments/shader.comp
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_4_TemporalAccumulation/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_4_DiffuseTemporalAccumulation/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_5_EstimateVariance/shader.comp
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_6_ReconstructImage/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_6_ReconstructDiffuse/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_7_Remodulate/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/CopyHistory/shader.comp
     PARENT_SCOPE

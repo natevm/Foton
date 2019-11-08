@@ -29,7 +29,7 @@
 // Min samples increases temporal coherence during disocclusions, 
 // but introduces artifacts due to temporal gradient not properly causing sample reset
 #define MIN_SAMPLES 0
-#define MAX_CUMULATIVE_COUNT 256
+#define MAX_CUMULATIVE_COUNT 64
 #define TEMPORAL_ALPHA (1.0 / float(MAX_CUMULATIVE_COUNT))
 
 // The larger max cumulative count is, the more powerful soft reset rate should be?

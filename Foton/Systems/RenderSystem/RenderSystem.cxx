@@ -2769,7 +2769,7 @@ void RenderSystem::setup_compute_pipelines()
 
 	/* ------ ASVGF Temporal Accumulation  ------ */
 	{
-		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_4_TemporalAccumulation/comp.spv"));
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_4_DiffuseTemporalAccumulation/comp.spv"));
 		auto compShaderModule = create_shader_module("asvgf_temporal_accumulation", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
         asvgf_temporal_accumulation.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
@@ -2781,7 +2781,7 @@ void RenderSystem::setup_compute_pipelines()
 
 	/* ASVGF A-Trous Edge Avoiding Filter */
 	{
-		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_6_ReconstructImage/comp.spv"));
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_6_ReconstructDiffuse/comp.spv"));
 		auto compShaderModule = create_shader_module("asvgf_final_atrous", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
         asvgf_final_atrous.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
