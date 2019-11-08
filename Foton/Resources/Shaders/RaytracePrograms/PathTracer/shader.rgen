@@ -87,6 +87,12 @@ void main()
     vec3 direct_illumination = vec3(0.0);
     vec3 first_bsdf = vec3(0.0);
 
+    vec3 w_s; // primary specular reflection dir
+    vec3 w_p_s = first_position; // worldspace position of reflector
+    vec3 w_p_i = vec3(0.);
+    int reflected_entity_id = -1;
+    vec3 specular_motion = vec3(0.0);
+
     vec3 incoming_path_throughput = vec3(1.0);
     vec3 glossy_path_throughput = vec3(1.0);
     vec3 incoming_illumination = vec3(0.0);
@@ -102,6 +108,7 @@ void main()
         w_z = (bounce == 0) ? first_normal : payload.w_n;
         bool backface = dot(w_z, w_o) < 0.0;
         float dist = (bounce == 0) ? first_dist : payload.distance;
+        if (bounce == 0) w_s = reflect(-w_o, w_x);
         directionOfAnisotropicity(w_z, w_x, w_y);
 
         EntityStruct entity; MaterialStruct mat; LightStruct light;
@@ -136,17 +143,72 @@ void main()
             break;
         }
 
+        /* Reflected image worldspace position */
+        if ((bounce == 1) && (entity_id != -1)) {
+            // Compute previous reflector normals
+            EntityStruct reflector_entity; TransformStruct reflector_transform;
+            EntityStruct reflected_entity; TransformStruct reflected_transform;
+            unpack_entity_struct(first_entity_id, reflector_entity);
+            unpack_entity_struct(entity_id, reflected_entity);
+
+            reflector_transform = tbo.transforms[reflector_entity.transform_id];
+            reflected_transform = tbo.transforms[reflected_entity.transform_id];
+
+            mat3 normLocalToWorld = transpose(mat3(reflector_transform.worldToLocal));
+            mat3 normWorldToLocal = inverse(normLocalToWorld);
+            mat3 normLocalToWorldPrev = transpose(mat3(reflector_transform.worldToLocalPrev));
+
+            vec3 m_x_prev = normalize(normWorldToLocal * w_x);
+            vec3 m_y_prev = normalize(normWorldToLocal * w_y);
+            vec3 m_z_prev = normalize(normWorldToLocal * w_z);
+
+            vec3 w_x_prev = normalize(normLocalToWorldPrev * m_x_prev);
+            vec3 w_y_prev = normalize(normLocalToWorldPrev * m_y_prev);
+            vec3 w_z_prev = normalize(normLocalToWorldPrev * m_z_prev);
+            
+            vec3 w_p_prev = vec3(reflector_transform.localToWorldPrev * reflector_transform.worldToLocal * vec4(w_p, 1.0));
+            vec3 w_p_s_prev = vec3(reflected_transform.localToWorldPrev * reflected_transform.worldToLocal * vec4(w_p_s, 1.0));
+            
+            float x = dot(w_x, w_p_s - w_p);
+            float y = dot(w_y, w_p_s - w_p);
+            float z = dot(w_z, w_p_s - w_p);
+
+            float x_prev = dot(w_x_prev, w_p_s_prev - w_p_prev);
+            float y_prev = dot(w_y_prev, w_p_s_prev - w_p_prev);
+            float z_prev = dot(w_z_prev, w_p_s_prev - w_p_prev);
+
+            // position of reflected image in world space
+            vec3 w_p_i = w_p + w_x * x + w_y * y + w_z * z;
+            vec3 w_p_i_prev = w_p_prev + w_x_prev * x_prev + w_y_prev * y_prev + w_z_prev * z_prev;
+
+            // float i_dist = distance(w_p_i_prev, w_p_prev);
+            // float i_dist_prev = distance(w_p_i_prev, w_p_prev);
+
+            // w_p_i = i_dist * (-w_o) + w_p;
+            // w_p_i_prev = i_dist_prev * (-w_o) + w_p_prev;
+
+            vec4 v_p_curr = camera.multiviews[multiview_idx].viewproj * camera_transform.worldToLocal * vec4(w_p_i, 1.0);
+            vec4 v_p_prev = camera.multiviews[multiview_idx].viewproj * camera_transform.worldToLocalPrev * vec4(w_p_i_prev, 1.0);
+            specular_motion = (v_p_prev.xyz / v_p_prev.w) - (v_p_curr.xyz / v_p_curr.w);
+
+            
+            reflected_entity_id = entity_id;
+        }
+
         /* If we hit a light, radiate */
-        if ((entity.light_id >= 0) && (entity.light_id < max_lights) && (!is_ltc_enabled())) {
+        if ((entity.light_id >= 0) && (entity.light_id < max_lights)) {
             // TEMPORARILY COMMENTING OUT WHILE WORKING ON LIGHTS
             /* Ignoring primary visibility hit, since it causes issues with temporal accumulation. 
             Instead, emitting primary visibility in remodulation */
-            float attenuation = get_light_attenuation(light, payload.distance);
-            if (bounce != 0) {
-                color += path_throughput * light.color.rgb * light.intensity * attenuation;
-                    // direct_illumination = path_throughput * light.color.rgb * light.intensity;
-                incoming_illumination += incoming_path_throughput * light.color.rgb * light.intensity * attenuation;
-                glossy_illumination += glossy_path_throughput * light.color.rgb * light.intensity * attenuation;
+            if (!is_ltc_enabled())
+            {
+                float attenuation = get_light_attenuation(light, payload.distance);
+                if (bounce != 0) {
+                    color += path_throughput * light.color.rgb * light.intensity * attenuation;
+                        // direct_illumination = path_throughput * light.color.rgb * light.intensity;
+                    incoming_illumination += incoming_path_throughput * light.color.rgb * light.intensity * attenuation;
+                    glossy_illumination += glossy_path_throughput * light.color.rgb * light.intensity * attenuation;
+                }
             }
             break;
         }
@@ -265,6 +327,8 @@ void main()
     // glossy_illumination = Uncharted2Tonemap(glossy_illumination.rgb * push.consts.exposure);
     // glossy_illumination = glossy_illumination * (1.0f / Uncharted2Tonemap(vec3(11.2f)));
 
+   
+
     for (int yy = 0; yy < PATH_TRACE_TILE_SIZE; yy++){
         for (int xx = 0; xx < PATH_TRACE_TILE_SIZE; xx++) {
             ivec2 p = tile * PATH_TRACE_TILE_SIZE + ivec2(xx,yy);
@@ -279,6 +343,9 @@ void main()
 
             // Seed/luminance
             imageStore(gbuffers[SEED_LUMINANCE_ADDR], p, vec4(pixel_seed, frame_seed, luminance(incoming_illumination)));
+
+            // Specular motion vector
+            imageStore(gbuffers[SPECULAR_MOTION_ADDR], p, vec4(specular_motion, (reflected_entity_id == -1) ? 1.0 : 0.0));
         }
     }
     
