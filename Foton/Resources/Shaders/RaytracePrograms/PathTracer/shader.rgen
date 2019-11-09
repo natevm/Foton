@@ -89,7 +89,10 @@ void main()
 
     vec3 w_s; // primary specular reflection dir
     vec3 w_p_s = first_position; // worldspace position of reflector
-    vec3 w_p_i = vec3(0.);
+    vec3 w_n_s = first_normal;
+    vec3 w_p_i = vec3(0.); // worldspace position of image in reflection
+    vec3 first_direction = direction;
+    vec3 w_p_r = reflect(first_direction, first_normal) * 100000.0; // worldspace position of object being reflected
     int reflected_entity_id = -1;
     vec3 specular_motion = vec3(0.0);
 
@@ -138,62 +141,16 @@ void main()
             continue;
         }
 
+        /* Reflected image worldspace position */
+        if ((bounce == 1) && (entity_id != -1)) {
+            w_p_r = w_p;
+            reflected_entity_id = entity_id;            
+        }
+
         /* Don't double count light sources */
         if (entity_id == last_direct_light_entity_id) {
             break;
-        }
-
-        /* Reflected image worldspace position */
-        if ((bounce == 1) && (entity_id != -1)) {
-            // Compute previous reflector normals
-            EntityStruct reflector_entity; TransformStruct reflector_transform;
-            EntityStruct reflected_entity; TransformStruct reflected_transform;
-            unpack_entity_struct(first_entity_id, reflector_entity);
-            unpack_entity_struct(entity_id, reflected_entity);
-
-            reflector_transform = tbo.transforms[reflector_entity.transform_id];
-            reflected_transform = tbo.transforms[reflected_entity.transform_id];
-
-            mat3 normLocalToWorld = transpose(mat3(reflector_transform.worldToLocal));
-            mat3 normWorldToLocal = inverse(normLocalToWorld);
-            mat3 normLocalToWorldPrev = transpose(mat3(reflector_transform.worldToLocalPrev));
-
-            vec3 m_x_prev = normalize(normWorldToLocal * w_x);
-            vec3 m_y_prev = normalize(normWorldToLocal * w_y);
-            vec3 m_z_prev = normalize(normWorldToLocal * w_z);
-
-            vec3 w_x_prev = normalize(normLocalToWorldPrev * m_x_prev);
-            vec3 w_y_prev = normalize(normLocalToWorldPrev * m_y_prev);
-            vec3 w_z_prev = normalize(normLocalToWorldPrev * m_z_prev);
-            
-            vec3 w_p_prev = vec3(reflector_transform.localToWorldPrev * reflector_transform.worldToLocal * vec4(w_p, 1.0));
-            vec3 w_p_s_prev = vec3(reflected_transform.localToWorldPrev * reflected_transform.worldToLocal * vec4(w_p_s, 1.0));
-            
-            float x = dot(w_x, w_p_s - w_p);
-            float y = dot(w_y, w_p_s - w_p);
-            float z = dot(w_z, w_p_s - w_p);
-
-            float x_prev = dot(w_x_prev, w_p_s_prev - w_p_prev);
-            float y_prev = dot(w_y_prev, w_p_s_prev - w_p_prev);
-            float z_prev = dot(w_z_prev, w_p_s_prev - w_p_prev);
-
-            // position of reflected image in world space
-            vec3 w_p_i = w_p + w_x * x + w_y * y + w_z * z;
-            vec3 w_p_i_prev = w_p_prev + w_x_prev * x_prev + w_y_prev * y_prev + w_z_prev * z_prev;
-
-            // float i_dist = distance(w_p_i_prev, w_p_prev);
-            // float i_dist_prev = distance(w_p_i_prev, w_p_prev);
-
-            // w_p_i = i_dist * (-w_o) + w_p;
-            // w_p_i_prev = i_dist_prev * (-w_o) + w_p_prev;
-
-            vec4 v_p_curr = camera.multiviews[multiview_idx].viewproj * camera_transform.worldToLocal * vec4(w_p_i, 1.0);
-            vec4 v_p_prev = camera.multiviews[multiview_idx].viewproj * camera_transform.worldToLocalPrev * vec4(w_p_i_prev, 1.0);
-            specular_motion = (v_p_prev.xyz / v_p_prev.w) - (v_p_curr.xyz / v_p_curr.w);
-
-            
-            reflected_entity_id = entity_id;
-        }
+        }       
 
         /* If we hit a light, radiate */
         if ((entity.light_id >= 0) && (entity.light_id < max_lights)) {
@@ -322,6 +279,70 @@ void main()
         traceNV(topLevelAS, gl_RayFlagsNoneNV, 0xff, 0, 0, 0, origin, TMIN, direction, TMAX, 0);
     } while (bounce <= max_path_depth);
 
+    /* Compute specular motion vector */
+    {
+        // Compute previous reflector normals
+        EntityStruct reflector_entity; TransformStruct reflector_transform;
+        EntityStruct reflected_entity; TransformStruct reflected_transform;
+        unpack_entity_struct(first_entity_id, reflector_entity);
+        unpack_entity_struct(reflected_entity_id, reflected_entity);
+
+        reflector_transform = tbo.transforms[reflector_entity.transform_id];
+        if (reflected_entity.initialized == 1) {
+            reflected_transform = tbo.transforms[reflected_entity.transform_id];
+        }
+
+        // Create basis around reflector normal
+        vec3 w_x_s, w_y_s;
+        directionOfAnisotropicity(w_n_s, w_x_s, w_y_s);
+
+        mat3 normLocalToWorld = transpose(mat3(reflector_transform.worldToLocal));
+        mat3 normWorldToLocal = inverse(normLocalToWorld);
+        mat3 normLocalToWorldPrev = transpose(mat3(reflector_transform.worldToLocalPrev));
+
+        vec3 m_x_s_prev = normalize(normWorldToLocal * w_x_s);
+        vec3 m_y_s_prev = normalize(normWorldToLocal * w_y_s);
+        vec3 m_n_s_prev = normalize(normWorldToLocal * w_n_s);
+
+        vec3 w_x_s_prev = normalize(normLocalToWorldPrev * m_x_s_prev);
+        vec3 w_y_s_prev = normalize(normLocalToWorldPrev * m_y_s_prev);
+        vec3 w_n_s_prev = normalize(normLocalToWorldPrev * m_n_s_prev);
+        
+        // Compute previous reflector position
+        vec3 w_p_s_prev = vec3(reflector_transform.localToWorldPrev * reflector_transform.worldToLocal * vec4(w_p_s, 1.0));
+        
+        // Compute previous reflected position (if sky, previous is the same as current)
+        vec3 w_p_r_prev = w_p_r;
+        if (reflected_entity.initialized == 1) {
+            w_p_r_prev = vec3(reflected_transform.localToWorldPrev * reflected_transform.worldToLocal * vec4(w_p_r, 1.0));
+        }
+        
+        // Thin film approximation
+        float x = dot(w_x_s, w_p_r - w_p_s);
+        float y = dot(w_y_s, w_p_r - w_p_s);
+        float z = dot(w_n_s, w_p_r - w_p_s);
+
+        float x_prev = dot(w_x_s_prev, w_p_r_prev - w_p_s_prev);
+        float y_prev = dot(w_y_s_prev, w_p_r_prev - w_p_s_prev);
+        float z_prev = dot(w_n_s_prev, w_p_r_prev - w_p_s_prev);
+
+        // position of reflected image in world space
+        vec3 w_p_i = w_p_s + w_x_s * x + w_y_s * y + w_n_s * z;
+        vec3 w_p_i_prev = w_p_s_prev + w_x_s_prev * x_prev + w_y_s_prev * y_prev + w_n_s_prev * z_prev;
+
+        // float i_dist = distance(w_p_i, w_p_s);
+        // float i_dist_prev = distance(w_p_i_prev, w_p_s_prev);
+
+        // w_p_i = i_dist * (first_direction) + w_p_s;
+        // w_p_i_prev = i_dist_prev * (first_direction) + w_p_s_prev;
+
+        vec4 v_p_curr = camera.multiviews[multiview_idx].viewproj * camera_transform.worldToLocal * vec4(w_p_i, 1.0);
+        vec4 v_p_prev = camera.multiviews[multiview_idx].viewproj * camera_transform.worldToLocalPrev * vec4(w_p_i_prev, 1.0);
+        specular_motion = (v_p_prev.xyz / v_p_prev.w) - (v_p_curr.xyz / v_p_curr.w);
+    }
+
+    if (reflected_entity_id == -1) specular_motion = vec3(0);
+
     /* Write to G Buffers */
     vec3 final_color = color;
     vec3 final_direct_illumination = direct_illumination;
@@ -351,7 +372,11 @@ void main()
             imageStore(gbuffers[SEED_LUMINANCE_ADDR], p, vec4(pixel_seed, frame_seed, luminance(incoming_illumination)));
 
             // Specular motion vector
-            imageStore(gbuffers[SPECULAR_MOTION_ADDR], p, vec4(specular_motion, (reflected_entity_id == -1) ? 1.0 : 0.0));
+            imageStore(gbuffers[SPECULAR_MOTION_ADDR], p, vec4(specular_motion, (first_entity_id == -1) ? 1.0 : 0.0));
+            
+            vec4 temp = imageLoad(gbuffers[REFL_ID_ADDR], p);            
+            imageStore(gbuffers[REFL_ID_ADDR], p, vec4(w_p_i, reflected_entity_id));            
+            imageStore(gbuffers[REFL_ID_ADDR_PREV], p, temp);            
         }
     }
     

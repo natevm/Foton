@@ -6,11 +6,12 @@
 #include "Foton/Resources/Shaders/Common/Descriptors.hxx"
 #include "Foton/Resources/Shaders/Common/ShaderConstants.hxx"
 #include "Foton/Resources/Shaders/Common/Options.hxx"
+#include "Foton/Resources/Shaders/Common/Utilities.hxx"
 
 layout (local_size_x = 16, local_size_y = 16) in;
 
 // Tends to blur out details, but makes convergence more stable
-#define RADIUS 0
+#define RADIUS 5
 
 #if RADIUS == 2
 float Coefficients[25] = 
@@ -71,18 +72,40 @@ void main() {
     vec4 curr_albedo_data = imageLoad(gbuffers[ALBEDO_ADDR], ipos);
     vec4 curr_normal_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
     vec4 curr_position_depth_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
+    vec4 curr_refl_pos_id_data = imageLoad(gbuffers[REFL_ID_ADDR], ipos);
+
+    
     // int samples = int(imageLoad(gbuffers[curr_sample_count_addr], ipos).r);
 
-    // vec4 curr_uv_metallic_roughness_data = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos);
+    vec4 curr_uv_metallic_roughness_data = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos);
     vec3 curr_albedo = curr_albedo_data.rgb;
     int curr_entity_id = int(curr_normal_id_data.a);
+    int curr_refl_pos_id = int(curr_refl_pos_id_data.a);
     vec3 curr_pos = curr_position_depth_data.xyz;
     float z_curr = curr_position_depth_data.w;
     // float metallic = curr_uv_metallic_roughness_data.z;
-    // float roughness = curr_uv_metallic_roughness_data.w;
+    float roughness = curr_uv_metallic_roughness_data.w;
 
     // Load g buffer data to be temporally accumulated
 	vec4  specular_curr     = imageLoad(gbuffers[SPECULAR_ILLUM_VAR_ADDR], ipos);
+    /* Compute neighborhood min and max */
+    // vec4 nmin = vec4(0.0), nmax = vec4(0.0), navg = vec4(0.0);
+    // vec4 specular_curr;
+    // for (int y = -RADIUS; y <= RADIUS; ++y) {
+    //     for (int x = -RADIUS; x <= RADIUS; ++x) {
+    //         vec4 color = imageLoad(gbuffers[curr_specular_hist_addr], ipos + PATH_TRACE_TILE_SIZE * ivec2(x, y));
+    //         if ((x == 0) && (y == 0)) specular_curr = color;
+    //         if ((y == -RADIUS) && (x == -RADIUS)) {
+    //             nmin = nmax = color;
+    //         }
+    //         else {
+    //             nmin = min(nmin, color); nmax = max(nmax, color);
+    //         }
+    //         navg += color;
+    //     }
+    // }
+    // navg /= (RADIUS * RADIUS);
+
 	vec2  moments_curr = imageLoad(gbuffers[LUMINANCE_VARIANCE_ADDR], ipos).rg;
     // vec4  grad_curr = imageLoad(gbuffers[TEMPORAL_GRADIENT_ADDR], ipos); 
 
@@ -94,12 +117,18 @@ void main() {
 	float sum_w       = 0.0;
 	float histlen     = 0.0;
     if (!reset) {
+        vec4 specular_max;
+        vec4 specular_min;
+
+        float min_luminance;
+        bool first = true;
+
         // const int max_rad = 1;// * PATH_TRACE_TILE_SIZE;
 	    // const float hist_len_thresh = max_rad + MIN_SAMPLES;
         // float alpha = (hist_len_thresh - clamp(samples, 0, hist_len_thresh) ) / hist_len_thresh;
         // const int r = int(mix(1, max_rad, alpha));
 
-        const int r = 0;
+        const int r = RADIUS;
         for (int y = -r; y <= r; ++y) {
             for (int x = -r; x <= r; ++x) {
                 ivec2 ipos_prev = pos_prev + ivec2(x, y);
@@ -108,14 +137,18 @@ void main() {
                 vec4 hist_albedo_data = imageLoad(gbuffers[ALBEDO_ADDR_PREV], ipos_prev);
                 vec4 hist_normal_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR_PREV], ipos_prev);
                 vec4 hist_pos_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR_PREV], ipos_prev);
+                vec4 hist_refl_pos_id_data = imageLoad(gbuffers[REFL_ID_ADDR_PREV], ipos_prev);
+
                 
                 vec3 hist_albedo = hist_albedo_data.rgb;
                 int hist_entity_id = int(hist_normal_id_data.a);
+                int hist_refl_entity_id = int(hist_refl_pos_id_data.a);
                 vec3 hist_pos = hist_pos_data.xyz;
                 float hist_dist = hist_pos_data.w;
                 
                 // Load prior gbuffer data to accumulate temporally 
                 vec4 specular = imageLoad(gbuffers[curr_specular_hist_addr], ipos_prev);
+                                
                 // vec2 moments = imageLoad(gbuffers[curr_moments_addr], ipos_prev).rg;
                 // int samples = int(imageLoad(gbuffers[curr_sample_count_addr], ipos_prev).r);
                 // vec4 luminance_data = imageLoad(gbuffers[curr_moments_addr], ipos_prev);
@@ -138,6 +171,17 @@ void main() {
                 // accept = accept && (!any(isnan(gradient_data)));
                 // accept = accept && (!any(isinf(gradient_data)));                
                 accept = accept && (hist_entity_id == curr_entity_id);
+                accept = accept && (hist_refl_entity_id == curr_refl_pos_id);
+                accept = accept && (hist_refl_entity_id != -1);
+
+                // float w = 5.0 - min(distance(hist_refl_pos_id_data.rgb, curr_refl_pos_id_data.rgb), 5.);
+                // accept = accept && (hist_refl_pos_id_data.rgb - curr_refl_pos_id_data.rgb < 1.0);
+
+                // accept = accept && (dot(hist_refl_normal_id_data.rgb, curr_refl_normal_id_data.rgb) > 0.5);
+                // accept = accept && (dot(hist_normal_id_data.rgb, curr_normal_id_data.rgb) > 0.5);
+
+
+                
 
                 /* Some of these seem to lead to unneccesary history resets */
                 // accept = accept && (distance(hist_albedo,  curr_albedo) < ALBEDO_MAX);
@@ -146,6 +190,21 @@ void main() {
                 // accept = accept && (distance(hist_pos,  curr_pos) < DISTANCE_MAX);
 
                 if (accept) {
+                    // if (((x >= -(r - 1)) && (x <= (r - 1))) && ((y >= -(r - 1)) && (y <= (r - 1))))
+                    // {
+                    //     if (first) {
+                    //         first = false;
+                    //         specular_max = specular_min = specular;
+                    //         min_luminance = luminance(specular.rgb);
+                    //     }
+                    //     else {
+                    //         if (luminance(specular.rgb) < min_luminance) {
+                    //             specular_min = specular;
+                    //             min_luminance = min(min_luminance, luminance(specular.rgb));
+                    //         }
+                    //     }
+                    // }
+                    
                     float w = 1.;
                     specular_prev += specular * w;
                     // moments_prev += moments * w;
@@ -155,6 +214,27 @@ void main() {
                 }
             }
         }
+
+        // // testing
+        // if (sum_w > 0) {
+
+        //     specular_prev   /= sum_w;
+        //     // float accum_luminance = luminance(specular_prev.rgb);
+            
+        //     // specular_prev /= min(accum_luminance, 1.0);
+        //     // specular_prev *= min_luminance;
+
+        //     // specular_min = min(nmin, specular_min);
+
+        //     if (!first){
+        //         specular_prev = mix(specular_min, specular_prev, roughness);
+        //     }
+
+
+        //     // specular_prev = mix(navg, specular_prev, roughness);
+            
+        //     sum_w = 1.0;
+        // }
     }
 
     // Compute the antilag alpha based off of temporal gradient
@@ -197,13 +277,13 @@ void main() {
 		// antilag_prev  /= sum_w;
 		// histlen       /= sum_w;
 
-        // float accum_antilag = mix(antilag_prev, antilag_alpha, GRADIENT_ALPHA);
+        float accum_antilag = antilag_alpha;//mix(antilag_prev, antilag_alpha, GRADIENT_ALPHA);
 
         // float alpha_color   = max(1.0 / MAX_CUMULATIVE_COUNT, 1.0 / (histlen + 1.0));
         float alpha_color   = 1.0 / MAX_SPECULAR_CUMULATIVE_COUNT;
 		// float alpha_moments = max(0.6, 1.0 / (histlen + 1.0));
 
-        // alpha_color   = mix(alpha_color,   (1.0 / MAX_CUMULATIVE_COUNT) * 10.0, accum_antilag);
+        alpha_color   = mix(alpha_color,   (1.0 / MAX_SPECULAR_CUMULATIVE_COUNT) * 10.0, accum_antilag);
 		// alpha_moments = mix(alpha_moments, (1.0 / MAX_CUMULATIVE_COUNT) * 10.0, accum_antilag);
 		// vec2 accum_moments = mix(moments_prev, moments_curr, alpha_moments);
         

@@ -105,7 +105,9 @@ layout(std430, push_constant) uniform PushConstants {
 #define SVGF_TAA_HISTORY_10_ADDR 36
 
 // Free
-#define DEBUG_ADDR  37
+#define REFL_ID_ADDR  37
+#define REFL_ID_ADDR_PREV  38
+#define DEBUG_ADDR  38
 // #define DEBUG_ADDR_NOISE 35
 // #define DEMODULATION_ADDR 36
 // #define RAY_DIRECTION_ADDR_PREV 23 // free g buffer
