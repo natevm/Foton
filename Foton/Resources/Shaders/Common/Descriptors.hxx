@@ -132,8 +132,8 @@ layout(location = POSITION_DEPTH_ADDR) out vec4 outMoments;
 /* Raytracer/compute can also write to the above, but via gbuffers directly */
 #if defined  RAYTRACING || defined COMPUTE
 layout(set = 2, binding = 0, rgba32f) uniform image2D render_image;
-layout(set = 2, binding = 1, rgba32f) uniform image2D gbuffers[40];
-layout(set = 2, binding = 2) uniform texture2D gbuffer_textures[40];
+layout(set = 2, binding = 1, rgba32f) uniform image2D gbuffers[50];
+layout(set = 2, binding = 2) uniform texture2D gbuffer_textures[50];
 #endif
 
 /* NV Ray tracing needs access to vert data and acceleration structure  */

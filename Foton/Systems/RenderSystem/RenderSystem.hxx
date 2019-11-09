@@ -160,14 +160,14 @@ namespace Systems
             
             bool asvgf_enabled = false;
             bool asvgf_gradient_enabled = true;
-            float asvgf_gradient_reconstruction_sigma = 1.0;
+            float asvgf_gradient_reconstruction_sigma = 1.0f;
             int asvgf_gradient_reconstruction_iterations = 3;
             bool asvgf_temporal_accumulation_enabled = true;
             bool asvgf_variance_estimation_enabled = true;
             bool asvgf_atrous_enabled = true;
-            float asvgf_atrous_sigma = 1.0;
+            float asvgf_atrous_sigma = 1.0f;
             int asvgf_atrous_iterations = 1;
-            float asvgf_gradient_influence = 1.1;
+            float asvgf_gradient_influence = 1.1f;
 
             bool tone_mapping_enabled = true;
             bool progressive_refinement_enabled = false;

@@ -4980,7 +4980,7 @@ void RenderSystem::download_query_pool_results(uint32_t camera_id)
 		// vulkan->flush_queues();
 
 
-		uint32_t num_queries = camera->max_queried;
+		uint32_t num_queries = uint32_t(camera->max_queried);
 		uint32_t first_query = 0;
 		uint32_t stride = sizeof(uint64_t);
 
