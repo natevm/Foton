@@ -366,13 +366,13 @@ void main()
            
             // glossy illumination
             vec3 final_glossy_illumination = glossy_illumination / demodulation.a;
-            imageStore(gbuffers[SPECULAR_ILLUM_VAR_ADDR], p, vec4(final_glossy_illumination, 0));
+            imageStore(gbuffers[GLOSSY_ILLUM_VAR_ADDR], p, vec4(final_glossy_illumination, 0));
 
             // Seed/luminance
             imageStore(gbuffers[SEED_LUMINANCE_ADDR], p, vec4(pixel_seed, frame_seed, luminance(incoming_illumination)));
 
             // Specular motion vector
-            imageStore(gbuffers[SPECULAR_MOTION_ADDR], p, vec4(specular_motion, (first_entity_id == -1) ? 1.0 : 0.0));
+            imageStore(gbuffers[GLOSSY_MOTION_ADDR], p, vec4(specular_motion, (first_entity_id == -1) ? 1.0 : 0.0));
             
             vec4 temp = imageLoad(gbuffers[REFL_ID_ADDR], p);            
             imageStore(gbuffers[REFL_ID_ADDR], p, vec4(w_p_i, reflected_entity_id));            

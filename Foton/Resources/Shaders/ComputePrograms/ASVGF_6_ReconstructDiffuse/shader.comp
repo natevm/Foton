@@ -60,8 +60,8 @@ void main() {
 
     const int d_addr_0 = ((minor_iteration%2) != 0) ? DIFFUSE_ILLUM_VAR_ADDR : ATROUS_HISTORY_1_ADDR;
     const int d_addr_1 = ((minor_iteration%2) != 0) ? ATROUS_HISTORY_1_ADDR : DIFFUSE_ILLUM_VAR_ADDR;
-    // const int i_addr_0 = ((minor_iteration%2) != 0) ? SPECULAR_ILLUM_VAR_ADDR : ATROUS_HISTORY_2_ADDR;
-    // const int i_addr_1 = ((minor_iteration%2) != 0) ? ATROUS_HISTORY_2_ADDR : SPECULAR_ILLUM_VAR_ADDR;
+    // const int i_addr_0 = ((minor_iteration%2) != 0) ? GLOSSY_ILLUM_VAR_ADDR : ATROUS_HISTORY_2_ADDR;
+    // const int i_addr_1 = ((minor_iteration%2) != 0) ? ATROUS_HISTORY_2_ADDR : GLOSSY_ILLUM_VAR_ADDR;
 
     float p_variance = imageLoad(gbuffers[VARIANCE_ADDR], ipos).r;
     int p_samples = int(imageLoad(gbuffers[SAMPLE_COUNT_ADDR], ipos).r);

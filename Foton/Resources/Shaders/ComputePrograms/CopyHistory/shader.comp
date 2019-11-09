@@ -26,8 +26,8 @@ void main() {
     imageStore(gbuffers[UV_METALLIC_ROUGHESS_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
 
     // Raw albedo
-    temp = imageLoad(gbuffers[ALBEDO_ADDR], ivec2(gl_GlobalInvocationID.xy));
-    imageStore(gbuffers[ALBEDO_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
+    temp = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ivec2(gl_GlobalInvocationID.xy));
+    imageStore(gbuffers[DIFFUSE_COLOR_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
 
     // Temporal Gradient
     temp = imageLoad(gbuffers[TEMPORAL_GRADIENT_ADDR], ivec2(gl_GlobalInvocationID.xy));

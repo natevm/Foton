@@ -36,14 +36,14 @@ void main() {
     // Load previous GBuffer data
     vec4 position_depth = imageLoad(gbuffers[POSITION_DEPTH_ADDR_PREV], ipos_prev);
     vec4 normal_id = imageLoad(gbuffers[NORMAL_ID_ADDR_PREV], ipos_prev);
-    vec4 albedo = imageLoad(gbuffers[ALBEDO_ADDR_PREV], ipos_prev);
+    vec4 albedo = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR_PREV], ipos_prev);
     vec4 uv = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR_PREV], ipos_prev);
 
     // Test if reprojected seed is valid
     bool accept = true;
     vec4 target_depth_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
     vec4 target_normal_id = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
-    vec4 target_albedo = imageLoad(gbuffers[ALBEDO_ADDR], ipos);
+    vec4 target_albedo = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ipos);
     // accept = accept && ( abs(position_depth.w - target_depth_data.w) < .1 ); // This seems to mess up large reflective surfaces
     accept = accept && ( distance(position_depth.xyz,  target_depth_data.xyz) < .01 ); 
     accept = accept && (int(normal_id.w) == int(target_normal_id.w));
@@ -64,7 +64,7 @@ void main() {
         imageStore(gbuffers[SEED_LUMINANCE_ADDR], ipos, seed_data);
         imageStore(gbuffers[POSITION_DEPTH_ADDR], ipos, position_depth);
         imageStore(gbuffers[NORMAL_ID_ADDR], ipos, normal_id);
-        imageStore(gbuffers[ALBEDO_ADDR], ipos, albedo);
+        imageStore(gbuffers[DIFFUSE_COLOR_ADDR], ipos, albedo);
         imageStore(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos, uv);
     }
 }

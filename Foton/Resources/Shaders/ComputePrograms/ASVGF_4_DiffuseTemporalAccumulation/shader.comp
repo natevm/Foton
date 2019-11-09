@@ -68,7 +68,7 @@ void main() {
     ivec2 p = ivec2(pos_prev - 0.5);
 
     // Load g buffer data which we'll use for detecting disocclusions
-    vec4 curr_albedo_data = imageLoad(gbuffers[ALBEDO_ADDR], ipos);
+    vec4 curr_albedo_data = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ipos);
     vec4 curr_normal_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
     vec4 curr_position_depth_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
     int samples = int(imageLoad(gbuffers[curr_sample_count_addr], ipos).r);
@@ -103,7 +103,7 @@ void main() {
                 ivec2 ipos_prev = pos_prev + ivec2(x, y);
                 
                 // Load disocclusion gbuffer data
-                vec4 hist_albedo_data = imageLoad(gbuffers[ALBEDO_ADDR_PREV], ipos_prev);
+                vec4 hist_albedo_data = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR_PREV], ipos_prev);
                 vec4 hist_normal_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR_PREV], ipos_prev);
                 vec4 hist_pos_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR_PREV], ipos_prev);
                 

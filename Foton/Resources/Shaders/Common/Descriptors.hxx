@@ -50,30 +50,42 @@ layout(std430, push_constant) uniform PushConstants {
 
 /* G buffer locations */
 
-// Parameter buffers
-#define POSITION_DEPTH_ADDR 0
+// Data passes
 #define NORMAL_ID_ADDR 1
-#define ALBEDO_ADDR 2
-#define UV_METALLIC_ROUGHESS_ADDR 3
-#define SEED_LUMINANCE_ADDR 4
-#define DIFFUSE_MOTION_ADDR 5
-#define SPECULAR_MOTION_ADDR 6
-
-
-// Previous parameter buffers
-#define POSITION_DEPTH_ADDR_PREV 7
 #define NORMAL_ID_ADDR_PREV 8
-#define ALBEDO_ADDR_PREV 9
+#define POSITION_DEPTH_ADDR 0 // consider storing only depth
+#define POSITION_DEPTH_ADDR_PREV 7 
+#define UV_METALLIC_ROUGHESS_ADDR 3 // consider replacing with "material ID"
 #define UV_METALLIC_ROUGHESS_ADDR_PREV 10
+#define SEED_LUMINANCE_ADDR 4 // consider separating luminance from seed...
 #define SEED_LUMINANCE_ADDR_PREV 11
+#define DIFFUSE_MOTION_ADDR 5
+#define GLOSSY_MOTION_ADDR 6
+#define REFL_ID_ADDR  37
+#define REFL_ID_ADDR_PREV  38
 
-// Motion buffers
+// Lighting passes
+#define DIFFUSE_COLOR_ADDR 2
+#define DIFFUSE_COLOR_ADDR_PREV 9
+#define GLOSSY_COLOR_ADDR 
+#define GLOSSY_COLOR_ADDR_PREV
+#define TRANSMISSION_COLOR_ADDR 
+#define TRANSMISSION_COLOR_PREV 
+#define EMISSION_ADDR 
+#define EMISSION_ADDR_PREV 
+#define ENVIRONMENT_ADDR 
+#define ENVIRONMENT_ADDR_PREV 
+#define DIFFUSE_ILLUM_VAR_ADDR 14
+#define DIFFUSE_DIRECT_ADDR 
+#define DIFFUSE_INDIRECT_ADDR
+#define GLOSSY_ILLUM_VAR_ADDR 15
+#define GLOSSY_DIRECT_ADDR 
+#define GLOSSY_INDIRECT_ADDR
 
+// Denoising
 // Raytracing buffers
 #define SAMPLE_COUNT_ADDR 12
 #define SAMPLE_COUNT_ADDR_PREV 13
-#define DIFFUSE_ILLUM_VAR_ADDR 14
-#define SPECULAR_ILLUM_VAR_ADDR 15
 
 // Progressive refinement buffers
 #define PROGRESSIVE_HISTORY_ADDR 16
@@ -104,20 +116,15 @@ layout(std430, push_constant) uniform PushConstants {
 #define SVGF_TAA_HISTORY_9_ADDR 35
 #define SVGF_TAA_HISTORY_10_ADDR 36
 
-// Free
-#define REFL_ID_ADDR  37
-#define REFL_ID_ADDR_PREV  38
+// Debug
 #define DEBUG_ADDR  38
-// #define DEBUG_ADDR_NOISE 35
-// #define DEMODULATION_ADDR 36
-// #define RAY_DIRECTION_ADDR_PREV 23 // free g buffer
 
 /* If used for primary visibility, rasterizer will write to these g buffers via corresponding framebuffer attachments. */
 #if defined RASTER && defined PRIMARY_VISIBILITY
 layout(location = POSITION_DEPTH_ADDR) out vec4 position_depth;
 layout(location = NORMAL_ID_ADDR) out vec4 normal_id;
 layout(location = SEED_LUMINANCE_ADDR) out vec4 seed_luminance;
-layout(location = ALBEDO_ADDR) out vec4 albedo;
+layout(location = DIFFUSE_COLOR_ADDR) out vec4 albedo;
 layout(location = DIFFUSE_MOTION_ADDR) out vec4 motion;
 layout(location = UV_METALLIC_ROUGHESS_ADDR) out vec4 uv;
 #endif
@@ -251,7 +258,7 @@ void unpack_gbuffer_data(in ivec2 tile, in ivec2 offset, out ivec2 ipos, out boo
     uv = temp.xy;
 
     // Raw albedo
-    temp = imageLoad(gbuffers[ALBEDO_ADDR], ipos);
+    temp = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ipos);
     albedo = temp.xyz;
 }
 #endif

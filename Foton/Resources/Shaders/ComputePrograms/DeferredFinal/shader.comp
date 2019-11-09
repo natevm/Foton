@@ -42,7 +42,7 @@ void main() {
     vec2 uv = temp.xy;
 
     // Raw albedo
-    temp = imageLoad(gbuffers[ALBEDO_ADDR], ipos);
+    temp = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ipos);
     vec3 albedo = temp.xyz;
 
     // Compute ray origin and direction

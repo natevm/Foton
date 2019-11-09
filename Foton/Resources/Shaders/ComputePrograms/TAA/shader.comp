@@ -198,7 +198,7 @@ void main() {
     // vec2  w = (pos_prev - 0.5) - floor(pos_prev - 0.5);
 
     // float temporal_gradient = 0.0;
-    // vec4 current_albedo_data = imageLoad(gbuffers[ALBEDO_ADDR], ipos);
+    // vec4 current_albedo_data = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ipos);
     // vec4 current_normal_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
     // vec3 current_albedo = current_albedo_data.rgb;
     // int current_entity_id = int(current_normal_id_data.a);
@@ -213,7 +213,7 @@ void main() {
     //         for (int x = -RADIUS; x <= RADIUS; ++x) {
     //             ivec2 ipos_prev = pos_prev + ivec2(x, y);
     //             vec4 color = imageLoad(gbuffers[curr_hist_addr], ipos_prev);
-    //             vec4 hist_albedo_data = imageLoad(gbuffers[ALBEDO_ADDR_PREV], ipos_prev);
+    //             vec4 hist_albedo_data = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR_PREV], ipos_prev);
     //             vec3 hist_albedo = hist_albedo_data.rgb;
     //             vec4 hist_normal_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR_PREV], ipos_prev);
     //             int hist_entity_id = int(hist_normal_id_data.a);

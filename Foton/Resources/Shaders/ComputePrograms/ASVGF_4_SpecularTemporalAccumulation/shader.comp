@@ -59,7 +59,7 @@ void main() {
     // Note, the w component indicates an invalid motion vector, which can 
     // occur for pixels containing the background
     bool reset = false;
-    precise vec4 motion_data = imageLoad(gbuffers[SPECULAR_MOTION_ADDR], ipos);
+    precise vec4 motion_data = imageLoad(gbuffers[GLOSSY_MOTION_ADDR], ipos);
     if (motion_data.w > 0) reset = true; // reset history if motion data is invalid
     precise vec2 v = motion_data.xy * vec2(.5, -.5);
     precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
@@ -69,7 +69,7 @@ void main() {
     ivec2 p = ivec2(pos_prev - 0.5);
 
     // Load g buffer data which we'll use for detecting disocclusions
-    vec4 curr_albedo_data = imageLoad(gbuffers[ALBEDO_ADDR], ipos);
+    vec4 curr_albedo_data = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ipos);
     vec4 curr_normal_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
     vec4 curr_position_depth_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
     vec4 curr_refl_pos_id_data = imageLoad(gbuffers[REFL_ID_ADDR], ipos);
@@ -87,7 +87,7 @@ void main() {
     float roughness = curr_uv_metallic_roughness_data.w;
 
     // Load g buffer data to be temporally accumulated
-	vec4  specular_curr     = imageLoad(gbuffers[SPECULAR_ILLUM_VAR_ADDR], ipos);
+	vec4  specular_curr     = imageLoad(gbuffers[GLOSSY_ILLUM_VAR_ADDR], ipos);
     /* Compute neighborhood min and max */
     // vec4 nmin = vec4(0.0), nmax = vec4(0.0), navg = vec4(0.0);
     // vec4 specular_curr;
@@ -134,7 +134,7 @@ void main() {
                 ivec2 ipos_prev = pos_prev + ivec2(x, y);
                 
                 // Load disocclusion gbuffer data
-                vec4 hist_albedo_data = imageLoad(gbuffers[ALBEDO_ADDR_PREV], ipos_prev);
+                vec4 hist_albedo_data = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR_PREV], ipos_prev);
                 vec4 hist_normal_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR_PREV], ipos_prev);
                 vec4 hist_pos_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR_PREV], ipos_prev);
                 vec4 hist_refl_pos_id_data = imageLoad(gbuffers[REFL_ID_ADDR_PREV], ipos_prev);
@@ -315,7 +315,7 @@ void main() {
         vec4 accum_specular = vec4(mix(specular_prev.rgb, specular_curr.rgb, alpha_color), 1.0); // note, pass variance as w for bilateral filtering
         
 
-        imageStore( gbuffers[SPECULAR_ILLUM_VAR_ADDR],        ivec2(gl_GlobalInvocationID.xy), accum_specular);
+        imageStore( gbuffers[GLOSSY_ILLUM_VAR_ADDR],        ivec2(gl_GlobalInvocationID.xy), accum_specular);
         // imageStore( gbuffers[LUMINANCE_VARIANCE_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(accum_moments, z_curr, accum_histlen));
         // imageStore( gbuffers[SAMPLE_COUNT_ADDR],            ivec2(gl_GlobalInvocationID.xy), vec4(accum_histlen));
         // imageStore( gbuffers[VARIANCE_ADDR],                ivec2(gl_GlobalInvocationID.xy), vec4(variance));
@@ -331,7 +331,7 @@ void main() {
         /* encodes variance */
         // diffuse_curr.w = 200;
 
-        imageStore( gbuffers[SPECULAR_ILLUM_VAR_ADDR],        ivec2(gl_GlobalInvocationID.xy), specular_curr);
+        imageStore( gbuffers[GLOSSY_ILLUM_VAR_ADDR],        ivec2(gl_GlobalInvocationID.xy), specular_curr);
         // imageStore( gbuffers[LUMINANCE_VARIANCE_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(moments_curr, z_curr, z_curr));
         // imageStore( gbuffers[SAMPLE_COUNT_ADDR],            ivec2(gl_GlobalInvocationID.xy), vec4(1));
         // imageStore( gbuffers[VARIANCE_ADDR],                ivec2(gl_GlobalInvocationID.xy), vec4(200));

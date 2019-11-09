@@ -84,7 +84,7 @@ void main() {
         vec2 uv = temp.xy;
 
         // Raw albedo
-        temp = imageLoad(gbuffers[ALBEDO_ADDR], ipos);
+        temp = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ipos);
         vec3 albedo = temp.xyz;
 
         EntityStruct entity; MaterialStruct mat; LightStruct light;
@@ -109,7 +109,7 @@ void main() {
         transmission_color = vec3(0.0); // not controllable via disney bsdf. might change though...
 
         vec3 diffuse_illumination = imageLoad(gbuffers[DIFFUSE_ILLUM_VAR_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
-        vec3 glossy_illumination = imageLoad(gbuffers[SPECULAR_ILLUM_VAR_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
+        vec3 glossy_illumination = imageLoad(gbuffers[GLOSSY_ILLUM_VAR_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
         
         diffuse_direct = diffuse_illumination * mat_estimator;
         diffuse_indirect = vec3(0); // todo, separate from direct
