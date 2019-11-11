@@ -51,22 +51,25 @@ layout(std430, push_constant) uniform PushConstants {
 /* G buffer locations */
 
 // Data passes
-#define NORMAL_ID_ADDR 1
-#define NORMAL_ID_ADDR_PREV 8
-#define POSITION_DEPTH_ADDR 0 // consider storing only depth
-#define POSITION_DEPTH_ADDR_PREV 7 
-#define UV_METALLIC_ROUGHESS_ADDR 3 // consider replacing with "material ID"
+#define ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR 0
+#define POSITION_DEPTH_ADDR 1 // consider storing only depth
+#define NORMAL_ID_ADDR 2
+#define SEED_LUMINANCE_ADDR 3 // consider separating luminance from seed...
+#define UV_METALLIC_ROUGHESS_ADDR 6 // consider replacing with "material ID"
+
+#define ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV 7
+#define POSITION_DEPTH_ADDR_PREV 8
+#define NORMAL_ID_ADDR_PREV 9
 #define UV_METALLIC_ROUGHESS_ADDR_PREV 10
-#define SEED_LUMINANCE_ADDR 4 // consider separating luminance from seed...
 #define SEED_LUMINANCE_ADDR_PREV 11
 #define DIFFUSE_MOTION_ADDR 5
-#define GLOSSY_MOTION_ADDR 6
-#define REFL_ID_ADDR  37
-#define REFL_ID_ADDR_PREV  38
+#define GLOSSY_MOTION_ADDR 12
+#define REFL_ID_ADDR  13
+#define REFL_ID_ADDR_PREV  14
 
 // Lighting passes
-#define DIFFUSE_COLOR_ADDR 2
-#define DIFFUSE_COLOR_ADDR_PREV 9
+#define DIFFUSE_COLOR_ADDR 4
+#define DIFFUSE_COLOR_ADDR_PREV 15
 #define GLOSSY_COLOR_ADDR 
 #define GLOSSY_COLOR_ADDR_PREV
 #define TRANSMISSION_COLOR_ADDR 
@@ -75,52 +78,53 @@ layout(std430, push_constant) uniform PushConstants {
 #define EMISSION_ADDR_PREV 
 #define ENVIRONMENT_ADDR 
 #define ENVIRONMENT_ADDR_PREV 
-#define DIFFUSE_ILLUM_VAR_ADDR 14
+#define DIFFUSE_ILLUM_VAR_ADDR 16
 #define DIFFUSE_DIRECT_ADDR 
 #define DIFFUSE_INDIRECT_ADDR
-#define GLOSSY_ILLUM_VAR_ADDR 15
+#define GLOSSY_ILLUM_VAR_ADDR 17
 #define GLOSSY_DIRECT_ADDR 
 #define GLOSSY_INDIRECT_ADDR
 
 // Denoising
 // Raytracing buffers
-#define SAMPLE_COUNT_ADDR 12
-#define SAMPLE_COUNT_ADDR_PREV 13
+#define SAMPLE_COUNT_ADDR 18
+#define SAMPLE_COUNT_ADDR_PREV 19
 
 // Progressive refinement buffers
-#define PROGRESSIVE_HISTORY_ADDR 16
+#define PROGRESSIVE_HISTORY_ADDR 20
 
 // Atrous iterative buffers
-#define ATROUS_HISTORY_1_ADDR 17
-#define ATROUS_HISTORY_2_ADDR 18
-#define ATROUS_HISTORY_3_ADDR 19
+#define ATROUS_HISTORY_1_ADDR 21
+#define ATROUS_HISTORY_2_ADDR 22
+#define ATROUS_HISTORY_3_ADDR 23
 
 // Temporal gradient buffers
-#define TEMPORAL_GRADIENT_ADDR 20
-#define TEMPORAL_GRADIENT_ADDR_PREV 21
-#define LUMINANCE_VARIANCE_ADDR 22
-#define LUMINANCE_VARIANCE_ADDR_PREV 23
-#define VARIANCE_ADDR 24
+#define TEMPORAL_GRADIENT_ADDR 24
+#define TEMPORAL_GRADIENT_ADDR_PREV 25
+#define LUMINANCE_VARIANCE_ADDR 26
+#define LUMINANCE_VARIANCE_ADDR_PREV 27
+#define VARIANCE_ADDR 28
 
 // TAA history buffers
-#define TAA_HISTORY_1_ADDR 25
-#define TAA_HISTORY_2_ADDR 26
-#define SVGF_TAA_HISTORY_1_ADDR 27
-#define SVGF_TAA_HISTORY_2_ADDR 28
-#define SVGF_TAA_HISTORY_3_ADDR 29
-#define SVGF_TAA_HISTORY_4_ADDR 30
-#define SVGF_TAA_HISTORY_5_ADDR 31
-#define SVGF_TAA_HISTORY_6_ADDR 32
-#define SVGF_TAA_HISTORY_7_ADDR 33
-#define SVGF_TAA_HISTORY_8_ADDR 34
-#define SVGF_TAA_HISTORY_9_ADDR 35
-#define SVGF_TAA_HISTORY_10_ADDR 36
+#define TAA_HISTORY_1_ADDR 29
+#define TAA_HISTORY_2_ADDR 30
+#define SVGF_TAA_HISTORY_1_ADDR 31
+#define SVGF_TAA_HISTORY_2_ADDR 32
+#define SVGF_TAA_HISTORY_3_ADDR 33
+#define SVGF_TAA_HISTORY_4_ADDR 34
+#define SVGF_TAA_HISTORY_5_ADDR 35
+#define SVGF_TAA_HISTORY_6_ADDR 36
+#define SVGF_TAA_HISTORY_7_ADDR 37
+#define SVGF_TAA_HISTORY_8_ADDR 38
+#define SVGF_TAA_HISTORY_9_ADDR 39
+#define SVGF_TAA_HISTORY_10_ADDR 40
 
 // Debug
-#define DEBUG_ADDR  38
+#define DEBUG_ADDR  41
 
 /* If used for primary visibility, rasterizer will write to these g buffers via corresponding framebuffer attachments. */
 #if defined RASTER && defined PRIMARY_VISIBILITY
+layout(location = ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR) out vec4 entity_material_transform_light;
 layout(location = POSITION_DEPTH_ADDR) out vec4 position_depth;
 layout(location = NORMAL_ID_ADDR) out vec4 normal_id;
 layout(location = SEED_LUMINANCE_ADDR) out vec4 seed_luminance;
@@ -250,7 +254,7 @@ void unpack_gbuffer_data(in ivec2 tile, in ivec2 offset, out ivec2 ipos, out boo
 
     // Normal G Buffer
     temp = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
-    w_normal = temp.xyz;
+    w_normal = normalize(temp.xyz);
     entity_id = int(temp.w);
 
     // UV G Buffer

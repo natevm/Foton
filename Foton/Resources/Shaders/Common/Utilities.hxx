@@ -325,12 +325,30 @@ void unpack_material_struct(
     material.base_color.a = (mask < material.base_color.a) ? mask : material.base_color.a;
 }
 
+void unpack_material_struct(
+    int material_id, vec2 uv, vec3 m_position, inout MaterialStruct material
+) {
+    if ((material_id < 0) || (material_id >= max_materials)) return;
+    material = mbo.materials[material_id];
+
+    material.base_color = getAlbedo(material, vec4(0.0), uv, m_position);
+    float mask = getAlphaMask(material, uv, m_position);
+    material.base_color.a = (mask < material.base_color.a) ? mask : material.base_color.a;
+}
+
 void unpack_light_struct(
     int entity_id, const in EntityStruct entity, inout LightStruct light
 ) {
     if ((entity_id < 0) || (entity_id >= max_entities)) return;
     if (entity.initialized != 1) return;
     light = lbo.lights[entity.light_id];
+}
+
+void unpack_light_struct(
+    int light_id, inout LightStruct light
+) {
+    if ((light_id < 0) || (light_id >= max_lights)) return;
+    light = lbo.lights[light_id];
 }
 
 #endif

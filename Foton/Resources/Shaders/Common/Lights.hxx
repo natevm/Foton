@@ -523,27 +523,30 @@ Radiance sample_direct_light_analytic(const in MaterialStruct mat, bool backface
                 ey *= -1;
             
             /* Verify the area light isn't degenerate */
-            // if (distance(ex, ey) < .01) continue;
+            if (distance(ex, ey) < .01) continue;
 
-            
-            /* Create points for the area light around the light center */
-            vec3 points[4];
-            points[0] = w_light_position - ex - ey;
-            points[1] = w_light_position + ex - ey;
-            points[2] = w_light_position + ex + ey;
-            points[3] = w_light_position - ex + ey;
-            
-            // Get Specular
-            vec3 lspec = LTC_Evaluate_Disk(w_n, w_o, w_p, m_inv, points, true);
+            /* geometric term prevents artifacts when lighting faces from the back */
+            float geometric_term = max(dot( normalize((w_light_position + maxs * w_n) - w_p), w_n), 0.0);
+            if (geometric_term > 0.0) {
+                /* Create points for the area light around the light center */
+                vec3 points[4];
+                points[0] = w_light_position - ex - ey;
+                points[1] = w_light_position + ex - ey;
+                points[2] = w_light_position + ex + ey;
+                points[3] = w_light_position - ex + ey;
+                
+                // Get Specular
+                vec3 lspec = LTC_Evaluate_Disk(w_n, w_o, w_p, m_inv, points, true);
 
-            // BRDF shadowing and Fresnel
-            lspec *= specular*t2.x + (1.0 - specular)*t2.y;
+                // BRDF shadowing and Fresnel
+                lspec *= specular*t2.x + (1.0 - specular)*t2.y;
 
-            // Get diffuse
-            vec3 ldiff = LTC_Evaluate_Disk(w_n, w_o, w_p, mat3(1), points, true); 
+                // Get diffuse
+                vec3 ldiff = LTC_Evaluate_Disk(w_n, w_o, w_p, mat3(1), points, true); 
 
-            diffuse_irradiance += shadow_term * lcol * ldiff;
-            specular_irradiance += shadow_term * lcol * lspec;
+                diffuse_irradiance += shadow_term * lcol * ldiff * geometric_term;
+                specular_irradiance += shadow_term * lcol * lspec * geometric_term;
+            }
         }
         
 

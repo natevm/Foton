@@ -37,7 +37,7 @@ void main()
     unpack_material_struct(push.consts.target_id, entity, fragTexCoord, m_position, mat);
     unpack_light_struct(push.consts.target_id, entity, light);
 
-
+    entity_material_transform_light = vec4(push.consts.target_id, entity.material_id, entity.transform_id, entity.light_id);
 	albedo_color += mat.base_color.rgb;
 	albedo_color += light.color.rgb * light.intensity;
 	position_depth = vec4(w_position, dist);

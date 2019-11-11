@@ -5,7 +5,7 @@
 fragment shaders. */
 
 // See Descriptors.hxx fragment output attachments 
-#define USED_PRIMARY_VISIBILITY_G_BUFFERS 6
+#define USED_PRIMARY_VISIBILITY_G_BUFFERS 7
 #define USED_SHADOW_MAP_G_BUFFERS 1
 
 struct PipelineParameters {
