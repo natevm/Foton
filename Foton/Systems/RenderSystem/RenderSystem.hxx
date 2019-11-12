@@ -310,7 +310,7 @@ namespace Systems
             ComputePipelineResources asvgf_estimate_variance;
             ComputePipelineResources asvgf_final_atrous;
             ComputePipelineResources progressive_refinement;
-            ComputePipelineResources tone_mapping;
+            ComputePipelineResources compositing;
             ComputePipelineResources copy_history;
             ComputePipelineResources taa;
 

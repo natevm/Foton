@@ -852,7 +852,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 			}
 		}
 
-		/* Tone mapping pass */
+		/* Compositing pass */
 		for (uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
 			push_constants.target_id = -1;
 			push_constants.camera_id = camera_entity.get_id();
@@ -864,8 +864,8 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 			bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 
 
-			command_buffer.pushConstants(tone_mapping.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-			command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, tone_mapping.pipeline);
+			command_buffer.pushConstants(compositing.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+			command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, compositing.pipeline);
 
 			uint32_t local_size_x = 16;
 			uint32_t local_size_y = 16;
@@ -2729,14 +2729,14 @@ void RenderSystem::setup_compute_pipelines()
 
 	/* Tone Mapping */
 	{
-		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ToneMapping/comp.spv"));
-		auto compShaderModule = create_shader_module("tone_mapping", compShaderCode);
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/Compositing/comp.spv"));
+		auto compShaderModule = create_shader_module("compositing", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        tone_mapping.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        compositing.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
-        computeCreateInfo.layout = tone_mapping.pipelineLayout;
-        tone_mapping.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
-		tone_mapping.ready = true;
+        computeCreateInfo.layout = compositing.pipelineLayout;
+        compositing.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		compositing.ready = true;
 	}
 
 	/* Copy History */
@@ -3948,7 +3948,7 @@ void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffe
 		(asvgf_diffuse_temporal_accumulation.ready == false) || 
 		(asvgf_specular_temporal_accumulation.ready == false) || 
 		(progressive_refinement.ready == false) || 
-		(tone_mapping.ready == false) || 
+		(compositing.ready == false) || 
 		(copy_history.ready == false) || 
 		(gaussian_x.ready == false) || 
 		(gaussian_y.ready == false) || 
@@ -3967,7 +3967,7 @@ void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffe
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_specular_temporal_accumulation.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, taa.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, progressive_refinement.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
-	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, tone_mapping.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, compositing.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, copy_history.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, gaussian_x.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, gaussian_y.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);

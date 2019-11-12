@@ -30,7 +30,7 @@ set(SHADERS_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/DeferredFinal/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/EdgeDetect/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ProgressiveRefinement/shader.comp
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ToneMapping/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/Compositing/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/TAA/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/VSM/GaussianBlurX/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/VSM/GaussianBlurY/shader.comp

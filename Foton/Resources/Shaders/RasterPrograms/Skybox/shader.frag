@@ -28,6 +28,7 @@ void main()
 	float dist = distance(w_cameraPos, w_position);
 	vec3 albedo_color = get_environment_color(normalize(vec3(w_position - w_cameraPos)));
 
+    entity_material_transform_light = vec4(-1, -1, -1, -1);
     position_depth = vec4(w_position, dist);
     normal_id = vec4(w_normal, push.consts.target_id);
     seed_luminance = vec4(pixel_coords.x, pixel_coords.y, push.consts.frame, luminance(albedo_color));

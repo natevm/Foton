@@ -1,0 +1,65 @@
+#version 460
+
+#define COMPUTE
+
+#include "Foton/Resources/Shaders/Common/Descriptors.hxx"
+
+layout (local_size_x = 16, local_size_y = 16) in;
+
+// Tone Mapping
+// From http://filmicgames.com/archives/75
+vec3 Uncharted2Tonemap(vec3 x)
+{
+    x = max(x, vec3(0));
+	float A = 0.15;
+	float B = 0.50;
+	float C = 0.10;
+	float D = 0.20;
+	float E_ = 0.02;
+	float F = 0.30;
+	return max(vec3(0.0f), ((x*(A*x+C*B)+D*E_)/(x*(A*x+B)+D*F))-E_/F);
+}
+
+void main() {
+    int render_image_idx = int(push.consts.parameter1); 
+
+    ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
+    
+    vec3 color;
+    if (render_image_idx == 0) {
+        // color = imageLoad(render_image, ipos).rgb;
+        vec3 diffuse_color = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ipos).rgb;    
+        vec3 diffuse_direct = imageLoad(gbuffers[DIFFUSE_DIRECT_ADDR], ipos).rgb;    
+        vec3 diffuse_indirect = imageLoad(gbuffers[DIFFUSE_INDIRECT_ADDR], ipos).rgb;    
+
+        vec3 glossy_color = imageLoad(gbuffers[GLOSSY_COLOR_ADDR], ipos).rgb;    
+        vec3 glossy_direct = imageLoad(gbuffers[GLOSSY_DIRECT_ADDR], ipos).rgb;    
+        vec3 glossy_indirect = imageLoad(gbuffers[GLOSSY_INDIRECT_ADDR], ipos).rgb;    
+
+        vec3 transmission_color = vec3(0.0);//imageLoad(gbuffers[], ipos).rgb;    
+        vec3 transmission_direct = vec3(0.0);//imageLoad(gbuffers[], ipos).rgb;    
+        vec3 transmission_indirect = vec3(0.0);//imageLoad(gbuffers[], ipos).rgb;    
+
+        vec3 emission = imageLoad(gbuffers[EMISSION_ADDR], ipos).rgb;    
+        vec3 environment = imageLoad(gbuffers[ENVIRONMENT_ADDR], ipos).rgb;    
+
+        vec3 diffuse        = diffuse_color         * (diffuse_direct       + diffuse_indirect);
+        vec3 glossy         = glossy_color          * (glossy_direct        + glossy_indirect);
+        vec3 transmission   = transmission_color    * (transmission_direct  + transmission_indirect);
+
+        color = diffuse + glossy + transmission + emission + environment;        
+    }
+    // GBuffer override for debugging
+    else {
+        color = imageLoad(gbuffers[render_image_idx-1], ipos).rgb;
+    }
+
+    /* Tone mapping */
+    color = Uncharted2Tonemap(color.rgb * push.consts.exposure);
+    color = color * (1.0f / Uncharted2Tonemap(vec3(11.2f)));
+
+    /* Gamma correction */
+    color = pow(color, vec3(1.0f / push.consts.gamma));
+
+    imageStore(render_image, ipos, vec4(color, 1.0));
+}
