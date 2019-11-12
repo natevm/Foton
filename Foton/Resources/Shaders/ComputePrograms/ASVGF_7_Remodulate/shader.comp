@@ -70,7 +70,7 @@ void main() {
     vec3 emission = vec3(0);
     
     if (entity_id == -1) {
-        environment.rgb = get_environment_color(direction);
+        environment.rgb = get_environment_color(direction) * push.consts.environment_intensity;
     }
 
     if (entity_id != -1) {
@@ -124,13 +124,26 @@ void main() {
             emission = light.color.rgb * light.intensity;
         }      
     }
+
+    imageStore(gbuffers[DIFFUSE_DIRECT_ADDR], ipos, vec4(diffuse_direct, 1.0));
+    imageStore(gbuffers[DIFFUSE_INDIRECT_ADDR], ipos, vec4(0.0,0.0,0.0,1.0));
+    imageStore(gbuffers[DIFFUSE_COLOR_ADDR], ipos, vec4(diffuse_color, 1.0));
+
+    imageStore(gbuffers[GLOSSY_DIRECT_ADDR], ipos, vec4(glossy_direct, 1.0));
+    imageStore(gbuffers[GLOSSY_INDIRECT_ADDR], ipos, vec4(glossy_indirect,1.0));
+    imageStore(gbuffers[GLOSSY_COLOR_ADDR], ipos, vec4(1.0, 1.0, 1.0, 1.0));
+
+    imageStore(gbuffers[EMISSION_ADDR], ipos, vec4(emission, 1.0));
+    imageStore(gbuffers[ENVIRONMENT_ADDR], ipos, vec4(environment, 1.0));
+
+
     
-    /* Modeling this off Blender's renderpasses */
-    vec3 diffuse        = diffuse_color         * (diffuse_direct       + diffuse_indirect);
-    vec3 glossy         = glossy_color          * (glossy_direct        + glossy_indirect);
-    vec3 transmission   = transmission_color    * (transmission_direct  + transmission_indirect);
+    // /* Modeling this off Blender's renderpasses */
+    // vec3 diffuse        = diffuse_color         * (diffuse_direct       + diffuse_indirect);
+    // vec3 glossy         = glossy_color          * (glossy_direct        + glossy_indirect);
+    // vec3 transmission   = transmission_color    * (transmission_direct  + transmission_indirect);
 
-    vec3 combined       = diffuse + glossy + transmission + emission + environment;        
+    // vec3 combined       = diffuse + glossy + transmission + emission + environment;        
 
-    imageStore(render_image, ivec2(gl_GlobalInvocationID.xy), vec4(combined, 1.0));
+    // imageStore(render_image, ivec2(gl_GlobalInvocationID.xy), vec4(combined, 1.0));
 }
