@@ -101,6 +101,9 @@ void main()
     vec3 incoming_illumination = vec3(0.0);
     vec3 glossy_illumination = vec3(0.0);
 
+    vec3 direct_diffuse_radiance = vec3(0.0);
+    vec3 direct_specular_radiance = vec3(0.0);
+
     do {
         /* Unpack Data */
         int entity_id = (bounce == 0) ? first_entity_id : payload.entity_id;
@@ -171,34 +174,40 @@ void main()
         }
 
         /* Next event estimation */
-        vec3 direct_diffuse_radiance;
-        vec3 direct_specular_radiance;
         float visibility = 1.0;
         vec3 w_l;
         float l_dist;
+        vec3 diffuse_radiance;
+        vec3 specular_radiance;
         last_direct_light_entity_id = -1;
         if (/*(bounce == 0) && */(is_ltc_enabled())) {
             Radiance radiance = sample_direct_light_analytic(mat, backface, w_p, w_z, w_x, w_y, w_o);
-            direct_diffuse_radiance = radiance.diffuse;
-            direct_specular_radiance = radiance.specular;
+            diffuse_radiance = radiance.diffuse;
+            specular_radiance = radiance.specular;
+            
         }
         else {
             // todo, separate diffuse from specular stochastic radiance
             vec3 stochastic_differential_direct_radiance = sample_direct_light_stochastic(mat, backface, w_p, w_z, w_x, w_y, w_o, last_direct_light_entity_id, visibility, w_l, l_dist);
-            direct_diffuse_radiance = stochastic_differential_direct_radiance * visibility;
-            direct_specular_radiance = vec3(0.0); 
+            diffuse_radiance = stochastic_differential_direct_radiance * visibility;
+            specular_radiance = vec3(0.0); 
+        }
+
+        if (bounce == 0) {
+            direct_diffuse_radiance = diffuse_radiance;
+            direct_specular_radiance = specular_radiance;
         }
         
         if (bounce == 0) {
-            color += path_throughput * (direct_diffuse_radiance + direct_specular_radiance);
-            incoming_illumination += incoming_path_throughput * (direct_diffuse_radiance);
-            glossy_illumination += direct_specular_radiance;
+            color += path_throughput * (diffuse_radiance + specular_radiance);
+            incoming_illumination += incoming_path_throughput * (diffuse_radiance);
+            glossy_illumination += specular_radiance;
         } 
         else 
         {
-            color += path_throughput * (direct_diffuse_radiance + direct_specular_radiance);
-            incoming_illumination += incoming_path_throughput * (direct_diffuse_radiance + direct_specular_radiance);
-            glossy_illumination += glossy_path_throughput * (direct_diffuse_radiance) + direct_specular_radiance;
+            color += path_throughput * (diffuse_radiance + specular_radiance);
+            incoming_illumination += incoming_path_throughput * (diffuse_radiance + specular_radiance);
+            glossy_illumination += glossy_path_throughput * (diffuse_radiance) + specular_radiance;
         }
         if (bounce == 0) 
         {
@@ -359,14 +368,6 @@ void main()
     for (int yy = 0; yy < PATH_TRACE_TILE_SIZE; yy++){
         for (int xx = 0; xx < PATH_TRACE_TILE_SIZE; xx++) {
             ivec2 p = tile * PATH_TRACE_TILE_SIZE + ivec2(xx,yy);
-            
-            // diffuse illumination
-            vec3 final_incoming_illumination = incoming_illumination / demodulation.rgb;
-            imageStore(gbuffers[DIFFUSE_ILLUM_VAR_ADDR], p, vec4(final_incoming_illumination, 0));
-           
-            // glossy illumination
-            vec3 final_glossy_illumination = glossy_illumination / demodulation.a;
-            imageStore(gbuffers[GLOSSY_ILLUM_VAR_ADDR], p, vec4(final_glossy_illumination, 0));
 
             // Seed/luminance
             imageStore(gbuffers[SEED_LUMINANCE_ADDR], p, vec4(pixel_seed, frame_seed, luminance(incoming_illumination)));
@@ -376,7 +377,26 @@ void main()
             
             vec4 temp = imageLoad(gbuffers[REFL_ID_ADDR], p);            
             imageStore(gbuffers[REFL_ID_ADDR], p, vec4(w_p_i, reflected_entity_id));            
-            imageStore(gbuffers[REFL_ID_ADDR_PREV], p, temp);            
+            imageStore(gbuffers[REFL_ID_ADDR_PREV], p, temp);      
+
+
+            // Diffuse illumination
+            imageStore(gbuffers[DIFFUSE_ILLUM_VAR_ADDR], p, vec4(incoming_illumination, 0));
+
+            // Direct Diffuse
+            imageStore(gbuffers[DIFFUSE_DIRECT_ADDR], p, vec4(direct_diffuse_radiance, 1.0));
+
+            // Indirect Diffuse
+            //... imageStore(gbuffers[DIFFUSE_DIRECT_ADDR], p, vec4(direct_diffuse_radiance, 1.0));
+
+            // glossy illumination
+            imageStore(gbuffers[GLOSSY_ILLUM_VAR_ADDR], p, vec4(glossy_illumination, 0));
+
+            // Direct Glossy
+            imageStore(gbuffers[GLOSSY_DIRECT_ADDR], p, vec4(direct_specular_radiance, 1.0));
+
+            // Indirect Glossy 
+            // ... imageStore(gbuffers[DIFFUSE_DIRECT_ADDR], p, vec4(direct_diffuse_radiance, 1.0));   
         }
     }
     

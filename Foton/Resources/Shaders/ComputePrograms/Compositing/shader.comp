@@ -34,7 +34,7 @@ void main() {
 
         vec3 glossy_color = imageLoad(gbuffers[GLOSSY_COLOR_ADDR], ipos).rgb;    
         vec3 glossy_direct = imageLoad(gbuffers[GLOSSY_DIRECT_ADDR], ipos).rgb;    
-        vec3 glossy_indirect = imageLoad(gbuffers[GLOSSY_INDIRECT_ADDR], ipos).rgb;    
+        vec3 glossy_indirect = vec3(0.0);//imageLoad(gbuffers[GLOSSY_INDIRECT_ADDR], ipos).rgb;    
 
         vec3 transmission_color = vec3(0.0);//imageLoad(gbuffers[], ipos).rgb;    
         vec3 transmission_direct = vec3(0.0);//imageLoad(gbuffers[], ipos).rgb;    

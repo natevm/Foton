@@ -104,18 +104,20 @@ void main() {
         float m = disney_diffuse(mat, w_n_f, w_o, w_i, diffuse_color);
         float mat_estimator = pow2(1.0 - F)*m*M_PI;
         float specular_estimator = F + (1.0 - F) * (max(mat.metallic, 1.0 - (mat.roughness * mat.roughness)));
-
+        diffuse_color *= mat_estimator;
         glossy_color = vec3(1.0); // not controllable via disney bsdf. might change though...
+        glossy_color *= specular_estimator;
+
         transmission_color = vec3(0.0); // not controllable via disney bsdf. might change though...
 
         vec3 diffuse_illumination = imageLoad(gbuffers[DIFFUSE_ILLUM_VAR_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
         vec3 glossy_illumination = imageLoad(gbuffers[GLOSSY_ILLUM_VAR_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
         
-        diffuse_direct = diffuse_illumination * mat_estimator;
-        diffuse_indirect = vec3(0); // todo, separate from direct
+        // diffuse_direct = vec3(0.0);//diffuse_illumination * mat_estimator;
+        diffuse_indirect = diffuse_illumination * mat_estimator;//vec3(0); // todo, separate from direct
 
-        glossy_direct = glossy_illumination * specular_estimator;
-        glossy_indirect = vec3(0); // todo...
+        glossy_direct = vec3(0.0);
+        glossy_indirect = glossy_illumination * specular_estimator; // todo...
 
         transmission_direct = vec3(0); // todo...
         transmission_indirect = vec3(0); // todo...
@@ -125,25 +127,14 @@ void main() {
         }      
     }
 
-    imageStore(gbuffers[DIFFUSE_DIRECT_ADDR], ipos, vec4(diffuse_direct, 1.0));
-    imageStore(gbuffers[DIFFUSE_INDIRECT_ADDR], ipos, vec4(0.0,0.0,0.0,1.0));
+    // imageStore(gbuffers[DIFFUSE_DIRECT_ADDR], ipos, vec4(diffuse_direct, 1.0));
+    imageStore(gbuffers[DIFFUSE_INDIRECT_ADDR], ipos, vec4(diffuse_indirect,1.0));
     imageStore(gbuffers[DIFFUSE_COLOR_ADDR], ipos, vec4(diffuse_color, 1.0));
 
-    imageStore(gbuffers[GLOSSY_DIRECT_ADDR], ipos, vec4(glossy_direct, 1.0));
+    // imageStore(gbuffers[GLOSSY_DIRECT_ADDR], ipos, vec4(glossy_direct, 1.0));
     imageStore(gbuffers[GLOSSY_INDIRECT_ADDR], ipos, vec4(glossy_indirect,1.0));
     imageStore(gbuffers[GLOSSY_COLOR_ADDR], ipos, vec4(1.0, 1.0, 1.0, 1.0));
 
     imageStore(gbuffers[EMISSION_ADDR], ipos, vec4(emission, 1.0));
     imageStore(gbuffers[ENVIRONMENT_ADDR], ipos, vec4(environment, 1.0));
-
-
-    
-    // /* Modeling this off Blender's renderpasses */
-    // vec3 diffuse        = diffuse_color         * (diffuse_direct       + diffuse_indirect);
-    // vec3 glossy         = glossy_color          * (glossy_direct        + glossy_indirect);
-    // vec3 transmission   = transmission_color    * (transmission_direct  + transmission_indirect);
-
-    // vec3 combined       = diffuse + glossy + transmission + emission + environment;        
-
-    // imageStore(render_image, ivec2(gl_GlobalInvocationID.xy), vec4(combined, 1.0));
 }
