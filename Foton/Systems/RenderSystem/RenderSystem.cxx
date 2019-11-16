@@ -822,36 +822,6 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 			}
 		}
 
-		/* PRIMARY VISIBILITY POST PROCESSING EFFECTS */
-
-		/* TAA/Progresssive Refinement */
-		if ((progressive_refinement_enabled || taa_enabled) )
-		{
-			for(uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
-				push_constants.target_id = -1;
-				push_constants.camera_id = camera_entity.get_id();
-				push_constants.viewIndex = rp_idx;
-				push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
-				bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
-
-				if (progressive_refinement_enabled) {
-					command_buffer.pushConstants(progressive_refinement.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, progressive_refinement.pipeline);
-				}
-				else if (taa_enabled) {
-					command_buffer.pushConstants(taa.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, taa.pipeline);
-				}
-				uint32_t local_size_x = 16;
-				uint32_t local_size_y = 16;
-
-				uint32_t groupX = (width + local_size_x - 1) / local_size_x;
-				uint32_t groupY = (height + local_size_y - 1) / local_size_y;
-				uint32_t groupZ = 1;
-				command_buffer.dispatch(groupX, groupY, groupZ);
-			}
-		}
-
 		/* Compositing pass */
 		for (uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
 			push_constants.target_id = -1;
@@ -891,6 +861,34 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 			command_buffer.pushConstants(copy_history.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
 			command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, copy_history.pipeline);
 
+			uint32_t local_size_x = 16;
+			uint32_t local_size_y = 16;
+
+			uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+			uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+			uint32_t groupZ = 1;
+			command_buffer.dispatch(groupX, groupY, groupZ);
+		}
+	}
+
+	/* TAA/Progresssive Refinement */
+	if ((progressive_refinement_enabled || taa_enabled) )
+	{
+		for(uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
+			push_constants.target_id = -1;
+			push_constants.camera_id = camera_entity.get_id();
+			push_constants.viewIndex = rp_idx;
+			push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
+			bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+
+			if (progressive_refinement_enabled) {
+				command_buffer.pushConstants(progressive_refinement.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+				command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, progressive_refinement.pipeline);
+			}
+			else if (taa_enabled) {
+				command_buffer.pushConstants(taa.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+				command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, taa.pipeline);
+			}
 			uint32_t local_size_x = 16;
 			uint32_t local_size_y = 16;
 

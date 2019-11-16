@@ -156,7 +156,7 @@ float rectangleLightPDF( const in EntityStruct light_entity, const in LightStruc
 
 
 
-struct Radiance {
+struct Irradiance {
     vec3 specular;
     vec3 diffuse;
 };
@@ -274,7 +274,9 @@ vec3 sample_direct_light_stochastic(const in MaterialStruct mat, bool backface, 
         float dpdf, spdf;
 		vec3 bsdf, dbsdf, sbsdf;
         sample_disney_bsdf(mat, backface, 
-            w_n, w_o, w_x, w_y, w_i, bsdf_pdf, dpdf, spdf, bsdf, dbsdf, sbsdf);
+            w_n, w_o, w_x, w_y,
+            false, false, false, // TEMPORARILY FORCING SPECULAR
+            w_i, bsdf_pdf, dpdf, spdf, bsdf, dbsdf, sbsdf);
 		
 		float light_dist;
 		vec3 light_pos;
@@ -328,7 +330,7 @@ vec3 sample_direct_light_stochastic(const in MaterialStruct mat, bool backface, 
 
 #endif
 
-Radiance sample_direct_light_analytic(const in MaterialStruct mat, bool backface, const in vec3 w_p, const in vec3 w_n,
+Irradiance sample_direct_light_analytic(const in MaterialStruct mat, bool backface, const in vec3 w_p, const in vec3 w_n,
 	const in vec3 w_x, const in vec3 w_y, const in vec3 w_o) 
 {
     float shadow_term = 1.0;
@@ -336,16 +338,16 @@ Radiance sample_direct_light_analytic(const in MaterialStruct mat, bool backface
     vec3 specular_irradiance = vec3(0.0);
     vec3 diffuse_irradiance = vec3(0.0);
 
-    Radiance radiance;
-    radiance.specular = vec3(0.0);
-    radiance.diffuse = vec3(0.0);
+    Irradiance irradiance;
+    irradiance.specular = vec3(0.0);
+    irradiance.diffuse = vec3(0.0);
 
     vec3 w_n_f = (backface) ? -w_n : w_n;
     // analytical area lights become numerically unstable at extreme roughness
     const float clamped_roughness = clamp(mat.roughness, 0.001, .99);
     float NdotV = clamp(dot(w_n, w_o), 0.0, 1.0);
     vec3 specular = vec3(1.0) - min(vec3(clamped_roughness * clamped_roughness), 1.0);
-    vec3 diffuse = mat.base_color.rgb * (1.f - mat.metallic) * (1.f - mat.transmission);
+    // vec3 diffuse = mat.base_color.rgb * (1.f - mat.metallic) * (1.f - mat.transmission);
 
     /* Pick a random light */
     EntityStruct light_entity; TransformStruct light_transform;
@@ -433,8 +435,8 @@ Radiance sample_direct_light_analytic(const in MaterialStruct mat, bool backface
             /* Finding that the intensity is slightly more against ray traced ground truth */
             float correction = 1.5 / PI;
 
-            diffuse_irradiance += shadow_term * lcol * lspec * correction;
-            specular_irradiance += shadow_term * lcol * ldiff * correction;
+            diffuse_irradiance += shadow_term * lcol * ldiff * correction;
+            specular_irradiance += shadow_term * lcol * lspec * correction;
             // final_color += shadow_term * geometric_term * lcol * (spec + diffuse*diff);
         }
 
@@ -464,8 +466,8 @@ Radiance sample_direct_light_analytic(const in MaterialStruct mat, bool backface
             // Get diffuse
             vec3 ldiff = LTC_Evaluate_Disk(w_n, w_o, w_p, mat3(1), points, double_sided); 
 
-            diffuse_irradiance += shadow_term * lcol * lspec;
-            specular_irradiance += shadow_term * lcol * ldiff;
+            diffuse_irradiance += shadow_term * lcol * ldiff;
+            specular_irradiance += shadow_term * lcol * lspec;
             // final_color += shadow_term * geometric_term * lcol * (spec + diffuse*diff);
         }
         
@@ -495,8 +497,8 @@ Radiance sample_direct_light_analytic(const in MaterialStruct mat, bool backface
             vec3 ldiff = LTC_Evaluate_Rod(w_n, w_o, w_p, mat3(1), points, radius, show_end_caps); 
             // diff /= (PI);
 
-            diffuse_irradiance += shadow_term * lcol * lspec;
-            specular_irradiance += shadow_term * lcol * ldiff;
+            diffuse_irradiance += shadow_term * lcol * ldiff;
+            specular_irradiance += shadow_term * lcol * lspec;
             // final_color += shadow_term * geometric_term * lcol * (spec + diffuse*diff);
         }
         
@@ -550,16 +552,16 @@ Radiance sample_direct_light_analytic(const in MaterialStruct mat, bool backface
         }
         
 
-        Radiance analytical_radiance;
-        analytical_radiance.diffuse = diffuse_irradiance * diffuse;
-        analytical_radiance.specular = specular_irradiance;
+        Irradiance analytical_irradiance;
+        analytical_irradiance.diffuse = diffuse_irradiance;
+        analytical_irradiance.specular = specular_irradiance;
         
         float l_dist = distance(w_light_position, w_p); // approximation    
         float attenuation = get_light_attenuation(light, l_dist);
 
         if ((light.flags & LIGHT_FLAGS_CAST_SHADOWS) == 0) {
-            radiance.diffuse += analytical_radiance.diffuse * attenuation;
-            radiance.specular += analytical_radiance.specular * attenuation;
+            irradiance.diffuse += analytical_irradiance.diffuse * attenuation;
+            irradiance.specular += analytical_irradiance.specular * attenuation;
             continue;
         }
 
@@ -575,13 +577,13 @@ Radiance sample_direct_light_analytic(const in MaterialStruct mat, bool backface
             // // if ((geometric_term <= 0) || (isnan(geometric_term))) return vec3(0.0);
 
             
-            radiance.diffuse += analytical_radiance.diffuse * attenuation * visibility;
-            radiance.specular += analytical_radiance.specular * attenuation * visibility;
+            irradiance.diffuse += analytical_irradiance.diffuse * attenuation * visibility;
+            irradiance.specular += analytical_irradiance.specular * attenuation * visibility;
         }
         #else
         {
-            radiance.diffuse += analytical_radiance.diffuse * attenuation;
-            radiance.specular += analytical_radiance.specular * attenuation;
+            irradiance.diffuse += analytical_irradiance.diffuse * attenuation;
+            irradiance.specular += analytical_irradiance.specular * attenuation;
         }
         
         #endif
@@ -610,16 +612,16 @@ Radiance sample_direct_light_analytic(const in MaterialStruct mat, bool backface
     }
 
     if (lights_hit == 0) {
-        Radiance empty;
+        Irradiance empty;
         empty.diffuse = vec3(0.0);
         empty.specular = vec3(0.0);
         return empty;
     }
 
-    radiance.diffuse /= float(lights_hit);
-    radiance.specular /= float(lights_hit);
+    irradiance.diffuse /= float(lights_hit);
+    irradiance.specular /= float(lights_hit);
 
-    return radiance;
+    return irradiance;
 }
 
 #endif

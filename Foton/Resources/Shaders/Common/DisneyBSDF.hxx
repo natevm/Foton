@@ -431,7 +431,7 @@ vec3 sample_disney_bsdf (
 	const in MaterialStruct mat, 
 	bool backface, const in vec3 w_n,
 	const in vec3 w_o, const in vec3 w_x, const in vec3 w_y,
-	// bool force_diffuse,
+	bool force_diffuse, bool force_specular, bool force_perfect_reflection,
 	out vec3 w_i, 
 	out float pdf, out float dpdf, out float spdf,
 	out vec3 bsdf, out vec3 dbsdf, out vec3 sbsdf)
@@ -441,7 +441,7 @@ vec3 sample_disney_bsdf (
 	vec3 w_x_f = (backface) ? -w_x : w_x;
 	vec3 w_y_f = (backface) ? -w_y : w_y;
 
-	bool sample_diffuse = (random() < (mat.roughness * (1.f - mat.metallic) * (1.f - mat.transmission))); 
+	// bool sample_diffuse = (random() < (mat.roughness * (1.f - mat.metallic) * (1.f - mat.transmission))); 
 
 	int component = 0;
 	if (mat.transmission == 0.f) {
@@ -453,9 +453,11 @@ vec3 sample_disney_bsdf (
 	// component = 0;
 
 	// if (component == 1) component = 2; // clear coat is breaking things...
+	if (force_diffuse) component = 0;
+	if (force_specular) component = 2;
 	
 	vec2 samples = vec2(random(), random());
-	if (sample_diffuse || (component == 0)) {
+	if (component == 0) {
 		// Sample diffuse component
 		w_i = sample_lambertian_dir(w_n_f, w_x_f, w_y_f, samples);
 	} else if (component == 1) {

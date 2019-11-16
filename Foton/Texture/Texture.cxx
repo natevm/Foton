@@ -1415,7 +1415,7 @@ void Texture::create_color_image_resources(ImageData &imageData, bool submit_imm
 		device.freeMemory(imageData.imageMemory);
 
 	/* For now, assume the following format: */
-	imageData.format = vk::Format::eR16G16B16A16Sfloat;
+	imageData.format = vk::Format::eR32G32B32A32Sfloat;
 
 	imageData.imageLayout = vk::ImageLayout::eUndefined;
 

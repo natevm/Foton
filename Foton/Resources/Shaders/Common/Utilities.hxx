@@ -351,4 +351,15 @@ void unpack_light_struct(
     light = lbo.lights[light_id];
 }
 
+
+bool validate() {
+    #ifdef RAYTRACING
+    if (int(gl_LaunchIDNV.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return false;
+    if (int(gl_LaunchIDNV.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return false;
+    #endif
+    if ((push.consts.ltc_mat_lut_id < 0) || (push.consts.ltc_mat_lut_id >= max_textures)) return false;
+    if ((push.consts.ltc_amp_lut_id < 0) || (push.consts.ltc_amp_lut_id >= max_textures)) return false;
+    return true;
+}
+
 #endif

@@ -6,7 +6,6 @@
 #include "Foton/Resources/Shaders/Common/Random.hxx"
 #include "Foton/Resources/Shaders/Common/Halton.hxx"
 
-#include "Foton/Resources/Shaders/Common/DisneyBRDF.hxx"
 #include "Foton/Resources/Shaders/Common/DisneyBSDF.hxx"
 #include "Foton/Resources/Shaders/Common/Lights.hxx"
 #include "Foton/Resources/Shaders/Common/Utilities.hxx"

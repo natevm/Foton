@@ -26,8 +26,7 @@ vec3 Uncharted2Tonemap(vec3 x)
 
 void main() 
 {
-    if (int(gl_LaunchIDNV.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
-    if (int(gl_LaunchIDNV.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
+    if (!validate()) return;
 
     init_random(ivec2(gl_LaunchIDNV.xy), push.consts.frame, 0);
     float rand = random();
@@ -35,10 +34,6 @@ void main()
     int rand_curr = 0;//int(random(ivec2(gl_LaunchIDNV.xy), (push.consts.frame)) * PATH_TRACE_TILE_SIZE * PATH_TRACE_TILE_SIZE);
     ivec2 tile = ivec2(gl_LaunchIDNV.xy);
     ivec2 offset_curr = ivec2(rand_curr / PATH_TRACE_TILE_SIZE, rand_curr % PATH_TRACE_TILE_SIZE);
-
-    /* These are required for shading purposes. Wait until they're ready. */
-    if ((push.consts.ltc_mat_lut_id < 0) || (push.consts.ltc_mat_lut_id >= max_textures)) return;
-    if ((push.consts.ltc_amp_lut_id < 0) || (push.consts.ltc_amp_lut_id >= max_textures)) return;
     
     /* Load primary visibility data from G Buffers */
     ivec2 pixel_coords;
@@ -54,7 +49,6 @@ void main()
 
     init_random(pixel_seed, frame_seed, 0);
     
-
     first_position += first_normal * .01; // bad precision in position g buffer... getting lots of self intersections...
 
     /* Next, Compute ray origin and direction */
@@ -72,9 +66,8 @@ void main()
         camera_transform.localToWorld * camera.multiviews[multiview_idx].viewinv,
         pixel_coords, ivec2(gl_LaunchSizeNV.xy), origin, direction);
     
-
     /* Compute direct and indirect path traced illumination */
-    vec3 color = vec3(0.0);
+    vec3 combined_radiance = vec3(0.0);
     int bounce = 0;
     int transparency_continues = 0;
     bool last_event_was_specular = true;
@@ -101,6 +94,11 @@ void main()
     vec3 incoming_illumination = vec3(0.0);
     vec3 glossy_illumination = vec3(0.0);
 
+
+    vec3 indirect_diffuse_path_throughput = vec3(1.0);
+
+    vec3 diffuse_radiance = vec3(0.0);
+    vec3 specular_radiance = vec3(0.0);
     vec3 direct_diffuse_radiance = vec3(0.0);
     vec3 direct_specular_radiance = vec3(0.0);
 
@@ -121,11 +119,11 @@ void main()
         unpack_entity_struct(entity_id, entity);
         unpack_material_struct(entity_id, entity, uv, w_p, mat); // to do, use primary albedo if bounce is 0
         unpack_light_struct(entity_id, entity, light);
-
         if (bounce == 0) mat.base_color.rgb = albedo;
 
         /* If we hit the sky or a light, stop */
         if (entity_id == -1) { 
+            /* todo, decide how to split this up into direct/indirect specular/diffuse, or neither */
             vec3 irradiance = (bounce == 0) ? albedo : get_environment_color(direction) * push.consts.environment_intensity;
             /* Include lighting from sky as direct lighting.  */
             if (bounce <= 1) {
@@ -133,7 +131,7 @@ void main()
             }
             incoming_illumination += incoming_path_throughput * irradiance;
             glossy_illumination += glossy_path_throughput * irradiance;
-            color += path_throughput * irradiance;
+            combined_radiance += path_throughput * irradiance;
             break;
         }
 
@@ -151,6 +149,7 @@ void main()
         }
 
         /* Don't double count light sources */
+        /* TODO: this doesn't work when sampling from multiple light sources simultaneously... */
         if (entity_id == last_direct_light_entity_id) {
             break;
         }       
@@ -164,7 +163,7 @@ void main()
             {
                 float attenuation = get_light_attenuation(light, payload.distance);
                 if (bounce != 0) {
-                    color += path_throughput * light.color.rgb * light.intensity * attenuation;
+                    combined_radiance += path_throughput * light.color.rgb * light.intensity * attenuation;
                         // direct_illumination = path_throughput * light.color.rgb * light.intensity;
                     incoming_illumination += incoming_path_throughput * light.color.rgb * light.intensity * attenuation;
                     glossy_illumination += glossy_path_throughput * light.color.rgb * light.intensity * attenuation;
@@ -177,41 +176,55 @@ void main()
         float visibility = 1.0;
         vec3 w_l;
         float l_dist;
-        vec3 diffuse_radiance;
-        vec3 specular_radiance;
+        vec3 curr_diffuse_radiance;
+        vec3 curr_specular_radiance;
         last_direct_light_entity_id = -1;
-        if (/*(bounce == 0) && */(is_ltc_enabled())) {
-            Radiance radiance = sample_direct_light_analytic(mat, backface, w_p, w_z, w_x, w_y, w_o);
-            diffuse_radiance = radiance.diffuse;
-            specular_radiance = radiance.specular;
-            
+        if (is_ltc_enabled()) {
+            Irradiance irradiance = sample_direct_light_analytic(mat, backface, w_p, w_z, w_x, w_y, w_o);
+            // If at bounce 0, we don't include diffuse color with diffuse. 
+            // That will be multiplied later during compositing and after denoising
+            if (bounce == 0 ){
+                curr_diffuse_radiance = irradiance.diffuse;
+                curr_specular_radiance = irradiance.specular;
+            } else {
+                vec3 diffuse = mat.base_color.rgb * (1.f - mat.metallic) * (1.f - mat.transmission);
+                vec3 specular = vec3(1.0);
+                curr_diffuse_radiance = irradiance.diffuse * diffuse;
+                curr_specular_radiance = irradiance.specular * specular;
+            }
         }
         else {
             // todo, separate diffuse from specular stochastic radiance
             vec3 stochastic_differential_direct_radiance = sample_direct_light_stochastic(mat, backface, w_p, w_z, w_x, w_y, w_o, last_direct_light_entity_id, visibility, w_l, l_dist);
-            diffuse_radiance = stochastic_differential_direct_radiance * visibility;
-            specular_radiance = vec3(0.0); 
+            curr_diffuse_radiance = stochastic_differential_direct_radiance * visibility;
+            curr_specular_radiance = vec3(0.0); 
         }
 
+        
+        combined_radiance += path_throughput * (curr_diffuse_radiance + curr_specular_radiance);
+
         if (bounce == 0) {
+            diffuse_radiance += path_throughput * curr_diffuse_radiance;
+            specular_radiance += path_throughput * curr_specular_radiance;
             direct_diffuse_radiance = diffuse_radiance;
             direct_specular_radiance = specular_radiance;
-        }
-        
-        if (bounce == 0) {
-            color += path_throughput * (diffuse_radiance + specular_radiance);
-            incoming_illumination += incoming_path_throughput * (diffuse_radiance);
-            glossy_illumination += specular_radiance;
+
+
+
+            incoming_illumination += incoming_path_throughput * (curr_diffuse_radiance);
+            glossy_illumination += curr_specular_radiance;
+            direct_illumination = combined_radiance;
         } 
         else 
         {
-            color += path_throughput * (diffuse_radiance + specular_radiance);
-            incoming_illumination += incoming_path_throughput * (diffuse_radiance + specular_radiance);
-            glossy_illumination += glossy_path_throughput * (diffuse_radiance) + specular_radiance;
-        }
-        if (bounce == 0) 
-        {
-            direct_illumination = color;
+            diffuse_radiance += path_throughput * (curr_diffuse_radiance + curr_specular_radiance);
+            specular_radiance += path_throughput * (curr_diffuse_radiance + curr_specular_radiance);
+
+            
+
+            combined_radiance += path_throughput * (curr_diffuse_radiance + curr_specular_radiance);
+            incoming_illumination += incoming_path_throughput * (curr_diffuse_radiance + curr_specular_radiance);
+            glossy_illumination += glossy_path_throughput * (curr_diffuse_radiance) + curr_specular_radiance;
         }
 
         /* Increase bounce count*/
@@ -225,15 +238,15 @@ void main()
         float dpdf, spdf;
         vec3 bsdf, dbsdf, sbsdf;
         sample_disney_bsdf(mat, backface,
-            w_z, w_o, w_x, w_y, w_i, pdf, dpdf, spdf, bsdf, dbsdf, sbsdf);
+            w_z, w_o, w_x, w_y, 
+            false, false, false, // TEMPORARILY FORCING SPECULAR
+            w_i, pdf, dpdf, spdf, bsdf, dbsdf, sbsdf);
         if (bounce == 1) {
             first_bsdf = bsdf;
         }
         if (pdf < EPSILON || (all(lessThan(bsdf, vec3(EPSILON))))) {
             break;
         }
-
-
 
         path_throughput *= bsdf / max(pdf, PDF_CLAMP);
 
@@ -353,7 +366,7 @@ void main()
     if (reflected_entity_id == -1) specular_motion = vec3(0);
 
     /* Write to G Buffers */
-    vec3 final_color = color;
+    vec3 final_color = combined_radiance;
     vec3 final_direct_illumination = direct_illumination;
     vec4 demodulation = vec4(1.0);//vec4(luminance(albedo) + vec3(EPSILON), luminance(albedo) + (EPSILON));
 
@@ -363,7 +376,8 @@ void main()
     // glossy_illumination = Uncharted2Tonemap(glossy_illumination.rgb * push.consts.exposure);
     // glossy_illumination = glossy_illumination * (1.0f / Uncharted2Tonemap(vec3(11.2f)));
 
-   
+   vec3 indirect_diffuse_radiance = diffuse_radiance - direct_diffuse_radiance;
+   vec3 indirect_specular_radiance = specular_radiance - direct_specular_radiance;
 
     for (int yy = 0; yy < PATH_TRACE_TILE_SIZE; yy++){
         for (int xx = 0; xx < PATH_TRACE_TILE_SIZE; xx++) {
@@ -379,24 +393,25 @@ void main()
             imageStore(gbuffers[REFL_ID_ADDR], p, vec4(w_p_i, reflected_entity_id));            
             imageStore(gbuffers[REFL_ID_ADDR_PREV], p, temp);      
 
-
-            // Diffuse illumination
+            // Diffuse illumination (might remove...)
             imageStore(gbuffers[DIFFUSE_ILLUM_VAR_ADDR], p, vec4(incoming_illumination, 0));
+
+            // Glossy illumination (might remove...)
+            imageStore(gbuffers[GLOSSY_ILLUM_VAR_ADDR], p, vec4(glossy_illumination, 0));
+
+
 
             // Direct Diffuse
             imageStore(gbuffers[DIFFUSE_DIRECT_ADDR], p, vec4(direct_diffuse_radiance, 1.0));
 
             // Indirect Diffuse
-            //... imageStore(gbuffers[DIFFUSE_DIRECT_ADDR], p, vec4(direct_diffuse_radiance, 1.0));
-
-            // glossy illumination
-            imageStore(gbuffers[GLOSSY_ILLUM_VAR_ADDR], p, vec4(glossy_illumination, 0));
+            imageStore(gbuffers[DIFFUSE_INDIRECT_ADDR], p, vec4(indirect_diffuse_radiance, 1.0));
 
             // Direct Glossy
             imageStore(gbuffers[GLOSSY_DIRECT_ADDR], p, vec4(direct_specular_radiance, 1.0));
 
             // Indirect Glossy 
-            // ... imageStore(gbuffers[DIFFUSE_DIRECT_ADDR], p, vec4(direct_diffuse_radiance, 1.0));   
+            imageStore(gbuffers[GLOSSY_INDIRECT_ADDR], p, vec4(indirect_specular_radiance, 1.0));
         }
     }
     
