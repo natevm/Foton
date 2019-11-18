@@ -32,6 +32,7 @@ void main() {
     
     // Load previous
     vec4 seed_data = imageLoad(gbuffers[SEED_LUMINANCE_ADDR_PREV], ipos_prev);
+    vec4 luminance_data = imageLoad(gbuffers[LUMINANCE_ADDR_PREV], ipos_prev);
 
     // Load previous GBuffer data
     vec4 position_depth = imageLoad(gbuffers[POSITION_DEPTH_ADDR_PREV], ipos_prev);
@@ -62,6 +63,7 @@ void main() {
     {
         // target_albedo.w = float(-2); // dont know why, but setting this breaks everything
         imageStore(gbuffers[SEED_LUMINANCE_ADDR], ipos, seed_data);
+        imageStore(gbuffers[LUMINANCE_ADDR], ipos, luminance_data);
         imageStore(gbuffers[POSITION_DEPTH_ADDR], ipos, position_depth);
         imageStore(gbuffers[NORMAL_ID_ADDR], ipos, normal_id);
         imageStore(gbuffers[DIFFUSE_COLOR_ADDR], ipos, albedo);

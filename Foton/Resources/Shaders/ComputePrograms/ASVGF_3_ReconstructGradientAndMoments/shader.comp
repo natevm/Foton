@@ -59,46 +59,62 @@ void main() {
 
     // This reconstruction uses an iterative atrous bilateral filter. 
     // These are the current iteration gbuffer addresses
-    const int g_addr_0 = ((minor_iteration%2) != 0) ? TEMPORAL_GRADIENT_ADDR : ATROUS_HISTORY_1_ADDR;
-    const int g_addr_1 = ((minor_iteration%2) != 0) ? ATROUS_HISTORY_1_ADDR : TEMPORAL_GRADIENT_ADDR;
-    const int l_addr_0 = ((minor_iteration%2) != 0) ? LUMINANCE_VARIANCE_ADDR : ATROUS_HISTORY_2_ADDR;
-    const int l_addr_1 = ((minor_iteration%2) != 0) ? ATROUS_HISTORY_2_ADDR : LUMINANCE_VARIANCE_ADDR;
+    const int tg_addr_0 = ((minor_iteration%2) != 0) ? TEMPORAL_GRADIENT_ADDR : ATROUS_HISTORY_1_ADDR;
+    const int tg_addr_1 = ((minor_iteration%2) != 0) ? ATROUS_HISTORY_1_ADDR : TEMPORAL_GRADIENT_ADDR;
+    const int lm_addr_0 = ((minor_iteration%2) != 0) ? LUMINANCE_MAX_ADDR : ATROUS_HISTORY_2_ADDR;
+    const int lm_addr_1 = ((minor_iteration%2) != 0) ? ATROUS_HISTORY_2_ADDR : LUMINANCE_MAX_ADDR;
+    const int la_addr_0 = ((minor_iteration%2) != 0) ? LUMINANCE_AVERAGE_ADDR : ATROUS_HISTORY_3_ADDR;
+    const int la_addr_1 = ((minor_iteration%2) != 0) ? ATROUS_HISTORY_3_ADDR : LUMINANCE_AVERAGE_ADDR;
+    const int lv_addr_0 = ((minor_iteration%2) != 0) ? LUMINANCE_VARIANCE_ADDR : ATROUS_HISTORY_4_ADDR;
+    const int lv_addr_1 = ((minor_iteration%2) != 0) ? ATROUS_HISTORY_4_ADDR : LUMINANCE_VARIANCE_ADDR;
 
     // Compute current atrous luminance sigma
-    float sum = 0.0;
+    vec4 sum = vec4(0.0);
     for(int yy = -RADIUS; yy <= RADIUS; yy++) {
 		for(int xx = -RADIUS; xx <= RADIUS; xx++) {
             ivec2 p = ipos + ivec2(xx, yy) * stride;
             // Note, g channel is variance
-            float v = imageLoad(gbuffers[l_addr_0], p).g;
+            vec4 v = imageLoad(gbuffers[lv_addr_0], p);
             float w = gaussian_kernel[xx + 1][yy + 1];
             sum += v * w;
 		}
 	}
-    float sigma_l = sqrt(abs(sum)) * push.consts.parameter1;
+    vec4 sigma_l = sqrt(abs(sum)) * push.consts.parameter1;
 
     // Now, we'll reconstruct gradient and moments using an atrous bilateral
-    const vec2  max_lum_grad  = imageLoad(gbuffers[g_addr_0], q).rg;
-    const vec4  avg_lum_var_depth  = imageLoad(gbuffers[l_addr_0], q);
-    const vec2  z_center             = avg_lum_var_depth.ba;
-    const float avg_center_lum       = avg_lum_var_depth.r;
 
-    vec4  sum_max_lum_grad       = vec4(0.0);
-    float sum_luminance   = 0.0;
-    float sum_variance    = 0.0;
-    float sum_weight      = 0.0;
+    // Load 
+    // const vec2  max_lum_grad  = imageLoad(gbuffers[g_addr_0], q).rg;
+    // const vec4  avg_lum_var_depth  = imageLoad(gbuffers[l_addr_0], q);
+    // const vec2  z_center             = avg_lum_var_depth.ba;
+    // const float avg_center_lum       = avg_lum_var_depth.r;
+
+    const vec4 q_avg_lum = imageLoad(gbuffers[la_addr_0], q);
+
+    // vec4  sum_max_lum_grad       = vec4(0.0);
+    vec4 sum_lum_max = vec4(0.0);
+    vec4 sum_lum_avg = vec4(0.0);
+    vec4 sum_lum_var = vec4(0.0);
+    vec4 sum_grad    = vec4(0.0);
+    vec4 sum_weight  = vec4(0.0);
+    
+    // float sum_luminance   = 0.0;
+    // float sum_variance    = 0.0;
     for (int y = -RADIUS; y <= RADIUS; y++) {
         for (int x = -RADIUS; x <= RADIUS; x++) {
-            /* EXPERIMENTAL */
-            // if ((x == 0) && (y == 0)) continue;
             // The tap coordinate
             ivec2 p = q + (ivec2(x,y) * curr_step_width * stride); 
     
             // load max luminance, temporal gradient, average luminance, variance, and depth
-            vec4  max_lum_grad        = imageLoad(gbuffers[g_addr_0], p);
-            vec4  p_lum_var_depth     = imageLoad(gbuffers[l_addr_0], p);
-            float z_p         = p_lum_var_depth.b;
-            float l_p         = p_lum_var_depth.r;
+            vec4 p_max_lum = imageLoad(gbuffers[lm_addr_0], p);
+            vec4 p_avg_lum = imageLoad(gbuffers[la_addr_0], p);
+            vec4 p_var_lum = imageLoad(gbuffers[lv_addr_0], p);
+            vec4 p_grad    = imageLoad(gbuffers[tg_addr_0], p);
+            
+            // vec4  max_lum_grad        = imageLoad(gbuffers[g_addr_0], p);
+            // vec4  p_lum_var_depth     = imageLoad(gbuffers[l_addr_0], p);
+            // float z_p         = p_lum_var_depth.b;
+            // float l_p         = p_lum_var_depth.r;
 
             // if (any(isnan(max_lum_grad))) continue;
             // if (any(isnan(p_lum_var_depth))) continue;
@@ -106,43 +122,58 @@ void main() {
             // if (isnan(l_p)) continue;
 
             // Luminance weight is difference between sample luminance and current luminance
-            float w_l = abs(l_p - avg_center_lum) / (sigma_l + 1e-10); 
-            // if (isnan(avg_center_lum)) continue;
+            vec4 w_l = abs(p_avg_lum - q_avg_lum) / (sigma_l + 1e-10); 
+            // if (isnan(q_avg_lum)) continue;
             // if (isnan(l_p)) continue;
             // if (isnan(sigma_l)) continue;
 
             // Depth weight is difference between sample depth and current depth,
             // and weakens by distance away from center
-            float w_z = abs(z_p - z_center.x) / (z_center.y * length(vec2(x,y) * curr_step_width * GRADIENT_DOWNSAMPLE) + 1e-2); 
+            // float w_z = abs(z_p - z_center.x) / (z_center.y * length(vec2(x,y) * curr_step_width * GRADIENT_DOWNSAMPLE) + 1e-2); 
 
             // Compute final reconstruction weight
-            float w = exp(-w_l * w_l - w_z) * gaussian_kernel[x + RADIUS][y + RADIUS];
+            vec4 w = exp(-w_l * w_l /*- w_z*/) * gaussian_kernel[x + RADIUS][y + RADIUS];
 
             // if (isnan(w)) continue;
 
-            sum_max_lum_grad     += max_lum_grad * w; 
-            sum_luminance += l_p * w;
-            sum_variance  += w * w * p_lum_var_depth.g; 
+            // sum_max_lum_grad     += max_lum_grad * w; 
+            // sum_luminance += l_p * w;
+            // sum_variance  += w * w * p_lum_var_depth.g; 
+            sum_grad += p_grad * w;
+            sum_lum_max  += p_max_lum * w;
+            sum_lum_avg  += p_avg_lum * w;
+            sum_lum_var  += p_var_lum * w * w;
             sum_weight    += w; 
         }
     }
-    if (sum_weight > 0) {
-        sum_max_lum_grad    /= sum_weight;
-        sum_luminance       /= sum_weight;
-        sum_variance        /= sum_weight * sum_weight;
+    if (all(greaterThan(sum_weight, vec4(0)))) {
+        sum_grad /= sum_weight;
+        sum_lum_max /= sum_weight;
+        sum_lum_avg /= sum_weight;
+        sum_lum_var /= sum_weight;
+        sum_weight /= (sum_weight * sum_weight);
+    } else {
+        sum_grad = imageLoad(gbuffers[tg_addr_0], q);
+        sum_lum_max = imageLoad(gbuffers[lm_addr_0], q);
+        sum_lum_avg = imageLoad(gbuffers[la_addr_0], q);
+        sum_lum_var = imageLoad(gbuffers[lv_addr_0], q);
     }
-
-    
 
     // Store the filtered results
     /* BAD. FOR NOW, REPLICATE RESULTS */
     for (int y = 0; y < stride; y++) {
         for (int x = 0; x < stride; x++) {
-            imageStore(gbuffers[g_addr_1], stride * tile + ivec2(x,y), sum_max_lum_grad);
-            imageStore(gbuffers[l_addr_1], stride * tile + ivec2(x,y), vec4(sum_luminance, sum_variance, z_center));
+            imageStore(gbuffers[tg_addr_0], stride * tile + ivec2(x,y), sum_grad);
+            imageStore(gbuffers[lm_addr_0], stride * tile + ivec2(x,y), sum_lum_max);
+            imageStore(gbuffers[la_addr_0], stride * tile + ivec2(x,y), sum_lum_avg);
+            imageStore(gbuffers[lv_addr_0], stride * tile + ivec2(x,y), sum_lum_var);
         }
     }
 }
+
+
+// imageStore(gbuffers[g_addr_1], stride * tile + ivec2(x,y), sum_max_lum_grad);
+// imageStore(gbuffers[l_addr_1], stride * tile + ivec2(x,y), vec4(sum_luminance, sum_variance, z_center));
 
 
 

@@ -51,8 +51,8 @@ layout(std430, push_constant) uniform PushConstants {
 /* G buffer locations */
 
 // Data passes
-#define ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR 0
-#define POSITION_DEPTH_ADDR 1 // consider storing only depth
+#define POSITION_DEPTH_ADDR 0 // NOTE, must be in position 0 for shadowmap raster pass!
+#define ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR 1
 #define NORMAL_ID_ADDR 2
 #define SEED_LUMINANCE_ADDR 3 // consider separating luminance from seed...
 #define UV_METALLIC_ROUGHESS_ADDR 6 // consider replacing with "material ID"
@@ -64,8 +64,6 @@ layout(std430, push_constant) uniform PushConstants {
 #define SEED_LUMINANCE_ADDR_PREV 11
 #define DIFFUSE_MOTION_ADDR 5
 #define GLOSSY_MOTION_ADDR 12
-#define REFL_ID_ADDR  13
-#define REFL_ID_ADDR_PREV  14
 
 // Lighting passes
 #define DIFFUSE_COLOR_ADDR 4
@@ -78,10 +76,8 @@ layout(std430, push_constant) uniform PushConstants {
 #define EMISSION_ADDR_PREV 
 #define ENVIRONMENT_ADDR 47
 #define ENVIRONMENT_ADDR_PREV 
-#define DIFFUSE_ILLUM_VAR_ADDR 16
 #define DIFFUSE_DIRECT_ADDR 49
 #define DIFFUSE_INDIRECT_ADDR 48
-#define GLOSSY_ILLUM_VAR_ADDR 17
 #define GLOSSY_DIRECT_ADDR 45
 #define GLOSSY_INDIRECT_ADDR 44
 
@@ -97,13 +93,19 @@ layout(std430, push_constant) uniform PushConstants {
 #define ATROUS_HISTORY_1_ADDR 21
 #define ATROUS_HISTORY_2_ADDR 22
 #define ATROUS_HISTORY_3_ADDR 23
+#define ATROUS_HISTORY_4_ADDR 16
 
 // Temporal gradient buffers
+// TODO, remove LUM_VAR_ADDRs
 #define TEMPORAL_GRADIENT_ADDR 24
-#define TEMPORAL_GRADIENT_ADDR_PREV 25
 #define LUMINANCE_VARIANCE_ADDR 26
 #define LUMINANCE_VARIANCE_ADDR_PREV 27
-#define VARIANCE_ADDR 28
+#define LUMINANCE_AVERAGE_ADDR 25
+// #define VARIANCE_ADDR 28
+#define LUMINANCE_ADDR  13
+#define LUMINANCE_ADDR_PREV  14
+#define LUMINANCE_MAX_ADDR  17
+
 
 // TAA history buffers
 #define TAA_HISTORY_1_ADDR 29
@@ -120,7 +122,8 @@ layout(std430, push_constant) uniform PushConstants {
 #define SVGF_TAA_HISTORY_10_ADDR 40
 
 // Debug
-#define DEBUG_ADDR  41
+#define DEBUG_ADDR 41
+#define FREE_ADDR 42
 
 /* If used for primary visibility, rasterizer will write to these g buffers via corresponding framebuffer attachments. */
 #if defined RASTER && defined PRIMARY_VISIBILITY

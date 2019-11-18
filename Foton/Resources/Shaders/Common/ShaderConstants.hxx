@@ -55,8 +55,8 @@
 #define GRADIENT_FILTER_RADIUS 4
 // #define GRADIENT_DOWNSAMPLE 1.0
 
-#define PATH_TRACE_TILE_SIZE 3
-#define GRADIENT_TILE_SIZE 2
+#define PATH_TRACE_TILE_SIZE (push.consts.path_trace_tile_size)
+#define GRADIENT_TILE_SIZE (2 * push.consts.path_trace_tile_size)
 
 #define GRADIENT_DOWNSAMPLE (1.0/float(10))
 

@@ -58,10 +58,10 @@ void main() {
     int minor_iteration = push.consts.iteration % 2;
     int major_iteration = push.consts.iteration;
 
-    const int d_addr_0 = ((minor_iteration%2) != 0) ? DIFFUSE_DIRECT_ADDR : ATROUS_HISTORY_1_ADDR;
-    const int d_addr_1 = ((minor_iteration%2) != 0) ? ATROUS_HISTORY_1_ADDR : DIFFUSE_DIRECT_ADDR;
-    const int i_addr_0 = ((minor_iteration%2) != 0) ? DIFFUSE_INDIRECT_ADDR : ATROUS_HISTORY_2_ADDR;
-    const int i_addr_1 = ((minor_iteration%2) != 0) ? ATROUS_HISTORY_2_ADDR : DIFFUSE_INDIRECT_ADDR;
+    const int d_addr_0 = ((minor_iteration%2) != 0) ? GLOSSY_DIRECT_ADDR : ATROUS_HISTORY_1_ADDR;
+    const int d_addr_1 = ((minor_iteration%2) != 0) ? ATROUS_HISTORY_1_ADDR : GLOSSY_DIRECT_ADDR;
+    const int i_addr_0 = ((minor_iteration%2) != 0) ? GLOSSY_INDIRECT_ADDR : ATROUS_HISTORY_2_ADDR;
+    const int i_addr_1 = ((minor_iteration%2) != 0) ? ATROUS_HISTORY_2_ADDR : GLOSSY_INDIRECT_ADDR;
 
     int p_samples = int(imageLoad(gbuffers[SAMPLE_COUNT_ADDR], ipos).r);
     vec4 p_pos_dep_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
@@ -112,8 +112,8 @@ void main() {
                 float dist2 = dot(t, t) + t.z * t.z;
                 float l_q_direct = luminance(q_direct_var.rgb);
                 float l_q_indirect = luminance(q_indirect_var.rgb);
-                float wp = min(exp(-(dist2)/p_sigma), 1.0);
-                float wn = pow(max(0.0, dot(p_norm_id_data.xyz, q_norm_id_data.xyz)), n_sigma);
+                float wp = 1.0;//min(exp(-(dist2)/p_sigma), 1.0);
+                float wn = 1.0;//pow(max(0.0, dot(p_norm_id_data.xyz, q_norm_id_data.xyz)), n_sigma);
 
 
                 // float gvl = 0.001;
@@ -126,8 +126,8 @@ void main() {
 
 
                 // float wl = clamp(abs(l_q - l_p) / (l_sigma + 1e-10), 0.0, 1.0); 
-                float wl_direct = clamp(exp(-abs(l_p_direct - l_q_direct) / (l_sigma_direct + 1e-10)), 0.0, 1.0); 
-                float wl_indirect = clamp(exp(-abs(l_p_indirect - l_q_indirect) / (l_sigma_indirect + 1e-10)), 0.0, 1.0); 
+                float wl_direct = 1.0;//clamp(exp(-abs(l_p_direct - l_q_direct) / (l_sigma_direct + 1e-10)), 0.0, 1.0); 
+                float wl_indirect = 1.0;//clamp(exp(-abs(l_p_indirect - l_q_indirect) / (l_sigma_indirect + 1e-10)), 0.0, 1.0); 
                 if (isnan(l_q_direct)) continue;
                 if (isnan(l_q_indirect)) continue;
                 if (isnan(l_p_direct)) continue;
@@ -184,7 +184,12 @@ void main() {
         if (isnan(indirect_var_result)) indirect_var_result = 1.;
         if (isinf(indirect_var_result)) indirect_var_result = 1.;
         
-        imageStore(gbuffers[d_addr_1], ipos, vec4(direct_result.rgb, direct_var_result));
-        imageStore(gbuffers[i_addr_1], ipos, vec4(indirect_result.rgb, indirect_var_result));
+        /* denoising direct specular this way looks really bad... */
+        // if (major_iteration < 2) {
+        //     imageStore(gbuffers[d_addr_1], ipos, vec4(direct_result.rgb, direct_var_result));
+        // }
+
+        /* denoising direct this way also looks pretty bad... */
+        // imageStore(gbuffers[i_addr_1], ipos, vec4(indirect_result.rgb, indirect_var_result));
     }
 }

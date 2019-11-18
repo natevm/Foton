@@ -47,6 +47,10 @@ void main()
     int bounce = 0;
     precise vec3 motion = vec3(0.0);
     bool reset = true;
+
+    EntityStruct entity;
+    entity.initialized = 0;
+    MaterialStruct mat; LightStruct light;
     do {
         bounce++;
         /* Trace a ray through the scene */
@@ -59,11 +63,7 @@ void main()
             albedo = get_environment_color(direction);
             break;
         }
-
-        EntityStruct entity;
-        entity.initialized = 0;
-
-        MaterialStruct mat; LightStruct light;
+        
         unpack_entity_struct(payload.entity_id, entity);
         unpack_material_struct(payload.entity_id, entity, payload.uv, payload.m_p, mat);
         unpack_light_struct(payload.entity_id, entity, light);
@@ -110,6 +110,8 @@ void main()
     
 
     /* Write to G Buffers */
+    // ID data
+    imageStore(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(entity_id, entity.material_id, entity.transform_id, entity.light_id));
 
     // Position G Buffer
     imageStore(gbuffers[POSITION_DEPTH_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(world_position, dist));

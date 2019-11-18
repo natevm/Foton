@@ -184,11 +184,12 @@ void main()
             // If at bounce 0, we don't include diffuse color with diffuse. 
             // That will be multiplied later during compositing and after denoising
             if (bounce == 0 ){
+                vec3 specular = mix(vec3(1.0), mat.base_color.rgb, mat.metallic);
                 curr_diffuse_radiance = irradiance.diffuse;
-                curr_specular_radiance = irradiance.specular;
+                curr_specular_radiance = irradiance.specular * specular;
             } else {
                 vec3 diffuse = mat.base_color.rgb * (1.f - mat.metallic) * (1.f - mat.transmission);
-                vec3 specular = vec3(1.0);
+                vec3 specular = mix(vec3(1.0), mat.base_color.rgb, mat.metallic);
                 curr_diffuse_radiance = irradiance.diffuse * diffuse;
                 curr_specular_radiance = irradiance.specular * specular;
             }
@@ -389,15 +390,11 @@ void main()
             // Specular motion vector
             imageStore(gbuffers[GLOSSY_MOTION_ADDR], p, vec4(specular_motion, (first_entity_id == -1) ? 1.0 : 0.0));
             
-            vec4 temp = imageLoad(gbuffers[REFL_ID_ADDR], p);            
-            imageStore(gbuffers[REFL_ID_ADDR], p, vec4(w_p_i, reflected_entity_id));            
-            imageStore(gbuffers[REFL_ID_ADDR_PREV], p, temp);      
-
             // Diffuse illumination (might remove...)
-            imageStore(gbuffers[DIFFUSE_ILLUM_VAR_ADDR], p, vec4(incoming_illumination, 0));
+            // imageStore(gbuffers[DIFFUSE_ILLUM_VAR_ADDR], p, vec4(incoming_illumination, 0));
 
             // Glossy illumination (might remove...)
-            imageStore(gbuffers[GLOSSY_ILLUM_VAR_ADDR], p, vec4(glossy_illumination, 0));
+            // imageStore(gbuffers[GLOSSY_ILLUM_VAR_ADDR], p, vec4(glossy_illumination, 0));
 
 
 
@@ -412,6 +409,12 @@ void main()
 
             // Indirect Glossy 
             imageStore(gbuffers[GLOSSY_INDIRECT_ADDR], p, vec4(indirect_specular_radiance, 1.0));
+
+            // Luminance
+            imageStore(gbuffers[LUMINANCE_ADDR], p, vec4(luminance(direct_diffuse_radiance), 
+                                                         luminance(indirect_diffuse_radiance), 
+                                                         luminance(direct_specular_radiance),
+                                                         luminance(indirect_specular_radiance)));
         }
     }
     

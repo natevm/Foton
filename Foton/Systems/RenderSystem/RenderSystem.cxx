@@ -148,6 +148,7 @@ bool RenderSystem::update_push_constants()
     // push_constants.scramble_tile_id = scramble->get_id();
     push_constants.time = (float) glfwGetTime();
 	push_constants.num_lights = Light::GetNumActiveLights();
+	push_constants.path_trace_tile_size = this->path_trace_tile_size;
     push_constants.frame++;
 
 	if ((!progressive_refinement_enabled) && (push_constants.frame > 1024))
@@ -747,7 +748,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 				}
 			}
 
-			/* A-SVGF Atrous */
+			/* Reconstruct Diffuse and Glossy */
 			if (asvgf_enabled && asvgf_atrous_enabled)
 			{
 				for(uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
@@ -764,13 +765,38 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 					uint32_t groupY = (height + local_size_y - 1) / local_size_y;
 					uint32_t groupZ = 1;
 
-					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, asvgf_final_atrous.pipeline);
+					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, reconstruct_diffuse.pipeline);
 					
 					push_constants.parameter1 = asvgf_atrous_sigma;
 					for (int i = (2 * asvgf_atrous_iterations) - 1; i >= 0; i--) {
 					// for (int i = 0; i < (2 * asvgf_atrous_iterations); i++) {
 						push_constants.iteration = i;
-						command_buffer.pushConstants(asvgf_final_atrous.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+						command_buffer.pushConstants(reconstruct_diffuse.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+						command_buffer.dispatch(groupX, groupY, groupZ);
+					}
+				}
+
+				for(uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
+					push_constants.target_id = -1;
+					push_constants.camera_id = camera_entity.get_id();
+					push_constants.viewIndex = rp_idx;
+					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
+					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+
+					uint32_t local_size_x = 16;
+					uint32_t local_size_y = 16;
+
+					uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+					uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+					uint32_t groupZ = 1;
+
+					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, reconstruct_glossy.pipeline);
+					
+					push_constants.parameter1 = asvgf_atrous_sigma;
+					for (int i = (2 * (asvgf_atrous_iterations / 2)) - 1; i >= 0; i--) {
+					// for (int i = 0; i < (2 * asvgf_atrous_iterations); i++) {
+						push_constants.iteration = i;
+						command_buffer.pushConstants(reconstruct_glossy.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
 						command_buffer.dispatch(groupX, groupY, groupZ);
 					}
 				}
@@ -869,33 +895,33 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 			uint32_t groupZ = 1;
 			command_buffer.dispatch(groupX, groupY, groupZ);
 		}
-	}
+	
+		/* TAA/Progresssive Refinement */
+		if ((progressive_refinement_enabled || taa_enabled) )
+		{
+			for(uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
+				push_constants.target_id = -1;
+				push_constants.camera_id = camera_entity.get_id();
+				push_constants.viewIndex = rp_idx;
+				push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
+				bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 
-	/* TAA/Progresssive Refinement */
-	if ((progressive_refinement_enabled || taa_enabled) )
-	{
-		for(uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
-			push_constants.target_id = -1;
-			push_constants.camera_id = camera_entity.get_id();
-			push_constants.viewIndex = rp_idx;
-			push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
-			bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+				if (progressive_refinement_enabled) {
+					command_buffer.pushConstants(progressive_refinement.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, progressive_refinement.pipeline);
+				}
+				else if (taa_enabled) {
+					command_buffer.pushConstants(taa.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, taa.pipeline);
+				}
+				uint32_t local_size_x = 16;
+				uint32_t local_size_y = 16;
 
-			if (progressive_refinement_enabled) {
-				command_buffer.pushConstants(progressive_refinement.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-				command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, progressive_refinement.pipeline);
+				uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+				uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+				uint32_t groupZ = 1;
+				command_buffer.dispatch(groupX, groupY, groupZ);
 			}
-			else if (taa_enabled) {
-				command_buffer.pushConstants(taa.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-				command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, taa.pipeline);
-			}
-			uint32_t local_size_x = 16;
-			uint32_t local_size_y = 16;
-
-			uint32_t groupX = (width + local_size_x - 1) / local_size_x;
-			uint32_t groupY = (height + local_size_y - 1) / local_size_y;
-			uint32_t groupZ = 1;
-			command_buffer.dispatch(groupX, groupY, groupZ);
 		}
 	}
 
@@ -2809,16 +2835,28 @@ void RenderSystem::setup_compute_pipelines()
 		asvgf_specular_temporal_accumulation.ready = true;
 	}
 
-	/* ASVGF A-Trous Edge Avoiding Filter */
+	/* Denoiser - Reconstruct Diffuse */
 	{
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_6_ReconstructDiffuse/comp.spv"));
-		auto compShaderModule = create_shader_module("asvgf_final_atrous", compShaderCode);
+		auto compShaderModule = create_shader_module("reconstruct_diffuse", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        asvgf_final_atrous.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        reconstruct_diffuse.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
-        computeCreateInfo.layout = asvgf_final_atrous.pipelineLayout;
-        asvgf_final_atrous.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
-		asvgf_final_atrous.ready = true;
+        computeCreateInfo.layout = reconstruct_diffuse.pipelineLayout;
+        reconstruct_diffuse.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		reconstruct_diffuse.ready = true;
+	}
+
+	/* Denoiser - Reconstruct Glossy */
+	{
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_6_ReconstructGlossy/comp.spv"));
+		auto compShaderModule = create_shader_module("reconstruct_glossy", compShaderCode);
+		compShaderStageInfo.module = compShaderModule;
+        reconstruct_glossy.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = reconstruct_glossy.pipelineLayout;
+        reconstruct_glossy.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		reconstruct_glossy.ready = true;
 	}
 
 	/* SVGF Remodulate */
@@ -3950,7 +3988,8 @@ void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffe
 		(copy_history.ready == false) || 
 		(gaussian_x.ready == false) || 
 		(gaussian_y.ready == false) || 
-		(asvgf_final_atrous.ready == false) ||
+		(reconstruct_diffuse.ready == false) ||
+		(reconstruct_glossy.ready == false) ||
 		(svgf_remodulate.ready == false) ||
 		(asvgf_reproject_seeds.ready == false) ||
 		(asvgf_compute_gradient.ready == false) ||
@@ -3969,7 +4008,8 @@ void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffe
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, copy_history.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, gaussian_x.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, gaussian_y.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
-	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_final_atrous.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, reconstruct_diffuse.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, reconstruct_glossy.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, svgf_remodulate.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_reproject_seeds.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_compute_gradient.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
@@ -4235,6 +4275,11 @@ void RenderSystem::set_max_bounces(uint32_t max_bounces) {
 	uint32_t limit = vulkan->get_physical_device_ray_tracing_properties().maxRecursionDepth;
 	if (max_bounces > limit - 1) max_bounces = limit - 1;
 	this->max_bounces = max_bounces;
+}
+
+void RenderSystem::set_path_trace_tile_size (uint32_t size) {
+	auto vulkan = Libraries::Vulkan::Get();
+	this->path_trace_tile_size = (size < 1) ? 1 : size;
 }
 
 float RenderSystem::get_milliseconds_per_frame() 

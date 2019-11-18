@@ -41,6 +41,7 @@ set(SHADERS_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_4_SpecularTemporalAccumulation/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_5_EstimateVariance/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_6_ReconstructDiffuse/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_6_ReconstructGlossy/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_7_Remodulate/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/CopyHistory/shader.comp
     PARENT_SCOPE

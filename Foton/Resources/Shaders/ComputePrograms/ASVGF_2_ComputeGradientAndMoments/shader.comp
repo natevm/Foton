@@ -39,11 +39,6 @@ void main() {
     if (int(gl_GlobalInvocationID.x * stride) >= push.consts.width) return;
     if (int(gl_GlobalInvocationID.y * stride) >= push.consts.height) return;
 
-    // TESTING
-    // const int curr_direct_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_1_ADDR : SVGF_TAA_HISTORY_2_ADDR;
-    // const int next_direct_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_2_ADDR : SVGF_TAA_HISTORY_1_ADDR;
-
-
     // Compute random offset within tile
     init_random(ivec2(gl_GlobalInvocationID.xy), push.consts.frame, 0);
     int rand_curr = int(random() * stride * stride);
@@ -58,36 +53,27 @@ void main() {
     iv.x = (abs(iv.x) < MOTION_VECTOR_MIN) ? 0 : iv.x;
     iv.y = (abs(iv.y) < MOTION_VECTOR_MIN) ? 0 : iv.y;
     ivec2 ipos_prev = ivec2(ipos + (iv + MOTION_VECTOR_OFFSET));
-    // ivec2 ipos_prev = ivec2(ipos - (iv + MOTION_VECTOR_OFFSET));
 
     // Detect if the current pixel was rendered as a gradient sample
     // Note: A pixel is a reprojected seed if all seed values match
-    vec4 curr_seed_luminance = imageLoad(gbuffers[SEED_LUMINANCE_ADDR], ipos);
-    vec4 prev_seed_luminance = imageLoad(gbuffers[SEED_LUMINANCE_ADDR_PREV], ipos_prev);
-    vec4 prev_norm_id = imageLoad(gbuffers[NORMAL_ID_ADDR_PREV], ipos);
-    vec4 curr_norm_id = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos_prev);
-    bool is_reproj_grad = all(equal(prev_seed_luminance.xyz, curr_seed_luminance.xyz)) && (int(prev_norm_id.w) == int(curr_norm_id.w));
+    vec4 curr_seed = imageLoad(gbuffers[SEED_LUMINANCE_ADDR], ipos);
+    vec4 prev_seed = imageLoad(gbuffers[SEED_LUMINANCE_ADDR_PREV], ipos_prev);
+    vec4 curr_luminance = imageLoad(gbuffers[LUMINANCE_ADDR], ipos);
+    vec4 prev_luminance = imageLoad(gbuffers[LUMINANCE_ADDR_PREV], ipos_prev);
+    vec4 prev_id = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos);
+    vec4 curr_id = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV], ipos_prev);
+    bool is_reproj_grad = all(equal(prev_seed.xyz, curr_seed.xyz)) && (int(prev_id.r) == int(curr_id.r));
 
-
-    // TESTING    
-    // float l_denoise_prev = luminance(imageLoad(gbuffers[DEBUG_ADDR], ipos_prev).rgb);
-    // l_denoise_prev = isnan(l_denoise_prev) ? 0.0 : l_denoise_prev;
-    // l_denoise_prev = isinf(l_denoise_prev) ? 0.0 : l_denoise_prev;
-
-
-    // Compute the temporal gradient
-    float l_prev = isnan(prev_seed_luminance.w) ? 0.0 : prev_seed_luminance.w;
-    float l_curr = isnan(curr_seed_luminance.w) ? 0.0 : curr_seed_luminance.w;
-    float temporal_gradient = (is_reproj_grad) ? abs(l_curr - l_prev) : 0.0;
-    // float temporal_gradient = (is_reproj_grad) ? abs(l_curr - l_denoise_prev) : 0.0;
-
-    // Compute maximum luminance
-    float max_luminance = max(l_curr, l_prev);
+    // Compute the temporal gradient and max luminance
+    vec4 l_prev = any(isnan(prev_luminance)) ? vec4(0.0) : prev_luminance;
+    vec4 l_curr = any(isnan(curr_luminance)) ? vec4(0.0) : curr_luminance;
+    vec4 temporal_gradient = (is_reproj_grad) ? abs(l_curr - l_prev) : vec4(0.0);
+    vec4 max_luminance = max(l_curr, l_prev);
 
     // Compute first and second moments over the tile
-    vec4 current_pixel_new_normal_id = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
-    int mesh_id = int(current_pixel_new_normal_id.w);
-    vec2 moments = vec2(l_curr, l_curr * l_curr);
+    int mesh_id = int(curr_id.r);
+    vec4 first_moment = vec4(l_curr);
+    vec4 second_moment = vec4(l_curr * l_curr);
     float sum_w = 1.0;
     for (int y = 0; y < stride; y++) {
         for (int x = 0; x < stride; x++) {
@@ -95,34 +81,34 @@ void main() {
             // skip the center pixel, we already account for it.
             if(all(equal(ipos, p))) continue;
             
-            vec4 pixel_seed_luminance = imageLoad(gbuffers[SEED_LUMINANCE_ADDR], p);
-            vec4 pixel_normal_id      = imageLoad(gbuffers[NORMAL_ID_ADDR], p);
-            int mesh_id_p = int(pixel_normal_id.w);
+            vec4 pixel_luminance = imageLoad(gbuffers[LUMINANCE_ADDR], p);
+            vec4 pixel_id      = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV], p);
+            int mesh_id_p = int(pixel_id.r);
             
             // ignore luminance values which belong to different objects
             float w = mesh_id_p == mesh_id ? 1.0 : 0.0;
-            float l = isnan(pixel_seed_luminance.w) ? 0.0 : clamp(pixel_seed_luminance.w, 0.0, 10.0);
-            moments += vec2(l, l * l) * w;
+            vec4 l = any(isnan(pixel_luminance)) ? vec4(0.0) : pixel_luminance;
+            first_moment += (l*w);
+            second_moment += (l*l*w);
             sum_w += w;
         }
     }
-    moments /= sum_w;
+    first_moment /= sum_w;
+    second_moment /= sum_w;
 
     // Compute variance (second moment minus first moment squared)
-    float variance = abs(moments[1] - moments[0] * moments[0]);
-    if (isnan(variance)) variance = 200;
-
-    // Store fragment depth for easier reconstruction
-    vec4 current_pixel_new_position_depth = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
-    float z_curr = current_pixel_new_position_depth.w;
+    vec4 variance = abs(second_moment - first_moment * first_moment);
+    if (any(isnan(variance))) variance = vec4(200);
 
     /* BAD. FOR NOW, REPLICATE RESULTS */
-    vec4 max_lum_grad = vec4(max_luminance, temporal_gradient, 1.0, 0.0);
-    vec4 avg_lum_variance = vec4(moments[0], variance, z_curr, z_curr);
+    // vec4 max_lum_grad = vec4(max_luminance, temporal_gradient, 1.0, 0.0);
+    // vec4 avg_lum_variance = vec4(moments[0], variance, z_curr, z_curr);
     for (int y = 0; y < stride; y++) {
         for (int x = 0; x < stride; x++) {
-            imageStore(gbuffers[TEMPORAL_GRADIENT_ADDR], stride * tile + ivec2(x,y), max_lum_grad);
-            imageStore(gbuffers[LUMINANCE_VARIANCE_ADDR], stride * tile + ivec2(x,y), avg_lum_variance);
+            imageStore(gbuffers[TEMPORAL_GRADIENT_ADDR], stride * tile + ivec2(x,y), temporal_gradient);
+            imageStore(gbuffers[LUMINANCE_AVERAGE_ADDR], stride * tile + ivec2(x,y), first_moment);
+            imageStore(gbuffers[LUMINANCE_VARIANCE_ADDR], stride * tile + ivec2(x,y), variance);
+            imageStore(gbuffers[LUMINANCE_MAX_ADDR], stride * tile + ivec2(x,y), max_luminance);
         }
     }
 }

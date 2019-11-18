@@ -277,7 +277,7 @@ vec3 perturbNormal(inout MaterialStruct material, vec3 w_position, vec3 w_normal
 }
 
 void get_origin_and_direction(in ivec2 pixel_seed, int frame_seed, in mat4 projinv, in mat4 viewinv, in ivec2 pixel_coords, in ivec2 frame_size, out vec3 origin, out vec3 direction) {
-    vec2 pixel_center = vec2(pixel_coords.xy) + vec2(random(), random()) * .5 * PATH_TRACE_TILE_SIZE;
+    vec2 pixel_center = vec2(pixel_coords.xy) + vec2(random(), random()) * .5;// * PATH_TRACE_TILE_SIZE;
     // if (is_progressive_refinement_enabled()) pixel_center += vec2(random(), random()) * .5 * PATH_TRACE_TILE_SIZE;
 	const vec2 in_uv = pixel_center/vec2(frame_size);
 	vec2 d = in_uv * 2.0 - 1.0; d.y *= -1.0;

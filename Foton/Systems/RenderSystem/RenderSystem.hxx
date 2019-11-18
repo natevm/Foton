@@ -108,6 +108,7 @@ namespace Systems
             void enable_tone_mapping(bool enable);
 
             void set_max_bounces(uint32_t max_bounces);
+            void set_path_trace_tile_size(uint32_t size);
             void enable_blue_noise(bool enable);
 
             void enable_analytical_arealights(bool enable);
@@ -167,7 +168,8 @@ namespace Systems
             bool asvgf_atrous_enabled = true;
             float asvgf_atrous_sigma = 1.0f;
             int asvgf_atrous_iterations = 1;
-            float asvgf_gradient_influence = 1.1f;
+            float asvgf_gradient_influence = 2.0f;
+            uint32_t path_trace_tile_size = 2;
 
             bool tone_mapping_enabled = true;
             bool progressive_refinement_enabled = false;
@@ -308,7 +310,8 @@ namespace Systems
             ComputePipelineResources asvgf_diffuse_temporal_accumulation;
             ComputePipelineResources asvgf_specular_temporal_accumulation;
             ComputePipelineResources asvgf_estimate_variance;
-            ComputePipelineResources asvgf_final_atrous;
+            ComputePipelineResources reconstruct_diffuse;
+            ComputePipelineResources reconstruct_glossy;
             ComputePipelineResources progressive_refinement;
             ComputePipelineResources compositing;
             ComputePipelineResources copy_history;

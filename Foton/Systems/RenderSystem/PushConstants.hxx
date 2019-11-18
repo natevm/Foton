@@ -38,7 +38,7 @@ struct PushConsts
     int32_t flags;
     int32_t num_lights;
     int32_t iteration;
-    int32_t parameter3;
+    int32_t path_trace_tile_size;
     
     float sky_transition;
     float gamma;
