@@ -9,6 +9,12 @@
 #include <thread>
 // #include <hex>
 
+#ifdef _WIN32
+  #ifndef NOMINMAX
+    #define NOMINMAX
+  #endif
+  #include <windows.h>
+#endif
 #include <vulkan/vulkan.hpp>
 
 #define GLFW_INCLUDE_VULKAN

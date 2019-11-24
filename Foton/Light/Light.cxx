@@ -308,7 +308,7 @@ void Light::Initialize()
     {
         vk::BufferCreateInfo bufferInfo = {};
         bufferInfo.size = MAX_LIGHTS * sizeof(LightStruct);
-        bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst;
+        bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc;
         bufferInfo.sharingMode = vk::SharingMode::eExclusive;
         SSBO = device.createBuffer(bufferInfo);
 
@@ -346,7 +346,7 @@ void Light::Initialize()
     {
         vk::BufferCreateInfo bufferInfo = {};
         bufferInfo.size = MAX_LIGHTS * sizeof(int32_t);
-        bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst;
+        bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc;
         bufferInfo.sharingMode = vk::SharingMode::eExclusive;
         LightEntitiesSSBO = device.createBuffer(bufferInfo);
 

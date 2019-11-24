@@ -104,7 +104,7 @@ std::vector<float> Texture::download_color_data(uint32_t width, uint32_t height,
 	// imInfo.flags; // May need this later for cubemaps, texture arrays, etc
 	imInfo.imageType = data.imageType;
 	// Note this is the format we want to blit the image to. 
-	imInfo.format = vk::Format::eR32G32B32A32Sfloat; 
+	imInfo.format = vk::Format::eR16G16B16A16Sfloat; 
 	imInfo.extent = vk::Extent3D{width, height, depth};
 	imInfo.mipLevels = 1;
 	imInfo.arrayLayers = 1;
@@ -322,7 +322,7 @@ void Texture::upload_color_data(uint32_t width, uint32_t height, uint32_t depth,
 	/* Create optimal tiled target image */
 	vk::ImageCreateInfo imageCreateInfo;
 	imageCreateInfo.imageType = data.imageType; // src and dst types must match. Deal with this in error check
-	imageCreateInfo.format = vk::Format::eR32G32B32A32Sfloat;
+	imageCreateInfo.format = vk::Format::eR16G16B16A16Sfloat;
 	imageCreateInfo.mipLevels = 1;
 	imageCreateInfo.arrayLayers = 1;
 	imageCreateInfo.samples = vk::SampleCountFlagBits::e1;
@@ -541,7 +541,7 @@ void Texture::Initialize()
 	{
 		vk::BufferCreateInfo bufferInfo = {};
 		bufferInfo.size = MAX_TEXTURES * sizeof(TextureStruct);
-		bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst ;
+		bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc ;
 		bufferInfo.sharingMode = vk::SharingMode::eExclusive;
 		SSBO = device.createBuffer(bufferInfo);
 
@@ -1415,7 +1415,7 @@ void Texture::create_color_image_resources(ImageData &imageData, bool submit_imm
 		device.freeMemory(imageData.imageMemory);
 
 	/* For now, assume the following format: */
-	imageData.format = vk::Format::eR32G32B32A32Sfloat;
+	imageData.format = vk::Format::eR16G16B16A16Sfloat;
 
 	imageData.imageLayout = vk::ImageLayout::eUndefined;
 

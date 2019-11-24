@@ -158,8 +158,8 @@ void CameraPrefab::update_arcball()
 
         // Arcball camera controls 
 
-        auto last_clamped = glm::clamp((curr_cursor_pos / window_extent) *  3.0f - 1.5f, glm::vec2{-1, -1}, glm::vec2{1, 1});
-        auto curr_clamped = glm::clamp(((curr_cursor_pos + glm::vec2(dr.x, -dr.y))  / window_extent) *  3.0f - 1.5f, glm::vec2{-1, -1}, glm::vec2{1, 1});
+        auto last_clamped = glm::clamp((curr_cursor_pos / window_extent) *  2.0f - 1.f, glm::vec2{-1, -1}, glm::vec2{1, 1});
+        auto curr_clamped = glm::clamp(((curr_cursor_pos + glm::vec2(dr.x, -dr.y))  / window_extent) *  2.0f - 1.f, glm::vec2{-1, -1}, glm::vec2{1, 1});
 
         last_clamped.x *= -1;
         curr_clamped.x *= -1;

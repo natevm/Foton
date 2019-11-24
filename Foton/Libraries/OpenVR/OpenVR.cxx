@@ -213,24 +213,24 @@ glm::mat4 OpenVR::m44_to_mat4(const vr::HmdMatrix44_t &t)
 	return mat1;
 }
 
-glm::mat4 OpenVR::get_left_projection_matrix(float near)
+glm::mat4 OpenVR::get_left_projection_matrix(float near_)
 {
 	/* Pull the projection matrix from OpenVR */
 	float left, right, top, bottom;
 	system->GetProjectionRaw(Eye_Left, &left, &right, &top, &bottom);
 
-	auto ovr_matrix = make_projection_matrix(left, right, top, bottom, near);
+	auto ovr_matrix = make_projection_matrix(left, right, top, bottom, near_);
 
 	return ovr_matrix;
 }
 
-glm::mat4 OpenVR::get_right_projection_matrix(float near)
+glm::mat4 OpenVR::get_right_projection_matrix(float near_)
 {
 	/* Pull the projection matrix from OpenVR */
 	float left, right, top, bottom;
 	system->GetProjectionRaw(Eye_Right, &left, &right, &top, &bottom);
 
-	auto ovr_matrix = make_projection_matrix(left, right, top, bottom, near);
+	auto ovr_matrix = make_projection_matrix(left, right, top, bottom, near_);
 
 	return ovr_matrix;
 }

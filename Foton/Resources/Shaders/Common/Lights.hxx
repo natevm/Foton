@@ -330,7 +330,7 @@ vec3 sample_direct_light_stochastic(const in MaterialStruct mat, bool backface, 
 
 #endif
 
-Irradiance sample_direct_light_analytic(const in MaterialStruct mat, bool backface, const in vec3 w_p, const in vec3 w_n,
+Irradiance sample_direct_light_analytic(const in MaterialStruct mat, bool backface, bool include_shadows, const in vec3 w_p, const in vec3 w_n,
 	const in vec3 w_x, const in vec3 w_y, const in vec3 w_o) 
 {
     float shadow_term = 1.0;
@@ -559,7 +559,7 @@ Irradiance sample_direct_light_analytic(const in MaterialStruct mat, bool backfa
         float l_dist = distance(w_light_position, w_p); // approximation    
         float attenuation = get_light_attenuation(light, l_dist);
 
-        if ((light.flags & LIGHT_FLAGS_CAST_SHADOWS) == 0) {
+        if (((light.flags & LIGHT_FLAGS_CAST_SHADOWS) == 0) || (include_shadows == false)) {
             irradiance.diffuse += analytical_irradiance.diffuse * attenuation;
             irradiance.specular += analytical_irradiance.specular * attenuation;
             continue;

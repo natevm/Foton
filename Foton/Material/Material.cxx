@@ -131,7 +131,7 @@ void Material::CreateSSBO()
 	{
 		vk::BufferCreateInfo bufferInfo = {};
 		bufferInfo.size = MAX_MATERIALS * sizeof(MaterialStruct);
-		bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst;
+		bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc;
 		bufferInfo.sharingMode = vk::SharingMode::eExclusive;
 		SSBO = device.createBuffer(bufferInfo);
 

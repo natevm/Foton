@@ -144,8 +144,8 @@ bool PythonSystem::start()
                 auto fp = fopen(Options::GetMainModule().c_str(), "r");
                 PyRun_AnyFile(fp, Options::GetMainModule().c_str() );
             }
-            else
-                PyRun_InteractiveLoop(stdin, "<stdin>");
+            // else
+            PyRun_InteractiveLoop(stdin, "<stdin>");
         }
 
         Py_Finalize();

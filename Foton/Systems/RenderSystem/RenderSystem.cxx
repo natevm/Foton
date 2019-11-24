@@ -4208,6 +4208,8 @@ void RenderSystem::set_asvgf_gradient_reconstruction_iterations(int iterations)
 void RenderSystem::set_asvgf_gradient_reconstruction_sigma(float sigma)
 {
 	this->asvgf_gradient_reconstruction_sigma = sigma;
+	if (sigma > 1.0) this->asvgf_gradient_reconstruction_sigma = 1.0;
+	if (sigma < 0.0) this->asvgf_gradient_reconstruction_sigma = 0.0;
 }
 
 void RenderSystem::set_asvgf_gradient_influence(float influence)

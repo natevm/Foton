@@ -89,18 +89,21 @@ void main()
     int reflected_entity_id = -1;
     vec3 specular_motion = vec3(0.0);
 
-    vec3 incoming_path_throughput = vec3(1.0);
+    vec3 indirect_diffuse_path_throughput = vec3(1.0);
     vec3 glossy_path_throughput = vec3(1.0);
     vec3 incoming_illumination = vec3(0.0);
     vec3 glossy_illumination = vec3(0.0);
 
 
-    vec3 indirect_diffuse_path_throughput = vec3(1.0);
+    // vec3 indirect_diffuse_path_throughput = vec3(1.0);
 
     vec3 diffuse_radiance = vec3(0.0);
     vec3 specular_radiance = vec3(0.0);
     vec3 direct_diffuse_radiance = vec3(0.0);
     vec3 direct_specular_radiance = vec3(0.0);
+
+    vec3 first_refl_dir = vec3(0.f);
+    float first_lobe_sharpness = 0.f;
 
     do {
         /* Unpack Data */
@@ -129,7 +132,7 @@ void main()
             if (bounce <= 1) {
                 direct_illumination += path_throughput * irradiance;
             }
-            incoming_illumination += incoming_path_throughput * irradiance;
+            incoming_illumination += indirect_diffuse_path_throughput * irradiance;
             glossy_illumination += glossy_path_throughput * irradiance;
             combined_radiance += path_throughput * irradiance;
             break;
@@ -165,7 +168,7 @@ void main()
                 if (bounce != 0) {
                     combined_radiance += path_throughput * light.color.rgb * light.intensity * attenuation;
                         // direct_illumination = path_throughput * light.color.rgb * light.intensity;
-                    incoming_illumination += incoming_path_throughput * light.color.rgb * light.intensity * attenuation;
+                    incoming_illumination += indirect_diffuse_path_throughput * light.color.rgb * light.intensity * attenuation;
                     glossy_illumination += glossy_path_throughput * light.color.rgb * light.intensity * attenuation;
                 }
             }
@@ -180,7 +183,7 @@ void main()
         vec3 curr_specular_radiance;
         last_direct_light_entity_id = -1;
         if (is_ltc_enabled()) {
-            Irradiance irradiance = sample_direct_light_analytic(mat, backface, w_p, w_z, w_x, w_y, w_o);
+            Irradiance irradiance = sample_direct_light_analytic(mat, backface, true, w_p, w_z, w_x, w_y, w_o);
             // If at bounce 0, we don't include diffuse color with diffuse. 
             // That will be multiplied later during compositing and after denoising
             if (bounce == 0 ){
@@ -205,32 +208,33 @@ void main()
         combined_radiance += path_throughput * (curr_diffuse_radiance + curr_specular_radiance);
 
         if (bounce == 0) {
-            diffuse_radiance += path_throughput * curr_diffuse_radiance;
+            diffuse_radiance += indirect_diffuse_path_throughput * curr_diffuse_radiance;
             specular_radiance += path_throughput * curr_specular_radiance;
             direct_diffuse_radiance = diffuse_radiance;
             direct_specular_radiance = specular_radiance;
 
 
 
-            incoming_illumination += incoming_path_throughput * (curr_diffuse_radiance);
+            incoming_illumination += indirect_diffuse_path_throughput * (curr_diffuse_radiance);
             glossy_illumination += curr_specular_radiance;
             direct_illumination = combined_radiance;
         } 
         else 
         {
-            diffuse_radiance += path_throughput * (curr_diffuse_radiance + curr_specular_radiance);
+            diffuse_radiance += indirect_diffuse_path_throughput * (curr_diffuse_radiance + curr_specular_radiance);
             specular_radiance += path_throughput * (curr_diffuse_radiance + curr_specular_radiance);
 
             
 
             combined_radiance += path_throughput * (curr_diffuse_radiance + curr_specular_radiance);
-            incoming_illumination += incoming_path_throughput * (curr_diffuse_radiance + curr_specular_radiance);
+            incoming_illumination += indirect_diffuse_path_throughput * (curr_diffuse_radiance + curr_specular_radiance);
             glossy_illumination += glossy_path_throughput * (curr_diffuse_radiance) + curr_specular_radiance;
         }
 
+
         /* Increase bounce count*/
         bounce++;
-
+        
         /* Avoid sampling the brdf if this is the last path position */
         if (bounce > max_path_depth) break;
 
@@ -254,9 +258,9 @@ void main()
         /* for denoising, we factor out the diffuse and specular bsdfs for primary hits */
         if (bounce > 1) {
             if ((dpdf > EPSILON) && (all(greaterThan(dbsdf, vec3(EPSILON)))) && ((spdf > EPSILON) && (all(lessThan(sbsdf, vec3(EPSILON)))))) {
-                incoming_path_throughput *= (dbsdf / max(dpdf, PDF_CLAMP));
+                indirect_diffuse_path_throughput *= (dbsdf / max(dpdf, PDF_CLAMP));
             } else {
-                incoming_path_throughput *= 0;
+                indirect_diffuse_path_throughput *= 0;
             }
             
             glossy_path_throughput *= bsdf / pdf;
@@ -264,9 +268,9 @@ void main()
         else if (bounce == 1) {
             if ((spdf > EPSILON) && (all(greaterThan(sbsdf, vec3(EPSILON))))) {
                 if ((spdf > EPSILON) && ((all(lessThan(sbsdf, vec3(EPSILON)))))) {
-                    incoming_path_throughput *= (dbsdf / max(dpdf, PDF_CLAMP));
+                    indirect_diffuse_path_throughput *= (dbsdf / max(dpdf, PDF_CLAMP));
                 } else {
-                    incoming_path_throughput *= 0;
+                    indirect_diffuse_path_throughput *= 0;
                 }
                 glossy_path_throughput *= sbsdf / max(spdf, PDF_CLAMP); 
             } else {
@@ -276,13 +280,13 @@ void main()
 
         // if (bounce == 1) {
         //     color += path_throughput * (direct_diffuse_radiance + direct_specular_radiance);
-        //     incoming_illumination += incoming_path_throughput * (direct_diffuse_radiance);
+        //     incoming_illumination += indirect_diffuse_path_throughput * (direct_diffuse_radiance);
         //     glossy_illumination += glossy_path_throughput * (direct_diffuse_radiance) + direct_specular_radiance;
         // } 
         // else 
         // {
         //     color += path_throughput * (direct_diffuse_radiance + direct_specular_radiance);
-        //     incoming_illumination += incoming_path_throughput * (direct_diffuse_radiance + direct_specular_radiance);
+        //     incoming_illumination += indirect_diffuse_path_throughput * (direct_diffuse_radiance + direct_specular_radiance);
         //     glossy_illumination += glossy_path_throughput * (direct_diffuse_radiance) + direct_specular_radiance;
         // }
         // if (bounce == 1) 

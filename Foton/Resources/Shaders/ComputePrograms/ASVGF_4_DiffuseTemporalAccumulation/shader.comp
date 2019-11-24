@@ -10,7 +10,7 @@
 layout (local_size_x = 16, local_size_y = 16) in;
 
 // Tends to blur out details, but makes convergence more stable
-#define RADIUS 0
+#define RADIUS 1
 
 #if RADIUS == 2
 float Coefficients[25] = 
@@ -49,8 +49,8 @@ void main() {
     const int next_direct_diffuse_hist_addr     = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_2_ADDR : SVGF_TAA_HISTORY_1_ADDR;
     const int curr_indirect_diffuse_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_3_ADDR : SVGF_TAA_HISTORY_4_ADDR;
     const int next_indirect_diffuse_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_4_ADDR : SVGF_TAA_HISTORY_3_ADDR;
-    const int curr_sample_avg_addr            = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_7_ADDR : SVGF_TAA_HISTORY_8_ADDR;
-    const int next_sample_avg_addr            = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_8_ADDR : SVGF_TAA_HISTORY_7_ADDR;
+    // const int curr_sample_avg_addr            = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_7_ADDR : SVGF_TAA_HISTORY_8_ADDR;
+    // const int next_sample_avg_addr            = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_8_ADDR : SVGF_TAA_HISTORY_7_ADDR;
 
     // Compute motion vector
     // Note, the w component indicates an invalid motion vector, which forces a reset
@@ -72,9 +72,9 @@ void main() {
     if (int(curr_id_data.a) != -1) reset = true; //if an element is a light, don't accumulate temporally
 
     // Load g buffer data to be temporally accumulated
-    vec4 temp;
-    temp = imageLoad(gbuffers[curr_sample_avg_addr], ipos);
-    int samples = int(temp.r);
+    // vec4 temp;
+    // temp = imageLoad(gbuffers[curr_sample_avg_addr], ipos);
+    // int samples = int(temp.r);
 	vec4  direct_diffuse_curr     = imageLoad(gbuffers[DIFFUSE_DIRECT_ADDR], ipos);
 	vec4  indirect_diffuse_curr     = imageLoad(gbuffers[DIFFUSE_INDIRECT_ADDR], ipos);
     direct_diffuse_curr.w = luminance_variance.r;
@@ -87,12 +87,12 @@ void main() {
     // float antilag_prev = 0;
     vec4 hist_prev    = vec4(0);
 	float sum_w       = 0.0;
-	float histlen     = 0.0;
+	// float histlen     = 0.0;
     if (!reset) {
-        const int max_rad = 1;// * PATH_TRACE_TILE_SIZE;
-	    const float hist_len_thresh = max_rad + MIN_SAMPLES;
-        float alpha = (hist_len_thresh - clamp(samples, 0, hist_len_thresh) ) / hist_len_thresh;
-        const int r = int(mix(1, max_rad, alpha));
+        // const int max_rad = 1;// * PATH_TRACE_TILE_SIZE;
+	    // const float hist_len_thresh = max_rad + MIN_SAMPLES;
+        // float alpha = (hist_len_thresh - clamp(samples, 0, hist_len_thresh) ) / hist_len_thresh;
+        const int r = RADIUS;//int(mix(1, max_rad, alpha));
         for (int y = -r; y <= r; ++y) {
             for (int x = -r; x <= r; ++x) {
                 ivec2 ipos_prev = pos_prev + ivec2(x, y);
@@ -104,7 +104,7 @@ void main() {
                 // Load prior gbuffer data to accumulate temporally 
                 vec4 direct_diffuse = imageLoad(gbuffers[curr_direct_diffuse_hist_addr], ipos_prev);
                 vec4 indirect_diffuse = imageLoad(gbuffers[curr_indirect_diffuse_hist_addr], ipos_prev);
-                int samples = int(imageLoad(gbuffers[curr_sample_avg_addr], ipos_prev).r);
+                // int samples = int(imageLoad(gbuffers[curr_sample_avg_addr], ipos_prev).r);
 
                 // Determine if this prior sample is a disocclusion. If not, accept it.
                 bool accept = true;
@@ -123,7 +123,7 @@ void main() {
                     float w = 1.;
                     direct_diffuse_prev += direct_diffuse * w;
                     indirect_diffuse_prev += indirect_diffuse * w;
-                    histlen      += samples * w;
+                    // histlen      += samples * w;
                     sum_w        += w;
                 }
             }
@@ -162,23 +162,23 @@ void main() {
         indirect_diffuse_prev   /= sum_w;
 		// moments_prev  /= sum_w;
 		// antilag_prev  /= sum_w;
-		histlen       /= sum_w;
+		// histlen       /= sum_w;
 
         // vec4 accum_antilag = antilag_alpha;//mix(antilag_prev, antilag_alpha, GRADIENT_ALPHA);
-        // vec4 alpha_color   = vec4(1.0 / MAX_CUMULATIVE_COUNT);
+        vec4 alpha_color   = vec4(1.0 / MAX_DIFFUSE_CUMULATIVE_COUNT);
 
-        vec4 alpha_color   = vec4(max(1.0 / MAX_CUMULATIVE_COUNT, 1.0 / (histlen + 1.0)));
+        // vec4 alpha_color   = vec4(max(1.0 / MAX_DIFFUSE_CUMULATIVE_COUNT, 1.0 / (histlen + 1.0)));
 		// float alpha_moments = max(0.6, 1.0 / (histlen + 1.0));
 
-        alpha_color   = mix(alpha_color, vec4(1.0), antilag_alpha);
-		// alpha_moments = mix(alpha_moments, (1.0 / MAX_CUMULATIVE_COUNT), accum_antilag);
+        alpha_color   = mix(alpha_color, vec4(1.0 / MIN_DIFFUSE_CUMULATIVE_COUNT), antilag_alpha);
+		// alpha_moments = mix(alpha_moments, (1.0 / MAX_DIFFUSE_CUMULATIVE_COUNT), accum_antilag);
 		// vec2 accum_moments = moments_curr;//mix(moments_prev, moments_curr, alpha_moments);
         
         // float variance = abs(accum_moments.y - accum_moments.x * accum_moments.x);  
 
         
-		float color_count   = clamp(histlen, MIN_SAMPLES, MAX_CUMULATIVE_COUNT);
-        float moments_count = clamp(histlen, MIN_SAMPLES, MAX_CUMULATIVE_COUNT);
+		// float color_count   = clamp(histlen, MIN_SAMPLES, MAX_DIFFUSE_CUMULATIVE_COUNT);
+        // float moments_count = clamp(histlen, MIN_SAMPLES, MAX_DIFFUSE_CUMULATIVE_COUNT);
 
         
         // I don't know why, but mix seems to lose precision... always seems to reduce alpha color. 
@@ -186,8 +186,8 @@ void main() {
         // color_count = mix(color_count, 1.0, clamp(accum_antilag, 0.0, 1.0));
 		// moments_count = mix(moments_count, 1.0, clamp(accum_antilag, 0.0, 1.0));
 		
-        // float accum_a = min(MAX_CUMULATIVE_COUNT, histlen);
-        float accum_histlen = color_count + 1.0;
+        // float accum_a = min(MAX_DIFFUSE_CUMULATIVE_COUNT, histlen);
+        // float accum_histlen = color_count + 1.0;
 	// vec2 accum_moments = mix(moments_prev, moments_curr, 1.0 / moments_count);
         // if (moments_count <= 1) accum_moments.y = 1;
         
@@ -209,12 +209,12 @@ void main() {
         imageStore( gbuffers[next_direct_diffuse_hist_addr],        ivec2(gl_GlobalInvocationID.xy), accum_direct_diffuse );
         imageStore( gbuffers[next_indirect_diffuse_hist_addr],        ivec2(gl_GlobalInvocationID.xy), accum_indirect_diffuse );
         // imageStore( gbuffers[next_moments_addr],            ivec2(gl_GlobalInvocationID.xy), vec4(accum_moments, 1.0, 1.0));
-        imageStore( gbuffers[next_sample_avg_addr],       ivec2(gl_GlobalInvocationID.xy), vec4(accum_histlen));
+        // imageStore( gbuffers[next_sample_avg_addr],       ivec2(gl_GlobalInvocationID.xy), vec4(accum_histlen));
         // imageStore( gbuffers[next_grad_addr],       ivec2(gl_GlobalInvocationID.xy), vec4(accum_antilag));
 
         // imageStore( gbuffers[DEBUG_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(abs(accum_antilag)));
 
-        imageStore( gbuffers[DEBUG_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(abs(luminance_variance.g * 100)));
+        // imageStore( gbuffers[DEBUG_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(abs(luminance_variance.g * 100)));
 
     } else {
         /* encodes variance */
@@ -229,7 +229,7 @@ void main() {
         imageStore( gbuffers[next_direct_diffuse_hist_addr],        ivec2(gl_GlobalInvocationID.xy), direct_diffuse_curr);
         imageStore( gbuffers[next_indirect_diffuse_hist_addr],        ivec2(gl_GlobalInvocationID.xy), indirect_diffuse_curr);
         // imageStore( gbuffers[next_moments_addr],            ivec2(gl_GlobalInvocationID.xy), vec4(moments_curr, 1.0, 1.0));
-        imageStore( gbuffers[next_sample_avg_addr],       ivec2(gl_GlobalInvocationID.xy), vec4(1));
+        // imageStore( gbuffers[next_sample_avg_addr],       ivec2(gl_GlobalInvocationID.xy), vec4(1));
         // imageStore( gbuffers[next_grad_addr],               ivec2(gl_GlobalInvocationID.xy), vec4(0));
 
         // imageStore( gbuffers[DEBUG_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(0));

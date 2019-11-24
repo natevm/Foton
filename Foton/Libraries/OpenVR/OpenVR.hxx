@@ -4,12 +4,13 @@
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_RIGHT_HANDED
 
+#include "Foton/Libraries/Vulkan/Vulkan.hxx"
+
 #include <thread>
 #include <future>
 #include <vector>
 #include <set>
 #include <condition_variable>
-#include <vulkan/vulkan.hpp>
 #include <iostream>
 #include <glm/glm.hpp>
 #include <openvr.h>

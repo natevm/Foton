@@ -50,6 +50,9 @@ void main()
 
     EntityStruct entity;
     entity.initialized = 0;
+    entity.material_id = -1;
+    entity.transform_id = -1;
+    entity.light_id = -1;
     MaterialStruct mat; LightStruct light;
     do {
         bounce++;
@@ -107,6 +110,10 @@ void main()
         break;
     } while (transparency_continues <= MAX_TRANSPARENCY_CONTINUES);
 
+    // specular lobe axis and sharpness 
+    vec3 w_i = normalize(reflect(direction, world_normal));
+    float alpha = min(roughness * roughness, .9999);
+    float specular_sharpness = (1.0 - alpha);
     
 
     /* Write to G Buffers */
@@ -133,4 +140,7 @@ void main()
 
     // Motion Vector G Buffer
     imageStore(gbuffers[DIFFUSE_MOTION_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(motion, (reset) ? 1.0 : 0.0));
+
+    // Specular lobe axis and sharpness
+    imageStore(gbuffers[LOBE_AXIS_SHARPNESS_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(w_i, specular_sharpness));
 }

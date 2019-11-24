@@ -69,7 +69,8 @@ void main() {
     vec4 p_lum_var_data = imageLoad(gbuffers[LUMINANCE_VARIANCE_ADDR], ipos);
     vec4 p_uv_met_rough = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR],  ipos);
     vec4 p_direct_var = imageLoad(gbuffers[d_addr_0], ipos);
-    vec4 p_indirect_var = imageLoad(gbuffers[i_addr_0], ipos);   
+    vec4 p_indirect_var = imageLoad(gbuffers[i_addr_0], ipos);  
+    vec4 p_spec_axis_sharpness = imageLoad(gbuffers[LOBE_AXIS_SHARPNESS_ADDR], ipos); 
     float l_p_direct = luminance(p_direct_var.rgb);
     float l_p_indirect = luminance(p_indirect_var.rgb);
 
@@ -78,11 +79,16 @@ void main() {
     float l_sigma_indirect = compute_sigma_luminance(p_indirect_var.a, ipos, i_addr_0) * 3.0 * push.consts.parameter1; 
     float n_sigma = 128.0 * push.consts.parameter1; 
     float p_sigma = 1.0 * push.consts.parameter1; 
+    float r_sigma_direct = pow(10.0 * (1.0 - push.consts.parameter1), 2.0); // user controllable power
+    float r_sigma_indirect = 10000.0 * (1.0 - push.consts.parameter1); // user controllable power
+
 
     l_sigma_direct = ((major_iteration+1) * l_sigma_direct);
     l_sigma_indirect = ((major_iteration+1) * l_sigma_indirect);
     n_sigma = ((major_iteration+1) * n_sigma);
     p_sigma = ((major_iteration+1) * p_sigma);
+    r_sigma_direct = ((major_iteration+1) * r_sigma_direct);
+    r_sigma_indirect = ((major_iteration+1) * r_sigma_indirect);
 
     vec3 sum_direct = vec3(0.0);
     vec3 sum_indirect = vec3(0.0);
@@ -112,8 +118,28 @@ void main() {
                 float dist2 = dot(t, t) + t.z * t.z;
                 float l_q_direct = luminance(q_direct_var.rgb);
                 float l_q_indirect = luminance(q_indirect_var.rgb);
-                float wp = 1.0;//min(exp(-(dist2)/p_sigma), 1.0);
+                float wp = min(exp(-(dist2)*p_sigma), 1.0);
                 float wn = 1.0;//pow(max(0.0, dot(p_norm_id_data.xyz, q_norm_id_data.xyz)), n_sigma);
+
+                /* Specular Aware Spherical Gaussian Weight */
+                
+                // lobe sharpness
+                vec4 temp = imageLoad(gbuffers[LOBE_AXIS_SHARPNESS_ADDR], ivec2(st));
+                float lambda_q = temp.w;
+                float lambda_p = p_spec_axis_sharpness.w;
+                                
+                // lobe axis
+                vec3 xi_q = temp.xyz;
+                vec3 xi_p = p_spec_axis_sharpness.xyz;
+
+                float direct_lobe_axis_similarity = exp(((r_sigma_direct*lambda_p*lambda_q)/(lambda_p + lambda_q)) * (dot(xi_p,xi_q) - 1.0f));
+                float direct_lobe_sharpness_similarity = pow( (2.0 * sqrt(lambda_p * lambda_q)) / (lambda_p + lambda_q), r_sigma_direct);
+                float wr_direct = direct_lobe_axis_similarity * direct_lobe_sharpness_similarity;
+
+                float indirect_lobe_axis_similarity = exp(((r_sigma_indirect*lambda_p*lambda_q)/(lambda_p + lambda_q)) * (dot(xi_p,xi_q) - 1.0f));
+                float indirect_lobe_sharpness_similarity = pow( (2.0 * sqrt(lambda_p * lambda_q)) / (lambda_p + lambda_q), r_sigma_indirect);
+                float wr_indirect = indirect_lobe_axis_similarity * indirect_lobe_sharpness_similarity;
+                           
 
 
                 // float gvl = 0.001;
@@ -126,8 +152,8 @@ void main() {
 
 
                 // float wl = clamp(abs(l_q - l_p) / (l_sigma + 1e-10), 0.0, 1.0); 
-                float wl_direct = 1.0;//clamp(exp(-abs(l_p_direct - l_q_direct) / (l_sigma_direct + 1e-10)), 0.0, 1.0); 
-                float wl_indirect = 1.0;//clamp(exp(-abs(l_p_indirect - l_q_indirect) / (l_sigma_indirect + 1e-10)), 0.0, 1.0); 
+                float wl_direct = wr_direct; //*clamp(exp(-abs(l_p_direct - l_q_direct) / (l_sigma_direct + 1e-10)), 0.0, 1.0); 
+                float wl_indirect = wr_indirect; //*clamp(exp(-abs(l_p_indirect - l_q_indirect) / (l_sigma_indirect + 1e-10)), 0.0, 1.0); 
                 if (isnan(l_q_direct)) continue;
                 if (isnan(l_q_indirect)) continue;
                 if (isnan(l_p_direct)) continue;
@@ -138,8 +164,8 @@ void main() {
                 // float wl = ((xx != 0) && (yy != 0)) ? max(1.0 - l_sigma, 0.0) : 1;
                 // float wl = 1.0;
 
-                float w_direct = wp * wn *  wl_direct;
-                float w_indirect = wp * wn *  wl_indirect;
+                float w_direct = wp * wn * wl_direct;
+                float w_indirect = wp * wn * wl_indirect;
                 float weight_direct = h[yy + RADIUS][xx + RADIUS] * w_direct;
                 float weight_indirect = h[yy + RADIUS][xx + RADIUS] * w_indirect;
 
@@ -186,10 +212,10 @@ void main() {
         
         /* denoising direct specular this way looks really bad... */
         // if (major_iteration < 2) {
-        //     imageStore(gbuffers[d_addr_1], ipos, vec4(direct_result.rgb, direct_var_result));
+        imageStore(gbuffers[d_addr_1], ipos, vec4(direct_result.rgb, direct_var_result));
         // }
 
         /* denoising direct this way also looks pretty bad... */
-        // imageStore(gbuffers[i_addr_1], ipos, vec4(indirect_result.rgb, indirect_var_result));
+        imageStore(gbuffers[i_addr_1], ipos, vec4(indirect_result.rgb, indirect_var_result));
     }
 }

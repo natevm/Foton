@@ -8,15 +8,24 @@
 
 layout (local_size_x = 16, local_size_y = 16) in;
 
+#define ENABLE_POSITION_TEST true
+#define ENABLE_NORMAL_TEST true
+#define ENABLE_ID_TEST true
+
 void main() {
     // Stride of the gradient tile
     const int stride = GRADIENT_TILE_SIZE;
-    if (int(gl_GlobalInvocationID.x * stride) >= push.consts.width) return;
-    if (int(gl_GlobalInvocationID.y * stride) >= push.consts.height) return;
+    if ((int(gl_GlobalInvocationID.x * stride) >= push.consts.width)
+    || (int(gl_GlobalInvocationID.y * stride) >= push.consts.height)) return;
 
     // Compute random offset within tile
-    init_random(ivec2(gl_GlobalInvocationID.xy), push.consts.frame, 0);
-    int rand_curr = int(floor(clamp(random(), 0.0, .999) * stride * stride));
+    int rand_curr;
+    if (GRADIENT_USE_RANDOM) {
+        init_random(ivec2(gl_GlobalInvocationID.xy), push.consts.frame, 0);
+        rand_curr = int(random() * stride * stride);
+    } else {
+        rand_curr = push.consts.frame;
+    }
     ivec2 tile = ivec2(gl_GlobalInvocationID.xy);
     ivec2 offset_curr = ivec2(rand_curr / stride, rand_curr % stride);
 
@@ -28,45 +37,43 @@ void main() {
     iv.x = (abs(iv.x) < MOTION_VECTOR_MIN) ? 0 : iv.x;
     iv.y = (abs(iv.y) < MOTION_VECTOR_MIN) ? 0 : iv.y;
     ivec2 ipos_prev = ivec2(ipos + (iv + MOTION_VECTOR_OFFSET));
-    // ivec2 ipos_prev = ivec2(ipos - (iv + MOTION_VECTOR_OFFSET));
-    
-    // Load previous
-    vec4 seed_data = imageLoad(gbuffers[SEED_LUMINANCE_ADDR_PREV], ipos_prev);
-    vec4 luminance_data = imageLoad(gbuffers[LUMINANCE_ADDR_PREV], ipos_prev);
 
-    // Load previous GBuffer data
-    vec4 position_depth = imageLoad(gbuffers[POSITION_DEPTH_ADDR_PREV], ipos_prev);
-    vec4 normal_id = imageLoad(gbuffers[NORMAL_ID_ADDR_PREV], ipos_prev);
-    vec4 albedo = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR_PREV], ipos_prev);
-    vec4 uv = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR_PREV], ipos_prev);
-
-    // Test if reprojected seed is valid
+    // Skip if reprojection would fall off the screen
     bool accept = true;
-    vec4 target_depth_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
-    vec4 target_normal_id = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
-    vec4 target_albedo = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ipos);
-    // accept = accept && ( abs(position_depth.w - target_depth_data.w) < .1 ); // This seems to mess up large reflective surfaces
-    accept = accept && ( distance(position_depth.xyz,  target_depth_data.xyz) < .01 ); 
-    accept = accept && (int(normal_id.w) == int(target_normal_id.w));
-    accept = accept && (distance(albedo,  target_albedo) < ALBEDO_MAX);
     bvec2 a = greaterThan(ipos_prev, vec2(push.consts.width-1, push.consts.height-1));
     bvec2 b = lessThan(ipos_prev, vec2(0.0, 0.0));
     accept = accept && (!any(bvec2(any(a), any(b))));
-    accept = accept && (dot(normal_id.rgb, target_normal_id.rgb) > 0.9); // This will not change with respect to shading, so we can use it.
+    if (!accept) return;
+    
+    // Load GBuffer data
+    vec4 id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV], ipos_prev);
+    vec4 target_id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos);
+    if ((int(id_data.r) == -1) || (int(target_id_data.r) == -1)) return;
+    if (int(id_data.r) != int(target_id_data.r)) return;
 
-    // Store reprojected seed and gbuffer data.
-    // Note, reprojecting gbuffer data gives us some control on what causes 
-    // a temporal gradient. We're more likely to have an accurate gradient 
-    // if we use the exact same gbuffer data as before. However, changes 
-    // to albedo, metallic/roughness, etc may not be detected if reprojected.
-    if (accept)
-    {
-        // target_albedo.w = float(-2); // dont know why, but setting this breaks everything
-        imageStore(gbuffers[SEED_LUMINANCE_ADDR], ipos, seed_data);
-        imageStore(gbuffers[LUMINANCE_ADDR], ipos, luminance_data);
-        imageStore(gbuffers[POSITION_DEPTH_ADDR], ipos, position_depth);
-        imageStore(gbuffers[NORMAL_ID_ADDR], ipos, normal_id);
-        imageStore(gbuffers[DIFFUSE_COLOR_ADDR], ipos, albedo);
-        imageStore(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos, uv);
-    }
+    vec4 position_depth = imageLoad(gbuffers[POSITION_DEPTH_ADDR_PREV], ipos_prev);
+    vec4 target_pos_depth_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
+    if ( distance(position_depth.xyz,  target_pos_depth_data.xyz) > .01 ) return;
+
+    vec4 normal = imageLoad(gbuffers[NORMAL_ADDR_PREV], ipos_prev);
+    vec4 target_normal = imageLoad(gbuffers[NORMAL_ADDR], ipos);
+    if (dot(normal.rgb, target_normal.rgb) < 0.9) return;
+
+    // Load gbuffer data that might change lighting locally from previous to next,  
+    // then store to reprojected position. Any changes to lighting from previous
+    // frame to now will be due to changes in external lighting conditions
+    vec4 seed = imageLoad(gbuffers[SEED_ADDR_PREV], ipos_prev);
+    imageStore(gbuffers[SEED_ADDR], ipos, seed);
+
+    vec4 lum = imageLoad(gbuffers[LUMINANCE_ADDR_PREV], ipos_prev);
+    imageStore(gbuffers[LUMINANCE_ADDR], ipos, lum);
+    
+    vec4 albedo = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR_PREV], ipos_prev);
+    imageStore(gbuffers[DIFFUSE_COLOR_ADDR], ipos, albedo);
+    
+    vec4 uv = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR_PREV], ipos_prev);
+    imageStore(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos, uv);
+    
+    imageStore(gbuffers[POSITION_DEPTH_ADDR], ipos, position_depth);
+    imageStore(gbuffers[NORMAL_ADDR], ipos, normal);
 }

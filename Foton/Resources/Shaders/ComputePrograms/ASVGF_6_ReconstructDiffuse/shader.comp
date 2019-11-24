@@ -68,21 +68,28 @@ void main() {
     vec4 p_norm_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
     vec4 p_lum_var_data = imageLoad(gbuffers[LUMINANCE_VARIANCE_ADDR], ipos);
     vec4 p_uv_met_rough = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR],  ipos);
+    vec4 p_uv_metallic_roughness = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos);
     vec4 p_direct_var = imageLoad(gbuffers[d_addr_0], ipos);
     vec4 p_indirect_var = imageLoad(gbuffers[i_addr_0], ipos);   
     float l_p_direct = luminance(p_direct_var.rgb);
     float l_p_indirect = luminance(p_indirect_var.rgb);
 
+    float screen_correction = max(push.consts.width, push.consts.height);
+
     int curr_step_width = 1 << major_iteration;
-    float l_sigma_direct = compute_sigma_luminance(p_direct_var.a, ipos, d_addr_0) * 3.0 * push.consts.parameter1; 
-    float l_sigma_indirect = compute_sigma_luminance(p_indirect_var.a, ipos, i_addr_0) * 3.0 * push.consts.parameter1; 
-    float n_sigma = 128.0 * push.consts.parameter1; 
-    float p_sigma = 1.0 * push.consts.parameter1; 
+    float l_sigma_direct = .0001 * compute_sigma_luminance(p_direct_var.a, ipos, d_addr_0) * push.consts.parameter1 * screen_correction; 
+    float n_sigma_direct = 128. * (1.0 - push.consts.parameter1) * screen_correction; 
+    float p_sigma_direct = 1. * (1.0 - push.consts.parameter1) * screen_correction; 
+    float n_sigma_indirect = 128 * 4.0 * (1.0 - push.consts.parameter1) * screen_correction; 
+    float l_sigma_indirect = .0004 * compute_sigma_luminance(p_indirect_var.a, ipos, i_addr_0) * push.consts.parameter1 * screen_correction; 
+    float p_sigma_indirect = 4.0 * (1.0 - push.consts.parameter1) * screen_correction; 
 
     l_sigma_direct = ((major_iteration+1) * l_sigma_direct);
+    n_sigma_direct = ((major_iteration+1) * n_sigma_direct);
+    p_sigma_direct = ((major_iteration+1) * p_sigma_direct);
     l_sigma_indirect = ((major_iteration+1) * l_sigma_indirect);
-    n_sigma = ((major_iteration+1) * n_sigma);
-    p_sigma = ((major_iteration+1) * p_sigma);
+    n_sigma_indirect = ((major_iteration+1) * n_sigma_indirect);
+    p_sigma_indirect = ((major_iteration+1) * p_sigma_indirect);
 
     vec3 sum_direct = vec3(0.0);
     vec3 sum_indirect = vec3(0.0);
@@ -103,6 +110,7 @@ void main() {
                 vec4 q_direct_var = imageLoad(gbuffers[d_addr_0], ivec2(st));
                 vec4 q_indirect_var = imageLoad(gbuffers[i_addr_0], ivec2(st));
                 vec4 q_norm_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR], st);
+                vec4 q_uv_metallic_roughness = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], st);
                 if (any(isnan(q_direct_var))) continue; 
                 if (any(isnan(q_indirect_var))) continue;
                 if (!eps_equal(p_norm_id_data.w, q_norm_id_data.w)) continue;
@@ -112,8 +120,15 @@ void main() {
                 float dist2 = dot(t, t) + t.z * t.z;
                 float l_q_direct = luminance(q_direct_var.rgb);
                 float l_q_indirect = luminance(q_indirect_var.rgb);
-                float wp = min(exp(-(dist2)/p_sigma), 1.0);
-                float wn = pow(max(0.0, dot(p_norm_id_data.xyz, q_norm_id_data.xyz)), n_sigma);
+                
+                float wp_direct = min(exp(-(dist2)*p_sigma_direct), 1.0);
+                float wn_direct = pow(max(0.0, dot(p_norm_id_data.xyz, q_norm_id_data.xyz)), n_sigma_direct);
+                
+                float wp_indirect = min(exp(-(dist2)*p_sigma_indirect), 1.0);
+                float wn_indirect = pow(max(0.0, dot(p_norm_id_data.xyz, q_norm_id_data.xyz)), n_sigma_indirect);
+
+                float w_metallic = 1.0 - q_uv_metallic_roughness.z;
+                float w_roughness = 1.0 - abs(p_uv_metallic_roughness.w - q_uv_metallic_roughness.w);
 
 
                 // float gvl = 0.001;
@@ -138,8 +153,8 @@ void main() {
                 // float wl = ((xx != 0) && (yy != 0)) ? max(1.0 - l_sigma, 0.0) : 1;
                 // float wl = 1.0;
 
-                float w_direct = wp * wn *  wl_direct;
-                float w_indirect = wp * wn *  wl_indirect;
+                float w_direct = w_metallic * w_roughness * wp_direct;// * wn_direct * wl_direct;
+                float w_indirect = w_metallic * w_roughness * wp_indirect;// * wn_indirect * wl_indirect;
                 float weight_direct = h[yy + RADIUS][xx + RADIUS] * w_direct;
                 float weight_indirect = h[yy + RADIUS][xx + RADIUS] * w_indirect;
 

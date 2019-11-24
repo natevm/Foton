@@ -11,7 +11,7 @@
 layout (local_size_x = 16, local_size_y = 16) in;
 
 // Tends to blur out details, but makes convergence more stable
-#define RADIUS 5
+#define RADIUS 0
 
 #if RADIUS == 2
 float Coefficients[25] = 
@@ -40,254 +40,274 @@ float Coefficients[1] = {
 };
 #endif
 
+
+// NOTE, HOW TO ADDRESS DIFFERENT MOTION VECTOR FOR GRADIENT SEED?
 void main() {
-    // ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
-    // float gradient_weight = push.consts.parameter1;
 
-    // // This temporal accumulation uses two ping pong buffers per accumulated
-    // // g buffer. These are the current and next gbuffer addreses for each.
-    // const int curr_specular_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_3_ADDR : SVGF_TAA_HISTORY_4_ADDR;
-    // const int next_specular_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_4_ADDR : SVGF_TAA_HISTORY_3_ADDR;
-    // // const int curr_moments_addr       = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_5_ADDR : SVGF_TAA_HISTORY_6_ADDR;
-    // // const int next_moments_addr       = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_6_ADDR : SVGF_TAA_HISTORY_5_ADDR;
-    // // const int curr_sample_count_addr  = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_7_ADDR : SVGF_TAA_HISTORY_8_ADDR;
-    // // const int next_sample_count_addr  = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_8_ADDR : SVGF_TAA_HISTORY_7_ADDR;
-    // // const int curr_grad_addr  = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_9_ADDR : SVGF_TAA_HISTORY_10_ADDR;
-    // // const int next_grad_addr  = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_10_ADDR : SVGF_TAA_HISTORY_9_ADDR;
+    float r_sigma_indirect = 10000.0 * (1.0 - (/*push.consts.parameter1*/ .1)); // user controllable power
 
-    // // Compute motion vector
-    // // Note, the w component indicates an invalid motion vector, which can 
-    // // occur for pixels containing the background
-    // bool reset = false;
-    // precise vec4 motion_data = imageLoad(gbuffers[GLOSSY_MOTION_ADDR], ipos);
-    // if (motion_data.w > 0) reset = true; // reset history if motion data is invalid
-    // precise vec2 v = motion_data.xy * vec2(.5, -.5);
-    // precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
-    // iv.x = (abs(iv.x) < MOTION_VECTOR_MIN) ? 0 : iv.x;
-    // iv.y = (abs(iv.y) < MOTION_VECTOR_MIN) ? 0 : iv.y;
-    // ivec2 pos_prev = ivec2(ipos + iv + MOTION_VECTOR_OFFSET);
-    // ivec2 p = ivec2(pos_prev - 0.5);
 
-    // // Load g buffer data which we'll use for detecting disocclusions
-    // vec4 curr_albedo_data = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ipos);
-    // vec4 curr_normal_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
-    // vec4 curr_position_depth_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
+    ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
+    float gradient_weight = push.consts.parameter1;
+
+    // This temporal accumulation uses two ping pong buffers per accumulated
+    // g buffer. These are the current and next gbuffer addreses for each.
+    const int curr_specular_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_7_ADDR : SVGF_TAA_HISTORY_8_ADDR;
+    const int next_specular_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_8_ADDR : SVGF_TAA_HISTORY_7_ADDR;
+    // const int curr_moments_addr       = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_5_ADDR : SVGF_TAA_HISTORY_6_ADDR;
+    // const int next_moments_addr       = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_6_ADDR : SVGF_TAA_HISTORY_5_ADDR;
+    // const int curr_sample_count_addr  = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_7_ADDR : SVGF_TAA_HISTORY_8_ADDR;
+    // const int next_sample_count_addr  = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_8_ADDR : SVGF_TAA_HISTORY_7_ADDR;
+    // const int curr_grad_addr  = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_9_ADDR : SVGF_TAA_HISTORY_10_ADDR;
+    // const int next_grad_addr  = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_10_ADDR : SVGF_TAA_HISTORY_9_ADDR;
+
+    // Compute motion vector
+    // Note, the w component indicates an invalid motion vector, which can 
+    // occur for pixels containing the background
+    bool reset = false;
+    precise vec4 motion_data = imageLoad(gbuffers[GLOSSY_MOTION_ADDR], ipos);
+    if (motion_data.w > 0) reset = true; // reset history if motion data is invalid
+    precise vec2 v = motion_data.xy * vec2(.5, -.5);
+    precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
+    iv.x = (abs(iv.x) < MOTION_VECTOR_MIN) ? 0 : iv.x;
+    iv.y = (abs(iv.y) < MOTION_VECTOR_MIN) ? 0 : iv.y;
+    ivec2 pos_prev = ivec2(ipos + iv + MOTION_VECTOR_OFFSET);
+    ivec2 p = ivec2(pos_prev - 0.5);
+
+    // Load g buffer data which we'll use for detecting disocclusions
+    vec4 curr_albedo_data = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ipos);
+    vec4 curr_normal_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
+    vec4 curr_position_depth_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
     // vec4 curr_refl_pos_id_data = imageLoad(gbuffers[REFL_ID_ADDR], ipos);
 
     
-    // // int samples = int(imageLoad(gbuffers[curr_sample_count_addr], ipos).r);
+    // int samples = int(imageLoad(gbuffers[curr_sample_count_addr], ipos).r);
 
-    // vec4 curr_uv_metallic_roughness_data = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos);
-    // vec3 curr_albedo = curr_albedo_data.rgb;
-    // int curr_entity_id = int(curr_normal_id_data.a);
+    vec4 curr_uv_metallic_roughness_data = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos);
+    vec3 curr_albedo = curr_albedo_data.rgb;
+    int curr_entity_id = int(curr_normal_id_data.a);
     // int curr_refl_pos_id = int(curr_refl_pos_id_data.a);
-    // vec3 curr_pos = curr_position_depth_data.xyz;
-    // float z_curr = curr_position_depth_data.w;
-    // // float metallic = curr_uv_metallic_roughness_data.z;
-    // float roughness = curr_uv_metallic_roughness_data.w;
+    vec4 curr_spec_axis_sharpness = imageLoad(gbuffers[LOBE_AXIS_SHARPNESS_ADDR], ipos); 
+    vec3 curr_pos = curr_position_depth_data.xyz;
+    float z_curr = curr_position_depth_data.w;
+    // float metallic = curr_uv_metallic_roughness_data.z;
+    float roughness = curr_uv_metallic_roughness_data.w;
 
-    // // Load g buffer data to be temporally accumulated
-	// vec4  specular_curr     = imageLoad(gbuffers[GLOSSY_INDIRECT_ADDR], ipos);
-    // /* Compute neighborhood min and max */
-    // // vec4 nmin = vec4(0.0), nmax = vec4(0.0), navg = vec4(0.0);
-    // // vec4 specular_curr;
-    // // for (int y = -RADIUS; y <= RADIUS; ++y) {
-    // //     for (int x = -RADIUS; x <= RADIUS; ++x) {
-    // //         vec4 color = imageLoad(gbuffers[curr_specular_hist_addr], ipos + PATH_TRACE_TILE_SIZE * ivec2(x, y));
-    // //         if ((x == 0) && (y == 0)) specular_curr = color;
-    // //         if ((y == -RADIUS) && (x == -RADIUS)) {
-    // //             nmin = nmax = color;
-    // //         }
-    // //         else {
-    // //             nmin = min(nmin, color); nmax = max(nmax, color);
-    // //         }
-    // //         navg += color;
-    // //     }
-    // // }
-    // // navg /= (RADIUS * RADIUS);
-
-	// vec2  moments_curr = imageLoad(gbuffers[LUMINANCE_VARIANCE_ADDR], ipos).rg;
-    // // vec4  grad_curr = imageLoad(gbuffers[TEMPORAL_GRADIENT_ADDR], ipos); 
-
-    // // We'll be estimating these values by a simple filter surrounding the reprojected position
-    // vec4 specular_prev  = vec4(0);
-    // float antilag_prev = 0;
-    // vec4 hist_prev    = vec4(0);
-	// vec2 moments_prev = vec2(0);
-	// float sum_w       = 0.0;
-	// float histlen     = 0.0;
-    // if (!reset) {
-    //     vec4 specular_max;
-    //     vec4 specular_min;
-
-    //     float min_luminance;
-    //     bool first = true;
-
-    //     // const int max_rad = 1;// * PATH_TRACE_TILE_SIZE;
-	//     // const float hist_len_thresh = max_rad + MIN_SAMPLES;
-    //     // float alpha = (hist_len_thresh - clamp(samples, 0, hist_len_thresh) ) / hist_len_thresh;
-    //     // const int r = int(mix(1, max_rad, alpha));
-
-    //     const int r = RADIUS;
-    //     for (int y = -r; y <= r; ++y) {
-    //         for (int x = -r; x <= r; ++x) {
-    //             ivec2 ipos_prev = pos_prev + ivec2(x, y);
-                
-    //             // Load disocclusion gbuffer data
-    //             vec4 hist_albedo_data = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR_PREV], ipos_prev);
-    //             vec4 hist_normal_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR_PREV], ipos_prev);
-    //             vec4 hist_pos_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR_PREV], ipos_prev);
-    //             vec4 hist_refl_pos_id_data = imageLoad(gbuffers[REFL_ID_ADDR_PREV], ipos_prev);
-
-                
-    //             vec3 hist_albedo = hist_albedo_data.rgb;
-    //             int hist_entity_id = int(hist_normal_id_data.a);
-    //             int hist_refl_entity_id = int(hist_refl_pos_id_data.a);
-    //             vec3 hist_pos = hist_pos_data.xyz;
-    //             float hist_dist = hist_pos_data.w;
-                
-    //             // Load prior gbuffer data to accumulate temporally 
-    //             vec4 specular = imageLoad(gbuffers[curr_specular_hist_addr], ipos_prev);
-                                
-    //             // vec2 moments = imageLoad(gbuffers[curr_moments_addr], ipos_prev).rg;
-    //             // int samples = int(imageLoad(gbuffers[curr_sample_count_addr], ipos_prev).r);
-    //             // vec4 luminance_data = imageLoad(gbuffers[curr_moments_addr], ipos_prev);
-    //             // vec4 grad = imageLoad(gbuffers[curr_grad_addr], ipos_prev);
-    //             // float antilag = imageLoad(gbuffers[curr_grad_addr], ipos_prev).r;
-
-    //             bvec2 a = greaterThan(ipos_prev, vec2(push.consts.width-1, push.consts.height-1));
-    //             bvec2 b = lessThan(ipos_prev, vec2(0.0, 0.0));
-                
-    //             // Determine if this prior sample is a disocclusion. If not, accept it.
-    //             bool accept = true;
-    //             accept = accept && (!any(bvec2(any(a), any(b))));
-    //             accept = accept && (!any(isnan(specular)));
-    //             accept = accept && (!any(isinf(specular)));
-    //             // accept = accept && (!any(isnan(moments)));
-    //             // accept = accept && (!any(isinf(moments)));
-    //             // accept = accept && (!isnan(antilag));
-    //             // accept = accept && (!isinf(antilag));
-
-    //             // accept = accept && (!any(isnan(gradient_data)));
-    //             // accept = accept && (!any(isinf(gradient_data)));                
-    //             accept = accept && (hist_entity_id == curr_entity_id);
-    //             accept = accept && (hist_refl_entity_id == curr_refl_pos_id);
-    //             accept = accept && (hist_refl_entity_id != -1);
-
-    //             // float w = 5.0 - min(distance(hist_refl_pos_id_data.rgb, curr_refl_pos_id_data.rgb), 5.);
-    //             // accept = accept && (hist_refl_pos_id_data.rgb - curr_refl_pos_id_data.rgb < 1.0);
-
-    //             // accept = accept && (dot(hist_refl_normal_id_data.rgb, curr_refl_normal_id_data.rgb) > 0.5);
-    //             // accept = accept && (dot(hist_normal_id_data.rgb, curr_normal_id_data.rgb) > 0.5);
-
-
-                
-
-    //             /* Some of these seem to lead to unneccesary history resets */
-    //             // accept = accept && (distance(hist_albedo,  curr_albedo) < ALBEDO_MAX);
-    //             // accept = accept && (dot(hist_normal_id_data.rgb, curr_normal_id_data.rgb) > 0.0);
-    //             // accept = accept && (abs(hist_dist - z_curr) < POSITION_MAX);
-    //             // accept = accept && (distance(hist_pos,  curr_pos) < DISTANCE_MAX);
-
-    //             if (accept) {
-    //                 // if (((x >= -(r - 1)) && (x <= (r - 1))) && ((y >= -(r - 1)) && (y <= (r - 1))))
-    //                 // {
-    //                 //     if (first) {
-    //                 //         first = false;
-    //                 //         specular_max = specular_min = specular;
-    //                 //         min_luminance = luminance(specular.rgb);
-    //                 //     }
-    //                 //     else {
-    //                 //         if (luminance(specular.rgb) < min_luminance) {
-    //                 //             specular_min = specular;
-    //                 //             min_luminance = min(min_luminance, luminance(specular.rgb));
-    //                 //         }
-    //                 //     }
-    //                 // }
-                    
-    //                 float w = 1.;
-    //                 specular_prev += specular * w;
-    //                 // moments_prev += moments * w;
-    //                 // antilag_prev += antilag * w;
-    //                 // histlen      += samples * w;
-    //                 sum_w        += w;
-    //             }
+    // Load g buffer data to be temporally accumulated
+	vec4  specular_curr     = imageLoad(gbuffers[GLOSSY_INDIRECT_ADDR], ipos);
+    /* Compute neighborhood min and max */
+    // vec4 nmin = vec4(0.0), nmax = vec4(0.0), navg = vec4(0.0);
+    // vec4 specular_curr;
+    // for (int y = -RADIUS; y <= RADIUS; ++y) {
+    //     for (int x = -RADIUS; x <= RADIUS; ++x) {
+    //         vec4 color = imageLoad(gbuffers[curr_specular_hist_addr], ipos + PATH_TRACE_TILE_SIZE * ivec2(x, y));
+    //         if ((x == 0) && (y == 0)) specular_curr = color;
+    //         if ((y == -RADIUS) && (x == -RADIUS)) {
+    //             nmin = nmax = color;
     //         }
+    //         else {
+    //             nmin = min(nmin, color); nmax = max(nmax, color);
+    //         }
+    //         navg += color;
     //     }
-
-    //     // // testing
-    //     // if (sum_w > 0) {
-
-    //     //     specular_prev   /= sum_w;
-    //     //     // float accum_luminance = luminance(specular_prev.rgb);
-            
-    //     //     // specular_prev /= min(accum_luminance, 1.0);
-    //     //     // specular_prev *= min_luminance;
-
-    //     //     // specular_min = min(nmin, specular_min);
-
-    //     //     if (!first){
-    //     //         specular_prev = mix(specular_min, specular_prev, roughness);
-    //     //     }
-
-
-    //     //     // specular_prev = mix(navg, specular_prev, roughness);
-            
-    //     //     sum_w = 1.0;
-    //     // }
     // }
+    // navg /= (RADIUS * RADIUS);
 
-    // // Compute the antilag alpha based off of temporal gradient
-    // float antilag_alpha = 0.0;
-    // float avg_max_lum = 0.0;
-    // if (is_gradient_estimation_enabled())
-	// {
-	// 	const int r = GRADIENT_FILTER_RADIUS;
-    //     float w_sum = 0.f;
-	// 	for(int y = -r; y <= r; y++) {
-	// 		for(int x = -r; x <= r; x++) {
-	// 			vec2 gradient_max_luminance = imageLoad(gbuffers[TEMPORAL_GRADIENT_ADDR], pos_prev + ivec2(x, y) * GRADIENT_TILE_SIZE).rg; 
-	// 			// float avg_lum = imageLoad(gbuffers[LUMINANCE_VARIANCE_ADDR_PREV], pos_prev + ivec2(x, y) * PATH_TRACE_TILE_SIZE).r; 
-    //             float max_l = gradient_max_luminance.r;
-    //             float gradient = gradient_max_luminance.g;
-	// 			// float a = clamp(abs(max_l > 1e-4 ? abs(gradient) / max_l : 0.0), 0.0, 200.0);
-	// 			float a = /*clamp(*/ abs(max_l > 1e-4 ? abs(gradient) / max_l : 0.0);//, 0.0, 2000.0);
-	// 			float w = 1.0 / float((2 * r + 1) * (2 * r + 1));
-	// 			antilag_alpha = max(antilag_alpha, a);
-    //             // avg_max_lum += max_l;
-	// 			// antilag_alpha += a * w;
-    //             // w_sum += 1;
-	// 		}
-	// 	}
-    //     // avg_max_lum /= w_sum;
-    //     // antilag_alpha /= w_sum;
+	vec2  moments_curr = imageLoad(gbuffers[LUMINANCE_VARIANCE_ADDR], ipos).rg;
+    // vec4  grad_curr = imageLoad(gbuffers[TEMPORAL_GRADIENT_ADDR], ipos); 
 
-    //     clamp(antilag_alpha, 0.0, 1.0);
-    //     if(isnan(antilag_alpha))
-    //         antilag_alpha = 0.0;
+    // We'll be estimating these values by a simple filter surrounding the reprojected position
+    vec4 specular_prev  = vec4(0);
+    float antilag_prev = 0;
+    vec4 hist_prev    = vec4(0);
+	vec2 moments_prev = vec2(0);
+	float sum_w       = 0.0;
+	float histlen     = 0.0;
+    if (!reset) {
+        vec4 specular_max;
+        vec4 specular_min;
 
-    //     antilag_alpha = pow(antilag_alpha, gradient_weight); // testing
-    //     // antilag_alpha *= gradient_weight;
-    //     // if (antilag_alpha < .5) antilag_alpha = 0; //testing
-	// }
+        float min_luminance;
+        bool first = true;
 
-    // if (sum_w > 0.01) { /* found sufficiently reliable history information */
-    //     specular_prev   /= sum_w;
-	// 	// moments_prev  /= sum_w;
-	// 	// antilag_prev  /= sum_w;
-	// 	// histlen       /= sum_w;
+        // const int max_rad = 1;// * PATH_TRACE_TILE_SIZE;
+	    // const float hist_len_thresh = max_rad + MIN_SAMPLES;
+        // float alpha = (hist_len_thresh - clamp(samples, 0, hist_len_thresh) ) / hist_len_thresh;
+        // const int r = int(mix(1, max_rad, alpha));
 
-    //     float accum_antilag = antilag_alpha;//mix(antilag_prev, antilag_alpha, GRADIENT_ALPHA);
+        const int r = RADIUS;
+        for (int y = -r; y <= r; ++y) {
+            for (int x = -r; x <= r; ++x) {
+                ivec2 ipos_prev = pos_prev + ivec2(x, y);
+                
+                // Load disocclusion gbuffer data
+                vec4 hist_albedo_data = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR_PREV], ipos_prev);
+                vec4 hist_normal_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR_PREV], ipos_prev);
+                vec4 hist_pos_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR_PREV], ipos_prev);
+                // vec4 hist_refl_pos_id_data = imageLoad(gbuffers[REFL_ID_ADDR_PREV], ipos_prev);
+                vec4 hist_spec_axis_sharpness = imageLoad(gbuffers[LOBE_AXIS_SHARPNESS_ADDR_PREV], ipos_prev); 
 
-    //     // float alpha_color   = max(1.0 / MAX_CUMULATIVE_COUNT, 1.0 / (histlen + 1.0));
-    //     float alpha_color   = 1.0 / MAX_SPECULAR_CUMULATIVE_COUNT;
-	// 	// float alpha_moments = max(0.6, 1.0 / (histlen + 1.0));
+                
+                vec3 hist_albedo = hist_albedo_data.rgb;
+                int hist_entity_id = int(hist_normal_id_data.a);
+                // int hist_refl_entity_id = int(hist_refl_pos_id_data.a);
+                vec3 hist_pos = hist_pos_data.xyz;
+                float hist_dist = hist_pos_data.w;
+                
+                // Load prior gbuffer data to accumulate temporally 
+                vec4 specular = imageLoad(gbuffers[curr_specular_hist_addr], ipos_prev);
+                                
+                // vec2 moments = imageLoad(gbuffers[curr_moments_addr], ipos_prev).rg;
+                // int samples = int(imageLoad(gbuffers[curr_sample_count_addr], ipos_prev).r);
+                // vec4 luminance_data = imageLoad(gbuffers[curr_moments_addr], ipos_prev);
+                // vec4 grad = imageLoad(gbuffers[curr_grad_addr], ipos_prev);
+                // float antilag = imageLoad(gbuffers[curr_grad_addr], ipos_prev).r;
 
-    //     alpha_color   = mix(alpha_color,   (1.0 / MAX_SPECULAR_CUMULATIVE_COUNT) * 10.0, accum_antilag);
-	// 	// alpha_moments = mix(alpha_moments, (1.0 / MAX_CUMULATIVE_COUNT) * 10.0, accum_antilag);
-	// 	// vec2 accum_moments = mix(moments_prev, moments_curr, alpha_moments);
+                bvec2 a = greaterThan(ipos_prev, vec2(push.consts.width-1, push.consts.height-1));
+                bvec2 b = lessThan(ipos_prev, vec2(0.0, 0.0));
+                
+                // Determine if this prior sample is a disocclusion. If not, accept it.
+                bool accept = true;
+                accept = accept && (!any(bvec2(any(a), any(b))));
+                accept = accept && (!any(isnan(specular)));
+                accept = accept && (!any(isinf(specular)));
+                // accept = accept && (!any(isnan(moments)));
+                // accept = accept && (!any(isinf(moments)));
+                // accept = accept && (!isnan(antilag));
+                // accept = accept && (!isinf(antilag));
+
+                // accept = accept && (!any(isnan(gradient_data)));
+                // accept = accept && (!any(isinf(gradient_data)));                
+                accept = accept && (hist_entity_id == curr_entity_id);
+                // accept = accept && (hist_refl_entity_id == curr_refl_pos_id);
+                // accept = accept && (hist_refl_entity_id != -1);
+
+                // float w = 5.0 - min(distance(hist_refl_pos_id_data.rgb, curr_refl_pos_id_data.rgb), 5.);
+                // accept = accept && (hist_refl_pos_id_data.rgb - curr_refl_pos_id_data.rgb < 1.0);
+
+                // accept = accept && (dot(hist_refl_normal_id_data.rgb, curr_refl_normal_id_data.rgb) > 0.5);
+                // accept = accept && (dot(hist_normal_id_data.rgb, curr_normal_id_data.rgb) > 0.5);
+
+
+                
+
+                /* Some of these seem to lead to unneccesary history resets */
+                // accept = accept && (distance(hist_albedo,  curr_albedo) < ALBEDO_MAX);
+                // accept = accept && (dot(hist_normal_id_data.rgb, curr_normal_id_data.rgb) > 0.0);
+                // accept = accept && (abs(hist_dist - z_curr) < POSITION_MAX);
+                // accept = accept && (distance(hist_pos,  curr_pos) < DISTANCE_MAX);
+
+                float lambda_q = hist_spec_axis_sharpness.w;
+                float lambda_p = curr_spec_axis_sharpness.w;
+                                
+                // lobe axis
+                vec3 xi_q = hist_spec_axis_sharpness.xyz;
+                vec3 xi_p = curr_spec_axis_sharpness.xyz;
+
+                // float direct_lobe_axis_similarity = exp(((r_sigma_direct*lambda_p*lambda_q)/(lambda_p + lambda_q)) * (dot(xi_p,xi_q) - 1.0f));
+                // float direct_lobe_sharpness_similarity = pow( (2.0 * sqrt(lambda_p * lambda_q)) / (lambda_p + lambda_q), r_sigma_direct);
+                // float wr_direct = direct_lobe_axis_similarity * direct_lobe_sharpness_similarity;
+
+                float indirect_lobe_axis_similarity = exp(((r_sigma_indirect*lambda_p*lambda_q)/(lambda_p + lambda_q)) * (dot(xi_p,xi_q) - 1.0f));
+                float indirect_lobe_sharpness_similarity = pow( (2.0 * sqrt(lambda_p * lambda_q)) / (lambda_p + lambda_q), r_sigma_indirect);
+                float wr_indirect = indirect_lobe_axis_similarity * indirect_lobe_sharpness_similarity;
+
+                float w = wr_indirect;
+
+
+                if (accept) {
+                    // if (((x >= -(r - 1)) && (x <= (r - 1))) && ((y >= -(r - 1)) && (y <= (r - 1))))
+                    // {
+                    //     if (first) {
+                    //         first = false;
+                    //         specular_max = specular_min = specular;
+                    //         min_luminance = luminance(specular.rgb);
+                    //     }
+                    //     else {
+                    //         if (luminance(specular.rgb) < min_luminance) {
+                    //             specular_min = specular;
+                    //             min_luminance = min(min_luminance, luminance(specular.rgb));
+                    //         }
+                    //     }
+                    // }
+                    
+                    specular_prev += specular * w;
+                    // moments_prev += moments * w;
+                    // antilag_prev += antilag * w;
+                    // histlen      += samples * w;
+                    sum_w        += w;
+                }
+            }
+        }
+
+        // // testing
+        // if (sum_w > 0) {
+
+        //     specular_prev   /= sum_w;
+        //     // float accum_luminance = luminance(specular_prev.rgb);
+            
+        //     // specular_prev /= min(accum_luminance, 1.0);
+        //     // specular_prev *= min_luminance;
+
+        //     // specular_min = min(nmin, specular_min);
+
+        //     if (!first){
+        //         specular_prev = mix(specular_min, specular_prev, roughness);
+        //     }
+
+
+        //     // specular_prev = mix(navg, specular_prev, roughness);
+            
+        //     sum_w = 1.0;
+        // }
+    }
+
+    // Compute the antilag alpha based off of temporal gradient
+    vec4 antilag_alpha = vec4(0.0);
+    if (is_gradient_estimation_enabled())
+	{
+		const int r = GRADIENT_FILTER_RADIUS;
+        float w_sum = 0.f;
+		for(int y = -r; y <= r; y++) {
+			for(int x = -r; x <= r; x++) {
+				vec4 gradient = imageLoad(gbuffers[TEMPORAL_GRADIENT_ADDR], pos_prev + ivec2(x, y) * GRADIENT_TILE_SIZE); 
+				vec4 max_luminance = imageLoad(gbuffers[LUMINANCE_MAX_ADDR], pos_prev + ivec2(x, y) * GRADIENT_TILE_SIZE); 
+                max_luminance = max(max_luminance, vec4(1e-4));
+				
+				vec4 a = gradient / max_luminance;
+				float w = 1.0 / float((2 * r + 1) * (2 * r + 1));
+				antilag_alpha = max(antilag_alpha, a);
+			}
+		}
+
+        antilag_alpha *= gradient_weight;
+        antilag_alpha = clamp(antilag_alpha, vec4(0.0), vec4(1.0));
+        if(any(isnan(antilag_alpha)))
+            antilag_alpha = vec4(0.0);
+
+        // antilag_alpha = pow(antilag_alpha, gradient_weight); // testing
+        // if (antilag_alpha < .5) antilag_alpha = 0; //testing
+	}
+
+    if (sum_w > 0.01) { /* found sufficiently reliable history information */
+        specular_prev   /= sum_w;
+		// moments_prev  /= sum_w;
+		// antilag_prev  /= sum_w;
+		// histlen       /= sum_w;
+
+        // float accum_antilag = antilag_alpha;//mix(antilag_prev, antilag_alpha, GRADIENT_ALPHA);
+
+        // float alpha_color   = max(1.0 / MAX_CUMULATIVE_COUNT, 1.0 / (histlen + 1.0));
+        vec4 alpha_color   = vec4(1.0 / MAX_SPECULAR_CUMULATIVE_COUNT);
+		// float alpha_moments = max(0.6, 1.0 / (histlen + 1.0));
+
+        // alpha_color   = mix(alpha_color,   (1.0 / MAX_SPECULAR_CUMULATIVE_COUNT) * 10.0, accum_antilag);
+		alpha_color   = mix(alpha_color, vec4(1.0 / MIN_SPECULAR_CUMULATIVE_COUNT), antilag_alpha);
+
+        // alpha_moments = mix(alpha_moments, (1.0 / MAX_CUMULATIVE_COUNT) * 10.0, accum_antilag);
+		// vec2 accum_moments = mix(moments_prev, moments_curr, alpha_moments);
         
-    //     // float variance = abs(accum_moments.y - accum_moments.x * accum_moments.x);  
+        // float variance = abs(accum_moments.y - accum_moments.x * accum_moments.x);  
 
         
 
@@ -295,51 +315,51 @@ void main() {
 
 
 
-	// 	// float color_count   = clamp(histlen, MIN_SAMPLES, MAX_CUMULATIVE_COUNT);
-    //     // float moments_count = clamp(histlen, MIN_SAMPLES, MAX_CUMULATIVE_COUNT);
+		// float color_count   = clamp(histlen, MIN_SAMPLES, MAX_CUMULATIVE_COUNT);
+        // float moments_count = clamp(histlen, MIN_SAMPLES, MAX_CUMULATIVE_COUNT);
 
         
-    //     // I don't know why, but mix seems to lose precision... always seems to reduce alpha color. 
-	// 	// alpha_color   = mix(alpha_color,   1.0, accum_antilag); 
-    //     // color_count = mix(color_count, 1.0, clamp(accum_antilag, 0.0, 1.0));
-	// 	// moments_count = mix(moments_count, 1.0, clamp(accum_antilag, 0.0, 1.0));
+        // I don't know why, but mix seems to lose precision... always seems to reduce alpha color. 
+		// alpha_color   = mix(alpha_color,   1.0, accum_antilag); 
+        // color_count = mix(color_count, 1.0, clamp(accum_antilag, 0.0, 1.0));
+		// moments_count = mix(moments_count, 1.0, clamp(accum_antilag, 0.0, 1.0));
 		
-    //     // float accum_a = min(MAX_CUMULATIVE_COUNT, histlen);
-    //     // float accum_histlen = color_count + 1.0;
-	// // vec2 accum_moments = mix(moments_prev, moments_curr, 1.0 / moments_count);
-    //     // if (moments_count <= 1) accum_moments.y = 1;
+        // float accum_a = min(MAX_CUMULATIVE_COUNT, histlen);
+        // float accum_histlen = color_count + 1.0;
+	// vec2 accum_moments = mix(moments_prev, moments_curr, 1.0 / moments_count);
+        // if (moments_count <= 1) accum_moments.y = 1;
         
-    // // float variance = abs(accum_moments.y - accum_moments.x * accum_moments.x);
-    //     // if (isnan(variance) ) variance = 200;
+    // float variance = abs(accum_moments.y - accum_moments.x * accum_moments.x);
+        // if (isnan(variance) ) variance = 200;
         
-    //     vec4 accum_specular = vec4(mix(specular_prev.rgb, specular_curr.rgb, alpha_color), 1.0); // note, pass variance as w for bilateral filtering
+        vec4 accum_specular = vec4(mix(specular_prev.rgb, specular_curr.rgb, alpha_color.a), 1.0); // note, pass variance as w for bilateral filtering
         
 
-    //     imageStore( gbuffers[GLOSSY_INDIRECT_ADDR],        ivec2(gl_GlobalInvocationID.xy), accum_specular);
-    //     // imageStore( gbuffers[LUMINANCE_VARIANCE_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(accum_moments, z_curr, accum_histlen));
-    //     // imageStore( gbuffers[SAMPLE_COUNT_ADDR],            ivec2(gl_GlobalInvocationID.xy), vec4(accum_histlen));
-    //     // imageStore( gbuffers[VARIANCE_ADDR],                ivec2(gl_GlobalInvocationID.xy), vec4(variance));
-    //     // imageStore( gbuffers[TEMPORAL_GRADIENT_ADDR],       ivec2(gl_GlobalInvocationID.xy), vec4(accum_antilag));
+        imageStore( gbuffers[GLOSSY_INDIRECT_ADDR],        ivec2(gl_GlobalInvocationID.xy), accum_specular);
+        // imageStore( gbuffers[LUMINANCE_VARIANCE_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(accum_moments, z_curr, accum_histlen));
+        // imageStore( gbuffers[SAMPLE_COUNT_ADDR],            ivec2(gl_GlobalInvocationID.xy), vec4(accum_histlen));
+        // imageStore( gbuffers[VARIANCE_ADDR],                ivec2(gl_GlobalInvocationID.xy), vec4(variance));
+        // imageStore( gbuffers[TEMPORAL_GRADIENT_ADDR],       ivec2(gl_GlobalInvocationID.xy), vec4(accum_antilag));
 
-    //     imageStore( gbuffers[next_specular_hist_addr],        ivec2(gl_GlobalInvocationID.xy), accum_specular );
-    //     // imageStore( gbuffers[next_moments_addr],            ivec2(gl_GlobalInvocationID.xy), vec4(accum_moments, z_curr, z_curr));
-    //     // imageStore( gbuffers[next_sample_count_addr],       ivec2(gl_GlobalInvocationID.xy), vec4(accum_histlen));
-    //     // imageStore( gbuffers[next_grad_addr],       ivec2(gl_GlobalInvocationID.xy), vec4(accum_antilag));
+        imageStore( gbuffers[next_specular_hist_addr],        ivec2(gl_GlobalInvocationID.xy), accum_specular );
+        // imageStore( gbuffers[next_moments_addr],            ivec2(gl_GlobalInvocationID.xy), vec4(accum_moments, z_curr, z_curr));
+        // imageStore( gbuffers[next_sample_count_addr],       ivec2(gl_GlobalInvocationID.xy), vec4(accum_histlen));
+        // imageStore( gbuffers[next_grad_addr],       ivec2(gl_GlobalInvocationID.xy), vec4(accum_antilag));
 
-    //     // imageStore( gbuffers[DEBUG_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(abs(accum_antilag)));
-    // } else {
-    //     /* encodes variance */
-    //     // diffuse_curr.w = 200;
+        // imageStore( gbuffers[DEBUG_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(abs(accum_antilag)));
+    } else {
+        /* encodes variance */
+        // diffuse_curr.w = 200;
 
-    //     imageStore( gbuffers[GLOSSY_INDIRECT_ADDR],        ivec2(gl_GlobalInvocationID.xy), specular_curr);
-    //     // imageStore( gbuffers[LUMINANCE_VARIANCE_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(moments_curr, z_curr, z_curr));
-    //     // imageStore( gbuffers[SAMPLE_COUNT_ADDR],            ivec2(gl_GlobalInvocationID.xy), vec4(1));
-    //     // imageStore( gbuffers[VARIANCE_ADDR],                ivec2(gl_GlobalInvocationID.xy), vec4(200));
-    //     imageStore( gbuffers[next_specular_hist_addr],        ivec2(gl_GlobalInvocationID.xy), specular_curr);
-    //     // imageStore( gbuffers[next_moments_addr],            ivec2(gl_GlobalInvocationID.xy), vec4(moments_curr, z_curr, z_curr));
-    //     // imageStore( gbuffers[next_sample_count_addr],       ivec2(gl_GlobalInvocationID.xy), vec4(1));
-    //     // imageStore( gbuffers[next_grad_addr],               ivec2(gl_GlobalInvocationID.xy), vec4(0));
+        imageStore( gbuffers[GLOSSY_INDIRECT_ADDR],        ivec2(gl_GlobalInvocationID.xy), specular_curr);
+        // imageStore( gbuffers[LUMINANCE_VARIANCE_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(moments_curr, z_curr, z_curr));
+        // imageStore( gbuffers[SAMPLE_COUNT_ADDR],            ivec2(gl_GlobalInvocationID.xy), vec4(1));
+        // imageStore( gbuffers[VARIANCE_ADDR],                ivec2(gl_GlobalInvocationID.xy), vec4(200));
+        imageStore( gbuffers[next_specular_hist_addr],        ivec2(gl_GlobalInvocationID.xy), specular_curr);
+        // imageStore( gbuffers[next_moments_addr],            ivec2(gl_GlobalInvocationID.xy), vec4(moments_curr, z_curr, z_curr));
+        // imageStore( gbuffers[next_sample_count_addr],       ivec2(gl_GlobalInvocationID.xy), vec4(1));
+        // imageStore( gbuffers[next_grad_addr],               ivec2(gl_GlobalInvocationID.xy), vec4(0));
 
-    //     // imageStore( gbuffers[DEBUG_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(0));
-    // }
+        // imageStore( gbuffers[DEBUG_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(0));
+    }
 }

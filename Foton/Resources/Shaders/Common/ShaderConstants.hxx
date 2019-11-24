@@ -29,11 +29,13 @@
 // Min samples increases temporal coherence during disocclusions, 
 // but introduces artifacts due to temporal gradient not properly causing sample reset
 #define MIN_SAMPLES 0
-#define MAX_CUMULATIVE_COUNT 64
-#define TEMPORAL_ALPHA (1.0 / float(MAX_CUMULATIVE_COUNT))
+#define MAX_DIFFUSE_CUMULATIVE_COUNT 16
+#define MIN_DIFFUSE_CUMULATIVE_COUNT 1
+#define TEMPORAL_ALPHA (1.0 / float(MAX_DIFFUSE_CUMULATIVE_COUNT))
 
 // Specular is much more likely to ghost, due to more undefined disocclusions.
-#define MAX_SPECULAR_CUMULATIVE_COUNT 64
+#define MAX_SPECULAR_CUMULATIVE_COUNT 16
+#define MIN_SPECULAR_CUMULATIVE_COUNT 2
 
 // The larger max cumulative count is, the more powerful soft reset rate should be?
 #define MIN_SOFT_RESET_COUNT 4
@@ -55,9 +57,17 @@
 #define GRADIENT_FILTER_RADIUS 4
 // #define GRADIENT_DOWNSAMPLE 1.0
 
-#define PATH_TRACE_TILE_SIZE (push.consts.path_trace_tile_size)
-#define GRADIENT_TILE_SIZE (2 * push.consts.path_trace_tile_size)
+// Have a feeling allowing tile size to change at runtime hurts
+// unroll and jam performance
+// (push.consts.path_trace_tile_size)
+// Adding path trace tile size to gradient tile size instead
+// of multiplying, since multiplying makes certain convolutions
+// too expensive. 
+#define PATH_TRACE_TILE_SIZE 2
+#define GRADIENT_TILE_SIZE (2 + PATH_TRACE_TILE_SIZE)
 
 #define GRADIENT_DOWNSAMPLE (1.0/float(10))
+#define GRADIENT_USE_RANDOM false
+#define GRADIENT_MAX_PIXEL_DISTANCE 5
 
 #define PDF_CLAMP .1

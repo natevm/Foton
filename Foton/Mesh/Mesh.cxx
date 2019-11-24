@@ -428,7 +428,7 @@ void Mesh::Initialize() {
     {
         vk::BufferCreateInfo bufferInfo = {};
         bufferInfo.size = MAX_MESHES * sizeof(MeshStruct);
-        bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst ;
+        bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc;
         bufferInfo.sharingMode = vk::SharingMode::eExclusive;
         SSBO = device.createBuffer(bufferInfo);
 
@@ -2200,7 +2200,10 @@ void Mesh::createPointBuffer(bool allow_edits, bool submit_immediately)
 		memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible;
 		memoryProperties |= vk::MemoryPropertyFlagBits::eHostCoherent;
 	}
-	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, memoryProperties, pointBuffer, pointBufferMemory);
+	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc | 
+							 vk::BufferUsageFlagBits::eTransferDst | 
+							 vk::BufferUsageFlagBits::eVertexBuffer | 
+							 vk::BufferUsageFlagBits::eStorageBuffer, memoryProperties, pointBuffer, pointBufferMemory);
 	
 	auto cmd = vulkan->begin_one_time_graphics_command();
 	vk::BufferCopy copyRegion;
@@ -2241,7 +2244,10 @@ void Mesh::createColorBuffer(bool allow_edits, bool submit_immediately)
 		memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible;
 		memoryProperties |= vk::MemoryPropertyFlagBits::eHostCoherent;
 	}
-	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, memoryProperties, colorBuffer, colorBufferMemory);
+	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc | 
+							 vk::BufferUsageFlagBits::eTransferDst | 
+							 vk::BufferUsageFlagBits::eVertexBuffer | 
+							 vk::BufferUsageFlagBits::eStorageBuffer, memoryProperties, colorBuffer, colorBufferMemory);
 	
 	auto cmd = vulkan->begin_one_time_graphics_command();
 	vk::BufferCopy copyRegion;
@@ -2280,7 +2286,10 @@ void Mesh::createTriangleIndexBuffer(bool allow_edits, bool submit_immediately)
 		memoryProperties |= vk::MemoryPropertyFlagBits::eHostCoherent;
 	// }
 	// Why cant I create a device local index buffer?..
-	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, memoryProperties, triangleIndexBuffer, triangleIndexBufferMemory);
+	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc | 
+							 vk::BufferUsageFlagBits::eTransferDst | 
+							 vk::BufferUsageFlagBits::eIndexBuffer | 
+							 vk::BufferUsageFlagBits::eStorageBuffer, memoryProperties, triangleIndexBuffer, triangleIndexBufferMemory);
 	
 	auto cmd = vulkan->begin_one_time_graphics_command();
 	vk::BufferCopy copyRegion;
@@ -2320,7 +2329,10 @@ void Mesh::createNormalBuffer(bool allow_edits, bool submit_immediately)
 		memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible;
 		memoryProperties |= vk::MemoryPropertyFlagBits::eHostCoherent;
 	}
-	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, memoryProperties, normalBuffer, normalBufferMemory);
+	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc |
+							 vk::BufferUsageFlagBits::eTransferDst | 
+							 vk::BufferUsageFlagBits::eVertexBuffer | 
+							 vk::BufferUsageFlagBits::eStorageBuffer, memoryProperties, normalBuffer, normalBufferMemory);
 	
 	auto cmd = vulkan->begin_one_time_graphics_command();
 	vk::BufferCopy copyRegion;
@@ -2361,7 +2373,10 @@ void Mesh::createTexCoordBuffer(bool allow_edits, bool submit_immediately)
 		memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible;
 		memoryProperties |= vk::MemoryPropertyFlagBits::eHostCoherent;
 	}
-	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, memoryProperties, texCoordBuffer, texCoordBufferMemory);
+	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc | 
+							 vk::BufferUsageFlagBits::eTransferDst | 
+							 vk::BufferUsageFlagBits::eVertexBuffer | 
+							 vk::BufferUsageFlagBits::eStorageBuffer, memoryProperties, texCoordBuffer, texCoordBufferMemory);
 	
 	auto cmd = vulkan->begin_one_time_graphics_command();
 	vk::BufferCopy copyRegion;
