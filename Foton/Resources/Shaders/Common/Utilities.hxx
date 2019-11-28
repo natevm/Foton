@@ -341,6 +341,7 @@ void unpack_light_struct(
 ) {
     if ((entity_id < 0) || (entity_id >= max_entities)) return;
     if (entity.initialized != 1) return;
+    if ((entity.light_id < 0) || (entity.light_id >= max_lights)) return;
     light = lbo.lights[entity.light_id];
 }
 
@@ -352,14 +353,14 @@ void unpack_light_struct(
 }
 
 
-bool validate() {
-    #ifdef RAYTRACING
-    if (int(gl_LaunchIDNV.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return false;
-    if (int(gl_LaunchIDNV.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return false;
-    #endif
-    if ((push.consts.ltc_mat_lut_id < 0) || (push.consts.ltc_mat_lut_id >= max_textures)) return false;
-    if ((push.consts.ltc_amp_lut_id < 0) || (push.consts.ltc_amp_lut_id >= max_textures)) return false;
-    return true;
-}
+// bool validate() {
+//     #ifdef RAYTRACING
+// if (int(gl_LaunchIDNV.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return false;
+//     if (int(gl_LaunchIDNV.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return false;    
+//     #endif
+//     if ((push.consts.ltc_mat_lut_id < 0) || (push.consts.ltc_mat_lut_id >= max_textures)) return false;
+//     if ((push.consts.ltc_amp_lut_id < 0) || (push.consts.ltc_amp_lut_id >= max_textures)) return false;
+//     return true;
+// }
 
 #endif

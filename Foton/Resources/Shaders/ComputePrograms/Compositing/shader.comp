@@ -24,24 +24,26 @@ void main() {
     int render_image_idx = int(push.consts.parameter1); 
 
     ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 ipt = ivec2(gl_GlobalInvocationID.xy) / PATH_TRACE_TILE_SIZE;
+    ivec2 igt = ivec2(gl_GlobalInvocationID.xy) / (PATH_TRACE_TILE_SIZE * GRADIENT_TILE_SIZE);
     
     vec3 color;
     if (render_image_idx == 0) {
         // color = imageLoad(render_image, ipos).rgb;
         vec3 diffuse_color = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ipos).rgb;    
-        vec3 diffuse_direct = imageLoad(gbuffers[DIFFUSE_DIRECT_ADDR], ipos).rgb;    
-        vec3 diffuse_indirect = imageLoad(gbuffers[DIFFUSE_INDIRECT_ADDR], ipos).rgb;    
+        vec3 diffuse_direct = imageLoad(gbuffers[DIFFUSE_DIRECT_ADDR], ipt).rgb;    
+        vec3 diffuse_indirect = imageLoad(gbuffers[DIFFUSE_INDIRECT_ADDR], ipt).rgb;    
 
         vec3 glossy_color = imageLoad(gbuffers[GLOSSY_COLOR_ADDR], ipos).rgb;    
-        vec3 glossy_direct = imageLoad(gbuffers[GLOSSY_DIRECT_ADDR], ipos).rgb;    
-        vec3 glossy_indirect = imageLoad(gbuffers[GLOSSY_INDIRECT_ADDR], ipos).rgb;    
+        vec3 glossy_direct = imageLoad(gbuffers[GLOSSY_DIRECT_ADDR], ipt).rgb;    
+        vec3 glossy_indirect = imageLoad(gbuffers[GLOSSY_INDIRECT_ADDR], ipt).rgb;    
 
         vec3 transmission_color = vec3(0.0);//imageLoad(gbuffers[], ipos).rgb;    
         vec3 transmission_direct = vec3(0.0);//imageLoad(gbuffers[], ipos).rgb;    
         vec3 transmission_indirect = vec3(0.0);//imageLoad(gbuffers[], ipos).rgb;    
 
-        vec3 emission = imageLoad(gbuffers[EMISSION_ADDR], ipos).rgb;    
-        vec3 environment = imageLoad(gbuffers[ENVIRONMENT_ADDR], ipos).rgb;    
+        vec3 emission = imageLoad(gbuffers[EMISSION_ADDR], ipt).rgb;    
+        vec3 environment = imageLoad(gbuffers[ENVIRONMENT_ADDR], ipt).rgb;    
 
         vec3 diffuse        = diffuse_color         * (diffuse_direct       + diffuse_indirect);
         vec3 glossy         = glossy_color          * (glossy_direct        + glossy_indirect);
@@ -50,8 +52,37 @@ void main() {
         color = diffuse + glossy + transmission + emission + environment;        
     }
     // GBuffer override for debugging
+    else if ( 
+        ((render_image_idx - 1) == SEED_ADDR) ||
+        ((render_image_idx - 1) == SEED_ADDR_PREV) ||
+        ((render_image_idx - 1) == GLOSSY_MOTION_ADDR) ||
+        ((render_image_idx - 1) == DIFFUSE_DIRECT_ADDR) ||
+        ((render_image_idx - 1) == DIFFUSE_INDIRECT_ADDR) ||
+        ((render_image_idx - 1) == GLOSSY_DIRECT_ADDR) ||
+        ((render_image_idx - 1) == GLOSSY_INDIRECT_ADDR) ||
+        ((render_image_idx - 1) == LUMINANCE_ADDR) ||
+        ((render_image_idx - 1) == LUMINANCE_ADDR_PREV) ||
+        ((render_image_idx - 1) == EMISSION_ADDR) ||
+        ((render_image_idx - 1) == ENVIRONMENT_ADDR)
+    ) {
+        color = imageLoad(gbuffers[render_image_idx-1], ipt).rgb;   
+    }
+    else if ( 
+        ((render_image_idx - 1) == TEMPORAL_GRADIENT_ADDR)
+    ) {
+        vec4 temp = imageLoad(gbuffers[render_image_idx-1], igt);
+        color = vec3(max(temp.r, temp.g), 0.0, max(temp.b, temp.a));
+    }
+    else if (
+        ((render_image_idx - 1) == LUMINANCE_AVERAGE_ADDR) ||
+        ((render_image_idx - 1) == LUMINANCE_VARIANCE_ADDR) ||
+        ((render_image_idx - 1) == LUMINANCE_VARIANCE_ADDR_PREV) ||
+        ((render_image_idx - 1) == LUMINANCE_MAX_ADDR)
+    ) {
+        color = imageLoad(gbuffers[render_image_idx-1], igt).rgb;
+    }
     else {
-        color = imageLoad(gbuffers[render_image_idx-1], ipos).rgb;
+        color = imageLoad(gbuffers[render_image_idx-1], ipos).rgb;   
     }
 
     /* Tone mapping */

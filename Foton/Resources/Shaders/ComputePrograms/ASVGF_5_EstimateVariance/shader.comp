@@ -35,19 +35,24 @@ layout (local_size_x = 16, local_size_y = 16) in;
 
 void main()
 {
+	if (int(gl_GlobalInvocationID.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
+    if (int(gl_GlobalInvocationID.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
+
 	const int max_rad = 3;// * PATH_TRACE_TILE_SIZE;
 	const float hist_len_thresh = max_rad;
 
 	ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
     vec4 variance;
     vec4 average;
-    float histlen = imageLoad(gbuffers[SAMPLE_COUNT_ADDR], ipos).a;
+    // float histlen = imageLoad(gbuffers[SAMPLE_COUNT_ADDR], ipos).a;
 	// vec4 current_position_depth_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
     vec4 motion_data = imageLoad(gbuffers[DIFFUSE_MOTION_ADDR], ipos);
-	int q_eid = int(imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos).x);
+	int q_eid = int(imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos * PATH_TRACE_TILE_SIZE).x);
 
-	vec4 direct = vec4(0.); 
-	vec4 indirect = vec4(0.); 
+	vec4 direct_diffuse = vec4(0.); 
+	vec4 indirect_diffuse = vec4(0.); 
+	vec4 direct_glossy = vec4(0.); 
+	vec4 indirect_glossy = vec4(0.); 
 	// float avg_direct_luminance = 0.0;
 	// float avg_direct_luminance_w = 0.0;
 	// float avg_indirect_luminance = 0.0;
@@ -59,39 +64,34 @@ void main()
 	
 
 	// TODO if history_length < 4, estimate variance spatially
-	float alpha = clamp((hist_len_thresh - clamp(histlen, 0, hist_len_thresh) ) / hist_len_thresh, 0.0, 1.0);
-	const int r = int(mix(0, max_rad, alpha));
+	// float alpha = clamp((hist_len_thresh - clamp(histlen, 0, hist_len_thresh) ) / hist_len_thresh, 0.0, 1.0);
+	const int r = 1;//int(mix(0, max_rad, alpha));
 	if( (r > 0) && (q_eid != -1)) {
 		float sum_w = 0.0;
 		average = vec4(0.0);
 		variance = vec4(0.0);
 		for(int yy = -r; yy <= r; yy++) {
 			for(int xx = -r; xx <= r; xx++) {
-				ivec2 p = ipos + ivec2(xx, yy) * PATH_TRACE_TILE_SIZE;
-				vec4 d_p = imageLoad(gbuffers[DIFFUSE_DIRECT_ADDR], p);
-				vec4 i_p = imageLoad(gbuffers[DIFFUSE_INDIRECT_ADDR], p);
-				vec4 l = imageLoad(gbuffers[LUMINANCE_ADDR], p);
+				ivec2 p = ipos + ivec2(xx, yy);
 
-				// vec4 curr_pos_depth_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], p);
-				// vec4 curr_norm_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR], p);
-				// float z_p = curr_pos_depth_data.w;
-				// vec3 n_p = curr_norm_id_data.xyz;
-				// int mesh_id_p = int(curr_norm_id_data.w);
-
-				// float w_z = 1.0;//abs(z_p - z_center.x) / (z_center.y * length(vec2(xx, yy)) + 1e-2);
-				// float w_n = pow(max(0, dot(n_p, n_center)), 128.0); 
-				// float w = exp(-w_z) * w_n * (q_eid == mesh_id_p ? 1.0 : 0.0);
-
-				int p_eid = int(imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], p).x);
+				int p_eid = int(imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], p * PATH_TRACE_TILE_SIZE).x);
 				float w = (p_eid == q_eid) ? 1.0 : 0.0;
 				w *= exp(-pow(length(vec2(xx,yy)), 2) / (pow(max(r,1)*.5, 2)));
 				if(isnan(w)) continue;
 				sum_w += w;
 
+				vec4 dd_p = imageLoad(gbuffers[DIFFUSE_DIRECT_ADDR], p);
+				vec4 id_p = imageLoad(gbuffers[DIFFUSE_INDIRECT_ADDR], p);
+				vec4 dg_p = imageLoad(gbuffers[GLOSSY_DIRECT_ADDR], p);
+				vec4 ig_p = imageLoad(gbuffers[GLOSSY_INDIRECT_ADDR], p);
+				vec4 l = imageLoad(gbuffers[LUMINANCE_ADDR], p);
+
 				average += l * w;
 				variance += l * l * w;				
-				direct.rgb += d_p.rgb * w;
-				indirect.rgb += i_p.rgb * w;
+				direct_diffuse.rgb += dd_p.rgb * w;
+				indirect_diffuse.rgb += id_p.rgb * w;
+				direct_glossy.rgb += dg_p.rgb * w;
+				indirect_glossy.rgb += ig_p.rgb * w;
 				
 				// avg_direct_luminance += l.r;
 				// avg_indirect_luminance += l.g;
@@ -103,8 +103,10 @@ void main()
 			average /= sum_w;
 			variance /= sum_w;
 			// moments /= sum_m_w;
-			direct.rgb /= sum_w;
-			indirect.rgb /= sum_w;
+			direct_diffuse.rgb /= sum_w;
+			indirect_diffuse.rgb /= sum_w;
+			direct_glossy.rgb /= sum_w;
+			indirect_glossy.rgb /= sum_w;
 		}
 
 		// /*TESTING firefly supression */
@@ -129,8 +131,10 @@ void main()
 			
 
 		vec4 variance_temporal = abs(average - variance * variance);
-        imageStore(gbuffers[DIFFUSE_DIRECT_ADDR], ipos, vec4(direct.rgb, variance_temporal.r));
-        imageStore(gbuffers[DIFFUSE_INDIRECT_ADDR], ipos, vec4(indirect.rgb, variance_temporal.g));		
+        imageStore(gbuffers[DIFFUSE_DIRECT_ADDR], ipos, vec4(direct_diffuse.rgb, variance_temporal.r));
+        imageStore(gbuffers[DIFFUSE_INDIRECT_ADDR], ipos, vec4(indirect_diffuse.rgb, variance_temporal.g));
+		imageStore(gbuffers[GLOSSY_DIRECT_ADDR], ipos, vec4(direct_glossy.rgb, variance_temporal.b));
+        imageStore(gbuffers[GLOSSY_INDIRECT_ADDR], ipos, vec4(indirect_glossy.rgb, variance_temporal.a));
 		// imageStore(gbuffers[VARIANCE_ADDR], ipos, vec4(variance_temporal));
 	}
 	else if (q_eid != -1)
@@ -139,10 +143,14 @@ void main()
     	vec4 average = imageLoad(gbuffers[LUMINANCE_AVERAGE_ADDR], ipos);
 		vec4 variance_temporal = abs(average - variance * variance);
 
-		direct = imageLoad(gbuffers[DIFFUSE_DIRECT_ADDR], ipos);
-		indirect = imageLoad(gbuffers[DIFFUSE_INDIRECT_ADDR], ipos);
-        imageStore(gbuffers[DIFFUSE_DIRECT_ADDR], ipos, vec4(direct.rgb, variance_temporal.r));
-        imageStore(gbuffers[DIFFUSE_INDIRECT_ADDR], ipos, vec4(indirect.rgb, variance_temporal.g));
+		direct_diffuse = imageLoad(gbuffers[DIFFUSE_DIRECT_ADDR], ipos);
+		indirect_diffuse = imageLoad(gbuffers[DIFFUSE_INDIRECT_ADDR], ipos);
+		direct_glossy = imageLoad(gbuffers[GLOSSY_DIRECT_ADDR], ipos);
+		indirect_glossy = imageLoad(gbuffers[GLOSSY_INDIRECT_ADDR], ipos);
+        imageStore(gbuffers[DIFFUSE_DIRECT_ADDR], ipos, vec4(direct_diffuse.rgb, variance_temporal.r));
+        imageStore(gbuffers[DIFFUSE_INDIRECT_ADDR], ipos, vec4(indirect_diffuse.rgb, variance_temporal.g));
+		imageStore(gbuffers[GLOSSY_DIRECT_ADDR], ipos, vec4(direct_glossy.rgb, variance_temporal.b));
+        imageStore(gbuffers[GLOSSY_INDIRECT_ADDR], ipos, vec4(indirect_glossy.rgb, variance_temporal.a));
 	}
 	else {
 		// direct = imageLoad(gbuffers[DIFFUSE_DIRECT_ADDR], ipos);

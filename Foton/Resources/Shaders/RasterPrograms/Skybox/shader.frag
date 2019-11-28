@@ -31,7 +31,7 @@ void main()
     entity_material_transform_light = vec4(-1, -1, -1, -1);
     position_depth = vec4(w_position, dist);
     normal_id = vec4(w_normal, push.consts.target_id);
-    seed_luminance = vec4(pixel_coords.x, pixel_coords.y, push.consts.frame, luminance(albedo_color));
+    seed_pixel = vec4(pixel_coords.x, pixel_coords.y, push.consts.frame, 1.0);
     albedo = vec4(albedo_color, 1.0);
     motion = vec4(s_motion, 0.0, 0.0);
     uv = vec4(fragTexCoord.x, fragTexCoord.y, 0.0, 0.0);

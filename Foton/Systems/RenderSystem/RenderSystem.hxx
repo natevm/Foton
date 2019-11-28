@@ -102,6 +102,12 @@ namespace Systems
             void set_asvgf_atrous_iterations(int iterations);
             void set_asvgf_atrous_sigma(float sigma);
             void set_asvgf_gradient_influence(float influence);
+
+            void set_direct_diffuse_blur(float percent);
+            void set_indirect_diffuse_blur(float percent);
+            void set_direct_glossy_blur(float percent);
+            void set_indirect_glossy_blur(float percent);
+
             
             void enable_taa(bool enable);
             void enable_progressive_refinement(bool enable);
@@ -112,6 +118,9 @@ namespace Systems
             void enable_blue_noise(bool enable);
 
             void enable_analytical_arealights(bool enable);
+
+            void enable_median(bool enable);
+
             float test_param = 1.0;
             void set_debug_parameter(float param) 
             {
@@ -161,13 +170,16 @@ namespace Systems
             
             bool asvgf_enabled = false;
             bool asvgf_gradient_enabled = true;
-            float asvgf_gradient_reconstruction_sigma = 1.0f;
+            float asvgf_gradient_reconstruction_sigma = .5f;
             int asvgf_gradient_reconstruction_iterations = 3;
             bool asvgf_temporal_accumulation_enabled = true;
             bool asvgf_variance_estimation_enabled = true;
             bool asvgf_atrous_enabled = true;
-            float asvgf_atrous_sigma = 1.0f;
-            int asvgf_atrous_iterations = 1;
+            float asvgf_direct_diffuse_blur = .1f;
+            float asvgf_indirect_diffuse_blur = 1.f;
+            float asvgf_direct_glossy_blur = .1f;
+            float asvgf_indirect_glossy_blur = .6f;
+            int asvgf_atrous_iterations = 3;
             float asvgf_gradient_influence = 2.0f;
             uint32_t path_trace_tile_size = 2;
 
@@ -193,6 +205,9 @@ namespace Systems
             bool top_level_acceleration_structure_built = false;
 
             int gbuffer_override_idx = 0;
+
+            bool enable_median_filter = true;
+
             
             /* A vector of vertex input binding descriptions, describing binding and stride of per vertex data. */
             std::vector<vk::VertexInputBindingDescription> vertexInputBindingDescriptions;
@@ -291,7 +306,8 @@ namespace Systems
             std::map<vk::RenderPass, RasterPipelineResources> raster_vrmask;
 
             RaytracingPipelineResources raytrace_primary_visibility;
-            RaytracingPipelineResources path_tracer;
+            RaytracingPipelineResources diffuse_path_tracer;
+            RaytracingPipelineResources specular_path_tracer;
 
             /* Wrapper for shader module creation.  */
             vk::ShaderModule create_shader_module(std::string name, const std::vector<char>& code);
@@ -301,6 +317,7 @@ namespace Systems
 
             ComputePipelineResources deferred_final;
             ComputePipelineResources edgedetect;
+            ComputePipelineResources median_3x3;
             ComputePipelineResources gaussian_x;
             ComputePipelineResources gaussian_y;
             ComputePipelineResources svgf_remodulate;

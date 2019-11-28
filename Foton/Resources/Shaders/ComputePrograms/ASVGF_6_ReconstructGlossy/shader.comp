@@ -63,33 +63,33 @@ void main() {
     const int i_addr_0 = ((minor_iteration%2) != 0) ? GLOSSY_INDIRECT_ADDR : ATROUS_HISTORY_2_ADDR;
     const int i_addr_1 = ((minor_iteration%2) != 0) ? ATROUS_HISTORY_2_ADDR : GLOSSY_INDIRECT_ADDR;
 
-    int p_samples = int(imageLoad(gbuffers[SAMPLE_COUNT_ADDR], ipos).r);
-    vec4 p_pos_dep_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
-    vec4 p_norm_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
+    vec4 p_pos_dep_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos * PATH_TRACE_TILE_SIZE);
+    vec4 p_norm_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos * PATH_TRACE_TILE_SIZE);
     vec4 p_lum_var_data = imageLoad(gbuffers[LUMINANCE_VARIANCE_ADDR], ipos);
-    vec4 p_uv_met_rough = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR],  ipos);
+    vec4 p_uv_met_rough = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR],  ipos * PATH_TRACE_TILE_SIZE);
     vec4 p_direct_var = imageLoad(gbuffers[d_addr_0], ipos);
     vec4 p_indirect_var = imageLoad(gbuffers[i_addr_0], ipos);  
-    vec4 p_spec_axis_sharpness = imageLoad(gbuffers[LOBE_AXIS_SHARPNESS_ADDR], ipos); 
+    vec4 p_spec_axis_sharpness = imageLoad(gbuffers[LOBE_AXIS_SHARPNESS_ADDR], ipos * PATH_TRACE_TILE_SIZE); 
     float l_p_direct = luminance(p_direct_var.rgb);
     float l_p_indirect = luminance(p_indirect_var.rgb);
 
+    float screen_correction = max(push.consts.width, push.consts.height) / PATH_TRACE_TILE_SIZE;
+
     int curr_step_width = 1 << major_iteration;
-    float l_sigma_direct = compute_sigma_luminance(p_direct_var.a, ipos, d_addr_0) * 3.0 * push.consts.parameter1; 
-    float l_sigma_indirect = compute_sigma_luminance(p_indirect_var.a, ipos, i_addr_0) * 3.0 * push.consts.parameter1; 
-    float n_sigma = 128.0 * push.consts.parameter1; 
-    float p_sigma = 1.0 * push.consts.parameter1; 
-    float r_sigma_direct = pow(10.0 * (1.0 - push.consts.parameter1), 2.0); // user controllable power
-    float r_sigma_indirect = 10000.0 * (1.0 - push.consts.parameter1); // user controllable power
+    // float l_sigma_direct = compute_sigma_luminance(p_direct_var.a, ipos, d_addr_0) * 3.0 * push.consts.parameter1; 
+    // float l_sigma_indirect = compute_sigma_luminance(p_indirect_var.a, ipos, i_addr_0) * 3.0 * push.consts.parameter2; 
+    // float r_sigma_direct =  push.consts.parameter1;//11.9;//(1.0 - pow(push.consts.parameter1, .1)) * screen_correction; // user controllable power
+    // float r_sigma_indirect =  push.consts.parameter2;//11.9;//(1.0 - pow(push.consts.parameter2, .1)) * screen_correction; // user controllable power
 
 
-    l_sigma_direct = ((major_iteration+1) * l_sigma_direct);
-    l_sigma_indirect = ((major_iteration+1) * l_sigma_indirect);
-    n_sigma = ((major_iteration+1) * n_sigma);
-    p_sigma = ((major_iteration+1) * p_sigma);
-    r_sigma_direct = ((major_iteration+1) * r_sigma_direct);
-    r_sigma_indirect = ((major_iteration+1) * r_sigma_indirect);
-
+    float p_sigma_direct = 1. * (1.0 - pow(push.consts.parameter1, .01)) * screen_correction; 
+    float p_sigma_indirect = 1.0 * (1.0 - pow(push.consts.parameter2, .01)) * screen_correction; 
+    float r_sigma_direct = mix(100, 0, clamp(push.consts.parameter1, 0, 1));
+    float r_sigma_indirect = mix(100, 0, clamp(push.consts.parameter2, 0, 1));
+    
+    p_sigma_direct = ((major_iteration+1) * p_sigma_direct);
+    p_sigma_indirect = ((major_iteration+1) * p_sigma_indirect);
+    
     vec3 sum_direct = vec3(0.0);
     vec3 sum_indirect = vec3(0.0);
     float sum_var_direct = EPSILON;
@@ -108,23 +108,29 @@ void main() {
 
                 vec4 q_direct_var = imageLoad(gbuffers[d_addr_0], ivec2(st));
                 vec4 q_indirect_var = imageLoad(gbuffers[i_addr_0], ivec2(st));
-                vec4 q_norm_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR], st);
+                vec4 q_norm_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR], st * PATH_TRACE_TILE_SIZE);
                 if (any(isnan(q_direct_var))) continue; 
                 if (any(isnan(q_indirect_var))) continue;
                 if (!eps_equal(p_norm_id_data.w, q_norm_id_data.w)) continue;
-                vec4 q_pos_dep_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], st);
+                vec4 q_pos_dep_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], st * PATH_TRACE_TILE_SIZE);
 
                 vec3 t = p_pos_dep_data.xyz - q_pos_dep_data.xyz;
                 float dist2 = dot(t, t) + t.z * t.z;
                 float l_q_direct = luminance(q_direct_var.rgb);
                 float l_q_indirect = luminance(q_indirect_var.rgb);
-                float wp = min(exp(-(dist2)*p_sigma), 1.0);
-                float wn = 1.0;//pow(max(0.0, dot(p_norm_id_data.xyz, q_norm_id_data.xyz)), n_sigma);
+                float wp_direct = min(exp(-(dist2)*p_sigma_direct), 1.0);
+                float wp_indirect = min(exp(-(dist2)*p_sigma_indirect), 1.0);
+                float wn = 1;//pow(max(0.0, dot(p_norm_id_data.xyz, q_norm_id_data.xyz)), n_sigma);
 
                 /* Specular Aware Spherical Gaussian Weight */
+
+
+                // not sure what to set these to...
+                float beta_direct = r_sigma_direct;
+                float beta_indirect = r_sigma_indirect;
                 
                 // lobe sharpness
-                vec4 temp = imageLoad(gbuffers[LOBE_AXIS_SHARPNESS_ADDR], ivec2(st));
+                vec4 temp = imageLoad(gbuffers[LOBE_AXIS_SHARPNESS_ADDR], ivec2(st) * PATH_TRACE_TILE_SIZE);
                 float lambda_q = temp.w;
                 float lambda_p = p_spec_axis_sharpness.w;
                                 
@@ -132,12 +138,14 @@ void main() {
                 vec3 xi_q = temp.xyz;
                 vec3 xi_p = p_spec_axis_sharpness.xyz;
 
-                float direct_lobe_axis_similarity = exp(((r_sigma_direct*lambda_p*lambda_q)/(lambda_p + lambda_q)) * (dot(xi_p,xi_q) - 1.0f));
-                float direct_lobe_sharpness_similarity = pow( (2.0 * sqrt(lambda_p * lambda_q)) / (lambda_p + lambda_q), r_sigma_direct);
+                float direct_lobe_axis_similarity = exp((beta_direct*lambda_p*lambda_q)/(lambda_p + lambda_q) * (pow(dot(xi_p,xi_q), beta_direct) - 1.0f));
+                // float direct_lobe_axis_similarity = exp((beta_direct*lambda_p*lambda_q)/(lambda_p + lambda_q) * ((dot(xi_p,xi_q) * beta_direct * .01) - 1.0f));
+                float direct_lobe_sharpness_similarity = pow( (2.0 * sqrt(lambda_p * lambda_q)) / (lambda_p + lambda_q), beta_direct);
                 float wr_direct = direct_lobe_axis_similarity * direct_lobe_sharpness_similarity;
 
-                float indirect_lobe_axis_similarity = exp(((r_sigma_indirect*lambda_p*lambda_q)/(lambda_p + lambda_q)) * (dot(xi_p,xi_q) - 1.0f));
-                float indirect_lobe_sharpness_similarity = pow( (2.0 * sqrt(lambda_p * lambda_q)) / (lambda_p + lambda_q), r_sigma_indirect);
+                float indirect_lobe_axis_similarity = exp((beta_indirect*lambda_p*lambda_q)/(lambda_p + lambda_q) * (pow(dot(xi_p,xi_q), beta_indirect) - 1.0f));
+                // float indirect_lobe_axis_similarity = exp((beta_indirect*lambda_p*lambda_q)/(lambda_p + lambda_q) * ((dot(xi_p,xi_q) * beta_indirect * .01) - 1.0f));
+                float indirect_lobe_sharpness_similarity = pow( (2.0 * sqrt(lambda_p * lambda_q)) / (lambda_p + lambda_q), beta_indirect);
                 float wr_indirect = indirect_lobe_axis_similarity * indirect_lobe_sharpness_similarity;
                            
 
@@ -158,14 +166,22 @@ void main() {
                 if (isnan(l_q_indirect)) continue;
                 if (isnan(l_p_direct)) continue;
                 if (isnan(l_p_indirect)) continue;
-                if (isnan(l_sigma_direct)) continue;
-                if (isnan(l_sigma_indirect)) continue;
+
+                /* Force no blur if these parameters are 0 (kludge for now) */
+                if (r_sigma_direct == 0) wl_direct = ((xx == 0) && (yy == 0)) ? 1.0 : 0.0;
+                if (r_sigma_indirect == 0) wl_indirect = ((xx == 0) && (yy == 0)) ? 1.0 : 0.0;
+                
+                // if (isnan(l_sigma_direct)) continue;
+                // if (isnan(l_sigma_indirect)) continue;
+
                 // float wl = abs(l_q - l_p) / (l_sigma + 1e-10); 
                 // float wl = ((xx != 0) && (yy != 0)) ? max(1.0 - l_sigma, 0.0) : 1;
                 // float wl = 1.0;
 
-                float w_direct = wp * wn * wl_direct;
-                float w_indirect = wp * wn * wl_indirect;
+                
+                // position weight here doesn't seem right...
+                float w_direct = /*wp_direct * */wl_direct;
+                float w_indirect = /*wp_indirect **/ wl_indirect;
                 float weight_direct = h[yy + RADIUS][xx + RADIUS] * w_direct;
                 float weight_indirect = h[yy + RADIUS][xx + RADIUS] * w_indirect;
 

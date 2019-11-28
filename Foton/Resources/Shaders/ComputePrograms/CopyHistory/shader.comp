@@ -18,8 +18,8 @@ void main() {
     imageStore(gbuffers[NORMAL_ID_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
 
     // Seed / Luminance G Buffer
-    temp = imageLoad(gbuffers[SEED_LUMINANCE_ADDR], ivec2(gl_GlobalInvocationID.xy));
-    imageStore(gbuffers[SEED_LUMINANCE_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
+    temp = imageLoad(gbuffers[SEED_ADDR], ivec2(gl_GlobalInvocationID.xy));
+    imageStore(gbuffers[SEED_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
 
     // Luminance
     temp = imageLoad(gbuffers[LUMINANCE_ADDR], ivec2(gl_GlobalInvocationID.xy));
@@ -50,6 +50,8 @@ void main() {
     imageStore(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
 
     
+    // The below seems to artificially darken the image over time
+
     // // Diffuse Direct TAA Feedback
     // const int next_direct_diffuse_hist_addr     = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_2_ADDR : SVGF_TAA_HISTORY_1_ADDR;
     // temp = imageLoad(gbuffers[DIFFUSE_DIRECT_ADDR], ivec2(gl_GlobalInvocationID.xy));
@@ -74,6 +76,6 @@ void main() {
     //     imageStore(gbuffers[DEBUG_ADDR],  ivec2(gl_GlobalInvocationID.xy), vec4(temp.w));
 
     /* TEMPORARY, GENERATE NEW PIXEL SEEDS */
-    imageStore(gbuffers[SEED_LUMINANCE_ADDR], ivec2(gl_GlobalInvocationID.xy), 
+    imageStore(gbuffers[SEED_ADDR], ivec2(gl_GlobalInvocationID.xy), 
         vec4(gl_GlobalInvocationID.xy / PATH_TRACE_TILE_SIZE, push.consts.frame+1, 0.f));
 }

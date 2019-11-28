@@ -476,13 +476,18 @@ vec3 sample_disney_bsdf (
 	} else if (component == 2) {
 		vec3 w_h;
 		float alpha = max(ALPHA_MINIMUM, mat.roughness * mat.roughness);
-		if (mat.anisotropic == 0.f) {
+		if (force_perfect_reflection) {
+			w_h = w_n_f;
+		}
+		else if (mat.anisotropic == 0.f) {
 			w_h = sample_gtr_2_h(w_n_f, w_x_f, w_y_f, alpha, samples);
 		} else {
 			float aspect = sqrt(1.f - mat.anisotropic * 0.9f);
 			vec2 alpha_aniso = vec2(max(ALPHA_MINIMUM, alpha / aspect), max(ALPHA_MINIMUM, alpha * aspect));
 			w_h = sample_gtr_2_aniso_h(w_n_f, w_x_f, w_y_f, alpha_aniso, samples);
 		}
+
+
 		w_i = reflect(-w_o, w_h);
 
 		// Invalid reflection, terminate ray

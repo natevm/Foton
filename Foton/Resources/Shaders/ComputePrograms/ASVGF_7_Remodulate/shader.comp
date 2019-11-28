@@ -27,11 +27,14 @@ vec3 Uncharted2Tonemap(vec3 x)
 }
 
 void main() {
-    init_random(ivec2(gl_GlobalInvocationID.xy), push.consts.frame, 0);
+    if (int(gl_GlobalInvocationID.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
+    if (int(gl_GlobalInvocationID.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
+
     const ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
+    init_random(ipos, push.consts.frame, 0);
     vec3 color;
 
-    vec4 temp = imageLoad(gbuffers[SEED_LUMINANCE_ADDR], ipos);
+    vec4 temp = imageLoad(gbuffers[SEED_ADDR], ipos);
     ivec2 pixel_seed = ivec2(temp.xy);
     int frame_seed = int(temp.z);
 
@@ -46,10 +49,10 @@ void main() {
         pixel_seed, frame_seed,
         camera.multiviews[multiview_idx].projinv,
         camera_transform.localToWorld * camera.multiviews[multiview_idx].viewinv,
-        ipos, ivec2(push.consts.width, push.consts.height), origin, direction);
+        ipos * PATH_TRACE_TILE_SIZE, ivec2(push.consts.width, push.consts.height), origin, direction);
         
     // Normal G Buffer
-    temp = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
+    temp = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos * PATH_TRACE_TILE_SIZE);
     vec3 w_n = temp.xyz;
     int entity_id = int(temp.w);
 
@@ -75,17 +78,17 @@ void main() {
 
     if (entity_id != -1) {
         // Position G Buffer 
-        temp = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
+        temp = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos * PATH_TRACE_TILE_SIZE);
         vec3 w_p = temp.xyz;
         float depth = temp.w;
 
         // UV G Buffer
-        temp = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos);
+        temp = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos * PATH_TRACE_TILE_SIZE);
         vec2 uv = temp.xy;
 
-        // Raw albedo
-        temp = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ipos);
-        vec3 albedo = temp.xyz;
+        // // Raw albedo
+        // temp = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ipos);
+        // vec3 albedo = temp.xyz;
 
         EntityStruct entity; MaterialStruct mat; LightStruct light;
         unpack_entity_struct(entity_id, entity);
@@ -113,13 +116,13 @@ void main() {
 
         // transmission_color = vec3(0.0); // not controllable via disney bsdf. might change though...
 
-        vec3 denoised_diffuse_direct = imageLoad(gbuffers[DIFFUSE_DIRECT_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
-        vec3 denoised_diffuse_indirect = imageLoad(gbuffers[DIFFUSE_INDIRECT_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
-        vec3 denoised_glossy_direct = imageLoad(gbuffers[GLOSSY_DIRECT_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
-        vec3 denoised_glossy_indirect = imageLoad(gbuffers[GLOSSY_INDIRECT_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
+        vec3 denoised_diffuse_direct = imageLoad(gbuffers[DIFFUSE_DIRECT_ADDR], ipos).rgb;
+        vec3 denoised_diffuse_indirect = imageLoad(gbuffers[DIFFUSE_INDIRECT_ADDR], ipos).rgb;
+        vec3 denoised_glossy_direct = imageLoad(gbuffers[GLOSSY_DIRECT_ADDR], ipos).rgb;
+        vec3 denoised_glossy_indirect = imageLoad(gbuffers[GLOSSY_INDIRECT_ADDR], ipos).rgb;
         
-        // vec3 diffuse_illumination = imageLoad(gbuffers[DIFFUSE_DIRECT_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
-        // vec3 glossy_illumination = imageLoad(gbuffers[GLOSSY_ILLUM_VAR_ADDR], ivec2(gl_GlobalInvocationID.xy)).rgb;
+        // vec3 diffuse_illumination = imageLoad(gbuffers[DIFFUSE_DIRECT_ADDR], ipos).rgb;
+        // vec3 glossy_illumination = imageLoad(gbuffers[GLOSSY_ILLUM_VAR_ADDR], ipos).rgb;
         
         diffuse_direct = denoised_diffuse_direct * mat_estimator;
         diffuse_indirect = denoised_diffuse_indirect * mat_estimator;//vec3(0); // todo, separate from direct

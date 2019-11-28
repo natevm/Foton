@@ -54,6 +54,9 @@ compute_sigma_luminance(float center, ivec2 ipos, int addr)
 }
 
 void main() {
+    if (int(gl_GlobalInvocationID.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
+    if (int(gl_GlobalInvocationID.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
+
     ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
     int minor_iteration = push.consts.iteration % 2;
     int major_iteration = push.consts.iteration;
@@ -63,26 +66,25 @@ void main() {
     const int i_addr_0 = ((minor_iteration%2) != 0) ? DIFFUSE_INDIRECT_ADDR : ATROUS_HISTORY_2_ADDR;
     const int i_addr_1 = ((minor_iteration%2) != 0) ? ATROUS_HISTORY_2_ADDR : DIFFUSE_INDIRECT_ADDR;
 
-    int p_samples = int(imageLoad(gbuffers[SAMPLE_COUNT_ADDR], ipos).r);
-    vec4 p_pos_dep_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
-    vec4 p_norm_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
+    vec4 p_pos_dep_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos* PATH_TRACE_TILE_SIZE);
+    vec4 p_norm_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos* PATH_TRACE_TILE_SIZE);
     vec4 p_lum_var_data = imageLoad(gbuffers[LUMINANCE_VARIANCE_ADDR], ipos);
-    vec4 p_uv_met_rough = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR],  ipos);
-    vec4 p_uv_metallic_roughness = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos);
+    vec4 p_uv_met_rough = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR],  ipos* PATH_TRACE_TILE_SIZE);
+    vec4 p_uv_metallic_roughness = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos* PATH_TRACE_TILE_SIZE);
     vec4 p_direct_var = imageLoad(gbuffers[d_addr_0], ipos);
     vec4 p_indirect_var = imageLoad(gbuffers[i_addr_0], ipos);   
     float l_p_direct = luminance(p_direct_var.rgb);
     float l_p_indirect = luminance(p_indirect_var.rgb);
 
-    float screen_correction = max(push.consts.width, push.consts.height);
-
+    float screen_correction = max(push.consts.width, push.consts.height) / PATH_TRACE_TILE_SIZE;
     int curr_step_width = 1 << major_iteration;
-    float l_sigma_direct = .0001 * compute_sigma_luminance(p_direct_var.a, ipos, d_addr_0) * push.consts.parameter1 * screen_correction; 
-    float n_sigma_direct = 128. * (1.0 - push.consts.parameter1) * screen_correction; 
-    float p_sigma_direct = 1. * (1.0 - push.consts.parameter1) * screen_correction; 
-    float n_sigma_indirect = 128 * 4.0 * (1.0 - push.consts.parameter1) * screen_correction; 
-    float l_sigma_indirect = .0004 * compute_sigma_luminance(p_indirect_var.a, ipos, i_addr_0) * push.consts.parameter1 * screen_correction; 
-    float p_sigma_indirect = 4.0 * (1.0 - push.consts.parameter1) * screen_correction; 
+    float l_sigma_direct = 1.0 * (pow(push.consts.parameter1, 4)) * compute_sigma_luminance(p_direct_var.a, ipos, d_addr_0) * screen_correction; 
+    float n_sigma_direct = .0001 * (1.0 - pow(push.consts.parameter1, .3) + EPSILON) * screen_correction; 
+    float p_sigma_direct = 1. * (1.0 - pow(push.consts.parameter1, .01)) * screen_correction; 
+
+    float n_sigma_indirect = .0001 * (1.0 - pow(push.consts.parameter2, .3) + EPSILON) * screen_correction; 
+    float l_sigma_indirect = 1.0 * (pow(push.consts.parameter2, 1.)) * compute_sigma_luminance(p_indirect_var.a, ipos, i_addr_0) * screen_correction; 
+    float p_sigma_indirect = 4.0 * (1.0 - pow(push.consts.parameter2, 1.0)) * screen_correction; 
 
     l_sigma_direct = ((major_iteration+1) * l_sigma_direct);
     n_sigma_direct = ((major_iteration+1) * n_sigma_direct);
@@ -109,12 +111,12 @@ void main() {
 
                 vec4 q_direct_var = imageLoad(gbuffers[d_addr_0], ivec2(st));
                 vec4 q_indirect_var = imageLoad(gbuffers[i_addr_0], ivec2(st));
-                vec4 q_norm_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR], st);
-                vec4 q_uv_metallic_roughness = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], st);
+                vec4 q_norm_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR], st * PATH_TRACE_TILE_SIZE);
+                vec4 q_uv_metallic_roughness = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], st * PATH_TRACE_TILE_SIZE);
                 if (any(isnan(q_direct_var))) continue; 
                 if (any(isnan(q_indirect_var))) continue;
                 if (!eps_equal(p_norm_id_data.w, q_norm_id_data.w)) continue;
-                vec4 q_pos_dep_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], st);
+                vec4 q_pos_dep_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], st * PATH_TRACE_TILE_SIZE);
 
                 vec3 t = p_pos_dep_data.xyz - q_pos_dep_data.xyz;
                 float dist2 = dot(t, t) + t.z * t.z;
@@ -153,8 +155,8 @@ void main() {
                 // float wl = ((xx != 0) && (yy != 0)) ? max(1.0 - l_sigma, 0.0) : 1;
                 // float wl = 1.0;
 
-                float w_direct = w_metallic * w_roughness * wp_direct;// * wn_direct * wl_direct;
-                float w_indirect = w_metallic * w_roughness * wp_indirect;// * wn_indirect * wl_indirect;
+                float w_direct = w_metallic * w_roughness * wp_direct * wn_direct * wl_direct;
+                float w_indirect = w_metallic * w_roughness * /*wp_indirect **/ wn_indirect * wl_indirect;
                 float weight_direct = h[yy + RADIUS][xx + RADIUS] * w_direct;
                 float weight_indirect = h[yy + RADIUS][xx + RADIUS] * w_indirect;
 

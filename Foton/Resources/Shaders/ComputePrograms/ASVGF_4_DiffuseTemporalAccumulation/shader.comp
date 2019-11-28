@@ -10,7 +10,7 @@
 layout (local_size_x = 16, local_size_y = 16) in;
 
 // Tends to blur out details, but makes convergence more stable
-#define RADIUS 1
+#define RADIUS 0
 
 #if RADIUS == 2
 float Coefficients[25] = 
@@ -40,6 +40,9 @@ float Coefficients[1] = {
 #endif
 
 void main() {
+    if (int(gl_GlobalInvocationID.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
+    if (int(gl_GlobalInvocationID.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
+    
     ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
     float gradient_weight = push.consts.parameter1;
 
@@ -55,20 +58,20 @@ void main() {
     // Compute motion vector
     // Note, the w component indicates an invalid motion vector, which forces a reset
     bool reset = false;
-    precise vec4 motion_data = imageLoad(gbuffers[DIFFUSE_MOTION_ADDR], ipos);
+    precise vec4 motion_data = imageLoad(gbuffers[DIFFUSE_MOTION_ADDR], ipos * PATH_TRACE_TILE_SIZE);
     if (motion_data.w > 0) reset = true; // reset history if motion data is invalid
     precise vec2 v = motion_data.xy * vec2(.5, -.5);
-    precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
+    precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height) / PATH_TRACE_TILE_SIZE;
     iv.x = (abs(iv.x) < MOTION_VECTOR_MIN) ? 0 : iv.x;
     iv.y = (abs(iv.y) < MOTION_VECTOR_MIN) ? 0 : iv.y;
     ivec2 pos_prev = ivec2(ipos + iv + MOTION_VECTOR_OFFSET);
     ivec2 p = ivec2(pos_prev - 0.5);
 
     // Load g buffer data which we'll use for detecting disocclusions
-    vec4 curr_id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos);
+    vec4 curr_id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos * PATH_TRACE_TILE_SIZE);
     vec4 luminance_variance = imageLoad(gbuffers[LUMINANCE_VARIANCE_ADDR], ipos);
     vec4 luminance_average = imageLoad(gbuffers[LUMINANCE_AVERAGE_ADDR], ipos);
-    vec3 curr_normal = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos).rgb;
+    vec3 curr_normal = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos * PATH_TRACE_TILE_SIZE).rgb;
     if (int(curr_id_data.a) != -1) reset = true; //if an element is a light, don't accumulate temporally
 
     // Load g buffer data to be temporally accumulated
@@ -98,8 +101,8 @@ void main() {
                 ivec2 ipos_prev = pos_prev + ivec2(x, y);
                 
                 // Load disocclusion gbuffer data
-                vec4 hist_id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV], ipos_prev);
-                vec3 hist_normal = imageLoad(gbuffers[NORMAL_ID_ADDR_PREV], ipos_prev).rgb;
+                vec4 hist_id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV], ipos_prev * PATH_TRACE_TILE_SIZE);
+                vec3 hist_normal = imageLoad(gbuffers[NORMAL_ID_ADDR_PREV], ipos_prev * PATH_TRACE_TILE_SIZE).rgb;
                 
                 // Load prior gbuffer data to accumulate temporally 
                 vec4 direct_diffuse = imageLoad(gbuffers[curr_direct_diffuse_hist_addr], ipos_prev);
@@ -138,8 +141,8 @@ void main() {
         float w_sum = 0.f;
 		for(int y = -r; y <= r; y++) {
 			for(int x = -r; x <= r; x++) {
-				vec4 gradient = imageLoad(gbuffers[TEMPORAL_GRADIENT_ADDR], pos_prev + ivec2(x, y) * GRADIENT_TILE_SIZE); 
-				vec4 max_luminance = imageLoad(gbuffers[LUMINANCE_MAX_ADDR], pos_prev + ivec2(x, y) * GRADIENT_TILE_SIZE); 
+				vec4 gradient = imageLoad(gbuffers[TEMPORAL_GRADIENT_ADDR], pos_prev / GRADIENT_TILE_SIZE + ivec2(x, y)); 
+				vec4 max_luminance = imageLoad(gbuffers[LUMINANCE_MAX_ADDR], pos_prev / GRADIENT_TILE_SIZE + ivec2(x, y)); 
                 max_luminance = max(max_luminance, vec4(1e-4));
 				
 				vec4 a = gradient / max_luminance;
@@ -198,7 +201,6 @@ void main() {
         vec4 accum_direct_diffuse = mix(direct_diffuse_prev, direct_diffuse_curr, alpha_color.r);
         vec4 accum_indirect_diffuse = mix(indirect_diffuse_prev, indirect_diffuse_curr, alpha_color.g);
         
-
         imageStore( gbuffers[DIFFUSE_DIRECT_ADDR],        ivec2(gl_GlobalInvocationID.xy), accum_direct_diffuse);
         imageStore( gbuffers[DIFFUSE_INDIRECT_ADDR],        ivec2(gl_GlobalInvocationID.xy), accum_indirect_diffuse);
         // imageStore( gbuffers[LUMINANCE_VARIANCE_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(accum_moments, 1.0, accum_histlen));

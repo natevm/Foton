@@ -1,5 +1,6 @@
 #define GLSL
 #include "Foton/Resources/Shaders/Common/ShaderConstants.hxx"
+#include "Foton/Resources/Shaders/Common/GBufferLocations.hxx"
 
 /* Extensions */
 #extension GL_ARB_separate_shader_objects : enable
@@ -48,93 +49,12 @@ layout(std430, push_constant) uniform PushConstants {
     PushConsts consts;
 } push;
 
-/* G buffer locations */
-
-// Data passes
-#define POSITION_DEPTH_ADDR 0 // NOTE, must be in position 0 for shadowmap raster pass!
-#define ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR 1
-#define NORMAL_ID_ADDR 2 // todo, remove
-#define NORMAL_ADDR 2
-#define SEED_LUMINANCE_ADDR 3 // consider separating luminance from seed...
-#define SEED_ADDR 3 // consider separating luminance from seed...
-#define UV_METALLIC_ROUGHESS_ADDR 6 // consider replacing with "material ID"
-
-#define ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV 7
-#define POSITION_DEPTH_ADDR_PREV 8
-#define NORMAL_ID_ADDR_PREV 9 // todo, remove
-#define NORMAL_ADDR_PREV 9
-#define UV_METALLIC_ROUGHESS_ADDR_PREV 10
-#define SEED_LUMINANCE_ADDR_PREV 11
-#define SEED_ADDR_PREV 11
-#define DIFFUSE_MOTION_ADDR 5
-#define GLOSSY_MOTION_ADDR 12
-
-#define LOBE_AXIS_SHARPNESS_ADDR 41
-#define LOBE_AXIS_SHARPNESS_ADDR_PREV 42
-
-// Lighting passes
-#define DIFFUSE_COLOR_ADDR 4
-#define DIFFUSE_COLOR_ADDR_PREV 15
-#define GLOSSY_COLOR_ADDR 46
-#define GLOSSY_COLOR_ADDR_PREV
-#define TRANSMISSION_COLOR_ADDR 
-#define TRANSMISSION_COLOR_PREV 
-#define EMISSION_ADDR 43
-#define EMISSION_ADDR_PREV 
-#define ENVIRONMENT_ADDR 47
-#define ENVIRONMENT_ADDR_PREV 
-#define DIFFUSE_DIRECT_ADDR 49
-#define DIFFUSE_INDIRECT_ADDR 48
-#define GLOSSY_DIRECT_ADDR 45
-#define GLOSSY_INDIRECT_ADDR 44
-
-// Denoising
-// Raytracing buffers
-        // might be able to get rid of these...
-#define SAMPLE_COUNT_ADDR 18
-#define SAMPLE_COUNT_ADDR_PREV 19
-
-// Progressive refinement buffers
-#define PROGRESSIVE_HISTORY_ADDR 20
-
-// Atrous iterative buffers
-#define ATROUS_HISTORY_1_ADDR 21
-#define ATROUS_HISTORY_2_ADDR 22
-#define ATROUS_HISTORY_3_ADDR 23 // DONT NEED THESE?
-#define ATROUS_HISTORY_4_ADDR 16 // DONT NEED THESE?
-
-// Temporal gradient buffers
-// TODO, remove LUM_VAR_ADDRs
-#define TEMPORAL_GRADIENT_ADDR 24
-#define LUMINANCE_VARIANCE_ADDR 26
-#define LUMINANCE_VARIANCE_ADDR_PREV 27
-#define LUMINANCE_AVERAGE_ADDR 25
-// #define VARIANCE_ADDR 28
-#define LUMINANCE_ADDR  13
-#define LUMINANCE_ADDR_PREV  14
-#define LUMINANCE_MAX_ADDR  17
-
-// TAA history buffers
-#define TAA_HISTORY_1_ADDR 29
-#define TAA_HISTORY_2_ADDR 30
-#define SVGF_TAA_HISTORY_1_ADDR 31
-#define SVGF_TAA_HISTORY_2_ADDR 32
-#define SVGF_TAA_HISTORY_3_ADDR 33
-#define SVGF_TAA_HISTORY_4_ADDR 34
-#define SVGF_TAA_HISTORY_5_ADDR 35
-#define SVGF_TAA_HISTORY_6_ADDR 36
-#define SVGF_TAA_HISTORY_7_ADDR 37
-#define SVGF_TAA_HISTORY_8_ADDR 38
-#define SVGF_TAA_HISTORY_9_ADDR 39
-#define SVGF_TAA_HISTORY_10_ADDR 40
-
-
 /* If used for primary visibility, rasterizer will write to these g buffers via corresponding framebuffer attachments. */
 #if defined RASTER && defined PRIMARY_VISIBILITY
 layout(location = ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR) out vec4 entity_material_transform_light;
 layout(location = POSITION_DEPTH_ADDR) out vec4 position_depth;
 layout(location = NORMAL_ID_ADDR) out vec4 normal_id;
-layout(location = SEED_LUMINANCE_ADDR) out vec4 seed_luminance;
+layout(location = SEED_ADDR) out vec4 seed_pixel;
 layout(location = DIFFUSE_COLOR_ADDR) out vec4 albedo;
 layout(location = DIFFUSE_MOTION_ADDR) out vec4 motion;
 layout(location = UV_METALLIC_ROUGHESS_ADDR) out vec4 uv;
@@ -150,8 +70,8 @@ layout(location = POSITION_DEPTH_ADDR) out vec4 outMoments;
 /* Raytracer/compute can also write to the above, but via gbuffers directly */
 #if defined  RAYTRACING || defined COMPUTE
 layout(set = 2, binding = 0, rgba32f) uniform image2D render_image;
-layout(set = 2, binding = 1, rgba32f) uniform image2D gbuffers[50];
-layout(set = 2, binding = 2) uniform texture2D gbuffer_textures[50];
+layout(set = 2, binding = 1, rgba32f) uniform image2D gbuffers[60];
+layout(set = 2, binding = 2) uniform texture2D gbuffer_textures[60];
 #endif
 
 /* NV Ray tracing needs access to vert data and acceleration structure  */
@@ -227,32 +147,9 @@ void unpack_gbuffer_data(in ivec2 tile, in ivec2 offset, out ivec2 ipos, out boo
     ipos = tile * PATH_TRACE_TILE_SIZE + offset;
 
     // Seed / Luminance G Buffer
-    temp = imageLoad(gbuffers[SEED_LUMINANCE_ADDR], ipos);
+    temp = imageLoad(gbuffers[SEED_ADDR], ipos);
     pixel_seed = ivec2(temp.xy);
     frame_seed = int(temp.z);
-
-    /* Search for gradient seed */
-    seed_found = false;
-    // for (int yy = 0; yy < PATH_TRACE_TILE_SIZE; ++yy) {
-    //     for (int xx = 0; xx < PATH_TRACE_TILE_SIZE; ++xx) {
-    //         ivec2 p = tile * PATH_TRACE_TILE_SIZE + ivec2(xx, yy);
-    //         vec4 motion_data = imageLoad(gbuffers[MOTION_ADDR], p);
-    //         vec2 v = motion_data.xy * vec2(.5, -.5);
-    //         vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
-    //         iv.x = (abs(iv.x) < MOTION_VECTOR_MIN) ? 0 : iv.x;
-    //         iv.y = (abs(iv.y) < MOTION_VECTOR_MIN) ? 0 : iv.y;
-    //         ivec2 p_prev = ivec2(ipos + iv + MOTION_VECTOR_OFFSET);
-    //         vec4 seed_prev = imageLoad(gbuffers[SEED_LUMINANCE_ADDR_PREV], p_prev);
-    //         vec4 seed_curr = imageLoad(gbuffers[SEED_LUMINANCE_ADDR], p);
-    //         if (all(equal(seed_curr.xyz, seed_prev.xyz))) {
-    //             ipos = p;
-    //             pixel_seed = ivec2(seed_curr.xy);
-    //             frame_seed = int(seed_curr.z);
-    //             seed_found = true;
-    //             break;
-    //         }
-    //     }
-    // }
 
     // Position G Buffer 
     temp = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);

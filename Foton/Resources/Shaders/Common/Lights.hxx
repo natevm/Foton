@@ -163,8 +163,8 @@ struct Irradiance {
 
 #ifdef RAYTRACING
 
-vec3 sample_direct_light_stochastic(const in MaterialStruct mat, bool backface, const in vec3 w_p, const in vec3 w_n,
-	const in vec3 w_x, const in vec3 w_y, const in vec3 w_o, inout int light_entity_id, out float visibility, out vec3 w_l, out float l_distance)
+vec3 sample_direct_light_stochastic(const in MaterialStruct mat, bool backface, bool force_diffuse, bool force_specular, bool force_perfect_reflection, 
+    const in vec3 w_p, const in vec3 w_n, const in vec3 w_x, const in vec3 w_y, const in vec3 w_o, inout int light_entity_id, out float visibility, out vec3 w_l, out float l_distance)
 {
     vec3 radiance = vec3(0.0);
     visibility = 0.0;
@@ -239,6 +239,21 @@ vec3 sample_direct_light_stochastic(const in MaterialStruct mat, bool backface, 
         float bsdf_pdf, dpdf, spdf;
         disney_pdf(mat, backface, w_n, w_o, w_i, w_x, w_y, bsdf_pdf, dpdf, spdf);
 
+        
+
+        float w = 0;
+        vec3 bsdf, dbsdf, sbsdf;
+        disney_bsdf(mat, backface, w_n, w_o, w_i, w_x, w_y, bsdf, dbsdf, sbsdf);
+        // We need radiance before and after visibility.
+        if (light_pdf >= EPSILON && bsdf_pdf >= EPSILON/* && light_visibility == 1.0*/) {
+            w = power_heuristic(1.f, light_pdf, 1.f, bsdf_pdf);
+            vec3 LightInfluence = Li * abs(dot(w_i, w_n_f)) * w / light_pdf;
+            radiance += bsdf * LightInfluence;
+        }
+
+        // NOTE, trace shadow ray at the bottom here to reduce continuation 
+        // state
+        
         /* Compute visibility by tracing a shadow ray */
         {
             vec3 w_p_off = offset_ray(w_p, w_n);
@@ -250,16 +265,6 @@ vec3 sample_direct_light_stochastic(const in MaterialStruct mat, bool backface, 
             payload.is_shadow_ray = true; 
             traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, w_p_off, TMIN, w_i, tmax, 0); 
             light_visibility = (payload.entity_id == light_entity_id) ? 1.0 : 0.0;
-        }
-
-        float w = 0;
-        vec3 bsdf, dbsdf, sbsdf;
-        disney_bsdf(mat, backface, w_n, w_o, w_i, w_x, w_y, bsdf, dbsdf, sbsdf);
-        // We need radiance before and after visibility.
-        if (light_pdf >= EPSILON && bsdf_pdf >= EPSILON/* && light_visibility == 1.0*/) {
-            w = power_heuristic(1.f, light_pdf, 1.f, bsdf_pdf);
-            vec3 LightInfluence = Li * abs(dot(w_i, w_n_f)) * w / light_pdf;
-            radiance += bsdf * LightInfluence;
         }
         visibility += light_visibility * w;
         w_l += Li * w;
@@ -275,7 +280,7 @@ vec3 sample_direct_light_stochastic(const in MaterialStruct mat, bool backface, 
 		vec3 bsdf, dbsdf, sbsdf;
         sample_disney_bsdf(mat, backface, 
             w_n, w_o, w_x, w_y,
-            false, false, false, // TEMPORARILY FORCING SPECULAR
+            force_diffuse, force_specular, force_perfect_reflection,
             w_i, bsdf_pdf, dpdf, spdf, bsdf, dbsdf, sbsdf);
 		
 		float light_dist;
@@ -302,6 +307,13 @@ vec3 sample_direct_light_stochastic(const in MaterialStruct mat, bool backface, 
             float w = 0.0;
 			if (light_pdf >= EPSILON) {
 				w = power_heuristic(1.f, bsdf_pdf, 1.f, light_pdf);
+                // We need radiance before and after visibility.
+				// if (bsdf_visibility == 1.0) 
+                {
+                    vec3 LightInfluence = Li * abs(dot(w_i, w_n_f)) * w / bsdf_pdf;
+                    radiance += bsdf * LightInfluence;
+				}
+
                 /* Compute visibility by tracing a shadow ray */
                 {
                     vec3 w_p_off = offset_ray(w_p, w_n);
@@ -311,13 +323,6 @@ vec3 sample_direct_light_stochastic(const in MaterialStruct mat, bool backface, 
                     traceNV(topLevelAS, /*gl_RayFlagsTerminateOnFirstHitNV*/gl_RayFlagsNoneNV, 0xff, 0, 0, 0, w_p_off, TMIN, w_i, TMAX, 0); // UPDATE TMAX TO BE LIGHT DIST
                     bsdf_visibility = (payload.entity_id == light_entity_id) ? 1.0 : 0.0;
                 }
-                
-                // We need radiance before and after visibility.
-				// if (bsdf_visibility == 1.0) 
-                {
-                    vec3 LightInfluence = Li * abs(dot(w_i, w_n_f)) * w / bsdf_pdf;
-                    radiance += bsdf * LightInfluence;
-				}
                 visibility += bsdf_visibility * w;
                 w_l += Li * w;
 			}
@@ -330,8 +335,9 @@ vec3 sample_direct_light_stochastic(const in MaterialStruct mat, bool backface, 
 
 #endif
 
-Irradiance sample_direct_light_analytic(const in MaterialStruct mat, bool backface, bool include_shadows, const in vec3 w_p, const in vec3 w_n,
-	const in vec3 w_x, const in vec3 w_y, const in vec3 w_o) 
+Irradiance sample_direct_light_analytic(const in MaterialStruct mat, bool backface, bool include_shadows,  
+    bool force_diffuse, bool force_specular, bool force_perfect_reflection,
+    const in vec3 w_p, const in vec3 w_n, const in vec3 w_x, const in vec3 w_y, const in vec3 w_o) 
 {
     float shadow_term = 1.0;
 
@@ -570,7 +576,10 @@ Irradiance sample_direct_light_analytic(const in MaterialStruct mat, bool backfa
             // compute shadow
             float visibility = 1.0;
             vec3 w_l;
-            vec3 stochastic_differential_radiance = sample_direct_light_stochastic(mat, backface, w_p, w_n, w_x, w_y, w_o, light_entity_id, visibility, w_l, l_dist);
+            vec3 stochastic_differential_radiance = sample_direct_light_stochastic(
+                mat, backface, force_diffuse, force_specular, force_perfect_reflection,
+                w_p, w_n, w_x, w_y, w_o, light_entity_id, visibility, w_l, l_dist);
+                
             float stochastic_luminance = average_vec(stochastic_differential_radiance);//TWO_PI;
 
             // // float geometric_term = dot( w_n, normalize(w_l));

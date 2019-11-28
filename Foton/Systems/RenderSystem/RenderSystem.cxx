@@ -1,5 +1,4 @@
 // #pragma optimize("", off)
-
 #include "Foton/Prefabs/Prefabs.hxx"
 
 #include "Foton/Tools/Options.hxx"
@@ -25,6 +24,7 @@
 
 #include "Foton/Libraries/OpenVR/OpenVR.hxx"
 
+#include "Foton/Resources/Shaders/Common/GBufferLocations.hxx"
 using namespace Libraries;
 
 namespace Systems
@@ -603,7 +603,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 				}
 			}
 			
-			/* Path tracer */
+			/* Diffuse path tracer */
 			for(uint32_t v_idx = 0; v_idx < camera->maxViews; v_idx++) {
 				reset_bound_material();        
 				bind_raytracing_descriptor_sets(command_buffer, camera_entity, v_idx);
@@ -617,13 +617,40 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 				push_constants.parameter1 = (float)this->max_bounces;
 				push_constants.parameter2 = this->test_param;
 				
-				command_buffer.pushConstants(path_tracer.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-				command_buffer.bindPipeline(vk::PipelineBindPoint::eRayTracingNV, path_tracer.pipeline);
+				command_buffer.pushConstants(diffuse_path_tracer.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+				command_buffer.bindPipeline(vk::PipelineBindPoint::eRayTracingNV, diffuse_path_tracer.pipeline);
 
 				command_buffer.traceRaysNV(
-					path_tracer.shaderBindingTable, 0,
-					path_tracer.shaderBindingTable, 1 * rayTracingProps.shaderGroupHandleSize, rayTracingProps.shaderGroupHandleSize,
-					path_tracer.shaderBindingTable, 2 * rayTracingProps.shaderGroupHandleSize, rayTracingProps.shaderGroupHandleSize,
+					diffuse_path_tracer.shaderBindingTable, 0,
+					diffuse_path_tracer.shaderBindingTable, 1 * rayTracingProps.shaderGroupHandleSize, rayTracingProps.shaderGroupHandleSize,
+					diffuse_path_tracer.shaderBindingTable, 2 * rayTracingProps.shaderGroupHandleSize, rayTracingProps.shaderGroupHandleSize,
+					vk::Buffer(), 0, 0,
+					texture->get_width(), texture->get_height(), 1,
+					dldi
+				);	
+			}
+
+			/* Specular path tracer */
+			for(uint32_t v_idx = 0; v_idx < camera->maxViews; v_idx++) {
+				reset_bound_material();        
+				bind_raytracing_descriptor_sets(command_buffer, camera_entity, v_idx);
+
+				push_constants.target_id = -1;
+				push_constants.camera_id = camera_entity.get_id();
+				push_constants.viewIndex = v_idx;
+				push_constants.width = texture->get_width();
+				push_constants.height = texture->get_height();
+				push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
+				push_constants.parameter1 = (float)this->max_bounces;
+				push_constants.parameter2 = this->test_param;
+				
+				command_buffer.pushConstants(specular_path_tracer.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+				command_buffer.bindPipeline(vk::PipelineBindPoint::eRayTracingNV, specular_path_tracer.pipeline);
+
+				command_buffer.traceRaysNV(
+					specular_path_tracer.shaderBindingTable, 0,
+					specular_path_tracer.shaderBindingTable, 1 * rayTracingProps.shaderGroupHandleSize, rayTracingProps.shaderGroupHandleSize,
+					specular_path_tracer.shaderBindingTable, 2 * rayTracingProps.shaderGroupHandleSize, rayTracingProps.shaderGroupHandleSize,
 					vk::Buffer(), 0, 0,
 					texture->get_width(), texture->get_height(), 1,
 					dldi
@@ -652,6 +679,47 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 					command_buffer.dispatch(groupX, groupY, groupZ);
 				}
 			}
+
+			// if (enable_median_filter) {
+			/* median filter the temporal gradient */
+			// if (asvgf_enabled && asvgf_gradient_enabled)
+			// {
+			// 	for(uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
+			// 		push_constants.target_id = -1;
+			// 		push_constants.camera_id = camera_entity.get_id();
+			// 		push_constants.viewIndex = rp_idx;
+			// 		push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
+			// 		bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+
+			// 		uint32_t local_size_x = 16;
+			// 		uint32_t local_size_y = 16;
+
+			// 		uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+			// 		uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+			// 		uint32_t groupZ = 1;
+
+			// 		command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, median_3x3.pipeline);
+					
+			// 		push_constants.parameter1 = TEMPORAL_GRADIENT_ADDR;
+			// 		push_constants.parameter2 = ATROUS_HISTORY_1_ADDR;
+			// 		push_constants.iteration = 0;
+			// 		command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+			// 		command_buffer.dispatch(groupX, groupY, groupZ);
+			// 		push_constants.iteration = 1;
+			// 		command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+			// 		command_buffer.dispatch(groupX, groupY, groupZ);
+
+			// 		push_constants.parameter1 = LUMINANCE_MAX_ADDR;
+			// 		push_constants.parameter2 = ATROUS_HISTORY_1_ADDR;
+			// 		push_constants.iteration = 0;
+			// 		command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+			// 		command_buffer.dispatch(groupX, groupY, groupZ);
+			// 		push_constants.iteration = 1;
+			// 		command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+			// 		command_buffer.dispatch(groupX, groupY, groupZ);
+			// 	}
+			// }
+			// }
 
 			/* A-SVGF reconstruct gradient pass */
 			if (asvgf_enabled && asvgf_gradient_enabled)
@@ -725,6 +793,44 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 				}
 			}
 
+			/* Firefly supression */
+			if (enable_median_filter) {
+				for(uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
+					push_constants.target_id = -1;
+					push_constants.camera_id = camera_entity.get_id();
+					push_constants.viewIndex = rp_idx;
+					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
+					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+
+					uint32_t local_size_x = 16;
+					uint32_t local_size_y = 16;
+
+					uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+					uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+					uint32_t groupZ = 1;
+
+					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, median_3x3.pipeline);
+					
+					push_constants.parameter1 = DIFFUSE_INDIRECT_ADDR;
+					push_constants.parameter2 = ATROUS_HISTORY_1_ADDR;
+					push_constants.iteration = 0;
+					command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.dispatch(groupX, groupY, groupZ);
+					push_constants.iteration = 1;
+					command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.dispatch(groupX, groupY, groupZ);
+
+					push_constants.parameter1 = GLOSSY_INDIRECT_ADDR;
+					push_constants.parameter2 = ATROUS_HISTORY_1_ADDR;
+					push_constants.iteration = 0;
+					command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.dispatch(groupX, groupY, groupZ);
+					push_constants.iteration = 1;
+					command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.dispatch(groupX, groupY, groupZ);
+				}
+			}
+
 			/* A-SVGF Estimate Variance */
 			if (asvgf_enabled && asvgf_variance_estimation_enabled)
 			{
@@ -767,7 +873,8 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 
 					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, reconstruct_diffuse.pipeline);
 					
-					push_constants.parameter1 = asvgf_atrous_sigma;
+					push_constants.parameter1 = asvgf_direct_diffuse_blur;
+					push_constants.parameter2 = asvgf_indirect_diffuse_blur;
 					for (int i = (2 * asvgf_atrous_iterations) - 1; i >= 0; i--) {
 					// for (int i = 0; i < (2 * asvgf_atrous_iterations); i++) {
 						push_constants.iteration = i;
@@ -792,8 +899,9 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 
 					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, reconstruct_glossy.pipeline);
 					
-					push_constants.parameter1 = asvgf_atrous_sigma;
-					for (int i = (2 * (asvgf_atrous_iterations / 2)) - 1; i >= 0; i--) {
+					push_constants.parameter1 = asvgf_direct_glossy_blur;
+					push_constants.parameter2 = asvgf_indirect_glossy_blur;
+					for (int i = (2 * asvgf_atrous_iterations) - 1; i >= 0; i--) {
 					// for (int i = 0; i < (2 * asvgf_atrous_iterations); i++) {
 						push_constants.iteration = i;
 						command_buffer.pushConstants(reconstruct_glossy.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
@@ -2451,126 +2559,7 @@ void RenderSystem::setup_raytracing_pipelines()
 	auto rayTracingProps = vulkan->get_physical_device_ray_tracing_properties();
 
 	/* RAY TRACING PIPELINES */
-	{
-		path_tracer = RaytracingPipelineResources();
-
-		/* RAY GEN SHADERS */
-		std::string ResourcePath = Options::GetResourcePath();
-		auto raygenShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracePrograms/PathTracer/rgen.spv"));
-		auto raychitShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracePrograms/PathTracer/rchit.spv"));
-		auto raymissShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracePrograms/PathTracer/rmiss.spv"));
-		
-		/* Create shader modules */
-		auto raygenShaderModule = create_shader_module("ray_tracing_gen", raygenShaderCode);
-		auto raychitShaderModule = create_shader_module("ray_tracing_chit", raychitShaderCode);
-		auto raymissShaderModule = create_shader_module("ray_tracing_miss", raymissShaderCode);
-
-		/* Info for shader stages */
-		vk::PipelineShaderStageCreateInfo raygenShaderStageInfo;
-		raygenShaderStageInfo.stage = vk::ShaderStageFlagBits::eRaygenNV;
-		raygenShaderStageInfo.module = raygenShaderModule;
-		raygenShaderStageInfo.pName = "main"; 
-
-		vk::PipelineShaderStageCreateInfo raymissShaderStageInfo;
-		raymissShaderStageInfo.stage = vk::ShaderStageFlagBits::eMissNV;
-		raymissShaderStageInfo.module = raymissShaderModule;
-		raymissShaderStageInfo.pName = "main"; 
-
-		vk::PipelineShaderStageCreateInfo raychitShaderStageInfo;
-		raychitShaderStageInfo.stage = vk::ShaderStageFlagBits::eClosestHitNV;
-		raychitShaderStageInfo.module = raychitShaderModule;
-		raychitShaderStageInfo.pName = "main"; 
-
-		std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { raygenShaderStageInfo, raymissShaderStageInfo, raychitShaderStageInfo};
-		
-		vk::PushConstantRange range;
-		range.offset = 0;
-		range.size = sizeof(PushConsts);
-		range.stageFlags = vk::ShaderStageFlagBits::eAll;
-
-		std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout, 
-			positionsDescriptorSetLayout, normalsDescriptorSetLayout, colorsDescriptorSetLayout, texcoordsDescriptorSetLayout, indexDescriptorSetLayout,
-			raytracingDescriptorSetLayout };
-		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
-
-		pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)layouts.size();
-		pipelineLayoutCreateInfo.pSetLayouts = layouts.data();
-		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-		pipelineLayoutCreateInfo.pPushConstantRanges = &range;
-		
-		path_tracer.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
-
-		std::vector<vk::RayTracingShaderGroupCreateInfoNV> shaderGroups;
-		
-		// Ray gen group
-		vk::RayTracingShaderGroupCreateInfoNV rayGenGroupInfo;
-		rayGenGroupInfo.type = vk::RayTracingShaderGroupTypeNV::eGeneral;
-		rayGenGroupInfo.generalShader = 0;
-		rayGenGroupInfo.closestHitShader = VK_SHADER_UNUSED_NV;
-		rayGenGroupInfo.anyHitShader = VK_SHADER_UNUSED_NV;
-		rayGenGroupInfo.intersectionShader = VK_SHADER_UNUSED_NV;
-		shaderGroups.push_back(rayGenGroupInfo);
-		
-		// Miss group
-		vk::RayTracingShaderGroupCreateInfoNV rayMissGroupInfo;
-		rayMissGroupInfo.type = vk::RayTracingShaderGroupTypeNV::eGeneral;
-		rayMissGroupInfo.generalShader = 1;
-		rayMissGroupInfo.closestHitShader = VK_SHADER_UNUSED_NV;
-		rayMissGroupInfo.anyHitShader = VK_SHADER_UNUSED_NV;
-		rayMissGroupInfo.intersectionShader = VK_SHADER_UNUSED_NV;
-		shaderGroups.push_back(rayMissGroupInfo);
-		
-		// Intersection group
-		vk::RayTracingShaderGroupCreateInfoNV rayCHitGroupInfo; //VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_NV
-		rayCHitGroupInfo.type = vk::RayTracingShaderGroupTypeNV::eTrianglesHitGroup;
-		rayCHitGroupInfo.generalShader = VK_SHADER_UNUSED_NV;
-		rayCHitGroupInfo.closestHitShader = 2;
-		rayCHitGroupInfo.anyHitShader = VK_SHADER_UNUSED_NV;
-		rayCHitGroupInfo.intersectionShader = VK_SHADER_UNUSED_NV;
-		shaderGroups.push_back(rayCHitGroupInfo);
-
-		vk::RayTracingPipelineCreateInfoNV rayPipelineInfo;
-		rayPipelineInfo.stageCount = (uint32_t) shaderStages.size();
-		rayPipelineInfo.pStages = shaderStages.data();
-		rayPipelineInfo.groupCount = (uint32_t) shaderGroups.size();
-		rayPipelineInfo.pGroups = shaderGroups.data();
-		rayPipelineInfo.maxRecursionDepth = vulkan->get_physical_device_ray_tracing_properties().maxRecursionDepth;
-		rayPipelineInfo.layout = path_tracer.pipelineLayout;
-		rayPipelineInfo.basePipelineHandle = vk::Pipeline();
-		rayPipelineInfo.basePipelineIndex = 0;
-
-		path_tracer.pipeline = device.createRayTracingPipelinesNV(vk::PipelineCache(), 
-			{rayPipelineInfo}, nullptr, dldi)[0];
-
-		const uint32_t groupNum = 3; // 1 group is listed in pGroupNumbers in VkRayTracingPipelineCreateInfoNV
-		const uint32_t shaderBindingTableSize = rayTracingProps.shaderGroupHandleSize * groupNum;
-
-		/* Create binding table buffer */
-		vk::BufferCreateInfo bufferInfo;
-		bufferInfo.size = shaderBindingTableSize;
-		bufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
-		bufferInfo.sharingMode = vk::SharingMode::eExclusive;
-		path_tracer.shaderBindingTable = device.createBuffer(bufferInfo);
-
-		/* Create memory for binding table */
-		vk::MemoryRequirements memRequirements = device.getBufferMemoryRequirements(path_tracer.shaderBindingTable);
-		vk::MemoryAllocateInfo allocInfo;
-		allocInfo.allocationSize = memRequirements.size;
-		allocInfo.memoryTypeIndex = vulkan->find_memory_type(memRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible);
-		path_tracer.shaderBindingTableMemory = device.allocateMemory(allocInfo);
-
-		/* Bind buffer to memeory */
-		device.bindBufferMemory(path_tracer.shaderBindingTable, path_tracer.shaderBindingTableMemory, 0);
-
-		/* Map the binding table, then fill with shader group handles */
-		void* mappedMemory = device.mapMemory(path_tracer.shaderBindingTableMemory, 0, shaderBindingTableSize, vk::MemoryMapFlags());
-		device.getRayTracingShaderGroupHandlesNV(path_tracer.pipeline, 0, groupNum, shaderBindingTableSize, mappedMemory, dldi);
-		device.unmapMemory(path_tracer.shaderBindingTableMemory);
-
-		path_tracer.ready = true;
-	}
-
-	{
+		{
 		raytrace_primary_visibility = RaytracingPipelineResources();
 
 		/* RAY GEN SHADERS */
@@ -2688,6 +2677,244 @@ void RenderSystem::setup_raytracing_pipelines()
 
 		raytrace_primary_visibility.ready = true;
 	}
+
+	{
+		diffuse_path_tracer = RaytracingPipelineResources();
+
+		/* RAY GEN SHADERS */
+		std::string ResourcePath = Options::GetResourcePath();
+		auto raygenShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracePrograms/DiffusePathTracer/rgen.spv"));
+		auto raychitShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracePrograms/DiffusePathTracer/rchit.spv"));
+		auto raymissShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracePrograms/DiffusePathTracer/rmiss.spv"));
+		
+		/* Create shader modules */
+		auto raygenShaderModule = create_shader_module("diffuse_ray_tracing_gen", raygenShaderCode);
+		auto raychitShaderModule = create_shader_module("diffuse_ray_tracing_chit", raychitShaderCode);
+		auto raymissShaderModule = create_shader_module("diffuse_ray_tracing_miss", raymissShaderCode);
+
+		/* Info for shader stages */
+		vk::PipelineShaderStageCreateInfo raygenShaderStageInfo;
+		raygenShaderStageInfo.stage = vk::ShaderStageFlagBits::eRaygenNV;
+		raygenShaderStageInfo.module = raygenShaderModule;
+		raygenShaderStageInfo.pName = "main"; 
+
+		vk::PipelineShaderStageCreateInfo raymissShaderStageInfo;
+		raymissShaderStageInfo.stage = vk::ShaderStageFlagBits::eMissNV;
+		raymissShaderStageInfo.module = raymissShaderModule;
+		raymissShaderStageInfo.pName = "main"; 
+
+		vk::PipelineShaderStageCreateInfo raychitShaderStageInfo;
+		raychitShaderStageInfo.stage = vk::ShaderStageFlagBits::eClosestHitNV;
+		raychitShaderStageInfo.module = raychitShaderModule;
+		raychitShaderStageInfo.pName = "main"; 
+
+		std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { raygenShaderStageInfo, raymissShaderStageInfo, raychitShaderStageInfo};
+		
+		vk::PushConstantRange range;
+		range.offset = 0;
+		range.size = sizeof(PushConsts);
+		range.stageFlags = vk::ShaderStageFlagBits::eAll;
+
+		std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout, 
+			positionsDescriptorSetLayout, normalsDescriptorSetLayout, colorsDescriptorSetLayout, texcoordsDescriptorSetLayout, indexDescriptorSetLayout,
+			raytracingDescriptorSetLayout };
+		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+
+		pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)layouts.size();
+		pipelineLayoutCreateInfo.pSetLayouts = layouts.data();
+		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+		pipelineLayoutCreateInfo.pPushConstantRanges = &range;
+		
+		diffuse_path_tracer.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+
+		std::vector<vk::RayTracingShaderGroupCreateInfoNV> shaderGroups;
+		
+		// Ray gen group
+		vk::RayTracingShaderGroupCreateInfoNV rayGenGroupInfo;
+		rayGenGroupInfo.type = vk::RayTracingShaderGroupTypeNV::eGeneral;
+		rayGenGroupInfo.generalShader = 0;
+		rayGenGroupInfo.closestHitShader = VK_SHADER_UNUSED_NV;
+		rayGenGroupInfo.anyHitShader = VK_SHADER_UNUSED_NV;
+		rayGenGroupInfo.intersectionShader = VK_SHADER_UNUSED_NV;
+		shaderGroups.push_back(rayGenGroupInfo);
+		
+		// Miss group
+		vk::RayTracingShaderGroupCreateInfoNV rayMissGroupInfo;
+		rayMissGroupInfo.type = vk::RayTracingShaderGroupTypeNV::eGeneral;
+		rayMissGroupInfo.generalShader = 1;
+		rayMissGroupInfo.closestHitShader = VK_SHADER_UNUSED_NV;
+		rayMissGroupInfo.anyHitShader = VK_SHADER_UNUSED_NV;
+		rayMissGroupInfo.intersectionShader = VK_SHADER_UNUSED_NV;
+		shaderGroups.push_back(rayMissGroupInfo);
+		
+		// Intersection group
+		vk::RayTracingShaderGroupCreateInfoNV rayCHitGroupInfo; //VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_NV
+		rayCHitGroupInfo.type = vk::RayTracingShaderGroupTypeNV::eTrianglesHitGroup;
+		rayCHitGroupInfo.generalShader = VK_SHADER_UNUSED_NV;
+		rayCHitGroupInfo.closestHitShader = 2;
+		rayCHitGroupInfo.anyHitShader = VK_SHADER_UNUSED_NV;
+		rayCHitGroupInfo.intersectionShader = VK_SHADER_UNUSED_NV;
+		shaderGroups.push_back(rayCHitGroupInfo);
+
+		vk::RayTracingPipelineCreateInfoNV rayPipelineInfo;
+		rayPipelineInfo.stageCount = (uint32_t) shaderStages.size();
+		rayPipelineInfo.pStages = shaderStages.data();
+		rayPipelineInfo.groupCount = (uint32_t) shaderGroups.size();
+		rayPipelineInfo.pGroups = shaderGroups.data();
+		rayPipelineInfo.maxRecursionDepth = vulkan->get_physical_device_ray_tracing_properties().maxRecursionDepth;
+		rayPipelineInfo.layout = diffuse_path_tracer.pipelineLayout;
+		rayPipelineInfo.basePipelineHandle = vk::Pipeline();
+		rayPipelineInfo.basePipelineIndex = 0;
+
+		diffuse_path_tracer.pipeline = device.createRayTracingPipelinesNV(vk::PipelineCache(), 
+			{rayPipelineInfo}, nullptr, dldi)[0];
+
+		const uint32_t groupNum = 3; // 1 group is listed in pGroupNumbers in VkRayTracingPipelineCreateInfoNV
+		const uint32_t shaderBindingTableSize = rayTracingProps.shaderGroupHandleSize * groupNum;
+
+		/* Create binding table buffer */
+		vk::BufferCreateInfo bufferInfo;
+		bufferInfo.size = shaderBindingTableSize;
+		bufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+		bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+		diffuse_path_tracer.shaderBindingTable = device.createBuffer(bufferInfo);
+
+		/* Create memory for binding table */
+		vk::MemoryRequirements memRequirements = device.getBufferMemoryRequirements(diffuse_path_tracer.shaderBindingTable);
+		vk::MemoryAllocateInfo allocInfo;
+		allocInfo.allocationSize = memRequirements.size;
+		allocInfo.memoryTypeIndex = vulkan->find_memory_type(memRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible);
+		diffuse_path_tracer.shaderBindingTableMemory = device.allocateMemory(allocInfo);
+
+		/* Bind buffer to memeory */
+		device.bindBufferMemory(diffuse_path_tracer.shaderBindingTable, diffuse_path_tracer.shaderBindingTableMemory, 0);
+
+		/* Map the binding table, then fill with shader group handles */
+		void* mappedMemory = device.mapMemory(diffuse_path_tracer.shaderBindingTableMemory, 0, shaderBindingTableSize, vk::MemoryMapFlags());
+		device.getRayTracingShaderGroupHandlesNV(diffuse_path_tracer.pipeline, 0, groupNum, shaderBindingTableSize, mappedMemory, dldi);
+		device.unmapMemory(diffuse_path_tracer.shaderBindingTableMemory);
+
+		diffuse_path_tracer.ready = true;
+	}
+
+	{
+		specular_path_tracer = RaytracingPipelineResources();
+
+		/* RAY GEN SHADERS */
+		std::string ResourcePath = Options::GetResourcePath();
+		auto raygenShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracePrograms/SpecularPathTracer/rgen.spv"));
+		auto raychitShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracePrograms/SpecularPathTracer/rchit.spv"));
+		auto raymissShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracePrograms/SpecularPathTracer/rmiss.spv"));
+		
+		/* Create shader modules */
+		auto raygenShaderModule = create_shader_module("specular_ray_tracing_gen", raygenShaderCode);
+		auto raychitShaderModule = create_shader_module("specular_ray_tracing_chit", raychitShaderCode);
+		auto raymissShaderModule = create_shader_module("specular_ray_tracing_miss", raymissShaderCode);
+
+		/* Info for shader stages */
+		vk::PipelineShaderStageCreateInfo raygenShaderStageInfo;
+		raygenShaderStageInfo.stage = vk::ShaderStageFlagBits::eRaygenNV;
+		raygenShaderStageInfo.module = raygenShaderModule;
+		raygenShaderStageInfo.pName = "main"; 
+
+		vk::PipelineShaderStageCreateInfo raymissShaderStageInfo;
+		raymissShaderStageInfo.stage = vk::ShaderStageFlagBits::eMissNV;
+		raymissShaderStageInfo.module = raymissShaderModule;
+		raymissShaderStageInfo.pName = "main"; 
+
+		vk::PipelineShaderStageCreateInfo raychitShaderStageInfo;
+		raychitShaderStageInfo.stage = vk::ShaderStageFlagBits::eClosestHitNV;
+		raychitShaderStageInfo.module = raychitShaderModule;
+		raychitShaderStageInfo.pName = "main"; 
+
+		std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { raygenShaderStageInfo, raymissShaderStageInfo, raychitShaderStageInfo};
+		
+		vk::PushConstantRange range;
+		range.offset = 0;
+		range.size = sizeof(PushConsts);
+		range.stageFlags = vk::ShaderStageFlagBits::eAll;
+
+		std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout, 
+			positionsDescriptorSetLayout, normalsDescriptorSetLayout, colorsDescriptorSetLayout, texcoordsDescriptorSetLayout, indexDescriptorSetLayout,
+			raytracingDescriptorSetLayout };
+		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+
+		pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)layouts.size();
+		pipelineLayoutCreateInfo.pSetLayouts = layouts.data();
+		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+		pipelineLayoutCreateInfo.pPushConstantRanges = &range;
+		
+		specular_path_tracer.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+
+		std::vector<vk::RayTracingShaderGroupCreateInfoNV> shaderGroups;
+		
+		// Ray gen group
+		vk::RayTracingShaderGroupCreateInfoNV rayGenGroupInfo;
+		rayGenGroupInfo.type = vk::RayTracingShaderGroupTypeNV::eGeneral;
+		rayGenGroupInfo.generalShader = 0;
+		rayGenGroupInfo.closestHitShader = VK_SHADER_UNUSED_NV;
+		rayGenGroupInfo.anyHitShader = VK_SHADER_UNUSED_NV;
+		rayGenGroupInfo.intersectionShader = VK_SHADER_UNUSED_NV;
+		shaderGroups.push_back(rayGenGroupInfo);
+		
+		// Miss group
+		vk::RayTracingShaderGroupCreateInfoNV rayMissGroupInfo;
+		rayMissGroupInfo.type = vk::RayTracingShaderGroupTypeNV::eGeneral;
+		rayMissGroupInfo.generalShader = 1;
+		rayMissGroupInfo.closestHitShader = VK_SHADER_UNUSED_NV;
+		rayMissGroupInfo.anyHitShader = VK_SHADER_UNUSED_NV;
+		rayMissGroupInfo.intersectionShader = VK_SHADER_UNUSED_NV;
+		shaderGroups.push_back(rayMissGroupInfo);
+		
+		// Intersection group
+		vk::RayTracingShaderGroupCreateInfoNV rayCHitGroupInfo; //VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_NV
+		rayCHitGroupInfo.type = vk::RayTracingShaderGroupTypeNV::eTrianglesHitGroup;
+		rayCHitGroupInfo.generalShader = VK_SHADER_UNUSED_NV;
+		rayCHitGroupInfo.closestHitShader = 2;
+		rayCHitGroupInfo.anyHitShader = VK_SHADER_UNUSED_NV;
+		rayCHitGroupInfo.intersectionShader = VK_SHADER_UNUSED_NV;
+		shaderGroups.push_back(rayCHitGroupInfo);
+
+		vk::RayTracingPipelineCreateInfoNV rayPipelineInfo;
+		rayPipelineInfo.stageCount = (uint32_t) shaderStages.size();
+		rayPipelineInfo.pStages = shaderStages.data();
+		rayPipelineInfo.groupCount = (uint32_t) shaderGroups.size();
+		rayPipelineInfo.pGroups = shaderGroups.data();
+		rayPipelineInfo.maxRecursionDepth = vulkan->get_physical_device_ray_tracing_properties().maxRecursionDepth;
+		rayPipelineInfo.layout = specular_path_tracer.pipelineLayout;
+		rayPipelineInfo.basePipelineHandle = vk::Pipeline();
+		rayPipelineInfo.basePipelineIndex = 0;
+
+		specular_path_tracer.pipeline = device.createRayTracingPipelinesNV(vk::PipelineCache(), 
+			{rayPipelineInfo}, nullptr, dldi)[0];
+
+		const uint32_t groupNum = 3; // 1 group is listed in pGroupNumbers in VkRayTracingPipelineCreateInfoNV
+		const uint32_t shaderBindingTableSize = rayTracingProps.shaderGroupHandleSize * groupNum;
+
+		/* Create binding table buffer */
+		vk::BufferCreateInfo bufferInfo;
+		bufferInfo.size = shaderBindingTableSize;
+		bufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+		bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+		specular_path_tracer.shaderBindingTable = device.createBuffer(bufferInfo);
+
+		/* Create memory for binding table */
+		vk::MemoryRequirements memRequirements = device.getBufferMemoryRequirements(specular_path_tracer.shaderBindingTable);
+		vk::MemoryAllocateInfo allocInfo;
+		allocInfo.allocationSize = memRequirements.size;
+		allocInfo.memoryTypeIndex = vulkan->find_memory_type(memRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible);
+		specular_path_tracer.shaderBindingTableMemory = device.allocateMemory(allocInfo);
+
+		/* Bind buffer to memeory */
+		device.bindBufferMemory(specular_path_tracer.shaderBindingTable, specular_path_tracer.shaderBindingTableMemory, 0);
+
+		/* Map the binding table, then fill with shader group handles */
+		void* mappedMemory = device.mapMemory(specular_path_tracer.shaderBindingTableMemory, 0, shaderBindingTableSize, vk::MemoryMapFlags());
+		device.getRayTracingShaderGroupHandlesNV(specular_path_tracer.pipeline, 0, groupNum, shaderBindingTableSize, mappedMemory, dldi);
+		device.unmapMemory(specular_path_tracer.shaderBindingTableMemory);
+
+		specular_path_tracer.ready = true;
+	}
 }
 
 void RenderSystem::setup_compute_pipelines()
@@ -2797,6 +3024,18 @@ void RenderSystem::setup_compute_pipelines()
         computeCreateInfo.layout = gaussian_y.pipelineLayout;
         gaussian_y.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
 		gaussian_y.ready = true;
+	}
+
+	/* Median 3x3 */
+	{
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/Median3x3/comp.spv"));
+		auto compShaderModule = create_shader_module("median_3x3", compShaderCode);
+		compShaderStageInfo.module = compShaderModule;
+        median_3x3.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = median_3x3.pipelineLayout;
+        median_3x3.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		median_3x3.ready = true;
 	}
 
 	/* ------ Temporal Antialiasing  ------ */
@@ -3988,6 +4227,7 @@ void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffe
 		(copy_history.ready == false) || 
 		(gaussian_x.ready == false) || 
 		(gaussian_y.ready == false) || 
+		(median_3x3.ready == false) || 
 		(reconstruct_diffuse.ready == false) ||
 		(reconstruct_glossy.ready == false) ||
 		(svgf_remodulate.ready == false) ||
@@ -4008,6 +4248,7 @@ void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffe
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, copy_history.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, gaussian_x.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, gaussian_y.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, median_3x3.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, reconstruct_diffuse.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, reconstruct_glossy.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, svgf_remodulate.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
@@ -4021,13 +4262,15 @@ void RenderSystem::bind_raytracing_descriptor_sets(vk::CommandBuffer &command_bu
 {
 	if (
 		(raytrace_primary_visibility.ready == false) ||
-		(path_tracer.ready == false)
+		(diffuse_path_tracer.ready == false) ||
+		(specular_path_tracer.ready == false)
 	) return;
 
 	auto key = std::pair<uint32_t, uint32_t>(camera_entity.get_id(), rp_idx);
 	std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet, gbufferDescriptorSets[key], positionsDescriptorSet, normalsDescriptorSet, colorsDescriptorSet, texcoordsDescriptorSet, indexDescriptorSet, raytracingDescriptorSet};
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, raytrace_primary_visibility.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
-	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, path_tracer.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, diffuse_path_tracer.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, specular_path_tracer.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 }
 
 void RenderSystem::draw_entity(
@@ -4254,7 +4497,30 @@ void RenderSystem::set_asvgf_atrous_iterations(int iterations)
 
 void RenderSystem::set_asvgf_atrous_sigma(float sigma)
 {
-	this->asvgf_atrous_sigma = sigma;
+	this->asvgf_direct_diffuse_blur = sigma;
+	this->asvgf_direct_glossy_blur = sigma;
+	this->asvgf_indirect_diffuse_blur = sigma;
+	this->asvgf_indirect_glossy_blur = sigma;
+}
+
+void RenderSystem::set_direct_diffuse_blur(float percent)
+{
+	this->asvgf_direct_diffuse_blur = percent;
+}
+
+void RenderSystem::set_direct_glossy_blur(float percent)
+{
+	this->asvgf_direct_glossy_blur = percent;
+}
+
+void RenderSystem::set_indirect_diffuse_blur(float percent)
+{
+	this->asvgf_indirect_diffuse_blur = percent;
+}
+
+void RenderSystem::set_indirect_glossy_blur(float percent)
+{
+	this->asvgf_indirect_glossy_blur = percent;
 }
 
 void RenderSystem::enable_progressive_refinement(bool enable) {
@@ -4379,6 +4645,12 @@ void RenderSystem::show_direct_illumination(bool enable)
 	} else {
 		this->push_constants.flags &= ~( 1 << RenderSystemOptions::SHOW_DIRECT_ILLUMINATION );
 	}
+}
+
+
+void RenderSystem::enable_median(bool enable)
+{
+	this->enable_median_filter = enable;
 }
 
 void RenderSystem::show_indirect_illumination(bool enable)

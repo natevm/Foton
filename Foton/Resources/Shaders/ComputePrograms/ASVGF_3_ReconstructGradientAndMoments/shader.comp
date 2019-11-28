@@ -44,14 +44,17 @@ const float gaussian_kernel[3][3] = {
 // }
 
 void main() {
-    // Stride of the gradient tile
-    const int stride = GRADIENT_TILE_SIZE;
-    if (int(gl_GlobalInvocationID.x * stride) >= push.consts.width) return;
-    if (int(gl_GlobalInvocationID.y * stride) >= push.consts.height) return;
+    if (int(gl_GlobalInvocationID.x * GRADIENT_TILE_SIZE * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
+    if (int(gl_GlobalInvocationID.y * GRADIENT_TILE_SIZE * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
 
+    /* Different positions for different downsampled images */
     ivec2 tile = ivec2(gl_GlobalInvocationID.xy);
-    const ivec2 ipos = tile * stride;
-    ivec2 q = ipos;
+    const ivec2 ipos_gt = tile;
+    const ivec2 ipos_pt = ipos_gt * GRADIENT_TILE_SIZE;
+    const ivec2 ipos_full = ipos_pt * PATH_TRACE_TILE_SIZE;
+    ivec2 q_gt = ipos_gt;
+    ivec2 q_pt = ipos_pt;
+    ivec2 q_full = ipos_full;
     
     int minor_iteration = push.consts.iteration % 2;
     int major_iteration = push.consts.iteration;
@@ -72,14 +75,16 @@ void main() {
     vec4 sum = vec4(0.0);
     for(int yy = -RADIUS; yy <= RADIUS; yy++) {
 		for(int xx = -RADIUS; xx <= RADIUS; xx++) {
-            ivec2 p = ipos + ivec2(xx, yy) * stride;
+            ivec2 p = ipos_gt + ivec2(xx, yy);
             // Note, g channel is variance
             vec4 v = imageLoad(gbuffers[lv_addr_0], p);
             float w = gaussian_kernel[xx + 1][yy + 1];
             sum += v * w;
 		}
 	}
-    vec4 sigma_l = sqrt(abs(sum)) * push.consts.parameter1;
+
+    float screen_correction = max(push.consts.width, push.consts.height) / (PATH_TRACE_TILE_SIZE * GRADIENT_TILE_SIZE);
+    vec4 sigma_l = sqrt(abs(sum)) * (pow(push.consts.parameter1, 1.)) * screen_correction;
 
     // Now, we'll reconstruct gradient and moments using an atrous bilateral
 
@@ -89,7 +94,7 @@ void main() {
     // const vec2  z_center             = avg_lum_var_depth.ba;
     // const float avg_center_lum       = avg_lum_var_depth.r;
 
-    const vec4 q_avg_lum = imageLoad(gbuffers[la_addr_0], q);
+    const vec4 q_avg_lum = imageLoad(gbuffers[la_addr_0], q_gt);
 
     // vec4  sum_max_lum_grad       = vec4(0.0);
     vec4 sum_lum_max = vec4(0.0);
@@ -103,7 +108,7 @@ void main() {
     for (int y = -RADIUS; y <= RADIUS; y++) {
         for (int x = -RADIUS; x <= RADIUS; x++) {
             // The tap coordinate
-            ivec2 p = q + (ivec2(x,y) * curr_step_width * stride); 
+            ivec2 p = q_gt + (ivec2(x,y) * curr_step_width); 
     
             // load max luminance, temporal gradient, average luminance, variance, and depth
             vec4 p_max_lum = imageLoad(gbuffers[lm_addr_0], p);
@@ -153,22 +158,17 @@ void main() {
         sum_lum_var /= sum_weight;
         sum_weight /= (sum_weight * sum_weight);
     } else {
-        sum_grad = imageLoad(gbuffers[tg_addr_0], q);
-        sum_lum_max = imageLoad(gbuffers[lm_addr_0], q);
-        sum_lum_avg = imageLoad(gbuffers[la_addr_0], q);
-        sum_lum_var = imageLoad(gbuffers[lv_addr_0], q);
+        sum_grad = imageLoad(gbuffers[tg_addr_0], q_gt);
+        sum_lum_max = imageLoad(gbuffers[lm_addr_0], q_gt);
+        sum_lum_avg = imageLoad(gbuffers[la_addr_0], q_gt);
+        sum_lum_var = imageLoad(gbuffers[lv_addr_0], q_gt);
     }
 
     // Store the filtered results
-    /* BAD. FOR NOW, REPLICATE RESULTS */
-    for (int y = 0; y < stride; y++) {
-        for (int x = 0; x < stride; x++) {
-            imageStore(gbuffers[tg_addr_0], stride * tile + ivec2(x,y), sum_grad);
-            imageStore(gbuffers[lm_addr_0], stride * tile + ivec2(x,y), sum_lum_max);
-            imageStore(gbuffers[la_addr_0], stride * tile + ivec2(x,y), sum_lum_avg);
-            imageStore(gbuffers[lv_addr_0], stride * tile + ivec2(x,y), sum_lum_var);
-        }
-    }
+    imageStore(gbuffers[tg_addr_0], tile, sum_grad);
+    imageStore(gbuffers[lm_addr_0], tile, sum_lum_max);
+    imageStore(gbuffers[la_addr_0], tile, sum_lum_avg);
+    imageStore(gbuffers[lv_addr_0], tile, sum_lum_var);
 }
 
 

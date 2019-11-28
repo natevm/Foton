@@ -23,9 +23,12 @@ set(SHADERS_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/PrimaryVisibility/shader.rgen
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/PrimaryVisibility/shader.rchit
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/PrimaryVisibility/shader.rmiss
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/PathTracer/shader.rgen
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/PathTracer/shader.rchit
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/PathTracer/shader.rmiss
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/DiffusePathTracer/shader.rgen
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/DiffusePathTracer/shader.rchit
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/DiffusePathTracer/shader.rmiss
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/SpecularPathTracer/shader.rgen
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/SpecularPathTracer/shader.rchit
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/SpecularPathTracer/shader.rmiss
 
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/DeferredFinal/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/EdgeDetect/shader.comp
@@ -34,6 +37,7 @@ set(SHADERS_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/TAA/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/VSM/GaussianBlurX/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/VSM/GaussianBlurY/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/Median3x3/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_1_ReprojectSeeds/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_2_ComputeGradientAndMoments/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_3_ReconstructGradientAndMoments/shader.comp

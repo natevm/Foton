@@ -11,7 +11,7 @@
 #include "Foton/Texture/TextureStruct.hxx"
 
 #ifndef MAX_G_BUFFERS  
-#define MAX_G_BUFFERS 50
+#define MAX_G_BUFFERS 60
 #endif
 
 class Texture : public StaticFactory

@@ -35,7 +35,7 @@
 
 // Specular is much more likely to ghost, due to more undefined disocclusions.
 #define MAX_SPECULAR_CUMULATIVE_COUNT 16
-#define MIN_SPECULAR_CUMULATIVE_COUNT 2
+#define MIN_SPECULAR_CUMULATIVE_COUNT 1
 
 // The larger max cumulative count is, the more powerful soft reset rate should be?
 #define MIN_SOFT_RESET_COUNT 4
@@ -64,7 +64,7 @@
 // of multiplying, since multiplying makes certain convolutions
 // too expensive. 
 #define PATH_TRACE_TILE_SIZE 2
-#define GRADIENT_TILE_SIZE (2 + PATH_TRACE_TILE_SIZE)
+#define GRADIENT_TILE_SIZE 2
 
 #define GRADIENT_DOWNSAMPLE (1.0/float(10))
 #define GRADIENT_USE_RANDOM false
