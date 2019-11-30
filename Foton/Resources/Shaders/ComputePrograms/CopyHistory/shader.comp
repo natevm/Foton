@@ -14,8 +14,8 @@ void main() {
     imageStore(gbuffers[POSITION_DEPTH_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
 
     // Normal G Buffer
-    temp = imageLoad(gbuffers[NORMAL_ID_ADDR], ivec2(gl_GlobalInvocationID.xy));
-    imageStore(gbuffers[NORMAL_ID_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
+    temp = imageLoad(gbuffers[NORMAL_ADDR], ivec2(gl_GlobalInvocationID.xy));
+    imageStore(gbuffers[NORMAL_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
 
     // Seed / Luminance G Buffer
     temp = imageLoad(gbuffers[SEED_ADDR], ivec2(gl_GlobalInvocationID.xy));
@@ -76,6 +76,6 @@ void main() {
     //     imageStore(gbuffers[DEBUG_ADDR],  ivec2(gl_GlobalInvocationID.xy), vec4(temp.w));
 
     /* TEMPORARY, GENERATE NEW PIXEL SEEDS */
-    imageStore(gbuffers[SEED_ADDR], ivec2(gl_GlobalInvocationID.xy), 
-        vec4(gl_GlobalInvocationID.xy / PATH_TRACE_TILE_SIZE, push.consts.frame+1, 0.f));
+    imageStore(gbuffers[DIFFUSE_SEED_ADDR], ivec2(gl_GlobalInvocationID.xy), vec4(gl_GlobalInvocationID.xy, push.consts.frame+1, 0.f));
+    imageStore(gbuffers[SPECULAR_SEED_ADDR], ivec2(gl_GlobalInvocationID.xy), vec4(gl_GlobalInvocationID.xy, push.consts.frame+1, 0.f));
 }

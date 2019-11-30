@@ -19,6 +19,10 @@ void main()
     vec4 temp = imageLoad(gbuffers[SEED_ADDR], pixel_coords);
     ivec2 pixel_seed = ivec2(temp.xy);
     int frame_seed = int(temp.z);
+    init_random(pixel_seed, frame_seed, 0);
+    
+    float rand = random();
+    imageStore(gbuffers[RANDOM_ADDR], pixel_coords, vec4(rand));
 
     vec3 origin, direction;
     EntityStruct camera_entity = ebo.entities[push.consts.camera_id];
@@ -47,6 +51,7 @@ void main()
     int bounce = 0;
     precise vec3 motion = vec3(0.0);
     bool reset = true;
+    bool is_flat;
 
     EntityStruct entity;
     entity.initialized = 0;
@@ -94,6 +99,7 @@ void main()
         world_normal = payload.w_n;
         dist = payload.distance;
         uv = payload.uv;
+        is_flat = payload.is_flat;
 
         /* Compute motion vector for primary visibility */
         if (entity.initialized == 1) {
@@ -112,8 +118,9 @@ void main()
 
     // specular lobe axis and sharpness 
     vec3 w_i = normalize(reflect(direction, world_normal));
-    float alpha = clamp(roughness * roughness, .0001, .9999);
-    float specular_sharpness = (1.0 - alpha);
+    float alpha = clamp(roughness * roughness, .0000, 1.);
+    // important that this is between 0 and 1
+    float specular_sharpness = (1.0 - alpha); 
     
 
     /* Write to G Buffers */
@@ -124,7 +131,7 @@ void main()
     imageStore(gbuffers[POSITION_DEPTH_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(world_position, dist));
 
     // Normal G Buffer
-    imageStore(gbuffers[NORMAL_ID_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(world_normal, entity_id));
+    imageStore(gbuffers[NORMAL_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(world_normal, (is_flat) ? 1.f : 0.f));
 
     // UV
     imageStore(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(uv.x, uv.y, metallic, roughness));
@@ -141,9 +148,9 @@ void main()
     // Specular lobe axis and sharpness
     imageStore(gbuffers[LOBE_AXIS_SHARPNESS_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(w_i, specular_sharpness));
 
-    if (int(gl_LaunchIDNV.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
-    if (int(gl_LaunchIDNV.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
+    // if (int(gl_LaunchIDNV.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
+    // if (int(gl_LaunchIDNV.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
     
     // Seed (For path tracing, downsampled)
-    imageStore(gbuffers[SEED_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(pixel_seed, frame_seed, 1.0));
+    // imageStore(gbuffers[SEED_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(pixel_seed, frame_seed, 1.0));
 }

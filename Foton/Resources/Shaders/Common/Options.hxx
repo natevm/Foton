@@ -18,6 +18,7 @@
 #define SHOW_INDIRECT_ILLUMINATION 9
 #define SHOW_ALBEDO 10
 #define ENABLE_ANALYICAL_AREA_LIGHTS 16
+#define ENABLE_BILATERAL_UPSAMPLING 17
 
 bool is_multiview_enabled()
 {
@@ -78,6 +79,12 @@ bool should_show_indirect_illumination()
 bool should_show_albedo()
 {
     return (push.consts.flags & (1 << SHOW_ALBEDO)) != 0;
+}
+
+
+bool is_bilateral_upsampling_enabled()
+{
+    return (push.consts.flags & (1 << ENABLE_BILATERAL_UPSAMPLING)) != 0;
 }
 
 #endif

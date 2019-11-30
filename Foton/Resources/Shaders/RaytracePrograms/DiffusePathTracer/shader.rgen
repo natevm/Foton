@@ -39,36 +39,38 @@ void main()
     
     /* Load primary visibility data from G Buffers */
     vec4 temp;
-    ivec2 ipos = tile * PATH_TRACE_TILE_SIZE + offset_curr;
+    ivec2 ipos_full = tile * PATH_TRACE_TILE_SIZE + offset_curr;
 
     // Seed / Luminance G Buffer
     temp = imageLoad(gbuffers[SEED_ADDR], tile);
     ivec2 pixel_seed = ivec2(temp.xy);
     int frame_seed = int(temp.z);
     init_random(pixel_seed, frame_seed, 0);
+    // rand = random();
+    // imageStore(gbuffers[RANDOM_ADDR], tile, vec4(rand));
 
     // Position G Buffer 
-    temp = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
+    temp = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos_full);
     vec3 first_position = temp.xyz;
     float first_dist = temp.w;
 
     // Normal G Buffer
-    temp = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
+    temp = imageLoad(gbuffers[NORMAL_ADDR], ipos_full);
     vec3 first_normal = normalize(temp.xyz);
 
     // Component IDs
-    temp = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos);
+    temp = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos_full);
     int first_entity_id = int(temp.r);
     int first_material_id = int(temp.g);
     int first_transform_id = int(temp.b);
     int first_light_id = int(temp.a);
 
     // UV G Buffer
-    temp = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos);
+    temp = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos_full);
     vec2 first_uv = temp.xy;
 
     // Raw albedo
-    temp = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ipos);
+    temp = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ipos_full);
     vec4 first_albedo = temp;
 
     // bad precision in position g buffer... getting lots of self intersections...
@@ -82,7 +84,7 @@ void main()
     int multiview_idx = 0; //push.consts.viewIndex;
     mat4 projinv = camera.multiviews[multiview_idx].projinv;
     mat4 viewinv = camera_transform.localToWorld * camera.multiviews[multiview_idx].viewinv;
-    vec2 pixel_center = vec2(ipos.xy) + vec2(random(), random()) * .5;
+    vec2 pixel_center = vec2(ipos_full.xy) + vec2(random(), random()) * .5;
 	const vec2 in_uv = pixel_center/vec2(push.consts.width, push.consts.height);
 	vec2 d = in_uv * 2.0 - 1.0; d.y *= -1.0;
     vec4 t = (projinv * vec4(d.x, d.y, 1, 1));
@@ -197,4 +199,8 @@ void main()
                                                     luminance(indirect_diffuse_radiance), 
                                                     0.0,
                                                     0.0));
+
+    // Coarse data for upsampling
+    imageStore(gbuffers[COARSE_NORMAL_ADDR], tile, vec4(first_normal, 1.0));
+    imageStore(gbuffers[COARSE_POSITION_DEPTH_ADDR], tile, vec4(first_position, first_dist));
 }

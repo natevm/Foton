@@ -22,6 +22,7 @@
 #define TMAX 1000
 
 #define MOTION_VECTOR_OFFSET vec2(.5, .5)
+// todo, get rid of this motion vector min...
 #define MOTION_VECTOR_MIN .0
 
 #define MAX_TRANSPARENCY_CONTINUES 10
@@ -63,7 +64,7 @@
 // Adding path trace tile size to gradient tile size instead
 // of multiplying, since multiplying makes certain convolutions
 // too expensive. 
-#define PATH_TRACE_TILE_SIZE 2
+#define PATH_TRACE_TILE_SIZE 4
 #define GRADIENT_TILE_SIZE 2
 
 #define GRADIENT_DOWNSAMPLE (1.0/float(10))
@@ -71,3 +72,6 @@
 #define GRADIENT_MAX_PIXEL_DISTANCE 5
 
 #define PDF_CLAMP .1
+
+#define NEAREST_SAMPLER 1
+#define LINEAR_SAMPLER 0

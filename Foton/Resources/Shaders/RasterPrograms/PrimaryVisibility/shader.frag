@@ -41,7 +41,7 @@ void main()
 	albedo_color += mat.base_color.rgb;
 	albedo_color += light.color.rgb * light.intensity;
 	position_depth = vec4(w_position, dist);
-    normal_id = vec4(w_normal, push.consts.target_id);
+    normal = vec4(w_normal, 1);
     seed_pixel = vec4(pixel_coords.x, pixel_coords.y, push.consts.frame, 1.0);
     albedo = vec4(albedo_color, 1.0);
     motion = vec4(s_motion, 0.0, 0.0);

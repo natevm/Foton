@@ -42,6 +42,7 @@ void main() {
 	vec3 N1 = NormalBuffers[nonuniformEXT(entity.mesh_id)].normals[I1].xyz;
 	vec3 N2 = NormalBuffers[nonuniformEXT(entity.mesh_id)].normals[I2].xyz;
 	vec3 N = N0 * barycentrics.x + N1 * barycentrics.y + N2 * barycentrics.z;
+	bool is_flat = ((dot(N0, N1) > .99) && (dot(N1, N2) > .99));
 
 	// if (dot(N.xyz, -gl_ObjectRayDirectionNV) < 0) N *= -1;
 
@@ -75,4 +76,5 @@ void main() {
 	payload.entity_id = gl_InstanceID;
 	payload.distance = gl_RayTmaxNV;
 	payload.backface = dot(N, -gl_ObjectRayDirectionNV) < 0.0;
+	payload.is_flat = is_flat;
 }

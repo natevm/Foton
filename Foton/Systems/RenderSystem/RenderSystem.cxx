@@ -590,15 +590,18 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
 					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 					
-					command_buffer.pushConstants(asvgf_reproject_seeds.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, asvgf_reproject_seeds.pipeline);
-
 					uint32_t local_size_x = 16;
 					uint32_t local_size_y = 16;
 
 					uint32_t groupX = (width + local_size_x - 1) / local_size_x;
 					uint32_t groupY = (height + local_size_y - 1) / local_size_y;
 					uint32_t groupZ = 1;
+					command_buffer.pushConstants(asvgf_reproject_diffuse_seeds.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, asvgf_reproject_diffuse_seeds.pipeline);
+					command_buffer.dispatch(groupX, groupY, groupZ);
+
+					command_buffer.pushConstants(asvgf_reproject_specular_seeds.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, asvgf_reproject_specular_seeds.pipeline);
 					command_buffer.dispatch(groupX, groupY, groupZ);
 				}
 			}
@@ -821,6 +824,80 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 					command_buffer.dispatch(groupX, groupY, groupZ);
 
 					push_constants.parameter1 = GLOSSY_INDIRECT_ADDR;
+					push_constants.parameter2 = ATROUS_HISTORY_1_ADDR;
+					push_constants.iteration = 0;
+					command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.dispatch(groupX, groupY, groupZ);
+					push_constants.iteration = 1;
+					command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.dispatch(groupX, groupY, groupZ);
+				}
+			}
+
+			/* Bilateral Upsampling */
+			if (enable_bilateral_upsampling_filter) {
+				for(uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
+					push_constants.target_id = -1;
+					push_constants.camera_id = camera_entity.get_id();
+					push_constants.viewIndex = rp_idx;
+					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
+					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+
+					uint32_t local_size_x = 16;
+					uint32_t local_size_y = 16;
+
+					uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+					uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+					uint32_t groupZ = 1;
+
+					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, bilateral_upsample.pipeline);
+					
+					push_constants.parameter1 = DIFFUSE_DIRECT_ADDR;
+					push_constants.parameter2 = ATROUS_HISTORY_1_ADDR;
+					push_constants.iteration = 0;
+					command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.dispatch(groupX, groupY, groupZ);
+					push_constants.iteration = 1;
+					command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.dispatch(groupX, groupY, groupZ);
+
+					push_constants.parameter1 = DIFFUSE_INDIRECT_ADDR;
+					push_constants.parameter2 = ATROUS_HISTORY_1_ADDR;
+					push_constants.iteration = 0;
+					command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.dispatch(groupX, groupY, groupZ);
+					push_constants.iteration = 1;
+					command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.dispatch(groupX, groupY, groupZ);
+
+					push_constants.parameter1 = GLOSSY_DIRECT_ADDR;
+					push_constants.parameter2 = ATROUS_HISTORY_1_ADDR;
+					push_constants.iteration = 0;
+					command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.dispatch(groupX, groupY, groupZ);
+					push_constants.iteration = 1;
+					command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.dispatch(groupX, groupY, groupZ);
+
+					push_constants.parameter1 = GLOSSY_INDIRECT_ADDR;
+					push_constants.parameter2 = ATROUS_HISTORY_1_ADDR;
+					push_constants.iteration = 0;
+					command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.dispatch(groupX, groupY, groupZ);
+					push_constants.iteration = 1;
+					command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.dispatch(groupX, groupY, groupZ);
+
+					push_constants.parameter1 = EMISSION_ADDR;
+					push_constants.parameter2 = ATROUS_HISTORY_1_ADDR;
+					push_constants.iteration = 0;
+					command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.dispatch(groupX, groupY, groupZ);
+					push_constants.iteration = 1;
+					command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.dispatch(groupX, groupY, groupZ);
+
+					push_constants.parameter1 = ENVIRONMENT_ADDR;
 					push_constants.parameter2 = ATROUS_HISTORY_1_ADDR;
 					push_constants.iteration = 0;
 					command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
@@ -3038,6 +3115,18 @@ void RenderSystem::setup_compute_pipelines()
 		median_3x3.ready = true;
 	}
 
+	/* Bilateral Upsampler */
+	{
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/BilateralUpsample/comp.spv"));
+		auto compShaderModule = create_shader_module("bilateral_upsample", compShaderCode);
+		compShaderStageInfo.module = compShaderModule;
+        bilateral_upsample.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = bilateral_upsample.pipelineLayout;
+        bilateral_upsample.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		bilateral_upsample.ready = true;
+	}
+
 	/* ------ Temporal Antialiasing  ------ */
 	{
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/TAA/comp.spv"));
@@ -3110,16 +3199,28 @@ void RenderSystem::setup_compute_pipelines()
 		svgf_remodulate.ready = true;
 	}
 
-	/* ASVGF Reproject Seeds */
+	/* ASVGF Reproject Diffuse Seeds */
 	{
-		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_1_ReprojectSeeds/comp.spv"));
-		auto compShaderModule = create_shader_module("asvgf_reproject_seeds", compShaderCode);
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_1_ReprojectDiffuseSeeds/comp.spv"));
+		auto compShaderModule = create_shader_module("asvgf_reproject_diffuse_seeds", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        asvgf_reproject_seeds.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        asvgf_reproject_diffuse_seeds.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
-        computeCreateInfo.layout = asvgf_reproject_seeds.pipelineLayout;
-        asvgf_reproject_seeds.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
-		asvgf_reproject_seeds.ready = true;
+        computeCreateInfo.layout = asvgf_reproject_diffuse_seeds.pipelineLayout;
+        asvgf_reproject_diffuse_seeds.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		asvgf_reproject_diffuse_seeds.ready = true;
+	}
+
+	/* ASVGF Reproject Specular Seeds */
+	{
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_1_ReprojectSpecularSeeds/comp.spv"));
+		auto compShaderModule = create_shader_module("asvgf_reproject_specular_seeds", compShaderCode);
+		compShaderStageInfo.module = compShaderModule;
+        asvgf_reproject_specular_seeds.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = asvgf_reproject_specular_seeds.pipelineLayout;
+        asvgf_reproject_specular_seeds.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		asvgf_reproject_specular_seeds.ready = true;
 	}
 
 	/* ASVGF Compute Sparse Gradient */
@@ -4228,10 +4329,12 @@ void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffe
 		(gaussian_x.ready == false) || 
 		(gaussian_y.ready == false) || 
 		(median_3x3.ready == false) || 
+		(bilateral_upsample.ready == false) ||
 		(reconstruct_diffuse.ready == false) ||
 		(reconstruct_glossy.ready == false) ||
 		(svgf_remodulate.ready == false) ||
-		(asvgf_reproject_seeds.ready == false) ||
+		(asvgf_reproject_diffuse_seeds.ready == false) ||
+		(asvgf_reproject_specular_seeds.ready == false) ||
 		(asvgf_compute_gradient.ready == false) ||
 		(asvgf_reconstruct_gradient.ready == false) ||
 		(asvgf_estimate_variance.ready == false)
@@ -4249,10 +4352,12 @@ void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffe
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, gaussian_x.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, gaussian_y.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, median_3x3.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, bilateral_upsample.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, reconstruct_diffuse.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, reconstruct_glossy.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, svgf_remodulate.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
-	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_reproject_seeds.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_reproject_diffuse_seeds.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_reproject_specular_seeds.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_compute_gradient.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_reconstruct_gradient.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_estimate_variance.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
@@ -4651,6 +4756,16 @@ void RenderSystem::show_direct_illumination(bool enable)
 void RenderSystem::enable_median(bool enable)
 {
 	this->enable_median_filter = enable;
+}
+
+void RenderSystem::enable_bilateral_upsampling(bool enable)
+{
+	this->enable_bilateral_upsampling_filter = enable;
+	if (this->enable_bilateral_upsampling_filter) {
+		this->push_constants.flags |= ( 1 << RenderSystemOptions::ENABLE_BILATERAL_UPSAMPLING );
+	} else {
+		this->push_constants.flags &= ~( 1 << RenderSystemOptions::ENABLE_BILATERAL_UPSAMPLING );
+	}
 }
 
 void RenderSystem::show_indirect_illumination(bool enable)

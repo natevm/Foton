@@ -54,7 +54,17 @@ compute_sigma_luminance(float center, ivec2 ipos, int addr)
 }
 
 void main() {
+    if (is_bilateral_upsampling_enabled()) {
+        if (int(gl_GlobalInvocationID.x) >= push.consts.width) return;
+        if (int(gl_GlobalInvocationID.y) >= push.consts.height) return;
+    }
+    else {
+        if (int(gl_GlobalInvocationID.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
+        if (int(gl_GlobalInvocationID.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
+    }
+
     ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 ipos_full = ivec2(gl_GlobalInvocationID.xy) * (is_bilateral_upsampling_enabled() ? 1 : PATH_TRACE_TILE_SIZE) ;
     int minor_iteration = push.consts.iteration % 2;
     int major_iteration = push.consts.iteration;
 
@@ -63,17 +73,18 @@ void main() {
     const int i_addr_0 = ((minor_iteration%2) != 0) ? GLOSSY_INDIRECT_ADDR : ATROUS_HISTORY_2_ADDR;
     const int i_addr_1 = ((minor_iteration%2) != 0) ? ATROUS_HISTORY_2_ADDR : GLOSSY_INDIRECT_ADDR;
 
-    vec4 p_pos_dep_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos * PATH_TRACE_TILE_SIZE);
-    vec4 p_norm_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos * PATH_TRACE_TILE_SIZE);
+    vec4 p_pos_dep_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos_full);
+    vec4 p_norm_data = imageLoad(gbuffers[NORMAL_ADDR], ipos_full);
+    vec4 p_id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos_full);
     vec4 p_lum_var_data = imageLoad(gbuffers[LUMINANCE_VARIANCE_ADDR], ipos);
-    vec4 p_uv_met_rough = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR],  ipos * PATH_TRACE_TILE_SIZE);
+    vec4 p_uv_met_rough = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR],  ipos_full);
     vec4 p_direct_var = imageLoad(gbuffers[d_addr_0], ipos);
     vec4 p_indirect_var = imageLoad(gbuffers[i_addr_0], ipos);  
-    vec4 p_spec_axis_sharpness = imageLoad(gbuffers[LOBE_AXIS_SHARPNESS_ADDR], ipos * PATH_TRACE_TILE_SIZE); 
+    vec4 p_spec_axis_sharpness = imageLoad(gbuffers[LOBE_AXIS_SHARPNESS_ADDR], ipos_full); 
     float l_p_direct = luminance(p_direct_var.rgb);
     float l_p_indirect = luminance(p_indirect_var.rgb);
 
-    float screen_correction = max(push.consts.width, push.consts.height) / PATH_TRACE_TILE_SIZE;
+    float screen_correction = max(push.consts.width, push.consts.height) / (is_bilateral_upsampling_enabled() ? 1 : PATH_TRACE_TILE_SIZE);
 
     int curr_step_width = 1 << major_iteration;
     // float l_sigma_direct = compute_sigma_luminance(p_direct_var.a, ipos, d_addr_0) * 3.0 * push.consts.parameter1; 
@@ -97,22 +108,24 @@ void main() {
     float weights_direct = EPSILON;
     float weights_indirect = EPSILON;
 
-    if (int(p_norm_id_data.w) != -1) {
+    if (int(p_id_data.r) != -1) {
         for (int yy = -RADIUS; yy <= RADIUS; ++yy){
             for (int xx = -RADIUS; xx <= RADIUS; ++xx) {
                 ivec2 offset = ivec2(xx, yy) * curr_step_width;
                 ivec2 st = ipos + offset;
+                ivec2 st_full = st * (is_bilateral_upsampling_enabled() ? 1 : PATH_TRACE_TILE_SIZE);
                 if ((st.x < 0) || (st.y < 0) || 
                     (st.x >= push.consts.width) 
                     || (st.y >= push.consts.height)) continue;
 
                 vec4 q_direct_var = imageLoad(gbuffers[d_addr_0], ivec2(st));
                 vec4 q_indirect_var = imageLoad(gbuffers[i_addr_0], ivec2(st));
-                vec4 q_norm_id_data = imageLoad(gbuffers[NORMAL_ID_ADDR], st * PATH_TRACE_TILE_SIZE);
+                vec4 q_norm_data = imageLoad(gbuffers[NORMAL_ADDR], st_full);
+                vec4 q_id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], st_full);
                 if (any(isnan(q_direct_var))) continue; 
                 if (any(isnan(q_indirect_var))) continue;
-                if (!eps_equal(p_norm_id_data.w, q_norm_id_data.w)) continue;
-                vec4 q_pos_dep_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], st * PATH_TRACE_TILE_SIZE);
+                if (!eps_equal(p_id_data.r, q_id_data.r)) continue;
+                vec4 q_pos_dep_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], st_full);
 
                 vec3 t = p_pos_dep_data.xyz - q_pos_dep_data.xyz;
                 float dist2 = dot(t, t) + t.z * t.z;
@@ -130,7 +143,7 @@ void main() {
                 float beta_indirect = r_sigma_indirect;
                 
                 // lobe sharpness
-                vec4 temp = imageLoad(gbuffers[LOBE_AXIS_SHARPNESS_ADDR], ivec2(st) * PATH_TRACE_TILE_SIZE);
+                vec4 temp = imageLoad(gbuffers[LOBE_AXIS_SHARPNESS_ADDR], st_full);
                 float lambda_q = temp.w;
                 float lambda_p = p_spec_axis_sharpness.w;
                                 

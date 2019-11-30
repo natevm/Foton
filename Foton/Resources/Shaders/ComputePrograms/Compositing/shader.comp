@@ -3,6 +3,7 @@
 #define COMPUTE
 
 #include "Foton/Resources/Shaders/Common/Descriptors.hxx"
+#include "Foton/Resources/Shaders/Common/Options.hxx"
 
 layout (local_size_x = 16, local_size_y = 16) in;
 
@@ -24,7 +25,7 @@ void main() {
     int render_image_idx = int(push.consts.parameter1); 
 
     ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
-    ivec2 ipt = ivec2(gl_GlobalInvocationID.xy) / PATH_TRACE_TILE_SIZE;
+    ivec2 ipt = ivec2(gl_GlobalInvocationID.xy) / ((is_bilateral_upsampling_enabled()) ? 1 : PATH_TRACE_TILE_SIZE);
     ivec2 igt = ivec2(gl_GlobalInvocationID.xy) / (PATH_TRACE_TILE_SIZE * GRADIENT_TILE_SIZE);
     
     vec3 color;
@@ -53,11 +54,11 @@ void main() {
     }
     // GBuffer override for debugging
     else if ( 
+        ((render_image_idx - 1) == DIFFUSE_DIRECT_ADDR) ||
+        ((render_image_idx - 1) == DIFFUSE_INDIRECT_ADDR) ||
         ((render_image_idx - 1) == SEED_ADDR) ||
         ((render_image_idx - 1) == SEED_ADDR_PREV) ||
         ((render_image_idx - 1) == GLOSSY_MOTION_ADDR) ||
-        ((render_image_idx - 1) == DIFFUSE_DIRECT_ADDR) ||
-        ((render_image_idx - 1) == DIFFUSE_INDIRECT_ADDR) ||
         ((render_image_idx - 1) == GLOSSY_DIRECT_ADDR) ||
         ((render_image_idx - 1) == GLOSSY_INDIRECT_ADDR) ||
         ((render_image_idx - 1) == LUMINANCE_ADDR) ||

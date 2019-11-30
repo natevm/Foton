@@ -47,11 +47,12 @@ const float h[1][1] = {
 void main() {
     if (int(gl_GlobalInvocationID.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
     if (int(gl_GlobalInvocationID.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
-
+    
     float screen_correction = max(push.consts.width, push.consts.height) / PATH_TRACE_TILE_SIZE;
     float r_sigma_indirect = 10.0 * (1.0 - sqrt(.5)) * screen_correction; // user controllable power
 
     ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
+    const ivec2 ipos_full = ivec2(gl_GlobalInvocationID.xy) * PATH_TRACE_TILE_SIZE;
     float gradient_weight = push.consts.parameter1;
 
     // This temporal accumulation uses two ping pong buffers per accumulated
@@ -65,10 +66,6 @@ void main() {
     bool reset = false;
     precise vec4 motion_data = imageLoad(gbuffers[GLOSSY_MOTION_ADDR], ipos);
     if (motion_data.w > 0) reset = true; // reset history if motion data is invalid
-    
-    // temporary, motion vector data doesn't seem right...
-    motion_data = vec4(0.);
-
     precise vec2 v = motion_data.xy * vec2(.5, -.5);
     precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height) / PATH_TRACE_TILE_SIZE;
     iv.x = (abs(iv.x) < MOTION_VECTOR_MIN) ? 0 : iv.x;
@@ -77,9 +74,10 @@ void main() {
     ivec2 p = ivec2(pos_prev - 0.5);
 
     // Load g buffer data which we'll use for detecting disocclusions
-    int curr_entity_id = int(imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos * PATH_TRACE_TILE_SIZE).r);
-    vec4 curr_spec_axis_sharpness = imageLoad(gbuffers[LOBE_AXIS_SHARPNESS_ADDR], ipos * PATH_TRACE_TILE_SIZE); 
-    vec3 curr_normal = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos * PATH_TRACE_TILE_SIZE).rgb;
+    int curr_entity_id = int(imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos_full).r);
+    int curr_refl_entity_id = int(imageLoad(gbuffers[REFLECTED_ID_ADDR_AND_PREV], ipos).r);
+    vec4 curr_spec_axis_sharpness = imageLoad(gbuffers[LOBE_AXIS_SHARPNESS_ADDR], ipos_full); 
+    vec3 curr_normal = imageLoad(gbuffers[NORMAL_ADDR], ipos_full).rgb;
     
     // Load g buffer data to be temporally accumulated
 	vec4  specular_curr     = imageLoad(gbuffers[GLOSSY_INDIRECT_ADDR], ipos);
@@ -102,11 +100,14 @@ void main() {
         for (int y = -r; y <= r; ++y) {
             for (int x = -r; x <= r; ++x) {
                 ivec2 ipos_prev = pos_prev + ivec2(x, y);
+                ivec2 ipos_prev_full = ipos_prev * PATH_TRACE_TILE_SIZE;
                 
                 // Load disocclusion gbuffer data
-                int hist_entity_id = int(imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos_prev * PATH_TRACE_TILE_SIZE));
-                vec4 hist_spec_axis_sharpness = imageLoad(gbuffers[LOBE_AXIS_SHARPNESS_ADDR_PREV], ipos_prev * PATH_TRACE_TILE_SIZE); 
-                vec3 hist_normal = imageLoad(gbuffers[NORMAL_ID_ADDR_PREV], ipos_prev * PATH_TRACE_TILE_SIZE).rgb;
+                int hist_entity_id = int(imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos_prev_full));
+                int hist_refl_entity_id = int(imageLoad(gbuffers[REFLECTED_ID_ADDR_AND_PREV], ipos_prev).g);
+
+                vec4 hist_spec_axis_sharpness = imageLoad(gbuffers[LOBE_AXIS_SHARPNESS_ADDR_PREV], ipos_prev_full); 
+                vec3 hist_normal = imageLoad(gbuffers[NORMAL_ADDR_PREV], ipos_prev_full).rgb;
 
                 // Load prior gbuffer data to accumulate temporally 
                 vec4 specular = imageLoad(gbuffers[curr_specular_hist_addr], ipos_prev);
@@ -138,10 +139,12 @@ void main() {
                 float indirect_lobe_sharpness_similarity = pow( (2.0 * sqrt(lambda_p * lambda_q)) / (lambda_p + lambda_q), r_sigma_indirect);
                 float wr_indirect = indirect_lobe_axis_similarity * indirect_lobe_sharpness_similarity;
 
+                float w_id_indirect = mix(1.0, (curr_refl_entity_id == hist_refl_entity_id) ? 1.0 : 0.0, curr_spec_axis_sharpness.w);
+
 
                 float normal_similarity = exp(((r_sigma_indirect*lambda_p*lambda_q)/(lambda_p + lambda_q)) * (dot(curr_normal,hist_normal) - 1.0f));
 
-                float w = h[y + RADIUS][x + RADIUS] * wr_indirect * normal_similarity;
+                float w = h[y + RADIUS][x + RADIUS] * wr_indirect * normal_similarity * w_id_indirect;
                 
                 if (accept) {                   
                     specular_prev += specular * w;
@@ -159,8 +162,9 @@ void main() {
         float w_sum = 0.f;
 		for(int y = -r; y <= r; y++) {
 			for(int x = -r; x <= r; x++) {
-				vec4 gradient = imageLoad(gbuffers[TEMPORAL_GRADIENT_ADDR], pos_prev / GRADIENT_TILE_SIZE + ivec2(x, y)); 
-				vec4 max_luminance = imageLoad(gbuffers[LUMINANCE_MAX_ADDR], pos_prev / GRADIENT_TILE_SIZE + ivec2(x, y)); 
+                ivec2 p = pos_prev / GRADIENT_TILE_SIZE + ivec2(x, y);
+				vec4 gradient = imageLoad(gbuffers[TEMPORAL_GRADIENT_ADDR], p); 
+				vec4 max_luminance = imageLoad(gbuffers[LUMINANCE_MAX_ADDR], p); 
                 max_luminance = max(max_luminance, vec4(1e-4));
 				
 				vec4 a = gradient / max_luminance;

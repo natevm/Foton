@@ -27,10 +27,18 @@ vec3 Uncharted2Tonemap(vec3 x)
 }
 
 void main() {
-    if (int(gl_GlobalInvocationID.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
-    if (int(gl_GlobalInvocationID.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
+    bool upsampling = is_bilateral_upsampling_enabled();
+    if (upsampling) {
+        if (int(gl_GlobalInvocationID.x) >= push.consts.width) return;
+        if (int(gl_GlobalInvocationID.y) >= push.consts.height) return;
+    }
+    else {
+        if (int(gl_GlobalInvocationID.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
+        if (int(gl_GlobalInvocationID.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
+    }
 
     const ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
+    const ivec2 ipos_full = ivec2(gl_GlobalInvocationID.xy) * (upsampling ? 1 : PATH_TRACE_TILE_SIZE) ;
     init_random(ipos, push.consts.frame, 0);
     vec3 color;
 
@@ -49,12 +57,15 @@ void main() {
         pixel_seed, frame_seed,
         camera.multiviews[multiview_idx].projinv,
         camera_transform.localToWorld * camera.multiviews[multiview_idx].viewinv,
-        ipos * PATH_TRACE_TILE_SIZE, ivec2(push.consts.width, push.consts.height), origin, direction);
+        ipos_full, ivec2(push.consts.width, push.consts.height), origin, direction);
         
     // Normal G Buffer
-    temp = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos * PATH_TRACE_TILE_SIZE);
+    temp = imageLoad(gbuffers[NORMAL_ADDR], ipos_full);
     vec3 w_n = temp.xyz;
-    int entity_id = int(temp.w);
+    
+    // ID G Buffer
+    temp = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos_full);
+    int entity_id = int(temp.r);
 
 
     // vec3 diffuse_color = vec3(0);
@@ -78,12 +89,12 @@ void main() {
 
     if (entity_id != -1) {
         // Position G Buffer 
-        temp = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos * PATH_TRACE_TILE_SIZE);
+        temp = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos_full);
         vec3 w_p = temp.xyz;
         float depth = temp.w;
 
         // UV G Buffer
-        temp = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos * PATH_TRACE_TILE_SIZE);
+        temp = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos_full);
         vec2 uv = temp.xy;
 
         // // Raw albedo

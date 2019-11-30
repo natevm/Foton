@@ -50,6 +50,7 @@ enum RenderSystemOptions : uint32_t {
     SHOW_INDIRECT_ILLUMINATION = 9,
     SHOW_ALBEDO = 10,
     ENABLE_ANALYTICAL_AREA_LIGHTS=16,
+    ENABLE_BILATERAL_UPSAMPLING=17,
 };
 
 namespace Systems 
@@ -120,6 +121,7 @@ namespace Systems
             void enable_analytical_arealights(bool enable);
 
             void enable_median(bool enable);
+            void enable_bilateral_upsampling(bool enable);
 
             float test_param = 1.0;
             void set_debug_parameter(float param) 
@@ -207,6 +209,7 @@ namespace Systems
             int gbuffer_override_idx = 0;
 
             bool enable_median_filter = true;
+            bool enable_bilateral_upsampling_filter = true;
 
             
             /* A vector of vertex input binding descriptions, describing binding and stride of per vertex data. */
@@ -318,10 +321,12 @@ namespace Systems
             ComputePipelineResources deferred_final;
             ComputePipelineResources edgedetect;
             ComputePipelineResources median_3x3;
+            ComputePipelineResources bilateral_upsample;
             ComputePipelineResources gaussian_x;
             ComputePipelineResources gaussian_y;
             ComputePipelineResources svgf_remodulate;
-            ComputePipelineResources asvgf_reproject_seeds;
+            ComputePipelineResources asvgf_reproject_diffuse_seeds;
+            ComputePipelineResources asvgf_reproject_specular_seeds;
             ComputePipelineResources asvgf_compute_gradient;
             ComputePipelineResources asvgf_reconstruct_gradient;
             ComputePipelineResources asvgf_diffuse_temporal_accumulation;

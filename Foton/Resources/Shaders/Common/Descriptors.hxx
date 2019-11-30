@@ -53,7 +53,7 @@ layout(std430, push_constant) uniform PushConstants {
 #if defined RASTER && defined PRIMARY_VISIBILITY
 layout(location = ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR) out vec4 entity_material_transform_light;
 layout(location = POSITION_DEPTH_ADDR) out vec4 position_depth;
-layout(location = NORMAL_ID_ADDR) out vec4 normal_id;
+layout(location = NORMAL_ADDR) out vec4 normal;
 layout(location = SEED_ADDR) out vec4 seed_pixel;
 layout(location = DIFFUSE_COLOR_ADDR) out vec4 albedo;
 layout(location = DIFFUSE_MOTION_ADDR) out vec4 motion;
@@ -136,10 +136,12 @@ struct HitInfo {
     int entity_id; 
     bool is_shadow_ray;
     bool backface;
+    bool is_flat;
 };
 
 #if defined  RAYTRACING || defined COMPUTE
 
+// TODO: remove this function
 void unpack_gbuffer_data(in ivec2 tile, in ivec2 offset, out ivec2 ipos, out bool seed_found, out vec3 w_position, out float depth, out vec3 w_normal, 
     out int entity_id, out ivec2 pixel_seed, out int frame_seed, out vec3 albedo, out vec2 uv)
 {
@@ -157,9 +159,12 @@ void unpack_gbuffer_data(in ivec2 tile, in ivec2 offset, out ivec2 ipos, out boo
     depth = temp.w;
 
     // Normal G Buffer
-    temp = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
+    temp = imageLoad(gbuffers[NORMAL_ADDR], ipos);
     w_normal = normalize(temp.xyz);
-    entity_id = int(temp.w);
+
+    // ID G Buffer
+    temp = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos);
+    entity_id = int(temp.r);
 
     // UV G Buffer
     temp = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos);

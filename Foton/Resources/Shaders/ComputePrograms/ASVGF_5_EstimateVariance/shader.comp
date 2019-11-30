@@ -35,19 +35,26 @@ layout (local_size_x = 16, local_size_y = 16) in;
 
 void main()
 {
-	if (int(gl_GlobalInvocationID.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
-    if (int(gl_GlobalInvocationID.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
+	if (is_bilateral_upsampling_enabled()) {
+        if (int(gl_GlobalInvocationID.x) >= push.consts.width) return;
+        if (int(gl_GlobalInvocationID.y) >= push.consts.height) return;
+    }
+    else {
+        if (int(gl_GlobalInvocationID.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
+        if (int(gl_GlobalInvocationID.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
+    }
 
 	const int max_rad = 3;// * PATH_TRACE_TILE_SIZE;
 	const float hist_len_thresh = max_rad;
 
 	ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
+	ivec2 ipos_full = ivec2(gl_GlobalInvocationID.xy) * (is_bilateral_upsampling_enabled() ? 1 : PATH_TRACE_TILE_SIZE) ;
     vec4 variance;
     vec4 average;
     // float histlen = imageLoad(gbuffers[SAMPLE_COUNT_ADDR], ipos).a;
 	// vec4 current_position_depth_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
     vec4 motion_data = imageLoad(gbuffers[DIFFUSE_MOTION_ADDR], ipos);
-	int q_eid = int(imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos * PATH_TRACE_TILE_SIZE).x);
+	int q_eid = int(imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos_full).x);
 
 	vec4 direct_diffuse = vec4(0.); 
 	vec4 indirect_diffuse = vec4(0.); 
@@ -73,8 +80,9 @@ void main()
 		for(int yy = -r; yy <= r; yy++) {
 			for(int xx = -r; xx <= r; xx++) {
 				ivec2 p = ipos + ivec2(xx, yy);
+				ivec2 p_full = p * (is_bilateral_upsampling_enabled() ? 1 : PATH_TRACE_TILE_SIZE);
 
-				int p_eid = int(imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], p * PATH_TRACE_TILE_SIZE).x);
+				int p_eid = int(imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], p_full).x);
 				float w = (p_eid == q_eid) ? 1.0 : 0.0;
 				w *= exp(-pow(length(vec2(xx,yy)), 2) / (pow(max(r,1)*.5, 2)));
 				if(isnan(w)) continue;

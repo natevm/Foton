@@ -53,8 +53,10 @@ void main()
     float first_dist = temp.w;
 
     // Normal G Buffer
-    temp = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
+    temp = imageLoad(gbuffers[NORMAL_ADDR], ipos);
     vec3 first_normal = normalize(temp.xyz);
+    bool reflector_is_flat = (temp.w > 0.f);
+
 
     // Component IDs
     temp = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos);
@@ -152,7 +154,7 @@ void main()
         /* Save reflected image worldspace position for specular motion vector */
         if ((bounce == 1) && (entity_id != -1)) {
             w_p_r = w_p;
-            reflected_entity_id = entity_id;            
+            reflected_entity_id = entity_id;     
         }
 
         /* Do next event estimation */
@@ -211,6 +213,40 @@ void main()
     } while (bounce <= max_path_depth);
 
     /* Compute specular motion vector */
+
+    if (reflector_is_flat)
+    {
+        // Compute previous reflector normals
+        EntityStruct reflector_entity; TransformStruct reflector_transform;
+        EntityStruct reflected_entity; TransformStruct reflected_transform;
+        unpack_entity_struct(first_entity_id, reflector_entity);
+        unpack_entity_struct(reflected_entity_id, reflected_entity);
+
+        reflector_transform = tbo.transforms[reflector_entity.transform_id];
+        if (reflected_entity.initialized == 1) {
+            reflected_transform = tbo.transforms[reflected_entity.transform_id];
+        }
+        
+        // Compute previous reflector position
+        vec3 w_p_s_prev = vec3(reflector_transform.localToWorldPrev * reflector_transform.worldToLocal * vec4(w_p_s, 1.0));
+        
+        // Compute previous reflected position (if sky, previous is the same as current)
+        vec3 w_p_r_prev = w_p_r;
+        if (reflected_entity.initialized == 1) {
+            w_p_r_prev = vec3(reflected_transform.localToWorldPrev * reflected_transform.worldToLocal * vec4(w_p_r, 1.0));
+        }
+        
+        // position of reflected image in world space
+        vec3 w_p_i = w_p_s + reflect(w_p_r - w_p_s, w_n_s);
+        vec3 w_p_i_prev = w_p_s_prev + reflect(w_p_r_prev - w_p_s_prev, w_n_s);
+
+        vec4 v_p_curr = camera.multiviews[multiview_idx].viewproj * camera_transform.worldToLocal * vec4(w_p_i, 1.0);
+        vec4 v_p_prev = camera.multiviews[multiview_idx].viewproj * camera_transform.worldToLocalPrev * vec4(w_p_i_prev, 1.0);
+        specular_motion = ((v_p_prev.xyz / v_p_prev.w) - (v_p_curr.xyz / v_p_curr.w));
+    }
+
+    // Thin film approximation
+    else 
     {
         // Compute previous reflector normals
         EntityStruct reflector_entity; TransformStruct reflector_transform;
@@ -269,7 +305,7 @@ void main()
 
         vec4 v_p_curr = camera.multiviews[multiview_idx].viewproj * camera_transform.worldToLocal * vec4(w_p_i, 1.0);
         vec4 v_p_prev = camera.multiviews[multiview_idx].viewproj * camera_transform.worldToLocalPrev * vec4(w_p_i_prev, 1.0);
-        specular_motion = (v_p_prev.xyz / v_p_prev.w) - (v_p_curr.xyz / v_p_curr.w);
+        specular_motion = ((v_p_prev.xyz / v_p_prev.w) - (v_p_curr.xyz / v_p_curr.w));
     }
 
     if (reflected_entity_id == -1) specular_motion = vec3(0);
@@ -285,6 +321,10 @@ void main()
 
     // Indirect Glossy 
     imageStore(gbuffers[GLOSSY_INDIRECT_ADDR], tile, vec4(indirect_specular_radiance, 1.0));
+
+    // First reflected object
+    temp = imageLoad(gbuffers[REFLECTED_ID_ADDR_AND_PREV], tile);
+    imageStore(gbuffers[REFLECTED_ID_ADDR_AND_PREV], tile, vec4(reflected_entity_id, temp.r, 0.0, 1.0));
 
     // Luminance
     temp = imageLoad(gbuffers[LUMINANCE_ADDR], tile);

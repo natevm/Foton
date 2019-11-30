@@ -30,55 +30,54 @@ void main() {
     // Compute motion vector
     ivec2 ipos_pt_tile = (GRADIENT_TILE_SIZE * tile + offset_curr);
     ivec2 ipos_full = ipos_pt_tile * PATH_TRACE_TILE_SIZE;
-    precise vec4 motion_data = imageLoad(gbuffers[DIFFUSE_MOTION_ADDR], ipos_full);
-    precise vec2 v = motion_data.xy * vec2(.5, -.5);
-    precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
-    iv.x = (abs(iv.x) < MOTION_VECTOR_MIN) ? 0 : iv.x;
-    iv.y = (abs(iv.y) < MOTION_VECTOR_MIN) ? 0 : iv.y;
-    ivec2 ipos_pt_tile_prev = ivec2(ipos_full + (iv + MOTION_VECTOR_OFFSET)) / PATH_TRACE_TILE_SIZE;
-    ivec2 ipos_full_prev = ipos_pt_tile_prev * PATH_TRACE_TILE_SIZE;
-
+    ivec2 ipos_diffuse_pt_tile_prev, ipos_diffuse_full_prev;
+    {
+        precise vec4 motion_data = imageLoad(gbuffers[DIFFUSE_MOTION_ADDR], ipos_full);
+        precise vec2 v = motion_data.xy * vec2(.5, -.5);
+        precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
+        ipos_diffuse_pt_tile_prev = ivec2(ipos_full + (iv + MOTION_VECTOR_OFFSET)) / PATH_TRACE_TILE_SIZE;
+        ipos_diffuse_full_prev = ipos_diffuse_pt_tile_prev * PATH_TRACE_TILE_SIZE;
+    }
     // Skip if reprojection would fall off the screen
     bool accept = true;
-    bvec2 a = greaterThan(ipos_full_prev, vec2(push.consts.width-1, push.consts.height-1));
-    bvec2 b = lessThan(ipos_full_prev, vec2(0.0, 0.0));
+    bvec2 a = greaterThan(ipos_diffuse_full_prev, vec2(push.consts.width-1, push.consts.height-1));
+    bvec2 b = lessThan(ipos_diffuse_full_prev, vec2(0.0, 0.0));
     accept = accept && (!any(bvec2(any(a), any(b))));
     if (!accept) return;
     
     // Load GBuffer data
-    vec4 id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV], ipos_full_prev);
+    vec4 id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV], ipos_diffuse_full_prev);
     vec4 target_id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos_full);
     if ((int(id_data.r) == -1) || (int(target_id_data.r) == -1)) return;
     if (int(id_data.r) != int(target_id_data.r)) return;
 
-    vec4 position_depth = imageLoad(gbuffers[POSITION_DEPTH_ADDR_PREV], ipos_full_prev);
+    vec4 position_depth = imageLoad(gbuffers[POSITION_DEPTH_ADDR_PREV], ipos_diffuse_full_prev);
     vec4 target_pos_depth_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos_full);
-    if ( distance(position_depth.xyz,  target_pos_depth_data.xyz) > .01 ) return;
+    // if ( distance(position_depth.xyz,  target_pos_depth_data.xyz) > .01 ) return;
 
-    vec4 normal = imageLoad(gbuffers[NORMAL_ADDR_PREV], ipos_full_prev);
+    vec4 normal = imageLoad(gbuffers[NORMAL_ADDR_PREV], ipos_diffuse_full_prev);
     vec4 target_normal = imageLoad(gbuffers[NORMAL_ADDR], ipos_full);
-    if (dot(normal.rgb, target_normal.rgb) < 0.9) return;
+    // if (dot(normal.rgb, target_normal.rgb) < 0.9) return;
 
     // Load gbuffer data that might change lighting locally from previous to next,  
     // then store to reprojected position. Any changes to lighting from previous
     // frame to now will be due to changes in external lighting conditions
     
-    vec4 seed = imageLoad(gbuffers[SEED_ADDR_PREV], ipos_pt_tile_prev);
-    imageStore(gbuffers[SEED_ADDR], ipos_pt_tile, seed);
+    vec4 seed = imageLoad(gbuffers[DIFFUSE_SEED_ADDR_PREV], ipos_diffuse_pt_tile_prev);
+    imageStore(gbuffers[DIFFUSE_SEED_ADDR], ipos_pt_tile, seed);
 
-    vec4 lum = imageLoad(gbuffers[LUMINANCE_ADDR_PREV], ipos_pt_tile_prev);
+    vec4 lum = imageLoad(gbuffers[LUMINANCE_ADDR_PREV], ipos_diffuse_pt_tile_prev);
     imageStore(gbuffers[LUMINANCE_ADDR], ipos_pt_tile, lum);
     
-    vec4 albedo = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR_PREV], ipos_full_prev);
+    vec4 albedo = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR_PREV], ipos_diffuse_full_prev);
     imageStore(gbuffers[DIFFUSE_COLOR_ADDR], ipos_full, albedo);
     
-    vec4 uv = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR_PREV], ipos_full_prev);
+    vec4 uv = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR_PREV], ipos_diffuse_full_prev);
     imageStore(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos_full, uv);
     
     imageStore(gbuffers[POSITION_DEPTH_ADDR], ipos_full, position_depth);
     imageStore(gbuffers[NORMAL_ADDR], ipos_full, normal);
-
-
+    
     /* DEBUG, helps show where reprojected seeds are landing */
     // imageStore(gbuffers[DIFFUSE_COLOR_ADDR], ipos_full, vec4(1.0, 0.0, 0.0, 1.0));
 }

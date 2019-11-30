@@ -88,7 +88,6 @@ void main() {
 	payload.entity_id = gl_InstanceID;
 	payload.distance = gl_RayTmaxNV;
 	payload.backface = dot(N, -gl_ObjectRayDirectionNV) < 0.0;
-
 }
 
 // void main() {

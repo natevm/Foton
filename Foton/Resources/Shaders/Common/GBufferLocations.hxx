@@ -3,23 +3,27 @@
 // Data passes
 #define POSITION_DEPTH_ADDR 0 // NOTE, must be in position 0 for shadowmap raster pass!
 #define ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR 1
-#define NORMAL_ID_ADDR 2 // todo, remove
 #define NORMAL_ADDR 2
 #define SEED_ADDR 3 // consider separating luminance from seed...
 #define UV_METALLIC_ROUGHESS_ADDR 6 // consider replacing with "material ID"
 
 #define ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV 7
 #define POSITION_DEPTH_ADDR_PREV 8
-#define NORMAL_ID_ADDR_PREV 9 // todo, remove
 #define NORMAL_ADDR_PREV 9
 #define UV_METALLIC_ROUGHESS_ADDR_PREV 10
-#define SEED_ADDR_PREV 11
 #define SEED_ADDR_PREV 11
 #define DIFFUSE_MOTION_ADDR 5
 #define GLOSSY_MOTION_ADDR 12
 
+#define DIFFUSE_SEED_ADDR 3
+#define DIFFUSE_SEED_ADDR_PREV 11
+#define SPECULAR_SEED_ADDR 57
+#define SPECULAR_SEED_ADDR_PREV 56
+
+
 #define LOBE_AXIS_SHARPNESS_ADDR 41
 #define LOBE_AXIS_SHARPNESS_ADDR_PREV 42
+#define REFLECTED_ID_ADDR_AND_PREV 58
 
 // Lighting passes
 #define DIFFUSE_COLOR_ADDR 4
@@ -36,6 +40,9 @@
 #define DIFFUSE_INDIRECT_ADDR 48
 #define GLOSSY_DIRECT_ADDR 45
 #define GLOSSY_INDIRECT_ADDR 44
+
+#define COARSE_NORMAL_ADDR 50
+#define COARSE_POSITION_DEPTH_ADDR 51
 
 // Denoising
 // Raytracing buffers
@@ -76,3 +83,6 @@
 #define SVGF_TAA_HISTORY_8_ADDR 38
 #define SVGF_TAA_HISTORY_9_ADDR 39
 #define SVGF_TAA_HISTORY_10_ADDR 40
+
+
+#define RANDOM_ADDR 59

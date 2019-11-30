@@ -53,12 +53,10 @@ void main() {
     const ivec2 ipos_pt = ipos_gt * GRADIENT_TILE_SIZE;
     const ivec2 ipos_full = ipos_pt * PATH_TRACE_TILE_SIZE;
     ivec2 q_gt = ipos_gt;
-    ivec2 q_pt = ipos_pt;
-    ivec2 q_full = ipos_full;
     
     int minor_iteration = push.consts.iteration % 2;
     int major_iteration = push.consts.iteration;
-    int curr_step_width = 1 << major_iteration;
+    int curr_step_width = 1 << (major_iteration - 1);
 
     // This reconstruction uses an iterative atrous bilateral filter. 
     // These are the current iteration gbuffer addresses
@@ -137,7 +135,7 @@ void main() {
             // float w_z = abs(z_p - z_center.x) / (z_center.y * length(vec2(x,y) * curr_step_width * GRADIENT_DOWNSAMPLE) + 1e-2); 
 
             // Compute final reconstruction weight
-            vec4 w = exp(-w_l * w_l /*- w_z*/) * gaussian_kernel[x + RADIUS][y + RADIUS];
+            vec4 w = vec4(1.0);// exp(-w_l * w_l /*- w_z*/) * gaussian_kernel[x + RADIUS][y + RADIUS];
 
             // if (isnan(w)) continue;
 

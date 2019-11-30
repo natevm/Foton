@@ -36,7 +36,7 @@ void main() {
     float depth = temp.w;
 
     // Normal G Buffer
-    temp = imageLoad(gbuffers[NORMAL_ID_ADDR], ipos);
+    temp = imageLoad(gbuffers[NORMAL_ADDR], ipos);
     vec3 w_n = normalize(temp.xyz);
     vec3 w_t, w_b;
     directionOfAnisotropicity(w_n, w_t, w_b);
