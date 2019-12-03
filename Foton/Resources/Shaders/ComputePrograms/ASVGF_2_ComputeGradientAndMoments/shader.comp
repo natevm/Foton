@@ -85,12 +85,12 @@ void main() {
     bool is_specular_reproj_grad;
     {
         vec4 curr_diffuse_seed = imageLoad(gbuffers[DIFFUSE_SEED_ADDR], ipos_pt_tile);
-        vec4 prev_diffuse_seed = imageLoad(gbuffers[DIFFUSE_SEED_ADDR_PREV], ipos_diffuse_pt_tile_prev);
-        is_diffuse_reproj_grad = all(equal(prev_diffuse_seed.xyz, curr_diffuse_seed.xyz));
+        // vec4 prev_diffuse_seed = imageLoad(gbuffers[DIFFUSE_SEED_ADDR_PREV], ipos_diffuse_pt_tile_prev);
+        is_diffuse_reproj_grad = curr_diffuse_seed.w > 0;//all(equal(prev_diffuse_seed.xyz, curr_diffuse_seed.xyz));
 
         vec4 curr_specular_seed = imageLoad(gbuffers[SPECULAR_SEED_ADDR], ipos_pt_tile);
-        vec4 prev_specular_seed = imageLoad(gbuffers[SPECULAR_SEED_ADDR_PREV], ipos_specular_pt_tile_prev);
-        is_specular_reproj_grad = all(equal(prev_specular_seed.xyz, curr_specular_seed.xyz));
+        // vec4 prev_specular_seed = imageLoad(gbuffers[SPECULAR_SEED_ADDR_PREV], ipos_specular_pt_tile_prev);
+        is_specular_reproj_grad = curr_specular_seed.w > 0;//all(equal(prev_specular_seed.xyz, curr_specular_seed.xyz));
     }
 
     vec2 prev_diffuse_luminance = imageLoad(gbuffers[LUMINANCE_ADDR_PREV], ipos_diffuse_pt_tile_prev).rg;

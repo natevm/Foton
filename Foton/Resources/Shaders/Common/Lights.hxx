@@ -163,11 +163,22 @@ struct Irradiance {
 
 #ifdef RAYTRACING
 
-vec3 sample_direct_light_stochastic(const in MaterialStruct mat, bool backface, bool force_diffuse, bool force_specular, bool force_perfect_reflection, 
-    const in vec3 w_p, const in vec3 w_n, const in vec3 w_x, const in vec3 w_y, const in vec3 w_o, inout int light_entity_id, out float visibility, out vec3 w_l, out float l_distance)
-{
-    vec3 radiance = vec3(0.0);
-    visibility = 0.0;
+Irradiance sample_direct_light_stochastic (
+    const in MaterialStruct mat, 
+    bool backface, 
+    bool force_diffuse, bool force_specular, bool force_perfect_reflection, 
+    const in vec3 w_p, const in vec3 w_n, const in vec3 w_x, const in vec3 w_y, const in vec3 w_o, 
+    inout int light_entity_id, 
+    out float diffuse_visibility, 
+    out float specular_visibility,
+    out vec3 w_l, 
+    out float l_distance
+) {
+    Irradiance irradiance;
+    irradiance.specular = vec3(0.0);
+    irradiance.diffuse = vec3(0.0);
+
+    diffuse_visibility = specular_visibility = 0.0;
     w_l = vec3(0);
     l_distance = 0.f;
 
@@ -189,23 +200,12 @@ vec3 sample_direct_light_stochastic(const in MaterialStruct mat, bool backface, 
     }
 
     /* If we didn't find a light, return. (Shouldn't happen except during initialization) */
-    if (!light_found) return vec3(0.0);
+    if (!light_found) return irradiance;
 
     // Importance sample the light directly
     /* Compute the outgoing radiance for this light */
     bool light_is_double_sided = bool(light.flags & (1 << 0));
     mat3 m_inv;
-
-    /* Compute direct specular and diffuse contribution from LTC area lights */
-    // vec2 LTC_UV = vec2(max(mat.roughness, EPSILON), sqrt(1.0 - dot(SI.w_n.xyz, -SI.w_i.xyz)))*LUT_SCALE + LUT_BIAS;
-    // vec4 t1 = texture(sampler2D(texture_2Ds[push.consts.ltc_mat_lut_id], samplers[0]), LTC_UV);
-    // vec4 t2 = texture(sampler2D(texture_2Ds[push.consts.ltc_amp_lut_id], samplers[0]), LTC_UV);
-    // m_inv = mat3(
-    //     vec3(t1.x, 0, t1.y),
-    //     vec3(  0,  1,    0),
-    //     vec3(t1.z, 0, t1.w)
-    // );
-
     vec3 w_i;
 
     float attenuation;
@@ -237,18 +237,23 @@ vec3 sample_direct_light_stochastic(const in MaterialStruct mat, bool backface, 
         attenuation = get_light_attenuation(light, dist);
 
         float bsdf_pdf, dpdf, spdf;
-        disney_pdf(mat, backface, w_n, w_o, w_i, w_x, w_y, bsdf_pdf, dpdf, spdf);
-
-        
+        disney_pdf(mat, backface, w_n, w_o, w_i, w_x, w_y, bsdf_pdf, dpdf, spdf);       
 
         float w = 0;
+        float w_diffuse = 0;
+        float w_specular = 0;
         vec3 bsdf, dbsdf, sbsdf;
         disney_bsdf(mat, backface, w_n, w_o, w_i, w_x, w_y, bsdf, dbsdf, sbsdf);
         // We need radiance before and after visibility.
         if (light_pdf >= EPSILON && bsdf_pdf >= EPSILON/* && light_visibility == 1.0*/) {
-            w = power_heuristic(1.f, light_pdf, 1.f, bsdf_pdf);
-            vec3 LightInfluence = Li * abs(dot(w_i, w_n_f)) * w / light_pdf;
-            radiance += bsdf * LightInfluence;
+            w  = power_heuristic(1.f, light_pdf, 1.f, bsdf_pdf);
+            w_diffuse  = power_heuristic(1.f, light_pdf, 1.f, dpdf);
+            w_specular = power_heuristic(1.f, light_pdf, 1.f, spdf);
+            vec3 diffuse_light_influence = Li * abs(dot(w_i, w_n_f)) * w_diffuse / light_pdf;
+            vec3 specular_light_influence = Li * abs(dot(w_i, w_n_f)) * w_specular / light_pdf;            
+            irradiance.diffuse += diffuse_light_influence;
+            irradiance.specular += specular_light_influence;
+            // radiance += bsdf * LightInfluence;
         }
 
         // NOTE, trace shadow ray at the bottom here to reduce continuation 
@@ -266,7 +271,8 @@ vec3 sample_direct_light_stochastic(const in MaterialStruct mat, bool backface, 
             traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, w_p_off, TMIN, w_i, tmax, 0); 
             light_visibility = (payload.entity_id == light_entity_id) ? 1.0 : 0.0;
         }
-        visibility += light_visibility * w;
+        diffuse_visibility += light_visibility * w_diffuse;
+        specular_visibility += light_visibility * w_specular;
         w_l += Li * w;
     }
 
@@ -305,13 +311,20 @@ vec3 sample_direct_light_stochastic(const in MaterialStruct mat, bool backface, 
             }
             Li = light.color.rgb * light.intensity;
             float w = 0.0;
+            float w_diffuse = 0.0;
+            float w_specular = 0.0;
 			if (light_pdf >= EPSILON) {
 				w = power_heuristic(1.f, bsdf_pdf, 1.f, light_pdf);
+				w_diffuse = power_heuristic(1.f, dpdf, 1.f, light_pdf);
+				w_specular = power_heuristic(1.f, spdf, 1.f, light_pdf);
                 // We need radiance before and after visibility.
 				// if (bsdf_visibility == 1.0) 
                 {
-                    vec3 LightInfluence = Li * abs(dot(w_i, w_n_f)) * w / bsdf_pdf;
-                    radiance += bsdf * LightInfluence;
+                    vec3 diffuse_light_influence = Li * abs(dot(w_i, w_n_f)) * w_diffuse / dpdf;
+                    vec3 specular_light_influence = Li * abs(dot(w_i, w_n_f)) * w_specular / spdf;
+                    irradiance.diffuse += diffuse_light_influence;
+                    irradiance.specular += specular_light_influence;
+                    // radiance += bsdf * LightInfluence;
 				}
 
                 /* Compute visibility by tracing a shadow ray */
@@ -323,14 +336,17 @@ vec3 sample_direct_light_stochastic(const in MaterialStruct mat, bool backface, 
                     traceNV(topLevelAS, /*gl_RayFlagsTerminateOnFirstHitNV*/gl_RayFlagsNoneNV, 0xff, 0, 0, 0, w_p_off, TMIN, w_i, TMAX, 0); // UPDATE TMAX TO BE LIGHT DIST
                     bsdf_visibility = (payload.entity_id == light_entity_id) ? 1.0 : 0.0;
                 }
-                visibility += bsdf_visibility * w;
+                diffuse_visibility += bsdf_visibility * w_diffuse;
+                specular_visibility += bsdf_visibility * w_specular;
+                // visibility += bsdf_visibility * w;
                 w_l += Li * w;
 			}
 		}        
 	}
     w_l = normalize(w_l);
     
-	return radiance * attenuation;
+    return irradiance;
+	// return radiance * attenuation;
 }
 
 #endif
@@ -574,20 +590,25 @@ Irradiance sample_direct_light_analytic(const in MaterialStruct mat, bool backfa
         #ifdef RAYTRACING
         {
             // compute shadow
-            float visibility = 1.0;
+            float diffuse_visibility = 0.0;           
+            float specular_visibility = 0.0;           
             vec3 w_l;
-            vec3 stochastic_differential_radiance = sample_direct_light_stochastic(
+            Irradiance stochastic_differential_irradiance = sample_direct_light_stochastic(
                 mat, backface, force_diffuse, force_specular, force_perfect_reflection,
-                w_p, w_n, w_x, w_y, w_o, light_entity_id, visibility, w_l, l_dist);
+                w_p, w_n, w_x, w_y, w_o, i, diffuse_visibility, specular_visibility,
+                w_l, l_dist);
                 
-            float stochastic_luminance = average_vec(stochastic_differential_radiance);//TWO_PI;
+            // float stochastic_luminance = average_vec(stochastic_differential_radiance);//TWO_PI;
 
-            // // float geometric_term = dot( w_n, normalize(w_l));
-            // // if ((geometric_term <= 0) || (isnan(geometric_term))) return vec3(0.0);
+            // float geometric_term = dot( w_n, normalize(w_l));
+            // if ((geometric_term <= 0) || (isnan(geometric_term))) return vec3(0.0);
 
             
-            irradiance.diffuse += analytical_irradiance.diffuse * attenuation * visibility;
-            irradiance.specular += analytical_irradiance.specular * attenuation * visibility;
+            irradiance.diffuse += analytical_irradiance.diffuse * attenuation * diffuse_visibility;
+            irradiance.specular += analytical_irradiance.specular * attenuation * specular_visibility;
+
+            // irradiance.diffuse += stochastic_differential_irradiance.diffuse;// * diffuse_visibility * attenuation;
+            // irradiance.specular += stochastic_differential_irradiance.specular;// * specular_visibility * attenuation;
         }
         #else
         {

@@ -24,6 +24,7 @@ vec3 Uncharted2Tonemap(vec3 x)
 	return max(vec3(0.0f), ((x*(A*x+C*B)+D*E_)/(x*(A*x+B)+D*F))-E_/F);
 }
 
+// 12.3 ms, VRAM 56.8%, L2 28.1%, TEX 13.2%
 void main() 
 {
     if (int(gl_LaunchIDNV.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
@@ -39,42 +40,57 @@ void main()
     
     /* Load primary visibility data from G Buffers */
     vec4 temp;
-    ivec2 ipos = tile * PATH_TRACE_TILE_SIZE + offset_curr;
+    int addr;
+    ivec2 ipos_full = tile * PATH_TRACE_TILE_SIZE + offset_curr;
 
-    // Seed / Luminance G Buffer
-    temp = imageLoad(gbuffers[SEED_ADDR], tile);
+    // Compute motion vector
+    ivec2 ipos_tile_prev, ipos_full_prev;
+    {
+        precise vec4 motion_data = imageLoad(gbuffers[SPECULAR_MOTION_ADDR], ipos_full);
+        precise vec2 v = motion_data.xy * vec2(.5, -.5);
+        precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
+        ipos_tile_prev = ivec2(ipos_full + (iv + MOTION_VECTOR_OFFSET)) / PATH_TRACE_TILE_SIZE;
+        ipos_full_prev = ipos_tile_prev * PATH_TRACE_TILE_SIZE;
+    }
+
+    // Seed G Buffer
+    temp = imageLoad(gbuffers[SPECULAR_SEED_ADDR], tile);
     ivec2 pixel_seed = ivec2(temp.xy);
     int frame_seed = int(temp.z);
+    bool seed_reprojected = (temp.w > 0);
     init_random(pixel_seed, frame_seed, 0);
 
     // Position G Buffer 
-    temp = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
+    ivec2 gbuf_pos = (seed_reprojected) ? ipos_full_prev : ipos_full;
+    addr = (seed_reprojected) ? POSITION_DEPTH_ADDR_PREV : POSITION_DEPTH_ADDR;
+    temp = imageLoad(gbuffers[addr], gbuf_pos);
     vec3 first_position = temp.xyz;
     float first_dist = temp.w;
 
     // Normal G Buffer
-    temp = imageLoad(gbuffers[NORMAL_ADDR], ipos);
+    addr = (seed_reprojected) ? NORMAL_ADDR_PREV : NORMAL_ADDR;
+    temp = imageLoad(gbuffers[addr], gbuf_pos);
     vec3 first_normal = normalize(temp.xyz);
-    bool reflector_is_flat = (temp.w > 0.f);
-
+    float reflector_curvature = temp.w;
+    bool reflector_is_flat = (temp.w < .01);
 
     // Component IDs
-    temp = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos);
+    addr = (seed_reprojected) ? ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV : ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR;
+    temp = imageLoad(gbuffers[addr], gbuf_pos);
     int first_entity_id = int(temp.r);
     int first_material_id = int(temp.g);
     int first_transform_id = int(temp.b);
     int first_light_id = int(temp.a);
 
     // UV G Buffer
-    temp = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos);
+    addr = (seed_reprojected) ? UV_METALLIC_ROUGHESS_ADDR_PREV : UV_METALLIC_ROUGHESS_ADDR;
+    temp = imageLoad(gbuffers[addr], gbuf_pos);
     vec2 first_uv = temp.xy;
 
     // Raw albedo
-    temp = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ipos);
+    addr = (seed_reprojected) ? DIFFUSE_COLOR_ADDR_PREV : DIFFUSE_COLOR_ADDR;
+    temp = imageLoad(gbuffers[addr], gbuf_pos);
     vec4 first_albedo = temp;
-
-    // bad precision in position g buffer... getting lots of self intersections...
-    first_position += first_normal * .01; 
     
     /* Next, Compute ray origin and direction */
     int max_path_depth = int(push.consts.parameter1);
@@ -84,7 +100,7 @@ void main()
     int multiview_idx = 0; //push.consts.viewIndex;
     mat4 projinv = camera.multiviews[multiview_idx].projinv;
     mat4 viewinv = camera_transform.localToWorld * camera.multiviews[multiview_idx].viewinv;
-    vec2 pixel_center = vec2(ipos.xy) + vec2(random(), random()) * .5;
+    vec2 pixel_center = vec2(ipos_full.xy) + vec2(random(), random()) * .5;
 	const vec2 in_uv = pixel_center/vec2(push.consts.width, push.consts.height);
 	vec2 d = in_uv * 2.0 - 1.0; d.y *= -1.0;
     vec4 t = (projinv * vec4(d.x, d.y, 1, 1));
@@ -92,6 +108,12 @@ void main()
     vec3 origin = (viewinv * vec4(0,0,0,1)).xyz;
     vec3 direction = (viewinv * vec4(target, 0)).xyz ;
     direction = normalize(direction);
+
+    // Make normal forward facing
+    if (dot(direction, first_normal) > 0) first_normal *= -1;
+
+    // bad precision in position g buffer... getting lots of self intersections...
+    first_position += first_normal * .01; 
     
     /* We'll be computing direct and indirect path traced illumination for glossy and diffuse */
     vec3 specular_radiance = vec3(0.0);
@@ -101,7 +123,7 @@ void main()
     /* We'll also be computing a specular image motion vector */
     vec3 w_s; // primary specular reflection dir
     vec3 w_p_s = first_position; // worldspace position of reflector
-    vec3 w_n_s = first_normal;
+    vec3 w_n_s = normalize(first_normal);
     vec3 w_p_i = vec3(0.); // worldspace position of image in reflection
     vec3 w_p_r = reflect(direction, first_normal) * 100000.0; // worldspace position of object being reflected
     vec3 specular_motion = vec3(0.0);
@@ -138,9 +160,11 @@ void main()
 
         /* If we hit the sky or a light, stop */
         if (entity_id == -1) { 
-            /* todo, decide how to split this up into direct/indirect specular/diffuse, or neither */
-            vec3 irradiance = (bounce == 0) ? first_albedo.rgb : get_environment_color(direction) * push.consts.environment_intensity;
-            /* Include lighting from sky as direct lighting.  */
+            /* Include lighting from sky as indirect lighting.  */
+            if (bounce > 0) {
+                vec3 irradiance = get_environment_color(direction) * push.consts.environment_intensity;
+                specular_radiance += path_throughput * (irradiance);
+            }
             break;
         }
 
@@ -163,9 +187,22 @@ void main()
         last_direct_light_entity_id = -1;
         
         bool force_specular = (bounce == 0);
-        Irradiance irradiance = sample_direct_light_analytic(mat, backface, true, 
-            /*force_diffuse*/false, /*force_specular*/force_specular, /*force_perfect_reflection*/false, 
+        Irradiance irradiance;
+        if (is_ltc_enabled()) {
+            irradiance = sample_direct_light_analytic(mat, backface, /* allow shadows */ true, 
+            /*force_diffuse*/true, /*force_specular*/false, /*force_perfect_reflection*/false, 
             w_p, w_z, w_x, w_y, w_o);
+        } else {
+            int light_entity_id = -1;
+            float diffuse_visibility, specular_visibility, dist;
+            vec3 w_l;
+            irradiance = sample_direct_light_stochastic(mat, backface, 
+            /*force_diffuse*/true, /*force_specular*/false, /*force_perfect_reflection*/false, 
+            w_p, w_z, w_x, w_y, w_o,
+            light_entity_id, diffuse_visibility, specular_visibility, w_l, dist);
+            irradiance.diffuse *= diffuse_visibility;
+            irradiance.specular *= specular_visibility;
+        }
 
         // If at bounce 0, we don't include diffuse color with diffuse. 
         // That will be multiplied later during compositing and after denoising
@@ -214,7 +251,7 @@ void main()
 
     /* Compute specular motion vector */
 
-    if (reflector_is_flat)
+    if (reflector_is_flat || are_flat_reflectors_forced())
     {
         // Compute previous reflector normals
         EntityStruct reflector_entity; TransformStruct reflector_transform;
@@ -262,18 +299,19 @@ void main()
         // Create basis around reflector normal
         vec3 w_x_s, w_y_s;
         directionOfAnisotropicity(w_n_s, w_x_s, w_y_s);
+        w_x_s = normalize(w_x_s); w_y_s = normalize(w_y_s); // just in case while debugging...
 
         mat3 normLocalToWorld = transpose(mat3(reflector_transform.worldToLocal));
-        mat3 normWorldToLocal = inverse(normLocalToWorld);
+        mat3 normWorldToLocal = transpose(mat3(reflector_transform.localToWorld));//inverse(normLocalToWorld);
         mat3 normLocalToWorldPrev = transpose(mat3(reflector_transform.worldToLocalPrev));
 
-        vec3 m_x_s_prev = normalize(normWorldToLocal * w_x_s);
-        vec3 m_y_s_prev = normalize(normWorldToLocal * w_y_s);
-        vec3 m_n_s_prev = normalize(normWorldToLocal * w_n_s);
+        vec3 m_x_s = normalize(normWorldToLocal * w_x_s);
+        vec3 m_y_s = normalize(normWorldToLocal * w_y_s);
+        vec3 m_n_s = normalize(normWorldToLocal * w_n_s);
 
-        vec3 w_x_s_prev = normalize(normLocalToWorldPrev * m_x_s_prev);
-        vec3 w_y_s_prev = normalize(normLocalToWorldPrev * m_y_s_prev);
-        vec3 w_n_s_prev = normalize(normLocalToWorldPrev * m_n_s_prev);
+        vec3 w_x_s_prev = normalize(normLocalToWorldPrev * m_x_s);
+        vec3 w_y_s_prev = normalize(normLocalToWorldPrev * m_y_s);
+        vec3 w_n_s_prev = normalize(normLocalToWorldPrev * m_n_s);
         
         // Compute previous reflector position
         vec3 w_p_s_prev = vec3(reflector_transform.localToWorldPrev * reflector_transform.worldToLocal * vec4(w_p_s, 1.0));
@@ -284,18 +322,27 @@ void main()
             w_p_r_prev = vec3(reflected_transform.localToWorldPrev * reflected_transform.worldToLocal * vec4(w_p_r, 1.0));
         }
         
-        // Thin film approximation
-        float x = dot(w_x_s, w_p_r - w_p_s);
-        float y = dot(w_y_s, w_p_r - w_p_s);
-        float z = dot(w_n_s, w_p_r - w_p_s);
+        float to_reflected = distance(w_p_r, w_p_s);
+        float to_reflected_prev = distance(w_p_r_prev, w_p_s_prev);
 
-        float x_prev = dot(w_x_s_prev, w_p_r_prev - w_p_s_prev);
-        float y_prev = dot(w_y_s_prev, w_p_r_prev - w_p_s_prev);
-        float z_prev = dot(w_n_s_prev, w_p_r_prev - w_p_s_prev);
+        // Thin lens approximation
+        float x_s = dot(w_x_s, normalize(w_p_r - w_p_s) * to_reflected);
+        float y_s = dot(w_y_s, normalize(w_p_r - w_p_s) * to_reflected);
+        float z_s = dot(w_n_s, normalize(w_p_r - w_p_s) * to_reflected);
+        float z_i = 1.0 / reflector_curvature;
+        float x_i = (-z_i/z_s)*x_s;
+        float y_i = (-z_i/z_s)*y_s;
+
+        float x_s_prev = dot(w_x_s, normalize(w_p_r_prev - w_p_s) * to_reflected_prev);
+        float y_s_prev = dot(w_y_s, normalize(w_p_r_prev - w_p_s) * to_reflected_prev);
+        float z_s_prev = dot(w_n_s, normalize(w_p_r_prev - w_p_s) * to_reflected_prev);
+        float z_i_prev = 1.0 / reflector_curvature;
+        float x_i_prev = (-z_i_prev/z_s_prev)*x_s_prev;
+        float y_i_prev = (-z_i_prev/z_s_prev)*y_s_prev;
 
         // position of reflected image in world space
-        vec3 w_p_i = w_p_s + w_x_s * x + w_y_s * y + w_n_s * z;
-        vec3 w_p_i_prev = w_p_s_prev + w_x_s_prev * x_prev + w_y_s_prev * y_prev + w_n_s_prev * z_prev;
+        vec3 w_p_i = w_p_s + w_x_s * x_i + w_y_s * y_i + w_n_s * z_i;
+        vec3 w_p_i_prev = w_p_s + w_x_s_prev * x_i_prev + w_y_s_prev * y_i_prev + w_n_s_prev * z_i_prev;
 
         // float i_dist = distance(w_p_i, w_p_s);
         // float i_dist_prev = distance(w_p_i_prev, w_p_s_prev);
@@ -303,9 +350,14 @@ void main()
         // w_p_i = i_dist * (first_direction) + w_p_s;
         // w_p_i_prev = i_dist_prev * (first_direction) + w_p_s_prev;
 
-        vec4 v_p_curr = camera.multiviews[multiview_idx].viewproj * camera_transform.worldToLocal * vec4(w_p_i, 1.0);
-        vec4 v_p_prev = camera.multiviews[multiview_idx].viewproj * camera_transform.worldToLocalPrev * vec4(w_p_i_prev, 1.0);
-        specular_motion = ((v_p_prev.xyz / v_p_prev.w) - (v_p_curr.xyz / v_p_curr.w));
+        vec4 v_i_curr = camera.multiviews[multiview_idx].viewproj * camera_transform.worldToLocal * vec4(w_p_i, 1.0);
+        vec4 v_i_prev = camera.multiviews[multiview_idx].viewproj * camera_transform.worldToLocal * vec4(w_p_i_prev, 1.0);
+        vec3 image_motion = ((v_i_prev.xyz / v_i_prev.w) - (v_i_curr.xyz / v_i_curr.w)) * .5;
+        
+        vec4 v_r_curr = camera.multiviews[multiview_idx].viewproj * camera_transform.worldToLocal * vec4(w_p_s, 1.0);
+        vec4 v_r_prev = camera.multiviews[multiview_idx].viewproj * camera_transform.worldToLocalPrev * vec4(w_p_s_prev, 1.0);
+        vec3 reflector_motion = ((v_r_prev.xyz / v_r_prev.w) - (v_r_curr.xyz / v_r_curr.w));
+        specular_motion = image_motion + reflector_motion;
     }
 
     if (reflected_entity_id == -1) specular_motion = vec3(0);
@@ -314,7 +366,7 @@ void main()
     vec3 indirect_specular_radiance = specular_radiance - direct_specular_radiance;
 
     // Specular motion vector
-    imageStore(gbuffers[GLOSSY_MOTION_ADDR], tile, vec4(specular_motion, (first_entity_id == -1) ? 1.0 : 0.0));
+    imageStore(gbuffers[GLOSSY_MOTION_ADDR], tile, vec4(specular_motion, ((first_entity_id == -1) || (reflected_entity_id == -1)) ? 1.0 : 0.0));
     
     // Direct Glossy
     imageStore(gbuffers[GLOSSY_DIRECT_ADDR], tile, vec4(direct_specular_radiance, 1.0));

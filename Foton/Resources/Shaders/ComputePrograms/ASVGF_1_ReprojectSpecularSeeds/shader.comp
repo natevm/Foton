@@ -32,7 +32,7 @@ void main() {
     ivec2 ipos_full = ipos_pt_tile * PATH_TRACE_TILE_SIZE;
     ivec2 ipos_specular_pt_tile_prev, ipos_specular_full_prev;
     {
-        precise vec4 motion_data = imageLoad(gbuffers[GLOSSY_MOTION_ADDR], ipos_full);
+        precise vec4 motion_data = imageLoad(gbuffers[GLOSSY_MOTION_ADDR], ipos_pt_tile);
         precise vec2 v = motion_data.xy * vec2(.5, -.5);
         precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
         ipos_specular_pt_tile_prev = ivec2(ipos_full + (iv + MOTION_VECTOR_OFFSET)) / PATH_TRACE_TILE_SIZE;
@@ -65,11 +65,12 @@ void main() {
     // frame to now will be due to changes in external lighting conditions
     
     vec4 seed = imageLoad(gbuffers[SPECULAR_SEED_ADDR_PREV], ipos_specular_pt_tile_prev);
+    seed.w = 1; // mark seed as gradient seed
     imageStore(gbuffers[SPECULAR_SEED_ADDR], ipos_pt_tile, seed);
 
-    vec4 lum_prev = imageLoad(gbuffers[LUMINANCE_ADDR_PREV], ipos_specular_pt_tile_prev);
-    vec4 lum_curr = imageLoad(gbuffers[LUMINANCE_ADDR], ipos_specular_pt_tile_prev);
-    imageStore(gbuffers[LUMINANCE_ADDR], ipos_pt_tile, vec4(lum_curr.r, lum_curr.g, lum_prev.b, lum_prev.a));
+    // vec4 lum_prev = imageLoad(gbuffers[LUMINANCE_ADDR_PREV], ipos_specular_pt_tile_prev);
+    // vec4 lum_curr = imageLoad(gbuffers[LUMINANCE_ADDR], ipos_specular_pt_tile_prev);
+    // imageStore(gbuffers[LUMINANCE_ADDR], ipos_pt_tile, vec4(lum_curr.r, lum_curr.g, lum_prev.b, lum_prev.a));
     
     // vec4 albedo = imageLoad(gbuffers[SPECULAR_COLOR_ADDR_PREV], ipos_specular_full_prev);
     // imageStore(gbuffers[SPECULAR_COLOR_ADDR], ipos_full, albedo);

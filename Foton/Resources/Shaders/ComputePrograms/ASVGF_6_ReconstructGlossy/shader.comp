@@ -11,7 +11,9 @@
 
 layout (local_size_x = 16, local_size_y = 16) in;
 
-#define RADIUS 2
+#define RADIUS 1
+
+#if RADIUS == 2
 const float h[5][5] = {
     {1.0/256.0, 1.0/64.0, 3.0/128.0, 1.0/64.0, 1.0/256.0},
     {1.0/64.0,  1.0/16.0, 3.0/32.0,  1.0/16.0, 1.0/64.0},
@@ -19,6 +21,15 @@ const float h[5][5] = {
     {1.0/64.0,  1.0/16.0, 3.0/32.0,  1.0/16.0, 1.0/64.0},
     {1.0/256.0, 1.0/64.0, 3.0/128.0, 1.0/64.0, 1.0/256.0}
 };
+#endif
+
+#if RADIUS == 1
+const float h[3][3] = {
+	{ 1.0 / 16.0, 1.0 / 8.0, 1.0 / 16.0 },
+	{ 1.0 / 8.0,  1.0 / 4.0, 1.0 / 8.0  },
+	{ 1.0 / 16.0, 1.0 / 8.0, 1.0 / 16.0 }
+};
+#endif
 
 #define GAUSS_RADIUS 1
 const float gaussKernel[9] = float[9](1.0/16.0, 1.0/8.0, 1.0/16.0, 1.0/8.0, 1.0/4.0, 1.0/8.0, 1.0/16.0, 1.0/8.0, 1.0/16.0);
@@ -54,7 +65,8 @@ compute_sigma_luminance(float center, ivec2 ipos, int addr)
 }
 
 void main() {
-    if (is_bilateral_upsampling_enabled()) {
+    bool upsampling = false;//is_bilateral_upsampling_enabled();
+    if (upsampling) {
         if (int(gl_GlobalInvocationID.x) >= push.consts.width) return;
         if (int(gl_GlobalInvocationID.y) >= push.consts.height) return;
     }
@@ -64,7 +76,7 @@ void main() {
     }
 
     ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
-    ivec2 ipos_full = ivec2(gl_GlobalInvocationID.xy) * (is_bilateral_upsampling_enabled() ? 1 : PATH_TRACE_TILE_SIZE) ;
+    ivec2 ipos_full = ivec2(gl_GlobalInvocationID.xy) * (upsampling ? 1 : PATH_TRACE_TILE_SIZE) ;
     int minor_iteration = push.consts.iteration % 2;
     int major_iteration = push.consts.iteration;
 
@@ -84,7 +96,7 @@ void main() {
     float l_p_direct = luminance(p_direct_var.rgb);
     float l_p_indirect = luminance(p_indirect_var.rgb);
 
-    float screen_correction = max(push.consts.width, push.consts.height) / (is_bilateral_upsampling_enabled() ? 1 : PATH_TRACE_TILE_SIZE);
+    float screen_correction = max(push.consts.width, push.consts.height) / (upsampling ? 1 : PATH_TRACE_TILE_SIZE);
 
     int curr_step_width = 1 << major_iteration;
     // float l_sigma_direct = compute_sigma_luminance(p_direct_var.a, ipos, d_addr_0) * 3.0 * push.consts.parameter1; 
@@ -95,8 +107,8 @@ void main() {
 
     float p_sigma_direct = 1. * (1.0 - pow(push.consts.parameter1, .01)) * screen_correction; 
     float p_sigma_indirect = 1.0 * (1.0 - pow(push.consts.parameter2, .01)) * screen_correction; 
-    float r_sigma_direct = mix(100, 0, clamp(push.consts.parameter1, 0, 1));
-    float r_sigma_indirect = mix(100, 0, clamp(push.consts.parameter2, 0, 1));
+    float r_sigma_direct = mix(100, 0, clamp(push.consts.parameter1, 0, .99));
+    float r_sigma_indirect = mix(100, 0, clamp(push.consts.parameter2, 0, .99));
     
     p_sigma_direct = ((major_iteration+1) * p_sigma_direct);
     p_sigma_indirect = ((major_iteration+1) * p_sigma_indirect);
@@ -113,7 +125,7 @@ void main() {
             for (int xx = -RADIUS; xx <= RADIUS; ++xx) {
                 ivec2 offset = ivec2(xx, yy) * curr_step_width;
                 ivec2 st = ipos + offset;
-                ivec2 st_full = st * (is_bilateral_upsampling_enabled() ? 1 : PATH_TRACE_TILE_SIZE);
+                ivec2 st_full = st * (upsampling ? 1 : PATH_TRACE_TILE_SIZE);
                 if ((st.x < 0) || (st.y < 0) || 
                     (st.x >= push.consts.width) 
                     || (st.y >= push.consts.height)) continue;

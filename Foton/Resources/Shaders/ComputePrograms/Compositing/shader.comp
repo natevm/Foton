@@ -68,6 +68,12 @@ void main() {
     ) {
         color = imageLoad(gbuffers[render_image_idx-1], ipt).rgb;   
     }
+    else if (
+        ((render_image_idx - 1) == NORMAL_ADDR)
+    ) {
+        vec4 temp = imageLoad(gbuffers[render_image_idx-1], ipt);   
+        color = vec3(temp.w);
+    }
     else if ( 
         ((render_image_idx - 1) == TEMPORAL_GRADIENT_ADDR)
     ) {

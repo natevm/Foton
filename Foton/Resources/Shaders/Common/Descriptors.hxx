@@ -2,6 +2,9 @@
 #include "Foton/Resources/Shaders/Common/ShaderConstants.hxx"
 #include "Foton/Resources/Shaders/Common/GBufferLocations.hxx"
 
+/* Precision */
+precision highp float;
+
 /* Extensions */
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_EXT_multiview : enable
@@ -136,7 +139,7 @@ struct HitInfo {
     int entity_id; 
     bool is_shadow_ray;
     bool backface;
-    bool is_flat;
+    float curvature;
 };
 
 #if defined  RAYTRACING || defined COMPUTE

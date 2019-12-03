@@ -37,6 +37,9 @@ Texture::Texture(std::string name, uint32_t id)
 	texture_struct.type = 0;
 	texture_struct.scale = .1f;
 	texture_struct.mip_levels = 0;
+	texture_struct.width = 0;
+	texture_struct.height = 0;
+	texture_struct.depth = 0;
 	texture_struct.color1 = glm::vec4(1.0, 1.0, 1.0, 1.0);
 	texture_struct.color2 = glm::vec4(0.0, 0.0, 0.0, 1.0);
 }
@@ -985,6 +988,10 @@ void Texture::loadKTX(std::string imagePath, bool submit_immediately)
 	cleanup();
 
 	texture_struct.mip_levels = data.colorBuffer.mipLevels;
+	texture_struct.width = data.width;
+	texture_struct.height = data.height;
+	texture_struct.depth = data.depth;
+	texture_struct.sampler_id = 0;
 
 	auto vulkan = Libraries::Vulkan::Get();
 	if (!vulkan->is_initialized())
@@ -1185,6 +1192,12 @@ void Texture::loadPNG(std::string imagePath, bool convert_bump, bool submit_imme
 	data.imageType = vk::ImageType::e2D;
 	/* For PNG, we assume the following format */
 	data.colorBuffer.format = vk::Format::eR8G8B8A8Unorm;
+
+	texture_struct.width = data.width;
+	texture_struct.height = data.height;
+	texture_struct.depth = data.depth;
+	texture_struct.mip_levels = data.colorBuffer.mipLevels;
+	texture_struct.sampler_id = 0;
 
 	if (convert_bump) {
 		float strength = 2.0f;
@@ -1741,7 +1754,6 @@ Texture *Texture::CreateFromKTX(std::string name, std::string filepath, bool sub
 	auto tex = StaticFactory::Create(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 	try {
 		tex->loadKTX(filepath, submit_immediately);
-		tex->texture_struct.sampler_id = 0;
 		tex->mark_dirty();
 		return tex;
 	} catch (...) {
@@ -1755,7 +1767,6 @@ Texture *Texture::CreateFromPNG(std::string name, std::string filepath, bool sub
 	auto tex = StaticFactory::Create(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 	try {
 		tex->loadPNG(filepath, false, submit_immediately);
-		tex->texture_struct.sampler_id = 0;
 		tex->mark_dirty();
 		return tex;
 	} catch (...) {
@@ -1769,7 +1780,6 @@ Texture *Texture::CreateFromBumpPNG(std::string name, std::string filepath, bool
 	auto tex = StaticFactory::Create(creation_mutex, name, "Texture", lookupTable, textures, MAX_TEXTURES);
 	try {
 		tex->loadPNG(filepath, true, submit_immediately);
-		tex->texture_struct.sampler_id = 0;
 		tex->mark_dirty();
 		return tex;
 	} catch (...) {
@@ -1790,6 +1800,10 @@ Texture* Texture::CreateCubemap(
 		tex->data.viewType  = vk::ImageViewType::eCube;
 		if (hasColor) tex->create_color_image_resources(tex->data.colorBuffer, submit_immediately);
 		if (hasDepth) tex->create_depth_stencil_resources(tex->data.depthBuffer, submit_immediately);
+		tex->texture_struct.width = tex->data.width;
+		tex->texture_struct.height = tex->data.height;
+		tex->texture_struct.depth = tex->data.depth;
+		tex->texture_struct.mip_levels = tex->data.colorBuffer.mipLevels;
 		tex->texture_struct.sampler_id = 0;
 		tex->ready = true;
 		tex->mark_dirty();
@@ -1826,6 +1840,10 @@ Texture* Texture::CreateCubemapGBuffers(
 			tex->create_color_image_resources(tex->data.gBuffers[i], submit_immediately, false); 
 		}
 		tex->create_depth_stencil_resources(tex->data.depthBuffer, submit_immediately);
+		tex->texture_struct.width = tex->data.width;
+		tex->texture_struct.height = tex->data.height;
+		tex->texture_struct.depth = tex->data.depth;
+		tex->texture_struct.mip_levels = tex->data.colorBuffer.mipLevels;
 		tex->texture_struct.sampler_id = 0;
 		tex->ready = true;
 		tex->mark_dirty();
@@ -1842,6 +1860,9 @@ Texture* Texture::CreateChecker(std::string name, bool submit_immediately)
 
 	tex->texture_struct.type = 1;
 	tex->texture_struct.mip_levels = 0;
+	tex->texture_struct.width = 0;
+	tex->texture_struct.height = 0;
+	tex->texture_struct.depth = 0;
 	tex->texture_struct.sampler_id = 0;
 	tex->ready = true;
 	tex->mark_dirty();
@@ -1874,6 +1895,10 @@ Texture* Texture::Create2D(
 		if (hasColor) tex->create_color_image_resources(tex->data.colorBuffer, submit_immediately, false); 
 		if (hasDepth) tex->create_depth_stencil_resources(tex->data.depthBuffer, submit_immediately);
 		tex->ready = true;
+		tex->texture_struct.width = tex->data.width;
+		tex->texture_struct.height = tex->data.height;
+		tex->texture_struct.depth = tex->data.depth;
+		tex->texture_struct.mip_levels = tex->data.colorBuffer.mipLevels;
 		tex->texture_struct.sampler_id = 0;
 		tex->mark_dirty();
 		return tex;
@@ -1911,6 +1936,10 @@ Texture* Texture::Create2DGBuffers (
 		}
 		tex->create_depth_stencil_resources(tex->data.depthBuffer, submit_immediately);
 
+		tex->texture_struct.width = tex->data.width;
+		tex->texture_struct.height = tex->data.height;
+		tex->texture_struct.depth = tex->data.depth;
+		tex->texture_struct.mip_levels = tex->data.colorBuffer.mipLevels;
 		tex->texture_struct.sampler_id = 0;
 		tex->ready = true;
 		tex->mark_dirty();

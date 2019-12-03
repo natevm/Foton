@@ -664,6 +664,8 @@ namespace Foton {
             }
         }
 
+        Light::MarkAllAsDirty();
+
         return entities;
     }
 }

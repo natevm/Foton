@@ -35,8 +35,10 @@
 #define TEMPORAL_ALPHA (1.0 / float(MAX_DIFFUSE_CUMULATIVE_COUNT))
 
 // Specular is much more likely to ghost, due to more undefined disocclusions.
-#define MAX_SPECULAR_CUMULATIVE_COUNT 16
-#define MIN_SPECULAR_CUMULATIVE_COUNT 1
+#define MAX_DIRECT_SPECULAR_CUMULATIVE_COUNT 16
+#define MIN_DIRECT_SPECULAR_CUMULATIVE_COUNT 1
+#define MAX_INDIRECT_SPECULAR_CUMULATIVE_COUNT 16
+#define MIN_INDIRECT_SPECULAR_CUMULATIVE_COUNT 1
 
 // The larger max cumulative count is, the more powerful soft reset rate should be?
 #define MIN_SOFT_RESET_COUNT 4

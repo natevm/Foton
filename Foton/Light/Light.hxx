@@ -85,6 +85,8 @@ class Light : public StaticFactory
         /* Returns the size in bytes of the current light entity SSBO */
         static uint32_t GetLightEntitiesSSBOSize();
 
+        static void MarkAllAsDirty();
+
         /* Returns a json string summarizing the light */
         std::string to_string();
 
@@ -157,6 +159,7 @@ class Light : public StaticFactory
 
         /* Returns true if variance shadow mapping is enabled. Useful when recording compute pass on shadow maps. */
         bool should_use_vsm();
+
 
     private:
         /* Creates an uninitialized light. Useful for preallocation. */

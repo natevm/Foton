@@ -503,6 +503,11 @@ uint32_t Light::GetLightEntitiesSSBOSize()
     return MAX_LIGHTS * sizeof(uint32_t);
 }
 
+void Light::MarkAllAsDirty()
+{
+    Dirty = true;
+}
+
 void Light::CleanUp()
 {
     if (!IsInitialized()) return;

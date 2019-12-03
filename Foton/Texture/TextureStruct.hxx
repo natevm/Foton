@@ -38,4 +38,8 @@ struct TextureStruct
     int32_t mip_levels;
     int32_t sampler_id;
     int32_t type;
+    int32_t width;
+    int32_t height;
+    int32_t depth;
+    int32_t ph2;
 };

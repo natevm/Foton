@@ -9,6 +9,7 @@ layout(location = 0) rayPayloadNV HitInfo payload;
 #include "Foton/Resources/Shaders/Common/ShaderConstants.hxx"
 #include "Foton/Resources/Shaders/Common/OffsetRay.hxx"
 
+// 6.7ms, TEX 19.8%, SM 13.2%, VRAM 12.0%
 void main() 
 {
     /* Next, Compute ray origin and direction */
@@ -24,17 +25,21 @@ void main()
     float rand = random();
     imageStore(gbuffers[RANDOM_ADDR], pixel_coords, vec4(rand));
 
-    vec3 origin, direction;
+    /* Next, Compute ray origin and direction */
     EntityStruct camera_entity = ebo.entities[push.consts.camera_id];
     CameraStruct camera = cbo.cameras[camera_entity.camera_id];
     TransformStruct camera_transform = tbo.transforms[camera_entity.transform_id];
-    int multiview_idx = push.consts.viewIndex;
-    multiview_idx = 0; // temporary
-    get_origin_and_direction(
-        pixel_seed, frame_seed,
-        camera.multiviews[multiview_idx].projinv,
-        camera_transform.localToWorld * camera.multiviews[multiview_idx].viewinv,
-        pixel_coords, ivec2(gl_LaunchSizeNV.xy), origin, direction);
+    int multiview_idx = 0; //push.consts.viewIndex;
+    mat4 projinv = camera.multiviews[multiview_idx].projinv;
+    mat4 viewinv = camera_transform.localToWorld * camera.multiviews[multiview_idx].viewinv;
+    vec2 pixel_center = vec2(pixel_coords.xy) + vec2(random(), random()) * .5;
+	const vec2 in_uv = pixel_center/vec2(push.consts.width, push.consts.height);
+	vec2 d = in_uv * 2.0 - 1.0; d.y *= -1.0;
+    vec4 t = (projinv * vec4(d.x, d.y, 1, 1));
+    vec3 target = t.xyz / t.w;
+    vec3 origin = (viewinv * vec4(0,0,0,1)).xyz;
+    vec3 direction = (viewinv * vec4(target, 0)).xyz ;
+    direction = normalize(direction);
 
     /* Trace a ray to compute primary visibility data */
     vec3 world_position = vec3(INFINITY);
@@ -52,6 +57,7 @@ void main()
     precise vec3 motion = vec3(0.0);
     bool reset = true;
     bool is_flat;
+    float curvature;
 
     EntityStruct entity;
     entity.initialized = 0;
@@ -99,16 +105,17 @@ void main()
         world_normal = payload.w_n;
         dist = payload.distance;
         uv = payload.uv;
-        is_flat = payload.is_flat;
+        // is_flat = payload.is_flat;
+        curvature = payload.curvature;
 
         /* Compute motion vector for primary visibility */
         if (entity.initialized == 1) {
             reset = false;
             TransformStruct transform = tbo.transforms[entity.transform_id];
-            precise vec4 w_p_prev = transform.localToWorldPrev * vec4(model_position, 1.0);
+            vec4 w_p_prev = transform.localToWorldPrev * vec4(model_position, 1.0);
 
-            precise vec4 v_p_curr = camera.multiviews[multiview_idx].viewproj * camera_transform.worldToLocal * vec4(world_position, 1.0);
-            precise vec4 v_p_prev = camera.multiviews[multiview_idx].viewproj * camera_transform.worldToLocalPrev * w_p_prev;
+            vec4 v_p_curr = camera.multiviews[multiview_idx].viewproj * camera_transform.worldToLocal * vec4(world_position, 1.0);
+            vec4 v_p_prev = camera.multiviews[multiview_idx].viewproj * camera_transform.worldToLocalPrev * w_p_prev;
 
             motion = (v_p_prev.xyz / v_p_prev.w) - (v_p_curr.xyz / v_p_curr.w);
         }
@@ -131,7 +138,7 @@ void main()
     imageStore(gbuffers[POSITION_DEPTH_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(world_position, dist));
 
     // Normal G Buffer
-    imageStore(gbuffers[NORMAL_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(world_normal, (is_flat) ? 1.f : 0.f));
+    imageStore(gbuffers[NORMAL_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(world_normal, curvature));//(is_flat) ? 1.f : 0.f));
 
     // UV
     imageStore(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(uv.x, uv.y, metallic, roughness));

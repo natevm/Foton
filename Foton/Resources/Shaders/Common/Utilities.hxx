@@ -154,6 +154,18 @@ float filterwidth(in vec3 v)
     return mod( q.x+q.y+q.z, 2.0 );            // xor pattern
 }
 
+// Uses IQ's filtering method recommended here: https://www.shadertoy.com/view/XsfGDn
+vec2 get_filtered_uv(ivec2 textureResolution, vec2 uv) 
+{
+    // float textureResolution = 64.0;
+	uv = uv*textureResolution + 0.5;
+	vec2 iuv = floor( uv );
+	vec2 fuv = fract( uv );
+	uv = iuv + fuv*fuv*(3.0-2.0*fuv); // fuv*fuv*fuv*(fuv*(fuv*6.0-15.0)+10.0);
+	uv = (uv - 0.5)/textureResolution;
+    return uv;
+}
+
 float checker(in vec3 uvw, float scale)
 {
     float width = filterwidth(uvw*scale);
@@ -172,6 +184,11 @@ vec4 sample_texture_2D(vec4 default_color, int texture_id, vec2 uv, vec3 m_posit
     TextureStruct tex = txbo.textures[texture_id];
     
     if ((tex.sampler_id < 0) || (tex.sampler_id >= max_samplers))  return default_color;
+
+    /* Avoids linear filtering artifacts */
+    if (tex.sampler_id == LINEAR_SAMPLER) {
+        uv = get_filtered_uv(ivec2(tex.width, tex.height), uv);
+    }
 
     /* Raster texture */
     if (tex.type == 0) {
@@ -351,7 +368,6 @@ void unpack_light_struct(
     if ((light_id < 0) || (light_id >= max_lights)) return;
     light = lbo.lights[light_id];
 }
-
 
 // bool validate() {
 //     #ifdef RAYTRACING

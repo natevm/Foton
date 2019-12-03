@@ -47,18 +47,24 @@ const float h[1][1] = {
 void main() {
     if (int(gl_GlobalInvocationID.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
     if (int(gl_GlobalInvocationID.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
-    
+    ivec2 path_trace_dims = ivec2(vec2(push.consts.width, push.consts.height) / PATH_TRACE_TILE_SIZE);
+    ivec2 full_dims = ivec2(push.consts.width, push.consts.height);
+
     float screen_correction = max(push.consts.width, push.consts.height) / PATH_TRACE_TILE_SIZE;
-    float r_sigma_indirect = 10.0 * (1.0 - sqrt(.5)) * screen_correction; // user controllable power
+    float r_sigma_direct = mix(100, 0, clamp(0.01, 0, 1));
+    float r_sigma_indirect = mix(100, 0, clamp(.01, 0, 1));
 
     ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
     const ivec2 ipos_full = ivec2(gl_GlobalInvocationID.xy) * PATH_TRACE_TILE_SIZE;
     float gradient_weight = push.consts.parameter1;
+    bool use_nearest = (push.consts.parameter2 > .5);
 
     // This temporal accumulation uses two ping pong buffers per accumulated
     // g buffer. These are the current and next gbuffer addreses for each.
-    const int curr_specular_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_7_ADDR : SVGF_TAA_HISTORY_8_ADDR;
-    const int next_specular_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_8_ADDR : SVGF_TAA_HISTORY_7_ADDR;
+    const int curr_direct_specular_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_7_ADDR : SVGF_TAA_HISTORY_8_ADDR;
+    const int next_direct_specular_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_8_ADDR : SVGF_TAA_HISTORY_7_ADDR;
+    const int curr_indirect_specular_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_9_ADDR : SVGF_TAA_HISTORY_10_ADDR;
+    const int next_indirect_specular_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_10_ADDR : SVGF_TAA_HISTORY_9_ADDR;
     
     // Compute motion vector
     // Note, the w component indicates an invalid motion vector, which can 
@@ -70,8 +76,8 @@ void main() {
     precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height) / PATH_TRACE_TILE_SIZE;
     iv.x = (abs(iv.x) < MOTION_VECTOR_MIN) ? 0 : iv.x;
     iv.y = (abs(iv.y) < MOTION_VECTOR_MIN) ? 0 : iv.y;
-    ivec2 pos_prev = ivec2(ipos + iv + MOTION_VECTOR_OFFSET);
-    ivec2 p = ivec2(pos_prev - 0.5);
+    vec2 pos_prev = vec2(ipos + iv + MOTION_VECTOR_OFFSET);
+    vec2 p = vec2(pos_prev - 0.5);
 
     // Load g buffer data which we'll use for detecting disocclusions
     int curr_entity_id = int(imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos_full).r);
@@ -80,27 +86,21 @@ void main() {
     vec3 curr_normal = imageLoad(gbuffers[NORMAL_ADDR], ipos_full).rgb;
     
     // Load g buffer data to be temporally accumulated
-	vec4  specular_curr     = imageLoad(gbuffers[GLOSSY_INDIRECT_ADDR], ipos);
-	vec2  moments_curr = imageLoad(gbuffers[LUMINANCE_VARIANCE_ADDR], ipos).rg;
+	vec4  direct_specular_curr     = imageLoad(gbuffers[GLOSSY_DIRECT_ADDR], ipos);
+	vec4  indirect_specular_curr     = imageLoad(gbuffers[GLOSSY_INDIRECT_ADDR], ipos);
     
     // We'll be estimating these values by a simple filter surrounding the reprojected position
-    vec4 specular_prev  = vec4(0);
-    float antilag_prev = 0;
-	vec2 moments_prev = vec2(0);
+    vec4 direct_specular_prev  = vec4(0);
+    vec4 indirect_specular_prev  = vec4(0);
 	float sum_w       = 0.0;
-	float histlen     = 0.0;
     if (!reset) {
-        vec4 specular_max;
-        vec4 specular_min;
-
-        float min_luminance;
-        bool first = true;
-
         const int r = RADIUS;
         for (int y = -r; y <= r; ++y) {
             for (int x = -r; x <= r; ++x) {
-                ivec2 ipos_prev = pos_prev + ivec2(x, y);
-                ivec2 ipos_prev_full = ipos_prev * PATH_TRACE_TILE_SIZE;
+                ivec2 ipos_prev = ivec2(pos_prev + vec2(x, y));
+                ivec2 ipos_prev_full = ivec2(ipos_prev * PATH_TRACE_TILE_SIZE);
+                vec2 fpos_prev = (pos_prev + vec2(x, y)) / (path_trace_dims * 4);
+                fpos_prev = get_filtered_uv(full_dims, fpos_prev);
                 
                 // Load disocclusion gbuffer data
                 int hist_entity_id = int(imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos_prev_full));
@@ -110,7 +110,18 @@ void main() {
                 vec3 hist_normal = imageLoad(gbuffers[NORMAL_ADDR_PREV], ipos_prev_full).rgb;
 
                 // Load prior gbuffer data to accumulate temporally 
-                vec4 specular = imageLoad(gbuffers[curr_specular_hist_addr], ipos_prev);
+                vec4 direct_specular, indirect_specular;
+                if (use_nearest) {
+                    direct_specular = imageLoad(gbuffers[curr_direct_specular_hist_addr], ipos_prev);
+                    indirect_specular = imageLoad(gbuffers[curr_indirect_specular_hist_addr], ipos_prev);
+                } else {
+                    direct_specular = texture( 
+                            sampler2D(gbuffer_textures[curr_indirect_specular_hist_addr], 
+                            samplers[LINEAR_SAMPLER]), fpos_prev);
+                    indirect_specular = texture( 
+                            sampler2D(gbuffer_textures[curr_indirect_specular_hist_addr], 
+                            samplers[LINEAR_SAMPLER]), fpos_prev);
+                }
                                 
                 bvec2 a = greaterThan(ipos_prev, vec2(push.consts.width-1, push.consts.height-1));
                 bvec2 b = lessThan(ipos_prev, vec2(0.0, 0.0));
@@ -118,11 +129,17 @@ void main() {
                 // Determine if this prior sample is a disocclusion. If not, accept it.
                 bool accept = true;
                 accept = accept && (!any(bvec2(any(a), any(b))));
-                accept = accept && (!any(isnan(specular)));
-                accept = accept && (!any(isinf(specular)));
+                accept = accept && (!any(isnan(direct_specular)));
+                accept = accept && (!any(isinf(direct_specular)));
+                accept = accept && (!any(isnan(indirect_specular)));
+                accept = accept && (!any(isinf(indirect_specular)));
                 accept = accept && (hist_entity_id == curr_entity_id);
                 // accept = accept && (dot(curr_normal, hist_normal) > .9); 
                 
+
+                float beta_direct = r_sigma_direct;
+                float beta_indirect = r_sigma_indirect;
+
                 // sharpness
                 float lambda_q = hist_spec_axis_sharpness.w;
                 float lambda_p = curr_spec_axis_sharpness.w;
@@ -131,23 +148,26 @@ void main() {
                 vec3 xi_q = hist_spec_axis_sharpness.xyz;
                 vec3 xi_p = curr_spec_axis_sharpness.xyz;
 
-                // float direct_lobe_axis_similarity = exp(((r_sigma_direct*lambda_p*lambda_q)/(lambda_p + lambda_q)) * (dot(xi_p,xi_q) - 1.0f));
+                // float direct_lobe_axis_similarity = exp((beta_direct*lambda_p*lambda_q)/(lambda_p + lambda_q) * (pow(dot(xi_p,xi_q), beta_direct) - 1.0f));
                 // float direct_lobe_sharpness_similarity = pow( (2.0 * sqrt(lambda_p * lambda_q)) / (lambda_p + lambda_q), r_sigma_direct);
                 // float wr_direct = direct_lobe_axis_similarity * direct_lobe_sharpness_similarity;
 
-                float indirect_lobe_axis_similarity = exp(((r_sigma_indirect*lambda_p*lambda_q)/(lambda_p + lambda_q)) * (dot(xi_p,xi_q) - 1.0f));
+                float indirect_lobe_axis_similarity = exp((beta_indirect*lambda_p*lambda_q)/(lambda_p + lambda_q) * (pow(dot(xi_p,xi_q), beta_indirect) - 1.0f));
                 float indirect_lobe_sharpness_similarity = pow( (2.0 * sqrt(lambda_p * lambda_q)) / (lambda_p + lambda_q), r_sigma_indirect);
                 float wr_indirect = indirect_lobe_axis_similarity * indirect_lobe_sharpness_similarity;
 
-                float w_id_indirect = mix(1.0, (curr_refl_entity_id == hist_refl_entity_id) ? 1.0 : 0.0, curr_spec_axis_sharpness.w);
+                float w_id = mix(1.0, (curr_refl_entity_id == hist_refl_entity_id) ? 1.0 : 0.0, curr_spec_axis_sharpness.w);
 
 
                 float normal_similarity = exp(((r_sigma_indirect*lambda_p*lambda_q)/(lambda_p + lambda_q)) * (dot(curr_normal,hist_normal) - 1.0f));
 
-                float w = h[y + RADIUS][x + RADIUS] * wr_indirect * normal_similarity * w_id_indirect;
+                // float w_direct = h[y + RADIUS][x + RADIUS] * wr_direct * normal_similarity * w_id;
+                // float w_indirect = h[y + RADIUS][x + RADIUS] * wr_indirect * normal_similarity * w_id;
+                float w = h[y + RADIUS][x + RADIUS] * wr_indirect * normal_similarity * w_id;
                 
                 if (accept) {                   
-                    specular_prev += specular * w;
+                    direct_specular_prev += direct_specular * w;
+                    indirect_specular_prev += indirect_specular * w;
                     sum_w        += w;
                 }
             }
@@ -162,7 +182,7 @@ void main() {
         float w_sum = 0.f;
 		for(int y = -r; y <= r; y++) {
 			for(int x = -r; x <= r; x++) {
-                ivec2 p = pos_prev / GRADIENT_TILE_SIZE + ivec2(x, y);
+                ivec2 p = ivec2(pos_prev / GRADIENT_TILE_SIZE) + ivec2(x, y);
 				vec4 gradient = imageLoad(gbuffers[TEMPORAL_GRADIENT_ADDR], p); 
 				vec4 max_luminance = imageLoad(gbuffers[LUMINANCE_MAX_ADDR], p); 
                 max_luminance = max(max_luminance, vec4(1e-4));
@@ -180,17 +200,26 @@ void main() {
 	}
 
     if (sum_w > 0.0) { /* found sufficiently reliable history information */
-        specular_prev   /= sum_w;
+        direct_specular_prev   /= sum_w;
+        indirect_specular_prev   /= sum_w;
 
-        vec4 alpha_color   = vec4(1.0 / MAX_SPECULAR_CUMULATIVE_COUNT);
-		alpha_color   = mix(alpha_color, vec4(1.0 / MIN_SPECULAR_CUMULATIVE_COUNT), antilag_alpha);
+        float alpha_direct = (1.0 / MAX_DIRECT_SPECULAR_CUMULATIVE_COUNT);
+        float alpha_indirect = (1.0 / MAX_INDIRECT_SPECULAR_CUMULATIVE_COUNT);
+        // making direct incredibly sensitive to gradient, since it's most likely to leave ghosting
+		alpha_direct   = mix(alpha_direct, (1.0 / MIN_DIRECT_SPECULAR_CUMULATIVE_COUNT), antilag_alpha.b); 
+		alpha_indirect   = mix(alpha_indirect, (1.0 / MIN_INDIRECT_SPECULAR_CUMULATIVE_COUNT), antilag_alpha.a);
 
-        vec4 accum_specular = vec4(mix(specular_prev.rgb, specular_curr.rgb, alpha_color.a), 1.0); // note, pass variance as w for bilateral filtering
+        vec4 accum_direct_specular = vec4(mix(direct_specular_prev.rgb, direct_specular_curr.rgb, alpha_direct), 1.0); // note, pass variance as w for bilateral filtering
+        vec4 accum_indirect_specular = vec4(mix(indirect_specular_prev.rgb, indirect_specular_curr.rgb, alpha_indirect), 1.0); // note, pass variance as w for bilateral filtering
         
-        imageStore( gbuffers[GLOSSY_INDIRECT_ADDR], ipos, accum_specular);
-        imageStore( gbuffers[next_specular_hist_addr], ipos, accum_specular );
+        imageStore( gbuffers[GLOSSY_DIRECT_ADDR], ipos, accum_direct_specular);
+        imageStore( gbuffers[GLOSSY_INDIRECT_ADDR], ipos, accum_indirect_specular);
+        imageStore( gbuffers[next_direct_specular_hist_addr], ipos, accum_direct_specular );
+        imageStore( gbuffers[next_indirect_specular_hist_addr], ipos, accum_indirect_specular );
     } else {
-        imageStore( gbuffers[GLOSSY_INDIRECT_ADDR], ipos, specular_curr);
-        imageStore( gbuffers[next_specular_hist_addr], ipos, specular_curr);
+        imageStore( gbuffers[GLOSSY_DIRECT_ADDR], ipos, direct_specular_curr);
+        imageStore( gbuffers[GLOSSY_INDIRECT_ADDR], ipos, indirect_specular_curr);
+        imageStore( gbuffers[next_direct_specular_hist_addr], ipos, direct_specular_curr);
+        imageStore( gbuffers[next_indirect_specular_hist_addr], ipos, indirect_specular_curr);
     }
 }

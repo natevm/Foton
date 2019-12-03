@@ -53,7 +53,7 @@ void main() {
 
     vec4 position_depth = imageLoad(gbuffers[POSITION_DEPTH_ADDR_PREV], ipos_diffuse_full_prev);
     vec4 target_pos_depth_data = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos_full);
-    // if ( distance(position_depth.xyz,  target_pos_depth_data.xyz) > .01 ) return;
+    if ( distance(position_depth.w,  target_pos_depth_data.w) > .001 ) return;
 
     vec4 normal = imageLoad(gbuffers[NORMAL_ADDR_PREV], ipos_diffuse_full_prev);
     vec4 target_normal = imageLoad(gbuffers[NORMAL_ADDR], ipos_full);
@@ -64,19 +64,20 @@ void main() {
     // frame to now will be due to changes in external lighting conditions
     
     vec4 seed = imageLoad(gbuffers[DIFFUSE_SEED_ADDR_PREV], ipos_diffuse_pt_tile_prev);
+    seed.w = 1; // mark as a reprojected seed.
     imageStore(gbuffers[DIFFUSE_SEED_ADDR], ipos_pt_tile, seed);
 
-    vec4 lum = imageLoad(gbuffers[LUMINANCE_ADDR_PREV], ipos_diffuse_pt_tile_prev);
-    imageStore(gbuffers[LUMINANCE_ADDR], ipos_pt_tile, lum);
+    // vec4 lum = imageLoad(gbuffers[LUMINANCE_ADDR_PREV], ipos_diffuse_pt_tile_prev);
+    // imageStore(gbuffers[LUMINANCE_ADDR], ipos_pt_tile, lum);
     
-    vec4 albedo = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR_PREV], ipos_diffuse_full_prev);
-    imageStore(gbuffers[DIFFUSE_COLOR_ADDR], ipos_full, albedo);
+    // vec4 albedo = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR_PREV], ipos_diffuse_full_prev);
+    // imageStore(gbuffers[DIFFUSE_COLOR_ADDR], ipos_full, albedo);
     
-    vec4 uv = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR_PREV], ipos_diffuse_full_prev);
-    imageStore(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos_full, uv);
+    // vec4 uv = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR_PREV], ipos_diffuse_full_prev);
+    // imageStore(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos_full, uv);
     
-    imageStore(gbuffers[POSITION_DEPTH_ADDR], ipos_full, position_depth);
-    imageStore(gbuffers[NORMAL_ADDR], ipos_full, normal);
+    // imageStore(gbuffers[POSITION_DEPTH_ADDR], ipos_full, position_depth);
+    // imageStore(gbuffers[NORMAL_ADDR], ipos_full, normal);
     
     /* DEBUG, helps show where reprojected seeds are landing */
     // imageStore(gbuffers[DIFFUSE_COLOR_ADDR], ipos_full, vec4(1.0, 0.0, 0.0, 1.0));

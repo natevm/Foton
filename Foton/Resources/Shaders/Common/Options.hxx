@@ -19,6 +19,7 @@
 #define SHOW_ALBEDO 10
 #define ENABLE_ANALYICAL_AREA_LIGHTS 16
 #define ENABLE_BILATERAL_UPSAMPLING 17
+#define FORCE_FLAT_REFLECTORS 18
 
 bool is_multiview_enabled()
 {
@@ -86,5 +87,11 @@ bool is_bilateral_upsampling_enabled()
 {
     return (push.consts.flags & (1 << ENABLE_BILATERAL_UPSAMPLING)) != 0;
 }
+
+bool are_flat_reflectors_forced()
+{
+    return (push.consts.flags & (1 << FORCE_FLAT_REFLECTORS)) != 0;
+}
+
 
 #endif

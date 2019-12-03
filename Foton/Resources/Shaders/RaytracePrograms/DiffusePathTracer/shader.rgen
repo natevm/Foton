@@ -24,6 +24,7 @@ vec3 Uncharted2Tonemap(vec3 x)
 	return max(vec3(0.0f), ((x*(A*x+C*B)+D*E_)/(x*(A*x+B)+D*F))-E_/F);
 }
 
+// 7.3 ms, VRAM 29.9%, L2 27.1%, TEX 18.2%
 void main() 
 {
     if (int(gl_LaunchIDNV.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
@@ -39,43 +40,56 @@ void main()
     
     /* Load primary visibility data from G Buffers */
     vec4 temp;
+    int addr;
     ivec2 ipos_full = tile * PATH_TRACE_TILE_SIZE + offset_curr;
 
-    // Seed / Luminance G Buffer
-    temp = imageLoad(gbuffers[SEED_ADDR], tile);
+    // Compute motion vector
+    ivec2 ipos_tile_prev, ipos_full_prev;
+    {
+        precise vec4 motion_data = imageLoad(gbuffers[DIFFUSE_MOTION_ADDR], ipos_full);
+        precise vec2 v = motion_data.xy * vec2(.5, -.5);
+        precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
+        ipos_tile_prev = ivec2(ipos_full + (iv + MOTION_VECTOR_OFFSET)) / PATH_TRACE_TILE_SIZE;
+        ipos_full_prev = ipos_tile_prev * PATH_TRACE_TILE_SIZE;
+    }
+
+    // Seed G Buffer
+    temp = imageLoad(gbuffers[DIFFUSE_SEED_ADDR], tile);
     ivec2 pixel_seed = ivec2(temp.xy);
     int frame_seed = int(temp.z);
+    bool seed_reprojected = (temp.w > 0);
     init_random(pixel_seed, frame_seed, 0);
-    // rand = random();
-    // imageStore(gbuffers[RANDOM_ADDR], tile, vec4(rand));
-
+    
     // Position G Buffer 
-    temp = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos_full);
+    ivec2 gbuf_pos = (seed_reprojected) ? ipos_full_prev : ipos_full;
+    addr = (seed_reprojected) ? POSITION_DEPTH_ADDR_PREV : POSITION_DEPTH_ADDR;
+    temp = imageLoad(gbuffers[addr], gbuf_pos);
     vec3 first_position = temp.xyz;
     float first_dist = temp.w;
 
     // Normal G Buffer
-    temp = imageLoad(gbuffers[NORMAL_ADDR], ipos_full);
+    addr = (seed_reprojected) ? NORMAL_ADDR_PREV : NORMAL_ADDR;
+    temp = imageLoad(gbuffers[addr], gbuf_pos);
     vec3 first_normal = normalize(temp.xyz);
 
     // Component IDs
-    temp = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos_full);
+    addr = (seed_reprojected) ? ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV : ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR;
+    temp = imageLoad(gbuffers[addr], gbuf_pos);
     int first_entity_id = int(temp.r);
     int first_material_id = int(temp.g);
     int first_transform_id = int(temp.b);
     int first_light_id = int(temp.a);
 
     // UV G Buffer
-    temp = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos_full);
+    addr = (seed_reprojected) ? UV_METALLIC_ROUGHESS_ADDR_PREV : UV_METALLIC_ROUGHESS_ADDR;
+    temp = imageLoad(gbuffers[addr], gbuf_pos);
     vec2 first_uv = temp.xy;
 
     // Raw albedo
-    temp = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ipos_full);
+    addr = (seed_reprojected) ? DIFFUSE_COLOR_ADDR_PREV : DIFFUSE_COLOR_ADDR;
+    temp = imageLoad(gbuffers[addr], gbuf_pos);
     vec4 first_albedo = temp;
 
-    // bad precision in position g buffer... getting lots of self intersections...
-    first_position += first_normal * .01; 
-    
     /* Next, Compute ray origin and direction */
     int max_path_depth = int(push.consts.parameter1);
     EntityStruct camera_entity = ebo.entities[push.consts.camera_id];
@@ -92,6 +106,12 @@ void main()
     vec3 origin = (viewinv * vec4(0,0,0,1)).xyz;
     vec3 direction = (viewinv * vec4(target, 0)).xyz ;
     direction = normalize(direction);
+
+    // Make normal forward facing
+    if (dot(direction, first_normal) > 0) first_normal *= -1;
+
+    // bad precision in position g buffer... getting lots of self intersections...
+    first_position += first_normal * .01; 
     
     /* We'll be computing direct and indirect path traced illumination for glossy and diffuse */
     vec3 diffuse_radiance = vec3(0.0);
@@ -100,6 +120,9 @@ void main()
     int bounce = 0;
     int transparency_continues = 0;
     do {
+        /* Mask out any lights which are primarily visible */
+        if (first_light_id != -1) break;
+        
         /* Unpack Data */
         vec3 w_o = -direction;
         vec3 w_p = (bounce == 0) ? first_position : payload.w_p;
@@ -116,6 +139,7 @@ void main()
         if ((entity_id >= 0) && (entity_id < max_entities)) entity = ebo.entities[entity_id];
         int material_id = (bounce == 0) ? first_material_id : entity.material_id;
         if ((material_id >= 0) && (material_id < max_materials)) mat = mbo.materials[material_id];
+        int light_id = (bounce == 0) ? first_light_id : entity.light_id;
         if (bounce == 0) {
             mat.base_color = first_albedo;
         } else if (entity.initialized == 1) {
@@ -126,9 +150,11 @@ void main()
     
         /* If we hit the sky or a light, stop */
         if (entity_id == -1) { 
-            /* todo, decide how to split this up into direct/indirect specular/diffuse, or neither */
-            vec3 irradiance = (bounce == 0) ? first_albedo.rgb : get_environment_color(direction) * push.consts.environment_intensity;
-            /* Include lighting from sky as direct lighting.  */
+            /* Include lighting from sky as indirect lighting.  */
+            if (bounce > 0) {
+                vec3 irradiance = get_environment_color(direction) * push.consts.environment_intensity;
+                diffuse_radiance += path_throughput * (irradiance);
+            }
             break;
         }
 
@@ -142,16 +168,30 @@ void main()
         /* Do next event estimation */
         float visibility = 1.0, l_dist;
         vec3 w_l, curr_diffuse_radiance, curr_specular_radiance;
-        Irradiance irradiance = sample_direct_light_analytic(mat, backface, /* allow shadows */ true, 
+        Irradiance irradiance;
+        if (is_ltc_enabled()) {
+            irradiance = sample_direct_light_analytic(mat, backface, /* allow shadows */ true, 
             /*force_diffuse*/true, /*force_specular*/false, /*force_perfect_reflection*/false, 
             w_p, w_z, w_x, w_y, w_o);
+        } else {
+            int light_entity_id = -1;
+            float diffuse_visibility, specular_visibility, dist;
+            vec3 w_l;
+            irradiance = sample_direct_light_stochastic(mat, backface, 
+            /*force_diffuse*/true, /*force_specular*/false, /*force_perfect_reflection*/false, 
+            w_p, w_z, w_x, w_y, w_o,
+            light_entity_id, diffuse_visibility, specular_visibility, w_l, dist);
+            irradiance.diffuse *= diffuse_visibility;
+            irradiance.specular *= specular_visibility;
+        }
 
         // If at bounce 0, we don't include diffuse color with diffuse. 
         // That will be multiplied later during compositing and after denoising
         if (bounce == 0) {
             vec3 specular = mix(vec3(1.0), mat.base_color.rgb, mat.metallic);
             curr_diffuse_radiance = irradiance.diffuse;
-            curr_specular_radiance = irradiance.specular * specular;            
+            // Need to ignore specular for first hit. Leaves gloss
+            curr_specular_radiance = vec3(0.0);//irradiance.specular * specular;            
             diffuse_radiance += path_throughput * (curr_diffuse_radiance + curr_specular_radiance);
             direct_diffuse_radiance = diffuse_radiance;
         } else {

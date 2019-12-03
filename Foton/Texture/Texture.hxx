@@ -1,3 +1,7 @@
+// TODO: There's quite a bit of overlap between the ImageData struct 
+// and the TextureStruct which is uploaded to the GPU. Try to merge some
+// of these fields together to avoid future update anomalies.
+
 #pragma once
 
 #include <iostream>

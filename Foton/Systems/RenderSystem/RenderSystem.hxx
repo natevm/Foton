@@ -51,6 +51,7 @@ enum RenderSystemOptions : uint32_t {
     SHOW_ALBEDO = 10,
     ENABLE_ANALYTICAL_AREA_LIGHTS=16,
     ENABLE_BILATERAL_UPSAMPLING=17,
+    FORCE_FLAT_REFLECTORS=18,
 };
 
 namespace Systems 
@@ -103,6 +104,8 @@ namespace Systems
             void set_asvgf_atrous_iterations(int iterations);
             void set_asvgf_atrous_sigma(float sigma);
             void set_asvgf_gradient_influence(float influence);
+            void set_asvgf_diffuse_gradient_influence(float influence);
+            void set_asvgf_specular_gradient_influence(float influence);
 
             void set_direct_diffuse_blur(float percent);
             void set_indirect_diffuse_blur(float percent);
@@ -115,13 +118,15 @@ namespace Systems
             void enable_tone_mapping(bool enable);
 
             void set_max_bounces(uint32_t max_bounces);
-            void set_path_trace_tile_size(uint32_t size);
             void enable_blue_noise(bool enable);
 
             void enable_analytical_arealights(bool enable);
 
             void enable_median(bool enable);
             void enable_bilateral_upsampling(bool enable);
+            void set_upsampling_radius(float radius);
+            void force_flat_reflectors(bool force);
+            void force_nearest_temporal_sampling(bool force);
 
             float test_param = 1.0;
             void set_debug_parameter(float param) 
@@ -182,8 +187,8 @@ namespace Systems
             float asvgf_direct_glossy_blur = .1f;
             float asvgf_indirect_glossy_blur = .6f;
             int asvgf_atrous_iterations = 3;
-            float asvgf_gradient_influence = 2.0f;
-            uint32_t path_trace_tile_size = 2;
+            float asvgf_diffuse_gradient_influence = 1.0f;
+            float asvgf_specular_gradient_influence = 0.1f;
 
             bool tone_mapping_enabled = true;
             bool progressive_refinement_enabled = false;
@@ -210,6 +215,9 @@ namespace Systems
 
             bool enable_median_filter = true;
             bool enable_bilateral_upsampling_filter = true;
+            float upsampling_filter_radius = 1.0 / 4.0;
+            bool force_flat_reflectors_on = false;
+            bool force_nearest_temporal_sampling_on = false;
 
             
             /* A vector of vertex input binding descriptions, describing binding and stride of per vertex data. */

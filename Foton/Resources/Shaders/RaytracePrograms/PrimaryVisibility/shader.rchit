@@ -76,5 +76,13 @@ void main() {
 	payload.entity_id = gl_InstanceID;
 	payload.distance = gl_RayTmaxNV;
 	payload.backface = dot(N, -gl_ObjectRayDirectionNV) < 0.0;
-	payload.is_flat = is_flat;
+
+	float edge_curvature_1 = abs(dot((N2-N1), (P2.xyz-P1.xyz))/(distance(P2.xyz,P1.xyz)*distance(P2.xyz,P1.xyz)));
+	float edge_curvature_2 = abs(dot((N1-N0), (P1.xyz-P0.xyz))/(distance(P1.xyz,P0.xyz)*distance(P1.xyz,P0.xyz)));
+	float edge_curvature_3 = abs(dot((N0-N2), (P0.xyz-P2.xyz))/(distance(P0.xyz,P2.xyz)*distance(P0.xyz,P2.xyz)));
+
+	float v_c_1 = (edge_curvature_2 + edge_curvature_3) * .5;
+	float v_c_2 = (edge_curvature_1 + edge_curvature_2) * .5;
+	float v_c_3 = (edge_curvature_1 + edge_curvature_3) * .5;
+	payload.curvature = barycentrics.x * v_c_1 + barycentrics.y * v_c_2 + barycentrics.z * v_c_3;
 }

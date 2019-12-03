@@ -6,6 +6,7 @@
 #include "Foton/Resources/Shaders/Common/Descriptors.hxx"
 #include "Foton/Resources/Shaders/Common/ShaderConstants.hxx"
 #include "Foton/Resources/Shaders/Common/Options.hxx"
+#include "Foton/Resources/Shaders/Common/Utilities.hxx"
 
 layout (local_size_x = 16, local_size_y = 16) in;
 
@@ -42,10 +43,13 @@ float Coefficients[1] = {
 void main() {
     if (int(gl_GlobalInvocationID.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
     if (int(gl_GlobalInvocationID.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
+    ivec2 path_trace_dims = ivec2(vec2(push.consts.width, push.consts.height) / PATH_TRACE_TILE_SIZE);
+    ivec2 full_dims = ivec2(push.consts.width, push.consts.height);
     
     ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
     const ivec2 ipos_full = ivec2(gl_GlobalInvocationID.xy) * PATH_TRACE_TILE_SIZE;
     float gradient_weight = push.consts.parameter1;
+    bool use_nearest = (push.consts.parameter2 > .5);
 
     // This temporal accumulation uses two ping pong buffers per accumulated
     // g buffer. These are the current and next gbuffer addreses for each.
@@ -65,8 +69,8 @@ void main() {
     precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height) / PATH_TRACE_TILE_SIZE;
     iv.x = (abs(iv.x) < MOTION_VECTOR_MIN) ? 0 : iv.x;
     iv.y = (abs(iv.y) < MOTION_VECTOR_MIN) ? 0 : iv.y;
-    ivec2 pos_prev = ivec2(ipos + iv + MOTION_VECTOR_OFFSET);
-    ivec2 p = ivec2(pos_prev - 0.5);
+    vec2 pos_prev = vec2(ipos + iv + MOTION_VECTOR_OFFSET);
+    vec2 p = vec2(pos_prev - 0.5);
 
     // Load g buffer data which we'll use for detecting disocclusions
     vec4 curr_id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos_full);
@@ -99,16 +103,29 @@ void main() {
         const int r = RADIUS;//int(mix(1, max_rad, alpha));
         for (int y = -r; y <= r; ++y) {
             for (int x = -r; x <= r; ++x) {
-                ivec2 ipos_prev = pos_prev + ivec2(x, y);
-                ivec2 ipos_prev_full = ipos_prev * PATH_TRACE_TILE_SIZE;
+                ivec2 ipos_prev = ivec2(pos_prev + vec2(x, y));
+                ivec2 ipos_prev_full = ivec2(ipos_prev * PATH_TRACE_TILE_SIZE);
+                vec2 fpos_prev = (pos_prev + vec2(x, y)) / (path_trace_dims * 4);
+                fpos_prev = get_filtered_uv(full_dims, fpos_prev);
                 
                 // Load disocclusion gbuffer data
                 vec4 hist_id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV], ipos_prev_full);
                 vec3 hist_normal = imageLoad(gbuffers[NORMAL_ADDR_PREV], ipos_prev_full).rgb;
                 
                 // Load prior gbuffer data to accumulate temporally 
-                vec4 direct_diffuse = imageLoad(gbuffers[curr_direct_diffuse_hist_addr], ipos_prev);
-                vec4 indirect_diffuse = imageLoad(gbuffers[curr_indirect_diffuse_hist_addr], ipos_prev);
+                vec4 direct_diffuse, indirect_diffuse;
+                if (use_nearest) {
+                    direct_diffuse = imageLoad(gbuffers[curr_direct_diffuse_hist_addr], ipos_prev);
+                    indirect_diffuse = imageLoad(gbuffers[curr_indirect_diffuse_hist_addr], ipos_prev);
+                } else {
+                    direct_diffuse = texture( 
+                            sampler2D(gbuffer_textures[curr_direct_diffuse_hist_addr], 
+                            samplers[LINEAR_SAMPLER]), fpos_prev);
+                    indirect_diffuse = texture( 
+                            sampler2D(gbuffer_textures[curr_indirect_diffuse_hist_addr], 
+                            samplers[LINEAR_SAMPLER]), fpos_prev);
+                }
+
                 // int samples = int(imageLoad(gbuffers[curr_sample_avg_addr], ipos_prev).r);
 
                 // Determine if this prior sample is a disocclusion. If not, accept it.
@@ -143,7 +160,7 @@ void main() {
         float w_sum = 0.f;
 		for(int y = -r; y <= r; y++) {
 			for(int x = -r; x <= r; x++) {
-                ivec2 p = pos_prev / GRADIENT_TILE_SIZE + ivec2(x, y);
+                ivec2 p = ivec2(pos_prev / GRADIENT_TILE_SIZE) + ivec2(x, y);
 				vec4 gradient = imageLoad(gbuffers[TEMPORAL_GRADIENT_ADDR], p); 
 				vec4 max_luminance = imageLoad(gbuffers[LUMINANCE_MAX_ADDR], p); 
                 max_luminance = max(max_luminance, vec4(1e-4));

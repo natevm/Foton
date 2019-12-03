@@ -18,8 +18,11 @@ void main() {
     imageStore(gbuffers[NORMAL_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
 
     // Seed / Luminance G Buffer
-    temp = imageLoad(gbuffers[SEED_ADDR], ivec2(gl_GlobalInvocationID.xy));
-    imageStore(gbuffers[SEED_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
+    temp = imageLoad(gbuffers[DIFFUSE_SEED_ADDR], ivec2(gl_GlobalInvocationID.xy));
+    imageStore(gbuffers[DIFFUSE_SEED_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
+    
+    temp = imageLoad(gbuffers[SPECULAR_SEED_ADDR], ivec2(gl_GlobalInvocationID.xy));
+    imageStore(gbuffers[SPECULAR_SEED_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
 
     // Luminance
     temp = imageLoad(gbuffers[LUMINANCE_ADDR], ivec2(gl_GlobalInvocationID.xy));
