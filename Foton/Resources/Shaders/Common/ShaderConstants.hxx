@@ -67,7 +67,7 @@
 // of multiplying, since multiplying makes certain convolutions
 // too expensive. 
 #define PATH_TRACE_TILE_SIZE 4
-#define GRADIENT_TILE_SIZE 2
+#define GRADIENT_TILE_SIZE 3
 
 #define GRADIENT_DOWNSAMPLE (1.0/float(10))
 #define GRADIENT_USE_RANDOM false

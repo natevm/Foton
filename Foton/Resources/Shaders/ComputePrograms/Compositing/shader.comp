@@ -60,7 +60,8 @@ void main() {
         // ((render_image_idx - 1) == DIFFUSE_SEED_ADDR_PREV) ||
         ((render_image_idx - 1) == SPECULAR_SEED_ADDR) ||
         ((render_image_idx - 1) == SPECULAR_SEED_ADDR_PREV) ||
-        ((render_image_idx - 1) == GLOSSY_MOTION_ADDR) ||
+        ((render_image_idx - 1) == SPECULAR_MOTION_ADDR) ||
+        ((render_image_idx - 1) == SPECULAR_MOTION_ADDR_PREV) ||
         ((render_image_idx - 1) == GLOSSY_DIRECT_ADDR) ||
         ((render_image_idx - 1) == GLOSSY_INDIRECT_ADDR) ||
         ((render_image_idx - 1) == LUMINANCE_ADDR) ||

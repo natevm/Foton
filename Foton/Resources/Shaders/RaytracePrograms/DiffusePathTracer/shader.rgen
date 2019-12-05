@@ -63,32 +63,14 @@ vec2 get_uv(int mesh_id, ivec3 indices, vec2 bary)
     return UV;
 }
 
-// Converts a color from linear light gamma to sRGB gamma
-vec4 fromLinear(vec4 linearRGB)
-{
-    bvec4 cutoff = lessThan(linearRGB, vec4(0.0031308));
-    vec4 higher = vec4(1.055)*pow(linearRGB, vec4(1.0/2.4)) - vec4(0.055);
-    vec4 lower = linearRGB * vec4(12.92);
-
-    return mix(higher, lower, cutoff);
-}
-
-// Converts a color from sRGB gamma to linear light gamma
-vec4 toLinear(vec4 sRGB)
-{
-    bvec4 cutoff = lessThan(sRGB, vec4(0.04045));
-    vec4 higher = pow((sRGB + vec4(0.055))/vec4(1.055), vec4(2.4));
-    vec4 lower = sRGB/vec4(12.92);
-
-    return mix(higher, lower, cutoff);
-}
-
 // 7.3 ms, VRAM 29.9%, L2 27.1%, TEX 18.2%
 void main() 
 {
     if (int(gl_LaunchIDNV.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
     if (int(gl_LaunchIDNV.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
 
+    ivec2 tile = ivec2(gl_LaunchIDNV.xy);
+    ivec2 ipos_full = tile * PATH_TRACE_TILE_SIZE;
     init_random(ivec2(gl_LaunchIDNV.xy), push.consts.frame, 0);
     
     // Compute random offset within gradient tile
@@ -96,62 +78,49 @@ void main()
     ivec2 grad_offset = ivec2(grad_rand / GRADIENT_TILE_SIZE, grad_rand % GRADIENT_TILE_SIZE);
     ivec2 grad_tile = ivec2(gl_LaunchIDNV.xy / GRADIENT_TILE_SIZE);
     ivec2 grad_pt_tile = GRADIENT_TILE_SIZE * grad_tile + grad_offset;
-    
-    
-    
-    float rand = random();
-    
-    int rand_curr = 0;//int(random(ivec2(gl_LaunchIDNV.xy), (push.consts.frame)) * PATH_TRACE_TILE_SIZE * PATH_TRACE_TILE_SIZE);
-    ivec2 tile = ivec2(gl_LaunchIDNV.xy);
-    // ivec2 offset_curr = ivec2(rand_curr / PATH_TRACE_TILE_SIZE, rand_curr % PATH_TRACE_TILE_SIZE);
-    ivec2 offset_curr = ivec2(0); // for now commenting out. This will potentially effect the seed for gradient...
-    
-    /* Load primary visibility data from G Buffers */
-    vec4 temp;
-    int addr;
-    ivec2 ipos_full = tile * PATH_TRACE_TILE_SIZE + offset_curr;
-
+          
     // Compute motion vector
     ivec2 ipos_tile_prev, ipos_full_prev;
+    bool reproj_on_screen = true;
     {
         precise vec4 motion_data = imageLoad(gbuffers[DIFFUSE_MOTION_ADDR], ipos_full);
         precise vec2 v = motion_data.xy * vec2(.5, -.5);
         precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
         ipos_tile_prev = ivec2(ipos_full + (iv + MOTION_VECTOR_OFFSET)) / PATH_TRACE_TILE_SIZE;
         ipos_full_prev = ipos_tile_prev * PATH_TRACE_TILE_SIZE;
+        bvec2 a = greaterThan(ipos_full_prev, vec2(push.consts.width-1, push.consts.height-1));
+        bvec2 b = lessThan(ipos_full_prev, vec2(0.0, 0.0));
+        reproj_on_screen = reproj_on_screen && (!any(bvec2(any(a), any(b))));
     }
 
-    bool accept = true;
-    bvec2 a = greaterThan(ipos_full_prev, vec2(push.consts.width-1, push.consts.height-1));
-    bvec2 b = lessThan(ipos_full_prev, vec2(0.0, 0.0));
-    accept = accept && (!any(bvec2(any(a), any(b))));
+    /* Load primary visibility data from G Buffers */
+    vec4 temp; int addr;
+    bool seed_reprojected = reproj_on_screen && all(equal(grad_pt_tile, tile));
+    ivec2 gbuf_pos = (seed_reprojected) ? ipos_tile_prev : tile;
 
     // Seed G Buffer
-    bool seed_reprojected = accept && all(equal(grad_pt_tile, tile));// (temp.w > 0);
-    if (seed_reprojected) {
-        temp = imageLoad(gbuffers[DIFFUSE_SEED_ADDR_PREV], ipos_tile_prev);
-    } else {
-        temp = imageLoad(gbuffers[DIFFUSE_SEED_ADDR], tile);
-    }
+    addr = (seed_reprojected) ? DIFFUSE_SEED_ADDR_PREV : DIFFUSE_SEED_ADDR;
+    temp = imageLoad(gbuffers[addr], gbuf_pos);
     ivec2 pixel_seed = ivec2(temp.xy);
     int frame_seed = int(temp.z);
     init_random(pixel_seed, frame_seed, 0);
 
-    ivec2 gbuf_pos = (seed_reprojected) ? ipos_tile_prev : ipos_full;
+    // Barycentrics G Buffer
+    gbuf_pos = (seed_reprojected) ? ipos_tile_prev : ipos_full;
     addr = (seed_reprojected) ? COARSE_ENTITY_TRI_BARYCENTRIC_ADDR_PREV : ENTITY_TRI_BARYCENTRIC_ADDR;
     temp = imageLoad(gbuffers[addr], gbuf_pos);
     int first_bary_entity_id = int(temp.b), first_tri_id = int(temp.a);
     vec2 first_barycentrics = vec2(temp.rg);
     bool mesh_valid = ((first_bary_entity_id >= 0) && (first_tri_id >= 0));
 
-    ivec3 first_indices;
-    vec3 first_bary_normal = vec3(0,1,0);
+    vec3 first_bary_normal;
     vec2 first_bary_uv;
     vec4 first_bary_position;
     vec4 first_bary_base_color;
     int first_bary_material_id, first_bary_transform_id, first_bary_light_id, first_bary_mesh_id;
     if (seed_reprojected && mesh_valid) 
     {
+        ivec3 first_indices;
         TransformStruct first_transform_struct;
         EntityStruct entity = ebo.entities[first_bary_entity_id];
         first_bary_mesh_id = entity.mesh_id;
@@ -165,7 +134,6 @@ void main()
         first_bary_normal = get_normal(first_bary_mesh_id, first_indices, first_barycentrics);
         first_bary_position = first_transform_struct.localToWorld * vec4(first_bary_position.xyz, 1.0);
         first_bary_normal = normalize(transpose(mat3(first_transform_struct.worldToLocal)) * first_bary_normal);
-
         MaterialStruct mat = mbo.materials[first_bary_material_id];
         first_bary_base_color = getAlbedo(mat, vec4(0.0), first_bary_uv, first_bary_position.xyz);
         float mask = getAlphaMask(mat, first_bary_uv, first_bary_position.xyz);

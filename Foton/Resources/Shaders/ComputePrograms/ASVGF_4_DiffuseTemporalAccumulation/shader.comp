@@ -70,7 +70,7 @@ void main() {
     iv.x = (abs(iv.x) < MOTION_VECTOR_MIN) ? 0 : iv.x;
     iv.y = (abs(iv.y) < MOTION_VECTOR_MIN) ? 0 : iv.y;
     vec2 pos_prev = vec2(ipos + iv + MOTION_VECTOR_OFFSET);
-    vec2 p = vec2(pos_prev - 0.5);
+    vec2 p = pos_prev;//vec2(pos_prev - 0.5);
 
     // Load g buffer data which we'll use for detecting disocclusions
     vec4 curr_id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos_full);

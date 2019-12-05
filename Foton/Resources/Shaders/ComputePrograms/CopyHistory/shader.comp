@@ -28,14 +28,6 @@ void main() {
     temp = imageLoad(gbuffers[LUMINANCE_ADDR], ivec2(gl_GlobalInvocationID.xy));
     imageStore(gbuffers[LUMINANCE_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
 
-    // UV G Buffer
-    temp = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ivec2(gl_GlobalInvocationID.xy));
-    imageStore(gbuffers[UV_METALLIC_ROUGHESS_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
-
-    // Raw albedo
-    temp = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ivec2(gl_GlobalInvocationID.xy));
-    imageStore(gbuffers[DIFFUSE_COLOR_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
-
     // Specular lobe axis and sharpness
     temp = imageLoad(gbuffers[LOBE_AXIS_SHARPNESS_ADDR], ivec2(gl_GlobalInvocationID.xy));
     imageStore(gbuffers[LOBE_AXIS_SHARPNESS_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
@@ -59,6 +51,10 @@ void main() {
     
     temp = imageLoad(gbuffers[COARSE_ENTITY_TRI_BARYCENTRIC_ADDR], ivec2(gl_GlobalInvocationID.xy));
     imageStore(gbuffers[COARSE_ENTITY_TRI_BARYCENTRIC_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
+
+
+    temp = imageLoad(gbuffers[COARSE_SPECULAR_ENTITY_TRI_BARYCENTRIC_ADDR], ivec2(gl_GlobalInvocationID.xy));
+    imageStore(gbuffers[COARSE_SPECULAR_ENTITY_TRI_BARYCENTRIC_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
 
     
     // The below seems to artificially darken the image over time

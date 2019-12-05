@@ -70,14 +70,12 @@ void main() {
     // Note, the w component indicates an invalid motion vector, which can 
     // occur for pixels containing the background
     bool reset = false;
-    precise vec4 motion_data = imageLoad(gbuffers[GLOSSY_MOTION_ADDR], ipos);
+    precise vec4 motion_data = imageLoad(gbuffers[SPECULAR_MOTION_ADDR], ipos);
     if (motion_data.w > 0) reset = true; // reset history if motion data is invalid
     precise vec2 v = motion_data.xy * vec2(.5, -.5);
     precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height) / PATH_TRACE_TILE_SIZE;
-    iv.x = (abs(iv.x) < MOTION_VECTOR_MIN) ? 0 : iv.x;
-    iv.y = (abs(iv.y) < MOTION_VECTOR_MIN) ? 0 : iv.y;
     vec2 pos_prev = vec2(ipos + iv + MOTION_VECTOR_OFFSET);
-    vec2 p = vec2(pos_prev - 0.5);
+    vec2 p = pos_prev;//vec2(pos_prev - 0.5);
 
     // Load g buffer data which we'll use for detecting disocclusions
     int curr_entity_id = int(imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos_full).r);

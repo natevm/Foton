@@ -536,30 +536,7 @@ void RenderSystem::record_pre_compute_pass(Entity &camera_entity)
 		/* SVGF DENOISER PATH */
 		if (ray_tracing_enabled) 
 		{
-			auto rayTracingProps = vulkan->get_physical_device_ray_tracing_properties();
-
-			/* Reproject seeds */
-			if (asvgf_enabled && asvgf_gradient_enabled)
-			{
-				for(uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
-					push_constants.target_id = -1;
-					push_constants.camera_id = camera_entity.get_id();
-					push_constants.viewIndex = rp_idx;
-					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
-					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
-					
-					uint32_t local_size_x = 16;
-					uint32_t local_size_y = 16;
-
-					uint32_t groupX = (width + local_size_x - 1) / local_size_x;
-					uint32_t groupY = (height + local_size_y - 1) / local_size_y;
-					uint32_t groupZ = 1;
-					
-					command_buffer.pushConstants(asvgf_reproject_specular_seeds.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, asvgf_reproject_specular_seeds.pipeline);
-					command_buffer.dispatch(groupX, groupY, groupZ);
-				}
-			}			
+		
 		}
 	}
 
@@ -3203,18 +3180,6 @@ void RenderSystem::setup_compute_pipelines()
 		svgf_remodulate.ready = true;
 	}
 
-	/* ASVGF Reproject Specular Seeds */
-	{
-		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_1_ReprojectSpecularSeeds/comp.spv"));
-		auto compShaderModule = create_shader_module("asvgf_reproject_specular_seeds", compShaderCode);
-		compShaderStageInfo.module = compShaderModule;
-        asvgf_reproject_specular_seeds.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
-        computeCreateInfo.stage = compShaderStageInfo;
-        computeCreateInfo.layout = asvgf_reproject_specular_seeds.pipelineLayout;
-        asvgf_reproject_specular_seeds.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
-		asvgf_reproject_specular_seeds.ready = true;
-	}
-
 	/* ASVGF Compute Sparse Gradient */
 	{
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_2_ComputeGradientAndMoments/comp.spv"));
@@ -4325,7 +4290,6 @@ void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffe
 		(reconstruct_diffuse.ready == false) ||
 		(reconstruct_glossy.ready == false) ||
 		(svgf_remodulate.ready == false) ||
-		(asvgf_reproject_specular_seeds.ready == false) ||
 		(asvgf_compute_gradient.ready == false) ||
 		(asvgf_reconstruct_gradient.ready == false) ||
 		(asvgf_estimate_variance.ready == false)
@@ -4347,7 +4311,6 @@ void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffe
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, reconstruct_diffuse.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, reconstruct_glossy.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, svgf_remodulate.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
-	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_reproject_specular_seeds.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_compute_gradient.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_reconstruct_gradient.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_estimate_variance.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);

@@ -24,72 +24,156 @@ vec3 Uncharted2Tonemap(vec3 x)
 	return max(vec3(0.0f), ((x*(A*x+C*B)+D*E_)/(x*(A*x+B)+D*F))-E_/F);
 }
 
+void get_mesh_data(int mesh_id, int prim_id, vec2 bary, out vec4 P, out vec3 N, out vec2 UV, out float curvature) {
+    vec3 barycentrics = vec3(1.0f - bary.x - bary.y, bary.x, bary.y);
+    
+    ivec3 indices;
+    indices.x = IndexBuffers[mesh_id].indices[3 * prim_id + 0];
+	indices.y = IndexBuffers[mesh_id].indices[3 * prim_id + 1];
+	indices.z = IndexBuffers[mesh_id].indices[3 * prim_id + 2];
+
+    vec4 P0 = PositionBuffers[mesh_id].positions[indices.x];
+	vec4 P1 = PositionBuffers[mesh_id].positions[indices.y];
+	vec4 P2 = PositionBuffers[mesh_id].positions[indices.z];
+	P = P0 * barycentrics.x + P1 * barycentrics.y + P2 * barycentrics.z;
+    
+    vec3 N0 = NormalBuffers[mesh_id].normals[indices.x].xyz;
+	vec3 N1 = NormalBuffers[mesh_id].normals[indices.y].xyz;
+	vec3 N2 = NormalBuffers[mesh_id].normals[indices.z].xyz;
+	N = N0 * barycentrics.x + N1 * barycentrics.y + N2 * barycentrics.z;
+    
+    vec2 UV0 = TexCoordBuffers[mesh_id].texcoords[indices.x].xy;
+	vec2 UV1 = TexCoordBuffers[mesh_id].texcoords[indices.y].xy;
+	vec2 UV2 = TexCoordBuffers[mesh_id].texcoords[indices.z].xy;
+	UV = UV0 * barycentrics.x + UV1 * barycentrics.y + UV2 * barycentrics.z;
+
+    float edge_curvature_1 = abs(dot((N2-N1), (P2.xyz-P1.xyz))/(distance(P2.xyz,P1.xyz)*distance(P2.xyz,P1.xyz)));
+	float edge_curvature_2 = abs(dot((N1-N0), (P1.xyz-P0.xyz))/(distance(P1.xyz,P0.xyz)*distance(P1.xyz,P0.xyz)));
+	float edge_curvature_3 = abs(dot((N0-N2), (P0.xyz-P2.xyz))/(distance(P0.xyz,P2.xyz)*distance(P0.xyz,P2.xyz)));
+
+	float v_c_1 = (edge_curvature_2 + edge_curvature_3) * .5;
+	float v_c_2 = (edge_curvature_1 + edge_curvature_2) * .5;
+	float v_c_3 = (edge_curvature_1 + edge_curvature_3) * .5;
+	curvature = barycentrics.x * v_c_1 + barycentrics.y * v_c_2 + barycentrics.z * v_c_3;
+}
+
 // 12.3 ms, VRAM 56.8%, L2 28.1%, TEX 13.2%
 void main() 
 {
     if (int(gl_LaunchIDNV.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
     if (int(gl_LaunchIDNV.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
 
-    init_random(ivec2(gl_LaunchIDNV.xy), push.consts.frame, 0);
-    float rand = random();
-    
-    int rand_curr = 0;//int(random(ivec2(gl_LaunchIDNV.xy), (push.consts.frame)) * PATH_TRACE_TILE_SIZE * PATH_TRACE_TILE_SIZE);
     ivec2 tile = ivec2(gl_LaunchIDNV.xy);
-    // ivec2 offset_curr = ivec2(rand_curr / PATH_TRACE_TILE_SIZE, rand_curr % PATH_TRACE_TILE_SIZE);
-    ivec2 offset_curr = ivec2(0); // for now commenting out. This will potentially effect the seed for gradient...
-    
-    /* Load primary visibility data from G Buffers */
-    vec4 temp;
-    int addr;
-    ivec2 ipos_full = tile * PATH_TRACE_TILE_SIZE + offset_curr;
+    ivec2 ipos_full = tile * PATH_TRACE_TILE_SIZE;
+    init_random(ivec2(gl_LaunchIDNV.xy), push.consts.frame, 0);
+
+    // Compute random offset within gradient tile
+    int grad_rand = push.consts.frame % (GRADIENT_TILE_SIZE * GRADIENT_TILE_SIZE);
+    ivec2 grad_offset = ivec2(grad_rand / GRADIENT_TILE_SIZE, grad_rand % GRADIENT_TILE_SIZE);
+    ivec2 grad_tile = ivec2(gl_LaunchIDNV.xy / GRADIENT_TILE_SIZE);
+    ivec2 grad_pt_tile = GRADIENT_TILE_SIZE * grad_tile + grad_offset;
 
     // Compute motion vector
     ivec2 ipos_tile_prev, ipos_full_prev;
+    bool reproj_on_screen = true;
+    // {
+    //     precise vec4 motion_data = vec4(0);//imageLoad(gbuffers[SPECULAR_MOTION_ADDR], tile);
+    //     precise vec2 v = motion_data.xy * vec2(.5, -.5);
+    //     precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height) / PATH_TRACE_TILE_SIZE;
+    //     ipos_tile_prev = ivec2(tile + iv + MOTION_VECTOR_OFFSET);
+    //     ipos_full_prev = ipos_tile_prev * PATH_TRACE_TILE_SIZE;
+    //     bvec2 a = greaterThan(ipos_full_prev, vec2(push.consts.width-1, push.consts.height-1));
+    //     bvec2 b = lessThan(ipos_full_prev, vec2(0.0, 0.0));
+    //     reproj_on_screen = reproj_on_screen && (!any(bvec2(any(a), any(b))));
+    // }
+
     {
-        precise vec4 motion_data = imageLoad(gbuffers[SPECULAR_MOTION_ADDR], ipos_full);
+        precise vec4 motion_data = imageLoad(gbuffers[SPECULAR_MOTION_ADDR], tile);
+        imageStore(gbuffers[SPECULAR_MOTION_ADDR_PREV], tile, motion_data);
         precise vec2 v = motion_data.xy * vec2(.5, -.5);
         precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
         ipos_tile_prev = ivec2(ipos_full + (iv + MOTION_VECTOR_OFFSET)) / PATH_TRACE_TILE_SIZE;
         ipos_full_prev = ipos_tile_prev * PATH_TRACE_TILE_SIZE;
+        bvec2 a = greaterThan(ipos_full_prev, vec2(push.consts.width-1, push.consts.height-1));
+        bvec2 b = lessThan(ipos_full_prev, vec2(0.0, 0.0));
+        reproj_on_screen = reproj_on_screen && (!any(bvec2(any(a), any(b))));
     }
 
+    /* Load primary visibility data from G Buffers */
+    vec4 temp; int addr;
+    bool seed_reprojected = reproj_on_screen && all(equal(grad_pt_tile, tile));
+    ivec2 gbuf_pos = (seed_reprojected) ? ipos_tile_prev : tile;
+
     // Seed G Buffer
-    temp = imageLoad(gbuffers[SPECULAR_SEED_ADDR], tile);
+    addr = (seed_reprojected) ? SPECULAR_SEED_ADDR_PREV : SPECULAR_SEED_ADDR;
+    temp = imageLoad(gbuffers[addr], gbuf_pos);
     ivec2 pixel_seed = ivec2(temp.xy);
     int frame_seed = int(temp.z);
-    bool seed_reprojected = false;//(temp.w > 0);
     init_random(pixel_seed, frame_seed, 0);
 
-    // Position G Buffer 
-    ivec2 gbuf_pos = (seed_reprojected) ? ipos_full_prev : ipos_full;
-    addr = (seed_reprojected) ? POSITION_DEPTH_ADDR_PREV : POSITION_DEPTH_ADDR;
+    // Barycentrics G Buffer
+    gbuf_pos = (seed_reprojected) ? ipos_tile_prev : ipos_full;
+    addr = (seed_reprojected) ? COARSE_SPECULAR_ENTITY_TRI_BARYCENTRIC_ADDR_PREV : ENTITY_TRI_BARYCENTRIC_ADDR;
     temp = imageLoad(gbuffers[addr], gbuf_pos);
+    int first_bary_entity_id = int(temp.b), first_tri_id = int(temp.a);
+    vec2 first_barycentrics = vec2(temp.rg);
+    bool mesh_valid = ((first_bary_entity_id >= 0) && (first_tri_id >= 0));
+
+    vec4 first_bary_normal;
+    vec2 first_bary_uv;
+    vec4 first_bary_position;
+    vec4 first_bary_base_color;
+    int first_bary_material_id, first_bary_transform_id, first_bary_light_id, first_bary_mesh_id;
+    if (seed_reprojected && mesh_valid) 
+    {
+        TransformStruct first_transform_struct;
+        EntityStruct entity = ebo.entities[first_bary_entity_id];
+        first_bary_mesh_id = entity.mesh_id;
+        first_bary_material_id = entity.material_id;
+        first_bary_transform_id = entity.transform_id;
+        first_bary_light_id = entity.light_id;
+        first_transform_struct = tbo.transforms[entity.transform_id];   
+        vec4 P; vec3 N; vec2 UV; float curvature;
+        get_mesh_data(first_bary_mesh_id, first_tri_id, first_barycentrics, P, N, UV, curvature);
+        first_bary_uv = UV;
+        first_bary_position = first_transform_struct.localToWorld * vec4(P.xyz, 1.0);
+        first_bary_normal = vec4(normalize(transpose(mat3(first_transform_struct.worldToLocal)) * N), curvature);
+        MaterialStruct mat = mbo.materials[first_bary_material_id];
+        first_bary_base_color = getAlbedo(mat, vec4(0.0), first_bary_uv, first_bary_position.xyz);
+        float mask = getAlphaMask(mat, first_bary_uv, first_bary_position.xyz);
+        first_bary_base_color.a = (mask < first_bary_base_color.a) ? mask : first_bary_base_color.a;
+    }
+
+    // Position G Buffer   
+    if (seed_reprojected) temp = vec4(first_bary_position.xyz, 0);
+    else temp = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos_full);
     vec3 first_position = temp.xyz;
-    float first_dist = temp.w;
+    vec3 first_position_ = temp.xyz;
+    float first_dist = 0;//temp.w;
 
     // Normal G Buffer
-    addr = (seed_reprojected) ? NORMAL_ADDR_PREV : NORMAL_ADDR;
-    temp = imageLoad(gbuffers[addr], gbuf_pos);
+    if (seed_reprojected) temp = first_bary_normal;
+    else temp = imageLoad(gbuffers[NORMAL_ADDR], ipos_full);
     vec3 first_normal = normalize(temp.xyz);
     float reflector_curvature = temp.w;
     bool reflector_is_flat = (temp.w < .01);
 
     // Component IDs
-    addr = (seed_reprojected) ? ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV : ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR;
-    temp = imageLoad(gbuffers[addr], gbuf_pos);
+    if (seed_reprojected) temp = vec4(first_bary_entity_id, first_bary_material_id, first_bary_transform_id, first_bary_light_id);
+    else temp = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos_full);
     int first_entity_id = int(temp.r);
     int first_material_id = int(temp.g);
     int first_transform_id = int(temp.b);
     int first_light_id = int(temp.a);
 
     // UV G Buffer
-    addr = (seed_reprojected) ? UV_METALLIC_ROUGHESS_ADDR_PREV : UV_METALLIC_ROUGHESS_ADDR;
-    temp = imageLoad(gbuffers[addr], gbuf_pos);
+    if (seed_reprojected) temp = vec4(first_bary_uv.xy, 0, 0);
+    else temp = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos_full);
     vec2 first_uv = temp.xy;
 
     // Raw albedo
-    addr = (seed_reprojected) ? DIFFUSE_COLOR_ADDR_PREV : DIFFUSE_COLOR_ADDR;
-    temp = imageLoad(gbuffers[addr], gbuf_pos);
+    if (seed_reprojected) temp = vec4(first_bary_base_color.rgb, 1.0);
+    else temp = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ipos_full);
     vec4 first_albedo = temp;
     
     /* Next, Compute ray origin and direction */
@@ -365,8 +449,15 @@ void main()
     /* Write to G Buffers */
     vec3 indirect_specular_radiance = specular_radiance - direct_specular_radiance;
 
+    // direct_specular_radiance = vec3(pixel_seed, frame_seed);
+    // indirect_specular_radiance = vec3(pixel_seed, frame_seed);
+
+    // direct_specular_radiance = vec3(first_barycentrics, first_bary_entity_id);
+    // indirect_specular_radiance = vec3(first_barycentrics, first_bary_entity_id);
+
+
     // Specular motion vector
-    imageStore(gbuffers[GLOSSY_MOTION_ADDR], tile, vec4(specular_motion, ((first_entity_id == -1) || (reflected_entity_id == -1)) ? 1.0 : 0.0));
+    imageStore(gbuffers[SPECULAR_MOTION_ADDR], tile, vec4(specular_motion, ((first_entity_id == -1) || (reflected_entity_id == -1)) ? 1.0 : 0.0));
     
     // Direct Glossy
     imageStore(gbuffers[GLOSSY_DIRECT_ADDR], tile, vec4(direct_specular_radiance, 1.0));
@@ -384,4 +475,7 @@ void main()
                                                     temp.g, 
                                                     luminance(direct_specular_radiance),
                                                     luminance(indirect_specular_radiance)));
+    
+    imageStore(gbuffers[COARSE_SPECULAR_ENTITY_TRI_BARYCENTRIC_ADDR], tile, vec4(first_barycentrics, first_bary_entity_id, first_tri_id));
+    imageStore(gbuffers[SPECULAR_SEED_ADDR], tile, vec4(pixel_seed, frame_seed, seed_reprojected));
 }

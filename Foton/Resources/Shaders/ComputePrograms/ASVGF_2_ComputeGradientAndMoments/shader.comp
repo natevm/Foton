@@ -41,12 +41,12 @@ void main() {
 
     // Compute random offset within tile
     int rand_curr;
-    if (GRADIENT_USE_RANDOM) {
-        init_random(ivec2(gl_GlobalInvocationID.xy), push.consts.frame, 0);
-        rand_curr = int(random() * GRADIENT_TILE_SIZE * GRADIENT_TILE_SIZE);
-    } else {
-        rand_curr = push.consts.frame % (GRADIENT_TILE_SIZE * GRADIENT_TILE_SIZE);
-    }
+    // if (GRADIENT_USE_RANDOM) {
+    //     init_random(ivec2(gl_GlobalInvocationID.xy), push.consts.frame, 0);
+    //     rand_curr = int(random() * GRADIENT_TILE_SIZE * GRADIENT_TILE_SIZE);
+    // } else {
+    // }
+    rand_curr = push.consts.frame % (GRADIENT_TILE_SIZE * GRADIENT_TILE_SIZE);
     ivec2 tile = ivec2(gl_GlobalInvocationID.xy);
     ivec2 offset_curr = ivec2(rand_curr / GRADIENT_TILE_SIZE, rand_curr % GRADIENT_TILE_SIZE);
 
@@ -73,12 +73,19 @@ void main() {
 
     ivec2 ipos_specular_pt_tile_prev, ipos_specular_full_prev;
     {
-        precise vec4 motion_data = imageLoad(gbuffers[GLOSSY_MOTION_ADDR], ipos_pt_tile);
+        precise vec4 motion_data = imageLoad(gbuffers[SPECULAR_MOTION_ADDR_PREV], ipos_pt_tile);
         precise vec2 v = motion_data.xy * vec2(.5, -.5);
         precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
-        ipos_specular_pt_tile_prev = ivec2(ipos_full + (iv + MOTION_VECTOR_OFFSET * PATH_TRACE_TILE_SIZE)) / PATH_TRACE_TILE_SIZE;
+        ipos_specular_pt_tile_prev = ivec2(ipos_full + iv + MOTION_VECTOR_OFFSET) / PATH_TRACE_TILE_SIZE;
         ipos_specular_full_prev = ipos_specular_pt_tile_prev * PATH_TRACE_TILE_SIZE;
     }
+    // {
+    //     precise vec4 motion_data = imageLoad(gbuffers[SPECULAR_MOTION_ADDR], ipos_pt_tile);
+    //     precise vec2 v = motion_data.xy * vec2(.5, -.5);
+    //     precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height) / PATH_TRACE_TILE_SIZE;
+    //     ipos_specular_pt_tile_prev = ivec2(ipos_pt_tile + iv + MOTION_VECTOR_OFFSET);
+    //     ipos_specular_full_prev = ipos_specular_pt_tile_prev * PATH_TRACE_TILE_SIZE;
+    // }
 
     vec4 diffuse_id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV], ipos_diffuse_full_prev);
     vec4 specular_id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV], ipos_specular_full_prev);
@@ -105,9 +112,9 @@ void main() {
     vec4 l_curr = any(isnan(curr_luminance)) ? vec4(0.0) : curr_luminance;
     vec4 temporal_gradient;
     temporal_gradient.rg = (is_diffuse_reproj_grad) ? abs(l_curr.rg - l_prev.rg) : vec2(0.0);
+    temporal_gradient.ba = (is_specular_reproj_grad) ? abs(l_curr.ba - l_prev.ba) : vec2(0.0);
     // temporal_gradient.rg = (is_diffuse_reproj_grad) ? vec2(0) : vec2(0.0);
-    // temporal_gradient.ba = (is_specular_reproj_grad) ? abs(l_curr.ba - l_prev.ba) : vec2(0.0);
-    temporal_gradient.ba = (is_specular_reproj_grad) ? vec2(0) : vec2(0.0);
+    // temporal_gradient.ba = (is_specular_reproj_grad) ? vec2(0) : vec2(0.0);
     vec4 max_luminance = max(l_curr, l_prev);
 
     // Compute first and second moments over the tile
