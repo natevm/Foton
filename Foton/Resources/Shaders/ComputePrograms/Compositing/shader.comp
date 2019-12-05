@@ -86,7 +86,6 @@ void main() {
     else if (
         ((render_image_idx - 1) == LUMINANCE_AVERAGE_ADDR) ||
         ((render_image_idx - 1) == LUMINANCE_VARIANCE_ADDR) ||
-        ((render_image_idx - 1) == LUMINANCE_VARIANCE_ADDR_PREV) ||
         ((render_image_idx - 1) == LUMINANCE_MAX_ADDR)
     ) {
         color = imageLoad(gbuffers[render_image_idx-1], igt).rgb;

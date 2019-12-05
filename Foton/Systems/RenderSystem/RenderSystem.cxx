@@ -788,7 +788,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 					uint32_t groupY = (height + local_size_y - 1) / local_size_y;
 					uint32_t groupZ = 1;
 
-					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, median_3x3.pipeline);
+					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, median_5x5.pipeline);
 					
 					push_constants.parameter1 = DIFFUSE_INDIRECT_ADDR;
 					push_constants.parameter2 = ATROUS_HISTORY_1_ADDR;
@@ -798,6 +798,8 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 					push_constants.iteration = 1;
 					command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
 					command_buffer.dispatch(groupX, groupY, groupZ);
+
+					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, median_3x3.pipeline);
 
 					push_constants.parameter1 = GLOSSY_INDIRECT_ADDR;
 					push_constants.parameter2 = ATROUS_HISTORY_1_ADDR;
@@ -3096,6 +3098,18 @@ void RenderSystem::setup_compute_pipelines()
 		median_3x3.ready = true;
 	}
 
+	/* Median 5x5 */
+	{
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/Median5x5/comp.spv"));
+		auto compShaderModule = create_shader_module("median_5x5", compShaderCode);
+		compShaderStageInfo.module = compShaderModule;
+        median_5x5.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = median_5x5.pipelineLayout;
+        median_5x5.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		median_5x5.ready = true;
+	}
+
 	/* Bilateral Upsampler */
 	{
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/BilateralUpsample/comp.spv"));
@@ -4286,6 +4300,7 @@ void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffe
 		(gaussian_x.ready == false) || 
 		(gaussian_y.ready == false) || 
 		(median_3x3.ready == false) || 
+		(median_5x5.ready == false) || 
 		(bilateral_upsample.ready == false) ||
 		(reconstruct_diffuse.ready == false) ||
 		(reconstruct_glossy.ready == false) ||
@@ -4307,6 +4322,7 @@ void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffe
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, gaussian_x.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, gaussian_y.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, median_3x3.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, median_5x5.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, bilateral_upsample.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, reconstruct_diffuse.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, reconstruct_glossy.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);

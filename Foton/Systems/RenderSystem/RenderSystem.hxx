@@ -329,6 +329,7 @@ namespace Systems
             ComputePipelineResources deferred_final;
             ComputePipelineResources edgedetect;
             ComputePipelineResources median_3x3;
+            ComputePipelineResources median_5x5;
             ComputePipelineResources bilateral_upsample;
             ComputePipelineResources gaussian_x;
             ComputePipelineResources gaussian_y;

@@ -85,6 +85,9 @@ void main() {
     // int samples = int(temp.r);
 	vec4  direct_diffuse_curr     = imageLoad(gbuffers[DIFFUSE_DIRECT_ADDR], ipos);
 	vec4  indirect_diffuse_curr     = imageLoad(gbuffers[DIFFUSE_INDIRECT_ADDR], ipos);
+	vec4  sample_count_curr;
+    sample_count_curr.rg = imageLoad(gbuffers[SAMPLE_COUNT_ADDR_PREV], ipos).rg;
+    sample_count_curr.ba = imageLoad(gbuffers[SAMPLE_COUNT_ADDR], ipos).ba;
     direct_diffuse_curr.w = luminance_variance.r;
     indirect_diffuse_curr.w = luminance_variance.g;
 	
@@ -94,7 +97,7 @@ void main() {
 
     // float antilag_prev = 0;
     vec4 hist_prev    = vec4(0);
-	float sum_w       = 0.0;
+	float sum_wd = 0.0, sum_wi = 0.0;
 	// float histlen     = 0.0;
     if (!reset) {
         // const int max_rad = 1;// * PATH_TRACE_TILE_SIZE;
@@ -111,7 +114,7 @@ void main() {
                 // Load disocclusion gbuffer data
                 vec4 hist_id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV], ipos_prev_full);
                 vec3 hist_normal = imageLoad(gbuffers[NORMAL_ADDR_PREV], ipos_prev_full).rgb;
-                
+
                 // Load prior gbuffer data to accumulate temporally 
                 vec4 direct_diffuse, indirect_diffuse;
                 if (use_nearest) {
@@ -142,11 +145,12 @@ void main() {
                 accept = accept && (dot(curr_normal, hist_normal) > .9); 
 
                 if (accept) {
-                    float w = 1.;
-                    direct_diffuse_prev += direct_diffuse * w;
-                    indirect_diffuse_prev += indirect_diffuse * w;
-                    // histlen      += samples * w;
-                    sum_w        += w;
+                    float wd = 1;
+                    float wi = 1;
+                    direct_diffuse_prev += direct_diffuse * wd;
+                    indirect_diffuse_prev += indirect_diffuse * wi;
+                    sum_wd += wd;
+                    sum_wi += wi;
                 }
             }
         }
@@ -180,80 +184,26 @@ void main() {
         // if (antilag_alpha < .5) antilag_alpha = 0; //testing
 	}
 
-    if (sum_w > 0.01) { /* found sufficiently reliable history information */
-        direct_diffuse_prev   /= sum_w;
-        indirect_diffuse_prev   /= sum_w;
-		// moments_prev  /= sum_w;
-		// antilag_prev  /= sum_w;
-		// histlen       /= sum_w;
-
-        // vec4 accum_antilag = antilag_alpha;//mix(antilag_prev, antilag_alpha, GRADIENT_ALPHA);
-        vec4 alpha_color   = vec4(1.0 / MAX_DIFFUSE_CUMULATIVE_COUNT);
-
-        // vec4 alpha_color   = vec4(max(1.0 / MAX_DIFFUSE_CUMULATIVE_COUNT, 1.0 / (histlen + 1.0)));
-		// float alpha_moments = max(0.6, 1.0 / (histlen + 1.0));
-
-        alpha_color   = mix(alpha_color, vec4(1.0 / MIN_DIFFUSE_CUMULATIVE_COUNT), antilag_alpha);
-		// alpha_moments = mix(alpha_moments, (1.0 / MAX_DIFFUSE_CUMULATIVE_COUNT), accum_antilag);
-		// vec2 accum_moments = moments_curr;//mix(moments_prev, moments_curr, alpha_moments);
-        
-        // float variance = abs(accum_moments.y - accum_moments.x * accum_moments.x);  
-
-        
-		// float color_count   = clamp(histlen, MIN_SAMPLES, MAX_DIFFUSE_CUMULATIVE_COUNT);
-        // float moments_count = clamp(histlen, MIN_SAMPLES, MAX_DIFFUSE_CUMULATIVE_COUNT);
-
-        
-        // I don't know why, but mix seems to lose precision... always seems to reduce alpha color. 
-		// alpha_color   = mix(alpha_color,   1.0, accum_antilag); 
-        // color_count = mix(color_count, 1.0, clamp(accum_antilag, 0.0, 1.0));
-		// moments_count = mix(moments_count, 1.0, clamp(accum_antilag, 0.0, 1.0));
-		
-        // float accum_a = min(MAX_DIFFUSE_CUMULATIVE_COUNT, histlen);
-        // float accum_histlen = color_count + 1.0;
-	// vec2 accum_moments = mix(moments_prev, moments_curr, 1.0 / moments_count);
-        // if (moments_count <= 1) accum_moments.y = 1;
-        
-    // float variance = abs(accum_moments.y - accum_moments.x * accum_moments.x);
-        // if (isnan(variance) ) variance = 200;
-        
-        // note, w component holds luminance variance
-        vec4 accum_direct_diffuse = mix(direct_diffuse_prev, direct_diffuse_curr, alpha_color.r);
-        vec4 accum_indirect_diffuse = mix(indirect_diffuse_prev, indirect_diffuse_curr, alpha_color.g);
+    if ((sum_wd > 0.0) && (sum_wi > 0.0)) { /* found sufficiently reliable history information */
+        direct_diffuse_prev   /= sum_wd;
+        indirect_diffuse_prev   /= sum_wi;
+        sample_count_curr.rg   = mix(sample_count_curr.rg, vec2(0), antilag_alpha.rg);
+        vec4 accum_direct_diffuse = mix(direct_diffuse_curr, direct_diffuse_prev, sample_count_curr.r / (MAX_DIFFUSE_CUMULATIVE_COUNT + 1));
+        vec4 accum_indirect_diffuse = mix(indirect_diffuse_curr, indirect_diffuse_prev, sample_count_curr.g / (MAX_DIFFUSE_CUMULATIVE_COUNT + 1));
         
         imageStore( gbuffers[DIFFUSE_DIRECT_ADDR],        ivec2(gl_GlobalInvocationID.xy), accum_direct_diffuse);
         imageStore( gbuffers[DIFFUSE_INDIRECT_ADDR],        ivec2(gl_GlobalInvocationID.xy), accum_indirect_diffuse);
-        // imageStore( gbuffers[LUMINANCE_VARIANCE_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(accum_moments, 1.0, accum_histlen));
-        // imageStore( gbuffers[SAMPLE_COUNT_ADDR],            ivec2(gl_GlobalInvocationID.xy), vec4(accum_histlen));
-        // imageStore( gbuffers[VARIANCE_ADDR],                ivec2(gl_GlobalInvocationID.xy), vec4(variance));
-        // imageStore( gbuffers[TEMPORAL_GRADIENT_ADDR],       ivec2(gl_GlobalInvocationID.xy), vec4(accum_antilag));
-
         imageStore( gbuffers[next_direct_diffuse_hist_addr],        ivec2(gl_GlobalInvocationID.xy), accum_direct_diffuse );
         imageStore( gbuffers[next_indirect_diffuse_hist_addr],        ivec2(gl_GlobalInvocationID.xy), accum_indirect_diffuse );
-        // imageStore( gbuffers[next_moments_addr],            ivec2(gl_GlobalInvocationID.xy), vec4(accum_moments, 1.0, 1.0));
-        // imageStore( gbuffers[next_sample_avg_addr],       ivec2(gl_GlobalInvocationID.xy), vec4(accum_histlen));
-        // imageStore( gbuffers[next_grad_addr],       ivec2(gl_GlobalInvocationID.xy), vec4(accum_antilag));
-
-        // imageStore( gbuffers[DEBUG_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(abs(accum_antilag)));
-
-        // imageStore( gbuffers[DEBUG_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(abs(luminance_variance.g * 100)));
-
+        
+        sample_count_curr.r = min(sample_count_curr.r + 1, MAX_DIFFUSE_CUMULATIVE_COUNT);
+        sample_count_curr.g = min(sample_count_curr.g + 1, MAX_DIFFUSE_CUMULATIVE_COUNT);
+        imageStore( gbuffers[SAMPLE_COUNT_ADDR], ipos, sample_count_curr);
     } else {
-        /* encodes variance */
-        // direct_diffuse_curr.w = 200;
-        // indirect_diffuse_curr.w = 200;
-
         imageStore( gbuffers[DIFFUSE_DIRECT_ADDR],        ivec2(gl_GlobalInvocationID.xy), direct_diffuse_curr);
         imageStore( gbuffers[DIFFUSE_INDIRECT_ADDR],        ivec2(gl_GlobalInvocationID.xy), indirect_diffuse_curr);
-        // imageStore( gbuffers[LUMINANCE_VARIANCE_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(moments_curr, 1.0, 1.0));
-        // imageStore( gbuffers[SAMPLE_COUNT_ADDR],            ivec2(gl_GlobalInvocationID.xy), vec4(1));
-        // imageStore( gbuffers[VARIANCE_ADDR],                ivec2(gl_GlobalInvocationID.xy), vec4(200));
         imageStore( gbuffers[next_direct_diffuse_hist_addr],        ivec2(gl_GlobalInvocationID.xy), direct_diffuse_curr);
         imageStore( gbuffers[next_indirect_diffuse_hist_addr],        ivec2(gl_GlobalInvocationID.xy), indirect_diffuse_curr);
-        // imageStore( gbuffers[next_moments_addr],            ivec2(gl_GlobalInvocationID.xy), vec4(moments_curr, 1.0, 1.0));
-        // imageStore( gbuffers[next_sample_avg_addr],       ivec2(gl_GlobalInvocationID.xy), vec4(1));
-        // imageStore( gbuffers[next_grad_addr],               ivec2(gl_GlobalInvocationID.xy), vec4(0));
-
-        // imageStore( gbuffers[DEBUG_ADDR],      ivec2(gl_GlobalInvocationID.xy), vec4(0));
+        imageStore( gbuffers[SAMPLE_COUNT_ADDR], ipos, vec4(0,0,sample_count_curr.ba));
     }
 }

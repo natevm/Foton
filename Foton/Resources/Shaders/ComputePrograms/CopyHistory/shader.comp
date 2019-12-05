@@ -33,12 +33,12 @@ void main() {
     imageStore(gbuffers[LOBE_AXIS_SHARPNESS_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
 
     // Temporal Gradient
-    temp = imageLoad(gbuffers[LUMINANCE_VARIANCE_ADDR], ivec2(gl_GlobalInvocationID.xy));
-    imageStore(gbuffers[LUMINANCE_VARIANCE_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
+    // temp = imageLoad(gbuffers[LUMINANCE_VARIANCE_ADDR], ivec2(gl_GlobalInvocationID.xy));
+    // imageStore(gbuffers[LUMINANCE_VARIANCE_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
 
     // Sample Count
-    // temp = imageLoad(gbuffers[SAMPLE_COUNT_ADDR], ivec2(gl_GlobalInvocationID.xy));
-    // imageStore(gbuffers[SAMPLE_COUNT_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
+    temp = imageLoad(gbuffers[SAMPLE_COUNT_ADDR], ivec2(gl_GlobalInvocationID.xy));
+    imageStore(gbuffers[SAMPLE_COUNT_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
 
     // IDs
     temp = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ivec2(gl_GlobalInvocationID.xy));

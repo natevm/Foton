@@ -86,11 +86,14 @@ void main() {
     // Load g buffer data to be temporally accumulated
 	vec4  direct_specular_curr     = imageLoad(gbuffers[GLOSSY_DIRECT_ADDR], ipos);
 	vec4  indirect_specular_curr     = imageLoad(gbuffers[GLOSSY_INDIRECT_ADDR], ipos);
-    
+    vec4  sample_count_curr;
+    sample_count_curr.ba = imageLoad(gbuffers[SAMPLE_COUNT_ADDR_PREV], ipos).ba;
+    sample_count_curr.rg = imageLoad(gbuffers[SAMPLE_COUNT_ADDR], ipos).rg;
+
     // We'll be estimating these values by a simple filter surrounding the reprojected position
     vec4 direct_specular_prev  = vec4(0);
     vec4 indirect_specular_prev  = vec4(0);
-	float sum_w       = 0.0;
+	float sum_wd = 0.0, sum_wi = 0.0;
     if (!reset) {
         const int r = RADIUS;
         for (int y = -r; y <= r; ++y) {
@@ -103,6 +106,7 @@ void main() {
                 // Load disocclusion gbuffer data
                 int hist_entity_id = int(imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos_prev_full));
                 int hist_refl_entity_id = int(imageLoad(gbuffers[REFLECTED_ID_ADDR_AND_PREV], ipos_prev).g);
+                vec2 samples = imageLoad(gbuffers[SAMPLE_COUNT_ADDR_PREV], ipos_prev).ba;
 
                 vec4 hist_spec_axis_sharpness = imageLoad(gbuffers[LOBE_AXIS_SHARPNESS_ADDR_PREV], ipos_prev_full); 
                 vec3 hist_normal = imageLoad(gbuffers[NORMAL_ADDR_PREV], ipos_prev_full).rgb;
@@ -161,12 +165,13 @@ void main() {
 
                 // float w_direct = h[y + RADIUS][x + RADIUS] * wr_direct * normal_similarity * w_id;
                 // float w_indirect = h[y + RADIUS][x + RADIUS] * wr_indirect * normal_similarity * w_id;
-                float w = h[y + RADIUS][x + RADIUS] * wr_indirect * normal_similarity * w_id;
-                
-                if (accept) {                   
-                    direct_specular_prev += direct_specular * w;
-                    indirect_specular_prev += indirect_specular * w;
-                    sum_w        += w;
+                float wd = h[y + RADIUS][x + RADIUS] * wr_indirect * normal_similarity * w_id;
+                float wi = h[y + RADIUS][x + RADIUS] * wr_indirect * normal_similarity * w_id;
+                if (accept) {               
+                    direct_specular_prev += direct_specular * wd;
+                    indirect_specular_prev += indirect_specular * wi;
+                    sum_wd += wd;
+                    sum_wi += wi;
                 }
             }
         }
@@ -197,27 +202,33 @@ void main() {
             antilag_alpha = vec4(0.0);
 	}
 
-    if (sum_w > 0.0) { /* found sufficiently reliable history information */
-        direct_specular_prev   /= sum_w;
-        indirect_specular_prev   /= sum_w;
+    if ((sum_wd > 0.0) && (sum_wi > 0.0)) { /* found sufficiently reliable history information */
+        direct_specular_prev   /= sum_wd;
+        indirect_specular_prev   /= sum_wi;
+        sample_count_curr.ba   = mix(sample_count_curr.ba, vec2(0), antilag_alpha.ba);
 
-        float alpha_direct = (1.0 / MAX_DIRECT_SPECULAR_CUMULATIVE_COUNT);
-        float alpha_indirect = (1.0 / MAX_INDIRECT_SPECULAR_CUMULATIVE_COUNT);
+        // float alpha_direct = (1.0 / MAX_DIRECT_SPECULAR_CUMULATIVE_COUNT);
+        // float alpha_indirect = (1.0 / MAX_INDIRECT_SPECULAR_CUMULATIVE_COUNT);
         // making direct incredibly sensitive to gradient, since it's most likely to leave ghosting
-		alpha_direct   = mix(alpha_direct, (1.0 / MIN_DIRECT_SPECULAR_CUMULATIVE_COUNT), antilag_alpha.b); 
-		alpha_indirect   = mix(alpha_indirect, (1.0 / MIN_INDIRECT_SPECULAR_CUMULATIVE_COUNT), antilag_alpha.a);
+		// alpha_direct   = mix(alpha_direct, (1.0 / MIN_DIRECT_SPECULAR_CUMULATIVE_COUNT), antilag_alpha.b); 
+		// alpha_indirect   = mix(alpha_indirect, (1.0 / MIN_INDIRECT_SPECULAR_CUMULATIVE_COUNT), antilag_alpha.a);
 
-        vec4 accum_direct_specular = vec4(mix(direct_specular_prev.rgb, direct_specular_curr.rgb, alpha_direct), 1.0); // note, pass variance as w for bilateral filtering
-        vec4 accum_indirect_specular = vec4(mix(indirect_specular_prev.rgb, indirect_specular_curr.rgb, alpha_indirect), 1.0); // note, pass variance as w for bilateral filtering
+        vec4 accum_direct_specular = vec4(mix(direct_specular_curr.rgb, direct_specular_prev.rgb, sample_count_curr.b/(MAX_DIRECT_SPECULAR_CUMULATIVE_COUNT + 1)), 1.0); // note, pass variance as w for bilateral filtering
+        vec4 accum_indirect_specular = vec4(mix(indirect_specular_curr.rgb, indirect_specular_prev.rgb, sample_count_curr.a/(MAX_INDIRECT_SPECULAR_CUMULATIVE_COUNT + 1)), 1.0); // note, pass variance as w for bilateral filtering
         
         imageStore( gbuffers[GLOSSY_DIRECT_ADDR], ipos, accum_direct_specular);
         imageStore( gbuffers[GLOSSY_INDIRECT_ADDR], ipos, accum_indirect_specular);
         imageStore( gbuffers[next_direct_specular_hist_addr], ipos, accum_direct_specular );
         imageStore( gbuffers[next_indirect_specular_hist_addr], ipos, accum_indirect_specular );
+
+        sample_count_curr.b = min(sample_count_curr.b + 1, MAX_DIRECT_SPECULAR_CUMULATIVE_COUNT);
+        sample_count_curr.a = min(sample_count_curr.a + 1, MAX_INDIRECT_SPECULAR_CUMULATIVE_COUNT);
+        imageStore( gbuffers[SAMPLE_COUNT_ADDR], ipos, sample_count_curr);
     } else {
         imageStore( gbuffers[GLOSSY_DIRECT_ADDR], ipos, direct_specular_curr);
         imageStore( gbuffers[GLOSSY_INDIRECT_ADDR], ipos, indirect_specular_curr);
         imageStore( gbuffers[next_direct_specular_hist_addr], ipos, direct_specular_curr);
         imageStore( gbuffers[next_indirect_specular_hist_addr], ipos, indirect_specular_curr);
+        imageStore( gbuffers[SAMPLE_COUNT_ADDR], ipos, vec4(sample_count_curr.rg, 0,0));
     }
 }
