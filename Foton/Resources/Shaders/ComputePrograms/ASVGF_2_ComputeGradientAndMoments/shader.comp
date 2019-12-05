@@ -36,8 +36,8 @@ layout (local_size_x = 16, local_size_y = 16) in;
 #define PRECOMPUTE_MOMENTS true
 
 void main() {
-    if (int(gl_GlobalInvocationID.x * PATH_TRACE_TILE_SIZE * GRADIENT_TILE_SIZE) >= push.consts.width) return;
-    if (int(gl_GlobalInvocationID.y * PATH_TRACE_TILE_SIZE * GRADIENT_TILE_SIZE) >= push.consts.height) return;
+    if (int(gl_GlobalInvocationID.x * GRADIENT_TILE_SIZE * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
+    if (int(gl_GlobalInvocationID.y * GRADIENT_TILE_SIZE * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
 
     // Compute random offset within tile
     int rand_curr;
@@ -53,6 +53,7 @@ void main() {
     // Compute motion vector
     ivec2 ipos_pt_tile = (GRADIENT_TILE_SIZE * tile + offset_curr);
     ivec2 ipos_full = ipos_pt_tile * PATH_TRACE_TILE_SIZE;
+
     // precise vec4 motion_data = imageLoad(gbuffers[DIFFUSE_MOTION_ADDR], ipos_full);
     // precise vec2 v = motion_data.xy * vec2(.5, -.5);
     // precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
@@ -72,25 +73,28 @@ void main() {
 
     ivec2 ipos_specular_pt_tile_prev, ipos_specular_full_prev;
     {
-        precise vec4 motion_data = imageLoad(gbuffers[GLOSSY_MOTION_ADDR], ipos_full);
+        precise vec4 motion_data = imageLoad(gbuffers[GLOSSY_MOTION_ADDR], ipos_pt_tile);
         precise vec2 v = motion_data.xy * vec2(.5, -.5);
         precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
-        ipos_specular_pt_tile_prev = ivec2(ipos_full + (iv + MOTION_VECTOR_OFFSET)) / PATH_TRACE_TILE_SIZE;
+        ipos_specular_pt_tile_prev = ivec2(ipos_full + (iv + MOTION_VECTOR_OFFSET * PATH_TRACE_TILE_SIZE)) / PATH_TRACE_TILE_SIZE;
         ipos_specular_full_prev = ipos_specular_pt_tile_prev * PATH_TRACE_TILE_SIZE;
     }
+
+    vec4 diffuse_id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV], ipos_diffuse_full_prev);
+    vec4 specular_id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV], ipos_specular_full_prev);
 
     // Detect if the current pixel was rendered as a gradient sample
     // Note: A pixel is a reprojected seed if all seed values match
     bool is_diffuse_reproj_grad;
     bool is_specular_reproj_grad;
     {
+        vec4 id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos_full);
+       
         vec4 curr_diffuse_seed = imageLoad(gbuffers[DIFFUSE_SEED_ADDR], ipos_pt_tile);
-        // vec4 prev_diffuse_seed = imageLoad(gbuffers[DIFFUSE_SEED_ADDR_PREV], ipos_diffuse_pt_tile_prev);
-        is_diffuse_reproj_grad = curr_diffuse_seed.w > 0;//all(equal(prev_diffuse_seed.xyz, curr_diffuse_seed.xyz));
+        is_diffuse_reproj_grad = (curr_diffuse_seed.w > 0);// && (int(id_data.r) == int(diffuse_id_data.r));
 
         vec4 curr_specular_seed = imageLoad(gbuffers[SPECULAR_SEED_ADDR], ipos_pt_tile);
-        // vec4 prev_specular_seed = imageLoad(gbuffers[SPECULAR_SEED_ADDR_PREV], ipos_specular_pt_tile_prev);
-        is_specular_reproj_grad = curr_specular_seed.w > 0;//all(equal(prev_specular_seed.xyz, curr_specular_seed.xyz));
+        is_specular_reproj_grad = (curr_specular_seed.w > 0);// && (int(id_data.r) == int(specular_id_data.r));
     }
 
     vec2 prev_diffuse_luminance = imageLoad(gbuffers[LUMINANCE_ADDR_PREV], ipos_diffuse_pt_tile_prev).rg;
@@ -101,7 +105,9 @@ void main() {
     vec4 l_curr = any(isnan(curr_luminance)) ? vec4(0.0) : curr_luminance;
     vec4 temporal_gradient;
     temporal_gradient.rg = (is_diffuse_reproj_grad) ? abs(l_curr.rg - l_prev.rg) : vec2(0.0);
-    temporal_gradient.ba = (is_specular_reproj_grad) ? abs(l_curr.ba - l_prev.ba) : vec2(0.0);
+    // temporal_gradient.rg = (is_diffuse_reproj_grad) ? vec2(0) : vec2(0.0);
+    // temporal_gradient.ba = (is_specular_reproj_grad) ? abs(l_curr.ba - l_prev.ba) : vec2(0.0);
+    temporal_gradient.ba = (is_specular_reproj_grad) ? vec2(0) : vec2(0.0);
     vec4 max_luminance = max(l_curr, l_prev);
 
     // Compute first and second moments over the tile

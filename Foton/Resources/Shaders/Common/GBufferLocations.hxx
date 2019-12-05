@@ -4,14 +4,14 @@
 #define POSITION_DEPTH_ADDR 0 // NOTE, must be in position 0 for shadowmap raster pass!
 #define ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR 1
 #define NORMAL_ADDR 2
-#define SEED_ADDR 3 // consider separating luminance from seed...
+// #define SEED_ADDR 3 // consider separating luminance from seed...
 #define UV_METALLIC_ROUGHESS_ADDR 6 // consider replacing with "material ID"
 
 #define ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV 7
 #define POSITION_DEPTH_ADDR_PREV 8
 #define NORMAL_ADDR_PREV 9
 #define UV_METALLIC_ROUGHESS_ADDR_PREV 10
-#define SEED_ADDR_PREV 11
+// #define SEED_ADDR_PREV 11
 #define DIFFUSE_MOTION_ADDR 5
 #define GLOSSY_MOTION_ADDR 12
 #define SPECULAR_MOTION_ADDR 12
@@ -41,15 +41,19 @@
 #define DIFFUSE_INDIRECT_ADDR 48
 #define GLOSSY_DIRECT_ADDR 45
 #define GLOSSY_INDIRECT_ADDR 44
+#define TRANSMISSION_DIRECT_ADDR 55
+#define TRANSMISSION_INDIRECT_ADDR 54
 
 #define COARSE_NORMAL_ADDR 50
 #define COARSE_POSITION_DEPTH_ADDR 51
 
+#define REPROJECTED_DIFFUSE_SEEDS_ADDR 18
+#define ENTITY_TRI_BARYCENTRIC_ADDR 19
+#define COARSE_ENTITY_TRI_BARYCENTRIC_ADDR 52
+#define COARSE_ENTITY_TRI_BARYCENTRIC_ADDR_PREV 53
+
 // Denoising
 // Raytracing buffers
-        // might be able to get rid of these...
-#define SAMPLE_COUNT_ADDR 18
-#define SAMPLE_COUNT_ADDR_PREV 19
 
 // Progressive refinement buffers
 #define PROGRESSIVE_HISTORY_ADDR 20
@@ -87,3 +91,5 @@
 
 
 #define RANDOM_ADDR 59
+
+// #define DEBUG_ADDR 53

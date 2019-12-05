@@ -24,6 +24,65 @@ vec3 Uncharted2Tonemap(vec3 x)
 	return max(vec3(0.0f), ((x*(A*x+C*B)+D*E_)/(x*(A*x+B)+D*F))-E_/F);
 }
 
+ivec3 get_indices(int mesh_id, int prim_id)
+{
+    ivec3 indices;
+    indices.x = IndexBuffers[mesh_id].indices[3 * prim_id + 0];
+	indices.y = IndexBuffers[mesh_id].indices[3 * prim_id + 1];
+	indices.z = IndexBuffers[mesh_id].indices[3 * prim_id + 2];
+    return indices;
+}
+
+vec4 get_position(int mesh_id, ivec3 indices, vec2 bary) 
+{
+    vec3 barycentrics = vec3(1.0f - bary.x - bary.y, bary.x, bary.y);
+    vec4 P0 = PositionBuffers[mesh_id].positions[indices.x];
+	vec4 P1 = PositionBuffers[mesh_id].positions[indices.y];
+	vec4 P2 = PositionBuffers[mesh_id].positions[indices.z];
+	vec4 P = P0 * barycentrics.x + P1 * barycentrics.y + P2 * barycentrics.z;
+    return P;
+}
+
+vec3 get_normal(int mesh_id, ivec3 indices, vec2 bary) 
+{
+    vec3 barycentrics = vec3(1.0f - bary.x - bary.y, bary.x, bary.y);
+    vec3 N0 = NormalBuffers[mesh_id].normals[indices.x].xyz;
+	vec3 N1 = NormalBuffers[mesh_id].normals[indices.y].xyz;
+	vec3 N2 = NormalBuffers[mesh_id].normals[indices.z].xyz;
+	vec3 N = N0 * barycentrics.x + N1 * barycentrics.y + N2 * barycentrics.z;
+    return N;
+}
+
+vec2 get_uv(int mesh_id, ivec3 indices, vec2 bary) 
+{
+    vec3 barycentrics = vec3(1.0f - bary.x - bary.y, bary.x, bary.y);
+    vec2 UV0 = TexCoordBuffers[mesh_id].texcoords[indices.x].xy;
+	vec2 UV1 = TexCoordBuffers[mesh_id].texcoords[indices.y].xy;
+	vec2 UV2 = TexCoordBuffers[mesh_id].texcoords[indices.z].xy;
+	vec2 UV = UV0 * barycentrics.x + UV1 * barycentrics.y + UV2 * barycentrics.z;
+    return UV;
+}
+
+// Converts a color from linear light gamma to sRGB gamma
+vec4 fromLinear(vec4 linearRGB)
+{
+    bvec4 cutoff = lessThan(linearRGB, vec4(0.0031308));
+    vec4 higher = vec4(1.055)*pow(linearRGB, vec4(1.0/2.4)) - vec4(0.055);
+    vec4 lower = linearRGB * vec4(12.92);
+
+    return mix(higher, lower, cutoff);
+}
+
+// Converts a color from sRGB gamma to linear light gamma
+vec4 toLinear(vec4 sRGB)
+{
+    bvec4 cutoff = lessThan(sRGB, vec4(0.04045));
+    vec4 higher = pow((sRGB + vec4(0.055))/vec4(1.055), vec4(2.4));
+    vec4 lower = sRGB/vec4(12.92);
+
+    return mix(higher, lower, cutoff);
+}
+
 // 7.3 ms, VRAM 29.9%, L2 27.1%, TEX 18.2%
 void main() 
 {
@@ -31,6 +90,15 @@ void main()
     if (int(gl_LaunchIDNV.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
 
     init_random(ivec2(gl_LaunchIDNV.xy), push.consts.frame, 0);
+    
+    // Compute random offset within gradient tile
+    int grad_rand = push.consts.frame % (GRADIENT_TILE_SIZE * GRADIENT_TILE_SIZE);
+    ivec2 grad_offset = ivec2(grad_rand / GRADIENT_TILE_SIZE, grad_rand % GRADIENT_TILE_SIZE);
+    ivec2 grad_tile = ivec2(gl_LaunchIDNV.xy / GRADIENT_TILE_SIZE);
+    ivec2 grad_pt_tile = GRADIENT_TILE_SIZE * grad_tile + grad_offset;
+    
+    
+    
     float rand = random();
     
     int rand_curr = 0;//int(random(ivec2(gl_LaunchIDNV.xy), (push.consts.frame)) * PATH_TRACE_TILE_SIZE * PATH_TRACE_TILE_SIZE);
@@ -53,41 +121,85 @@ void main()
         ipos_full_prev = ipos_tile_prev * PATH_TRACE_TILE_SIZE;
     }
 
+    bool accept = true;
+    bvec2 a = greaterThan(ipos_full_prev, vec2(push.consts.width-1, push.consts.height-1));
+    bvec2 b = lessThan(ipos_full_prev, vec2(0.0, 0.0));
+    accept = accept && (!any(bvec2(any(a), any(b))));
+
     // Seed G Buffer
-    temp = imageLoad(gbuffers[DIFFUSE_SEED_ADDR], tile);
+    bool seed_reprojected = accept && all(equal(grad_pt_tile, tile));// (temp.w > 0);
+    if (seed_reprojected) {
+        temp = imageLoad(gbuffers[DIFFUSE_SEED_ADDR_PREV], ipos_tile_prev);
+    } else {
+        temp = imageLoad(gbuffers[DIFFUSE_SEED_ADDR], tile);
+    }
     ivec2 pixel_seed = ivec2(temp.xy);
     int frame_seed = int(temp.z);
-    bool seed_reprojected = (temp.w > 0);
     init_random(pixel_seed, frame_seed, 0);
-    
-    // Position G Buffer 
-    ivec2 gbuf_pos = (seed_reprojected) ? ipos_full_prev : ipos_full;
-    addr = (seed_reprojected) ? POSITION_DEPTH_ADDR_PREV : POSITION_DEPTH_ADDR;
+
+    ivec2 gbuf_pos = (seed_reprojected) ? ipos_tile_prev : ipos_full;
+    addr = (seed_reprojected) ? COARSE_ENTITY_TRI_BARYCENTRIC_ADDR_PREV : ENTITY_TRI_BARYCENTRIC_ADDR;
     temp = imageLoad(gbuffers[addr], gbuf_pos);
+    int first_bary_entity_id = int(temp.b), first_tri_id = int(temp.a);
+    vec2 first_barycentrics = vec2(temp.rg);
+    bool mesh_valid = ((first_bary_entity_id >= 0) && (first_tri_id >= 0));
+
+    ivec3 first_indices;
+    vec3 first_bary_normal = vec3(0,1,0);
+    vec2 first_bary_uv;
+    vec4 first_bary_position;
+    vec4 first_bary_base_color;
+    int first_bary_material_id, first_bary_transform_id, first_bary_light_id, first_bary_mesh_id;
+    if (seed_reprojected && mesh_valid) 
+    {
+        TransformStruct first_transform_struct;
+        EntityStruct entity = ebo.entities[first_bary_entity_id];
+        first_bary_mesh_id = entity.mesh_id;
+        first_bary_material_id = entity.material_id;
+        first_bary_transform_id = entity.transform_id;
+        first_bary_light_id = entity.light_id;
+        first_transform_struct = tbo.transforms[entity.transform_id];   
+        first_indices = get_indices(first_bary_mesh_id, first_tri_id);
+        first_bary_position = get_position(first_bary_mesh_id, first_indices, first_barycentrics);
+        first_bary_uv = get_uv(first_bary_mesh_id, first_indices, first_barycentrics);
+        first_bary_normal = get_normal(first_bary_mesh_id, first_indices, first_barycentrics);
+        first_bary_position = first_transform_struct.localToWorld * vec4(first_bary_position.xyz, 1.0);
+        first_bary_normal = normalize(transpose(mat3(first_transform_struct.worldToLocal)) * first_bary_normal);
+
+        MaterialStruct mat = mbo.materials[first_bary_material_id];
+        first_bary_base_color = getAlbedo(mat, vec4(0.0), first_bary_uv, first_bary_position.xyz);
+        float mask = getAlphaMask(mat, first_bary_uv, first_bary_position.xyz);
+        first_bary_base_color.a = (mask < first_bary_base_color.a) ? mask : first_bary_base_color.a;
+    }
+    
+    // Position G Buffer   
+    if (seed_reprojected) temp = vec4(first_bary_position.xyz, 0);
+    else temp = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos_full);
     vec3 first_position = temp.xyz;
-    float first_dist = temp.w;
+    vec3 first_position_ = temp.xyz;
+    float first_dist = 0;//temp.w;
 
     // Normal G Buffer
-    addr = (seed_reprojected) ? NORMAL_ADDR_PREV : NORMAL_ADDR;
-    temp = imageLoad(gbuffers[addr], gbuf_pos);
+    if (seed_reprojected) temp = vec4(first_bary_normal.xyz, 0);
+    else temp = imageLoad(gbuffers[NORMAL_ADDR], ipos_full);
     vec3 first_normal = normalize(temp.xyz);
 
     // Component IDs
-    addr = (seed_reprojected) ? ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV : ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR;
-    temp = imageLoad(gbuffers[addr], gbuf_pos);
+    if (seed_reprojected) temp = vec4(first_bary_entity_id, first_bary_material_id, first_bary_transform_id, first_bary_light_id);
+    else temp = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos_full);
     int first_entity_id = int(temp.r);
     int first_material_id = int(temp.g);
     int first_transform_id = int(temp.b);
     int first_light_id = int(temp.a);
 
     // UV G Buffer
-    addr = (seed_reprojected) ? UV_METALLIC_ROUGHESS_ADDR_PREV : UV_METALLIC_ROUGHESS_ADDR;
-    temp = imageLoad(gbuffers[addr], gbuf_pos);
+    if (seed_reprojected) temp = vec4(first_bary_uv.xy, 0, 0);
+    else temp = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos_full);
     vec2 first_uv = temp.xy;
 
     // Raw albedo
-    addr = (seed_reprojected) ? DIFFUSE_COLOR_ADDR_PREV : DIFFUSE_COLOR_ADDR;
-    temp = imageLoad(gbuffers[addr], gbuf_pos);
+    if (seed_reprojected) temp = vec4(first_bary_base_color.rgb, 1.0);
+    else temp = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ipos_full);
     vec4 first_albedo = temp;
 
     /* Next, Compute ray origin and direction */
@@ -106,6 +218,7 @@ void main()
     vec3 origin = (viewinv * vec4(0,0,0,1)).xyz;
     vec3 direction = (viewinv * vec4(target, 0)).xyz ;
     direction = normalize(direction);
+    vec3 first_direction = direction;
 
     // Make normal forward facing
     if (dot(direction, first_normal) > 0) first_normal *= -1;
@@ -228,6 +341,13 @@ void main()
     /* Write to G Buffers */
     vec3 indirect_diffuse_radiance = diffuse_radiance - direct_diffuse_radiance;
     
+    
+    // direct_diffuse_radiance = vec3(pixel_seed, frame_seed);
+    // indirect_diffuse_radiance = vec3(pixel_seed, frame_seed);
+
+    // direct_diffuse_radiance = first_normal;
+    // indirect_diffuse_radiance = first_normal;
+
     // Direct Diffuse
     imageStore(gbuffers[DIFFUSE_DIRECT_ADDR], tile, vec4(direct_diffuse_radiance, 1.0));
 
@@ -239,8 +359,14 @@ void main()
                                                     luminance(indirect_diffuse_radiance), 
                                                     0.0,
                                                     0.0));
+    // imageStore(gbuffers[LUMINANCE_ADDR], tile, vec4(luminance(first_normal), 
+    //                                                 luminance(first_normal), 
+    //                                                 0.0,
+    //                                                 0.0));
 
     // Coarse data for upsampling
     imageStore(gbuffers[COARSE_NORMAL_ADDR], tile, vec4(first_normal, 1.0));
-    imageStore(gbuffers[COARSE_POSITION_DEPTH_ADDR], tile, vec4(first_position, first_dist));
+    imageStore(gbuffers[COARSE_POSITION_DEPTH_ADDR], tile, vec4(first_position_, first_dist));
+    imageStore(gbuffers[COARSE_ENTITY_TRI_BARYCENTRIC_ADDR], tile, vec4(first_barycentrics, first_bary_entity_id, first_tri_id));
+    imageStore(gbuffers[DIFFUSE_SEED_ADDR], tile, vec4(pixel_seed, frame_seed, seed_reprojected));
 }

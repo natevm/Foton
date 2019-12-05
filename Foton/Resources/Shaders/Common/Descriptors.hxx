@@ -57,7 +57,7 @@ layout(std430, push_constant) uniform PushConstants {
 layout(location = ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR) out vec4 entity_material_transform_light;
 layout(location = POSITION_DEPTH_ADDR) out vec4 position_depth;
 layout(location = NORMAL_ADDR) out vec4 normal;
-layout(location = SEED_ADDR) out vec4 seed_pixel;
+layout(location = DIFFUSE_SEED_ADDR) out vec4 seed_pixel;
 layout(location = DIFFUSE_COLOR_ADDR) out vec4 albedo;
 layout(location = DIFFUSE_MOTION_ADDR) out vec4 motion;
 layout(location = UV_METALLIC_ROUGHESS_ADDR) out vec4 uv;
@@ -140,6 +140,9 @@ struct HitInfo {
     bool is_shadow_ray;
     bool backface;
     float curvature;
+    int tri;
+    int mesh;
+    vec2 barycentrics;
 };
 
 #if defined  RAYTRACING || defined COMPUTE
@@ -152,7 +155,7 @@ void unpack_gbuffer_data(in ivec2 tile, in ivec2 offset, out ivec2 ipos, out boo
     ipos = tile * PATH_TRACE_TILE_SIZE + offset;
 
     // Seed / Luminance G Buffer
-    temp = imageLoad(gbuffers[SEED_ADDR], ipos);
+    temp = imageLoad(gbuffers[DIFFUSE_SEED_ADDR], ipos);
     pixel_seed = ivec2(temp.xy);
     frame_seed = int(temp.z);
 

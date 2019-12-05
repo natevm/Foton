@@ -45,12 +45,20 @@ void main() {
     imageStore(gbuffers[LUMINANCE_VARIANCE_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
 
     // Sample Count
-    temp = imageLoad(gbuffers[SAMPLE_COUNT_ADDR], ivec2(gl_GlobalInvocationID.xy));
-    imageStore(gbuffers[SAMPLE_COUNT_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
+    // temp = imageLoad(gbuffers[SAMPLE_COUNT_ADDR], ivec2(gl_GlobalInvocationID.xy));
+    // imageStore(gbuffers[SAMPLE_COUNT_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
 
     // IDs
     temp = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ivec2(gl_GlobalInvocationID.xy));
     imageStore(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
+
+
+    // TESTING
+    // temp = imageLoad(gbuffers[COARSE_NORMAL_ADDR], ivec2(gl_GlobalInvocationID.xy));
+    // imageStore(gbuffers[COARSE_NORMAL_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
+    
+    temp = imageLoad(gbuffers[COARSE_ENTITY_TRI_BARYCENTRIC_ADDR], ivec2(gl_GlobalInvocationID.xy));
+    imageStore(gbuffers[COARSE_ENTITY_TRI_BARYCENTRIC_ADDR_PREV], ivec2(gl_GlobalInvocationID.xy), temp);
 
     
     // The below seems to artificially darken the image over time

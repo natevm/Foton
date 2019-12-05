@@ -85,4 +85,9 @@ void main() {
 	float v_c_2 = (edge_curvature_1 + edge_curvature_2) * .5;
 	float v_c_3 = (edge_curvature_1 + edge_curvature_3) * .5;
 	payload.curvature = barycentrics.x * v_c_1 + barycentrics.y * v_c_2 + barycentrics.z * v_c_3;
+
+
+	payload.tri = gl_PrimitiveID;
+    payload.mesh = entity.mesh_id;
+    payload.barycentrics = bary;
 }

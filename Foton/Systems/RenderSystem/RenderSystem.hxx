@@ -333,7 +333,6 @@ namespace Systems
             ComputePipelineResources gaussian_x;
             ComputePipelineResources gaussian_y;
             ComputePipelineResources svgf_remodulate;
-            ComputePipelineResources asvgf_reproject_diffuse_seeds;
             ComputePipelineResources asvgf_reproject_specular_seeds;
             ComputePipelineResources asvgf_compute_gradient;
             ComputePipelineResources asvgf_reconstruct_gradient;

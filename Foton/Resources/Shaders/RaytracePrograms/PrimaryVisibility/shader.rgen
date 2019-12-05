@@ -17,13 +17,13 @@ void main()
     int max_path_depth = int(push.consts.parameter1);
     const ivec2 pixel_coords = ivec2(gl_LaunchIDNV.xy);
 
-    vec4 temp = imageLoad(gbuffers[SEED_ADDR], pixel_coords);
-    ivec2 pixel_seed = ivec2(temp.xy);
-    int frame_seed = int(temp.z);
-    init_random(pixel_seed, frame_seed, 0);
+    // vec4 temp = imageLoad(gbuffers[SEED_ADDR], pixel_coords);
+    // ivec2 pixel_seed = ivec2(temp.xy);
+    // int frame_seed = int(temp.z);
+    // init_random(pixel_seed, frame_seed, 0);
     
-    float rand = random();
-    imageStore(gbuffers[RANDOM_ADDR], pixel_coords, vec4(rand));
+    // float rand = random();
+    // imageStore(gbuffers[RANDOM_ADDR], pixel_coords, vec4(rand));
 
     /* Next, Compute ray origin and direction */
     EntityStruct camera_entity = ebo.entities[push.consts.camera_id];
@@ -32,7 +32,7 @@ void main()
     int multiview_idx = 0; //push.consts.viewIndex;
     mat4 projinv = camera.multiviews[multiview_idx].projinv;
     mat4 viewinv = camera_transform.localToWorld * camera.multiviews[multiview_idx].viewinv;
-    vec2 pixel_center = vec2(pixel_coords.xy) + vec2(random(), random()) * .5;
+    vec2 pixel_center = vec2(pixel_coords.xy);// + vec2(random(), random()) * .5;
 	const vec2 in_uv = pixel_center/vec2(push.consts.width, push.consts.height);
 	vec2 d = in_uv * 2.0 - 1.0; d.y *= -1.0;
     vec4 t = (projinv * vec4(d.x, d.y, 1, 1));
@@ -58,6 +58,10 @@ void main()
     bool reset = true;
     bool is_flat;
     float curvature;
+
+    int mesh_id = -1; 
+    int tri_id = -1; 
+    vec2 barycentrics = vec2(0);
 
     EntityStruct entity;
     entity.initialized = 0;
@@ -88,6 +92,10 @@ void main()
             origin = payload.w_p + EPSILON * direction;
             continue;
         }
+
+        mesh_id = payload.mesh;
+        tri_id = payload.tri;
+        barycentrics = payload.barycentrics;
 
         /* If the object is a light, use its light color as albedo */
         // Not sure why, but this causes albedo to be black?
@@ -154,6 +162,11 @@ void main()
 
     // Specular lobe axis and sharpness
     imageStore(gbuffers[LOBE_AXIS_SHARPNESS_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(w_i, specular_sharpness));
+
+    // Mesh ID, Tri ID, and Barycentrics
+    imageStore(gbuffers[ENTITY_TRI_BARYCENTRIC_ADDR], ivec2(gl_LaunchIDNV.xy), vec4(barycentrics, entity_id, tri_id));
+
+    
 
     // if (int(gl_LaunchIDNV.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
     // if (int(gl_LaunchIDNV.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;

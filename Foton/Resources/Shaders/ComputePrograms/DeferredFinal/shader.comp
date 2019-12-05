@@ -26,7 +26,7 @@ void main() {
     int light_id = int(temp[3]);
     
     // Seed Buffer
-    temp = imageLoad(gbuffers[SEED_ADDR], ipos);
+    temp = imageLoad(gbuffers[DIFFUSE_SEED_ADDR], ipos);
     ivec2 pixel_seed = ivec2(temp.xy);
     int frame_seed = int(temp.z);
 

@@ -57,7 +57,7 @@ void main()
     temp = imageLoad(gbuffers[SPECULAR_SEED_ADDR], tile);
     ivec2 pixel_seed = ivec2(temp.xy);
     int frame_seed = int(temp.z);
-    bool seed_reprojected = false;//(temp.w > 0);
+    bool seed_reprojected = (temp.w > 0);
     init_random(pixel_seed, frame_seed, 0);
 
     // Position G Buffer 

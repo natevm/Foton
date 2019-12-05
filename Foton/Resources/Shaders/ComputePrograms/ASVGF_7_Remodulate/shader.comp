@@ -42,7 +42,7 @@ void main() {
     init_random(ipos, push.consts.frame, 0);
     vec3 color;
 
-    vec4 temp = imageLoad(gbuffers[SEED_ADDR], ipos);
+    vec4 temp = imageLoad(gbuffers[DIFFUSE_SEED_ADDR], ipos);
     ivec2 pixel_seed = ivec2(temp.xy);
     int frame_seed = int(temp.z);
 
