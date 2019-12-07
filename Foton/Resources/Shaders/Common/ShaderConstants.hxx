@@ -30,7 +30,7 @@
 // Min samples increases temporal coherence during disocclusions, 
 // but introduces artifacts due to temporal gradient not properly causing sample reset
 #define MIN_SAMPLES 0
-#define MAX_DIFFUSE_CUMULATIVE_COUNT 16
+#define MAX_DIFFUSE_CUMULATIVE_COUNT 32
 // #define MIN_DIFFUSE_CUMULATIVE_COUNT 1
 #define TEMPORAL_ALPHA (1.0 / float(MAX_DIFFUSE_CUMULATIVE_COUNT))
 

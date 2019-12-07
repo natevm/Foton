@@ -90,7 +90,6 @@
 #define SVGF_TAA_HISTORY_9_ADDR 39
 #define SVGF_TAA_HISTORY_10_ADDR 40
 
-
 #define RANDOM_ADDR 59
 
 // #define DEBUG_ADDR 53
