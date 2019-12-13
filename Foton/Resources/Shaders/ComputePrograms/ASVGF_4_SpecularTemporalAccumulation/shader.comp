@@ -251,17 +251,17 @@ void main() {
             accum_samples[1] = 1;
         }
         
-        // imageStore( gbuffers[next_direct_specular_hist_addr], ipos, accum_direct_specular);
-        // imageStore( gbuffers[next_indirect_specular_hist_addr], ipos, accum_indirect_specular);
-        // imageStore( gbuffers[next_sample_avg_addr], ipos, vec4(sample_count_curr.rg, accum_samples));
+        imageStore( gbuffers[next_direct_specular_hist_addr], ipos, accum_direct_specular);
+        imageStore( gbuffers[next_indirect_specular_hist_addr], ipos, accum_indirect_specular);
+        imageStore( gbuffers[next_sample_avg_addr], ipos, vec4(sample_count_curr.rg, accum_samples));
     }
     else {
-        // vec4 temp;
-        // temp = imageLoad(gbuffers[curr_direct_specular_hist_addr], ipos);
-        // imageStore( gbuffers[next_direct_specular_hist_addr], ipos, temp);
-        // temp = imageLoad(gbuffers[curr_indirect_specular_hist_addr], ipos);
-        // imageStore( gbuffers[next_indirect_specular_hist_addr], ipos, temp);
-        // temp = imageLoad(gbuffers[curr_sample_avg_addr], ipos);
-        // imageStore( gbuffers[next_sample_avg_addr], ipos, temp);
+        vec4 temp;
+        temp = imageLoad(gbuffers[curr_direct_specular_hist_addr], ipos);
+        imageStore( gbuffers[next_direct_specular_hist_addr], ipos, temp);
+        temp = imageLoad(gbuffers[curr_indirect_specular_hist_addr], ipos);
+        imageStore( gbuffers[next_indirect_specular_hist_addr], ipos, temp);
+        temp = imageLoad(gbuffers[curr_sample_avg_addr], ipos);
+        imageStore( gbuffers[next_sample_avg_addr], ipos, temp);
     }
 }
