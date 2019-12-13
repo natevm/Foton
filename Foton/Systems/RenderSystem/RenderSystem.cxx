@@ -734,42 +734,50 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 					push_constants.camera_id = camera_entity.get_id();
 					push_constants.viewIndex = rp_idx;
 					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
+					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+					
+					uint32_t local_size_x = 16;
+					uint32_t local_size_y = 16;
+
+					uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+					uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+					uint32_t groupZ = 1;
+					
+					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, asvgf_diffuse_temporal_accumulation.pipeline);
 					push_constants.parameter1 = this->asvgf_diffuse_gradient_influence;
 					push_constants.parameter2 = this->force_nearest_temporal_sampling_on;
-					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
-					
+					push_constants.iteration = 0;
 					command_buffer.pushConstants(asvgf_diffuse_temporal_accumulation.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, asvgf_diffuse_temporal_accumulation.pipeline);
-
-					uint32_t local_size_x = 16;
-					uint32_t local_size_y = 16;
-
-					uint32_t groupX = (width + local_size_x - 1) / local_size_x;
-					uint32_t groupY = (height + local_size_y - 1) / local_size_y;
-					uint32_t groupZ = 1;
+					command_buffer.dispatch(groupX, groupY, groupZ);
+					push_constants.iteration = 1;
+					command_buffer.pushConstants(asvgf_diffuse_temporal_accumulation.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
 					command_buffer.dispatch(groupX, groupY, groupZ);
 				}
 
-				for(uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
-					push_constants.target_id = -1;
-					push_constants.camera_id = camera_entity.get_id();
-					push_constants.viewIndex = rp_idx;
-					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
-					push_constants.parameter1 = this->asvgf_specular_gradient_influence;
-					push_constants.parameter2 = this->force_nearest_temporal_sampling_on;
-					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+				// for(uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
+				// 	push_constants.target_id = -1;
+				// 	push_constants.camera_id = camera_entity.get_id();
+				// 	push_constants.viewIndex = rp_idx;
+				// 	push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
+				// 	push_constants.parameter1 = this->asvgf_specular_gradient_influence;
+				// 	push_constants.parameter2 = this->force_nearest_temporal_sampling_on;
+				// 	bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 					
-					command_buffer.pushConstants(asvgf_specular_temporal_accumulation.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, asvgf_specular_temporal_accumulation.pipeline);
+				// 	uint32_t local_size_x = 16;
+				// 	uint32_t local_size_y = 16;
 
-					uint32_t local_size_x = 16;
-					uint32_t local_size_y = 16;
+				// 	uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+				// 	uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+				// 	uint32_t groupZ = 1;
 
-					uint32_t groupX = (width + local_size_x - 1) / local_size_x;
-					uint32_t groupY = (height + local_size_y - 1) / local_size_y;
-					uint32_t groupZ = 1;
-					command_buffer.dispatch(groupX, groupY, groupZ);
-				}
+				// 	command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, asvgf_specular_temporal_accumulation.pipeline);
+				// 	push_constants.iteration = 0;
+				// 	command_buffer.pushConstants(asvgf_specular_temporal_accumulation.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+				// 	command_buffer.dispatch(groupX, groupY, groupZ);
+				// 	push_constants.iteration = 1;
+				// 	command_buffer.pushConstants(asvgf_specular_temporal_accumulation.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+				// 	command_buffer.dispatch(groupX, groupY, groupZ);
+				// }
 			}
 
 			/* Fill disocclusions */

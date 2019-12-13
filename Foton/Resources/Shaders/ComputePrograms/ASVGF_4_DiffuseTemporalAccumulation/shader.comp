@@ -56,171 +56,176 @@ void main() {
     float gradient_weight = push.consts.parameter1;
     bool use_nearest = (push.consts.parameter2 > .5);
 
+
     // This temporal accumulation uses two ping pong buffers per accumulated
     // g buffer. These are the current and next gbuffer addreses for each.
-    const int curr_direct_diffuse_hist_addr     = (((push.consts.frame % 2) == 0) || is_hole_filling_enabled()) ? SVGF_TAA_HISTORY_1_ADDR : SVGF_TAA_HISTORY_2_ADDR ;
-    const int next_direct_diffuse_hist_addr     = (((push.consts.frame % 2) == 0) || is_hole_filling_enabled()) ? SVGF_TAA_HISTORY_2_ADDR : SVGF_TAA_HISTORY_1_ADDR ;
-    const int curr_indirect_diffuse_hist_addr   = (((push.consts.frame % 2) == 0) || is_hole_filling_enabled()) ? SVGF_TAA_HISTORY_3_ADDR : SVGF_TAA_HISTORY_4_ADDR ;
-    const int next_indirect_diffuse_hist_addr   = (((push.consts.frame % 2) == 0) || is_hole_filling_enabled()) ? SVGF_TAA_HISTORY_4_ADDR : SVGF_TAA_HISTORY_3_ADDR ;
-    const int curr_sample_avg_addr              = (((push.consts.frame % 2) == 0) || is_hole_filling_enabled()) ? SVGF_TAA_HISTORY_5_ADDR : SVGF_TAA_HISTORY_6_ADDR ;
-    const int next_sample_avg_addr              = (((push.consts.frame % 2) == 0) || is_hole_filling_enabled()) ? SVGF_TAA_HISTORY_6_ADDR : SVGF_TAA_HISTORY_5_ADDR ;
+    const int curr_direct_diffuse_hist_addr     = (push.consts.iteration == 0) ? SVGF_TAA_HISTORY_1_ADDR : DIFFUSE_DIRECT_ADDR ;
+    const int next_direct_diffuse_hist_addr     = (push.consts.iteration == 0) ? DIFFUSE_DIRECT_ADDR : SVGF_TAA_HISTORY_1_ADDR ;
+    const int curr_indirect_diffuse_hist_addr   = (push.consts.iteration == 0) ? SVGF_TAA_HISTORY_2_ADDR : DIFFUSE_INDIRECT_ADDR ;
+    const int next_indirect_diffuse_hist_addr   = (push.consts.iteration == 0) ? DIFFUSE_INDIRECT_ADDR : SVGF_TAA_HISTORY_2_ADDR ;
+    const int curr_sample_avg_addr              = (push.consts.iteration == 0) ? SVGF_TAA_HISTORY_3_ADDR : SAMPLE_COUNT_ADDR ;
+    const int next_sample_avg_addr              = (push.consts.iteration == 0) ? SAMPLE_COUNT_ADDR : SVGF_TAA_HISTORY_3_ADDR ;
+    
+    if (push.consts.iteration == 0) {
+        // Compute motion vector
+        // Note, the w component indicates an invalid motion vector, which forces a reset
+        bool reset = false;
+        precise vec4 motion_data = imageLoad(gbuffers[DIFFUSE_MOTION_ADDR], ipos_full);
+        if (motion_data.w > 0) reset = true; // reset history if motion data is invalid
+        precise vec2 v = motion_data.xy * vec2(.5, -.5);
+        precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height) / PATH_TRACE_TILE_SIZE;
+        vec2 pos_prev = vec2(ipos + iv + MOTION_VECTOR_OFFSET);
 
-    // Compute motion vector
-    // Note, the w component indicates an invalid motion vector, which forces a reset
-    bool reset = false;
-    precise vec4 motion_data = imageLoad(gbuffers[DIFFUSE_MOTION_ADDR], ipos_full);
-    if (motion_data.w > 0) reset = true; // reset history if motion data is invalid
-    precise vec2 v = motion_data.xy * vec2(.5, -.5);
-    precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height) / PATH_TRACE_TILE_SIZE;
-    vec2 pos_prev = vec2(ipos + iv + MOTION_VECTOR_OFFSET);
+        // Load g buffer data which we'll use for detecting disocclusions
+        vec4 curr_id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos_full);
+        vec4 luminance_variance = imageLoad(gbuffers[LUMINANCE_VARIANCE_ADDR], ipos);
+        vec4 luminance_average = imageLoad(gbuffers[LUMINANCE_AVERAGE_ADDR], ipos);
+        vec3 curr_normal = imageLoad(gbuffers[NORMAL_ADDR], ipos_full).rgb;
+        if (int(curr_id_data.a) != -1) reset = true; //if an element is a light, don't accumulate temporally
 
-    // Load g buffer data which we'll use for detecting disocclusions
-    vec4 curr_id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos_full);
-    vec4 luminance_variance = imageLoad(gbuffers[LUMINANCE_VARIANCE_ADDR], ipos);
-    vec4 luminance_average = imageLoad(gbuffers[LUMINANCE_AVERAGE_ADDR], ipos);
-    vec3 curr_normal = imageLoad(gbuffers[NORMAL_ADDR], ipos_full).rgb;
-    if (int(curr_id_data.a) != -1) reset = true; //if an element is a light, don't accumulate temporally
+        // Load g buffer data to be temporally accumulated
+        // vec4 temp;
+        // temp = imageLoad(gbuffers[curr_sample_avg_addr], ipos);
+        // int samples = int(temp.r);
+        vec4  direct_diffuse_curr     = imageLoad(gbuffers[next_direct_diffuse_hist_addr], ipos);
+        vec4  indirect_diffuse_curr     = imageLoad(gbuffers[next_indirect_diffuse_hist_addr], ipos);
+        vec4  sample_count_curr = imageLoad(gbuffers[next_sample_avg_addr], ipos);
+        direct_diffuse_curr.w = luminance_variance.r;
+        indirect_diffuse_curr.w = luminance_variance.g;
+        
+        // We'll be estimating these values by a simple filter surrounding the reprojected position
+        vec4 direct_diffuse_prev  = vec4(0);
+        vec4 indirect_diffuse_prev  = vec4(0);
+        vec2 samples_prev  = vec2(0);
+        float sum_wd = 0.0, sum_wi = 0.0;
+        int accepted_samples = 0;
+        if (!reset) {
+            const int r = RADIUS;
+            for (int y = -r; y <= r; ++y) {
+                for (int x = -r; x <= r; ++x) {
+                    // ivec2 ipos_prev = clamp(ivec2(pos_prev + vec2(x, y)), ivec2(0), path_trace_dims - 1);
+                    ivec2 ipos_prev = ivec2(pos_prev + vec2(x, y));
+                    ivec2 ipos_prev_full = ivec2(ipos_prev * PATH_TRACE_TILE_SIZE);
+                    vec2 fpos_prev = get_filtered_uv(full_dims, (pos_prev + vec2(x, y)) / vec2(full_dims));
+                    
 
-    // Load g buffer data to be temporally accumulated
-    // vec4 temp;
-    // temp = imageLoad(gbuffers[curr_sample_avg_addr], ipos);
-    // int samples = int(temp.r);
-	vec4  direct_diffuse_curr     = imageLoad(gbuffers[DIFFUSE_DIRECT_ADDR], ipos);
-	vec4  indirect_diffuse_curr     = imageLoad(gbuffers[DIFFUSE_INDIRECT_ADDR], ipos);
-	vec4  sample_count_curr = imageLoad(gbuffers[SAMPLE_COUNT_ADDR], ipos);
-    direct_diffuse_curr.w = luminance_variance.r;
-    indirect_diffuse_curr.w = luminance_variance.g;
-	
-    // We'll be estimating these values by a simple filter surrounding the reprojected position
-    vec4 direct_diffuse_prev  = vec4(0);
-    vec4 indirect_diffuse_prev  = vec4(0);
-    vec2 samples_prev  = vec2(0);
-	float sum_wd = 0.0, sum_wi = 0.0;
-    int accepted_samples = 0;
-    if (!reset) {
-        const int r = RADIUS;
-        for (int y = -r; y <= r; ++y) {
-            for (int x = -r; x <= r; ++x) {
-                ivec2 ipos_prev = clamp(ivec2(pos_prev + vec2(x, y)), ivec2(0), path_trace_dims - 1);
-                ivec2 ipos_prev_full = ivec2(ipos_prev * PATH_TRACE_TILE_SIZE);
-                vec2 fpos_prev = get_filtered_uv(full_dims, (pos_prev + vec2(x, y)) / vec2(full_dims));
-                
+                    // vec2 fpos_prev = (pos_prev + vec2(x, y)) / (path_trace_dims * 4); // is 4 needed here?
+                    // fpos_prev = get_filtered_uv(full_dims, fpos_prev);
+                    
 
-                // vec2 fpos_prev = (pos_prev + vec2(x, y)) / (path_trace_dims * 4); // is 4 needed here?
-                // fpos_prev = get_filtered_uv(full_dims, fpos_prev);
-                
-
-                // Load disocclusion gbuffer data
-                vec4 hist_id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV], ipos_prev_full);
-                vec3 hist_normal = imageLoad(gbuffers[NORMAL_ADDR_PREV], ipos_prev_full).rgb;
-                // ivec2 grad_pos_prev = get_reprojected_pixel(push.consts.frame - 1, ipos_prev);
-                // bool seed_reprojected = false;//all(equal(ipos_prev, grad_pos_prev));
+                    // Load disocclusion gbuffer data
+                    vec4 hist_id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV], ipos_prev_full);
+                    vec3 hist_normal = imageLoad(gbuffers[NORMAL_ADDR_PREV], ipos_prev_full).rgb;
+                    // ivec2 grad_pos_prev = get_reprojected_pixel(push.consts.frame - 1, ipos_prev);
+                    // bool seed_reprojected = false;//all(equal(ipos_prev, grad_pos_prev));
 
 
-                // Load prior gbuffer data to accumulate temporally 
-                vec4 direct_diffuse, indirect_diffuse;
-                vec2 samples;
-                if (use_nearest) {
-                    direct_diffuse = imageLoad(gbuffers[curr_direct_diffuse_hist_addr], ipos_prev);
-                    indirect_diffuse = imageLoad(gbuffers[curr_indirect_diffuse_hist_addr], ipos_prev);
-                    samples = imageLoad(gbuffers[curr_sample_avg_addr], ipos_prev).rg;
-                } else {
-                    direct_diffuse = texture( 
-                            sampler2D(gbuffer_textures[curr_direct_diffuse_hist_addr], 
-                            samplers[LINEAR_SAMPLER]), fpos_prev);
-                    indirect_diffuse = texture( 
-                            sampler2D(gbuffer_textures[curr_indirect_diffuse_hist_addr], 
-                            samplers[LINEAR_SAMPLER]), fpos_prev);
-                    samples = texture( 
-                            sampler2D(gbuffer_textures[curr_sample_avg_addr], 
-                            samplers[LINEAR_SAMPLER]), fpos_prev).rg;
-                }
+                    // Load prior gbuffer data to accumulate temporally 
+                    vec4 direct_diffuse, indirect_diffuse;
+                    vec2 samples;
+                    if (use_nearest) {
+                        direct_diffuse = imageLoad(gbuffers[curr_direct_diffuse_hist_addr], ipos_prev);
+                        indirect_diffuse = imageLoad(gbuffers[curr_indirect_diffuse_hist_addr], ipos_prev);
+                        samples = imageLoad(gbuffers[curr_sample_avg_addr], ipos_prev).rg;
+                    } else {
+                        direct_diffuse = texture( 
+                                sampler2D(gbuffer_textures[curr_direct_diffuse_hist_addr], 
+                                samplers[LINEAR_SAMPLER]), fpos_prev);
+                        indirect_diffuse = texture( 
+                                sampler2D(gbuffer_textures[curr_indirect_diffuse_hist_addr], 
+                                samplers[LINEAR_SAMPLER]), fpos_prev);
+                        samples = texture( 
+                                sampler2D(gbuffer_textures[curr_sample_avg_addr], 
+                                samplers[LINEAR_SAMPLER]), fpos_prev).rg;
+                    }
 
-                // Determine if this prior sample is a disocclusion. If not, accept it.
-                bool accept = true;
-                bvec2 a = greaterThan(ipos_prev, vec2(push.consts.width-1, push.consts.height-1));
-                bvec2 b = lessThan(ipos_prev, vec2(0.0, 0.0));
-                accept = accept && (!any(bvec2(any(a), any(b))));
-                accept = accept && (!any(isnan(direct_diffuse)));
-                accept = accept && (!any(isinf(direct_diffuse)));
-                accept = accept && (!any(isnan(indirect_diffuse)));
-                accept = accept && (!any(isinf(indirect_diffuse)));
-                accept = accept && (int(hist_id_data.r) == int(curr_id_data.r));
-                accept = accept && (int(hist_id_data.a) == -1);
-                accept = accept && (dot(curr_normal, hist_normal) > .9); 
-                
-                if (accept) {
-                    float wd = 1;
-                    float wi = 1;
-                    direct_diffuse_prev += direct_diffuse * wd;
-                    indirect_diffuse_prev += indirect_diffuse * wi;
-                    samples_prev[0] += samples[0] * wd;
-                    samples_prev[1] += samples[1] * wi;
-                    sum_wd += wd;
-                    sum_wi += wi;
-                    accepted_samples += 1;
+                    // Determine if this prior sample is a disocclusion. If not, accept it.
+                    bool accept = true;
+                    bvec2 a = greaterThan(ipos_prev, vec2(push.consts.width-1, push.consts.height-1));
+                    bvec2 b = lessThan(ipos_prev, vec2(0.0, 0.0));
+                    accept = accept && (!any(bvec2(any(a), any(b))));
+                    accept = accept && (!any(isnan(direct_diffuse)));
+                    accept = accept && (!any(isinf(direct_diffuse)));
+                    accept = accept && (!any(isnan(indirect_diffuse)));
+                    accept = accept && (!any(isinf(indirect_diffuse)));
+                    accept = accept && (int(hist_id_data.r) == int(curr_id_data.r));
+                    accept = accept && (int(hist_id_data.a) == -1);
+                    accept = accept && (dot(curr_normal, hist_normal) > .9); 
+                    
+                    if (accept) {
+                        float wd = 1;
+                        float wi = 1;
+                        direct_diffuse_prev += direct_diffuse * wd;
+                        indirect_diffuse_prev += indirect_diffuse * wi;
+                        samples_prev[0] += samples[0] * wd;
+                        samples_prev[1] += samples[1] * wi;
+                        sum_wd += wd;
+                        sum_wi += wi;
+                        accepted_samples += 1;
+                    }
                 }
             }
         }
-    }
 
-    // Compute the antilag alpha based off of temporal gradient
-    vec4 antilag_alpha = vec4(0.0);
-    if (is_gradient_estimation_enabled())
-	{
-		const int r = GRADIENT_FILTER_RADIUS;
-        float w_sum = 0.f;
-		for(int y = -r; y <= r; y++) {
-			for(int x = -r; x <= r; x++) {
-                ivec2 p = ivec2(pos_prev / GRADIENT_TILE_SIZE) + ivec2(x, y);
-				vec4 gradient = imageLoad(gbuffers[TEMPORAL_GRADIENT_ADDR], p); 
-				vec4 max_luminance = imageLoad(gbuffers[LUMINANCE_MAX_ADDR], p); 
-                max_luminance = max(max_luminance, vec4(1e-4));
-				
-				vec4 a = gradient / max_luminance;
-				float w = 1.0 / float((2 * r + 1) * (2 * r + 1));
-				antilag_alpha = max(antilag_alpha, a);
-			}
-		}
+        // Compute the antilag alpha based off of temporal gradient
+        vec4 antilag_alpha = vec4(0.0);
+        if (is_gradient_estimation_enabled())
+        {
+            const int r = GRADIENT_FILTER_RADIUS;
+            float w_sum = 0.f;
+            for(int y = -r; y <= r; y++) {
+                for(int x = -r; x <= r; x++) {
+                    ivec2 p = ivec2(pos_prev / GRADIENT_TILE_SIZE) + ivec2(x, y);
+                    vec4 gradient = imageLoad(gbuffers[TEMPORAL_GRADIENT_ADDR], p); 
+                    vec4 max_luminance = imageLoad(gbuffers[LUMINANCE_MAX_ADDR], p); 
+                    max_luminance = max(max_luminance, vec4(1e-4));
+                    
+                    vec4 a = gradient / max_luminance;
+                    float w = 1.0 / float((2 * r + 1) * (2 * r + 1));
+                    antilag_alpha = max(antilag_alpha, a);
+                }
+            }
 
-        antilag_alpha *= gradient_weight;
-        antilag_alpha = clamp(antilag_alpha, vec4(0.0), vec4(1.0));
-        if(any(isnan(antilag_alpha)))
-            antilag_alpha = vec4(0.0);
+            antilag_alpha *= gradient_weight;
+            antilag_alpha = clamp(antilag_alpha, vec4(0.0), vec4(1.0));
+            if(any(isnan(antilag_alpha)))
+                antilag_alpha = vec4(0.0);
 
-        // antilag_alpha = pow(antilag_alpha, gradient_weight); // testing
-        // if (antilag_alpha < .5) antilag_alpha = 0; //testing
-	}
+            // antilag_alpha = pow(antilag_alpha, gradient_weight); // testing
+            // if (antilag_alpha < .5) antilag_alpha = 0; //testing
+        }
 
-    if ((sum_wd > 0.0) && (sum_wi > 0.0)) { /* found sufficiently reliable history information */
-        direct_diffuse_prev   /= sum_wd;
-        indirect_diffuse_prev   /= sum_wi;
-        samples_prev /= vec2(sum_wd, sum_wi);
+        if ((sum_wd > 0.0) && (sum_wi > 0.0)) { /* found sufficiently reliable history information */
+            direct_diffuse_prev   /= sum_wd;
+            indirect_diffuse_prev   /= sum_wi;
+            samples_prev /= vec2(sum_wd, sum_wi);
 
-        vec2 samples_alpha = vec2(
-            samples_prev[0]/(MAX_DIFFUSE_CUMULATIVE_COUNT + 1),
-            samples_prev[1]/(MAX_DIFFUSE_CUMULATIVE_COUNT + 1)
-        );
-        vec2 alpha = mix(samples_alpha, vec2(0), antilag_alpha.rg);
-        vec4 accum_direct_diffuse = mix(direct_diffuse_curr, direct_diffuse_prev, alpha[0]);
-        vec4 accum_indirect_diffuse = mix(indirect_diffuse_curr, indirect_diffuse_prev, alpha[1]);
-        vec2 accum_samples = mix(samples_prev, vec2(0), antilag_alpha.rg);
-
-        imageStore( gbuffers[DIFFUSE_DIRECT_ADDR], ipos, accum_direct_diffuse);
-        imageStore( gbuffers[DIFFUSE_INDIRECT_ADDR], ipos, accum_indirect_diffuse);
-        imageStore( gbuffers[next_direct_diffuse_hist_addr], ipos, accum_direct_diffuse );
-        imageStore( gbuffers[next_indirect_diffuse_hist_addr], ipos, accum_indirect_diffuse );
-        
-        samples_prev[0] = min(accum_samples[0] + accepted_samples, MAX_DIFFUSE_CUMULATIVE_COUNT);
-        samples_prev[1] = min(accum_samples[1] + accepted_samples, MAX_DIFFUSE_CUMULATIVE_COUNT);
-        imageStore( gbuffers[next_sample_avg_addr], ipos, vec4(samples_prev, sample_count_curr.ba));
-        imageStore( gbuffers[SAMPLE_COUNT_ADDR], ipos, vec4(samples_prev, sample_count_curr.ba));
+            vec2 samples_alpha = vec2(
+                samples_prev[0]/(MAX_DIFFUSE_CUMULATIVE_COUNT + 1),
+                samples_prev[1]/(MAX_DIFFUSE_CUMULATIVE_COUNT + 1)
+            );
+            vec2 alpha = mix(samples_alpha, vec2(0), antilag_alpha.rg);
+            vec4 accum_direct_diffuse = mix(direct_diffuse_curr, direct_diffuse_prev, alpha[0]);
+            vec4 accum_indirect_diffuse = mix(indirect_diffuse_curr, indirect_diffuse_prev, alpha[1]);
+            vec2 accum_samples = mix(samples_prev, vec2(0), antilag_alpha.rg);
+            
+            samples_prev[0] = min(accum_samples[0] + accepted_samples, MAX_DIFFUSE_CUMULATIVE_COUNT);
+            samples_prev[1] = min(accum_samples[1] + accepted_samples, MAX_DIFFUSE_CUMULATIVE_COUNT);
+            imageStore( gbuffers[next_direct_diffuse_hist_addr], ipos, accum_direct_diffuse );
+            imageStore( gbuffers[next_indirect_diffuse_hist_addr], ipos, accum_indirect_diffuse );
+            imageStore( gbuffers[next_sample_avg_addr], ipos, vec4(samples_prev, sample_count_curr.ba));
+        } else {
+            imageStore( gbuffers[next_direct_diffuse_hist_addr], ipos, direct_diffuse_curr);
+            imageStore( gbuffers[next_indirect_diffuse_hist_addr], ipos, indirect_diffuse_curr);
+            imageStore( gbuffers[next_sample_avg_addr], ipos, vec4(1,1, sample_count_curr.ba));
+        }
     } else {
-        imageStore( gbuffers[DIFFUSE_DIRECT_ADDR], ipos, direct_diffuse_curr);
-        imageStore( gbuffers[DIFFUSE_INDIRECT_ADDR], ipos, indirect_diffuse_curr);
-        imageStore( gbuffers[next_direct_diffuse_hist_addr], ipos, direct_diffuse_curr);
-        imageStore( gbuffers[next_indirect_diffuse_hist_addr], ipos, indirect_diffuse_curr);
-        imageStore( gbuffers[SAMPLE_COUNT_ADDR], ipos, vec4(1,1, sample_count_curr.ba));
-        imageStore( gbuffers[next_sample_avg_addr], ipos, vec4(1,1, sample_count_curr.ba));
+        vec4 temp;
+        temp = imageLoad(gbuffers[curr_direct_diffuse_hist_addr], ipos);
+        imageStore( gbuffers[next_direct_diffuse_hist_addr], ipos, temp);
+        temp = imageLoad(gbuffers[curr_indirect_diffuse_hist_addr], ipos);
+        imageStore( gbuffers[next_indirect_diffuse_hist_addr], ipos, temp);
+        temp = imageLoad(gbuffers[curr_sample_avg_addr], ipos);
+        imageStore( gbuffers[next_sample_avg_addr], ipos, temp);
     }
 }

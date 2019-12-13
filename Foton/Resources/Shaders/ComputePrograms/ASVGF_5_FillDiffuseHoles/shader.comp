@@ -71,12 +71,9 @@ void main()
 	ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
     const ivec2 ipos_full = ivec2(gl_GlobalInvocationID.xy) * PATH_TRACE_TILE_SIZE;
 
-	const int curr_direct_diffuse_hist_addr     = SVGF_TAA_HISTORY_2_ADDR;
-    const int next_direct_diffuse_hist_addr     = SVGF_TAA_HISTORY_1_ADDR;
-    const int curr_indirect_diffuse_hist_addr   = SVGF_TAA_HISTORY_4_ADDR;
-    const int next_indirect_diffuse_hist_addr   = SVGF_TAA_HISTORY_3_ADDR;
-    const int curr_sample_avg_addr              = SVGF_TAA_HISTORY_6_ADDR;
-    const int next_sample_avg_addr              = SVGF_TAA_HISTORY_5_ADDR;
+	const int next_direct_diffuse_hist_addr     = SVGF_TAA_HISTORY_1_ADDR;
+    const int next_indirect_diffuse_hist_addr   = SVGF_TAA_HISTORY_2_ADDR;
+    const int next_sample_avg_addr              = SVGF_TAA_HISTORY_3_ADDR;
 
 	vec4 q_samples = imageLoad(gbuffers[SAMPLE_COUNT_ADDR], ipos);
 	int q_eid = int(imageLoad(gbuffers[COARSE_ENTITY_TRI_BARYCENTRIC_ADDR], ipos).z);
