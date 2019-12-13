@@ -41,6 +41,11 @@ bool is_asvgf_atrous_enabled()
     return (push.consts.flags & (1 << ENABLE_ASVGF_ATROUS)) != 0;
 }
 
+bool is_hole_filling_enabled()
+{
+    return (push.consts.flags & (1 << ENABLE_ASVGF_VARIANCE_ESTIMATION)) != 0;
+}
+
 bool show_bounding_box()
 {
     return (push.consts.flags & (1 << RASTERIZE_BOUNDING_BOX)) != 0;

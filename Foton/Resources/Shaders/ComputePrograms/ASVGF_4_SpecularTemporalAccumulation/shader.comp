@@ -10,7 +10,8 @@
 
 layout (local_size_x = 16, local_size_y = 16) in;
 
-// Tends to blur out details, but makes convergence more stable
+// Tends to blur out details, makes convergence more stable, but also 
+// causes ghosting artifacts 
 #define RADIUS 0
 
 #if RADIUS == 2
@@ -61,12 +62,12 @@ void main() {
 
     // This temporal accumulation uses two ping pong buffers per accumulated
     // g buffer. These are the current and next gbuffer addreses for each.
-    const int curr_direct_specular_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_7_ADDR : SVGF_TAA_HISTORY_8_ADDR;
-    const int next_direct_specular_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_8_ADDR : SVGF_TAA_HISTORY_7_ADDR;
-    const int curr_indirect_specular_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_9_ADDR : SVGF_TAA_HISTORY_10_ADDR;
-    const int next_indirect_specular_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_10_ADDR : SVGF_TAA_HISTORY_9_ADDR;
-    const int curr_sample_avg_addr              = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_5_ADDR : SVGF_TAA_HISTORY_6_ADDR;
-    const int next_sample_avg_addr              = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_6_ADDR : SVGF_TAA_HISTORY_5_ADDR;
+    const int curr_direct_specular_hist_addr    = (((push.consts.frame % 2) == 0) || is_hole_filling_enabled()) ? SVGF_TAA_HISTORY_7_ADDR : SVGF_TAA_HISTORY_8_ADDR;
+    const int next_direct_specular_hist_addr    = (((push.consts.frame % 2) == 0) || is_hole_filling_enabled()) ? SVGF_TAA_HISTORY_8_ADDR : SVGF_TAA_HISTORY_7_ADDR;
+    const int curr_indirect_specular_hist_addr  = (((push.consts.frame % 2) == 0) || is_hole_filling_enabled()) ? SVGF_TAA_HISTORY_9_ADDR : SVGF_TAA_HISTORY_10_ADDR;
+    const int next_indirect_specular_hist_addr  = (((push.consts.frame % 2) == 0) || is_hole_filling_enabled()) ? SVGF_TAA_HISTORY_10_ADDR : SVGF_TAA_HISTORY_9_ADDR;
+    const int curr_sample_avg_addr              = (((push.consts.frame % 2) == 0) || is_hole_filling_enabled()) ? SVGF_TAA_HISTORY_5_ADDR : SVGF_TAA_HISTORY_6_ADDR;
+    const int next_sample_avg_addr              = (((push.consts.frame % 2) == 0) || is_hole_filling_enabled()) ? SVGF_TAA_HISTORY_6_ADDR : SVGF_TAA_HISTORY_5_ADDR;
 
     // Compute motion vector
     // Note, the w component indicates an invalid motion vector, which can 
@@ -101,8 +102,7 @@ void main() {
             for (int x = -r; x <= r; ++x) {
                 ivec2 ipos_prev = ivec2(pos_prev + vec2(x, y));
                 ivec2 ipos_prev_full = ivec2(ipos_prev * PATH_TRACE_TILE_SIZE);
-                vec2 fpos_prev = (pos_prev + vec2(x, y)) / (path_trace_dims * 4);
-                fpos_prev = get_filtered_uv(full_dims, fpos_prev);
+                vec2 fpos_prev = get_filtered_uv(full_dims, (pos_prev + vec2(x, y)) / vec2(full_dims));
                 
                 // Load disocclusion gbuffer data
                 int hist_entity_id = int(imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos_prev_full));
@@ -120,7 +120,7 @@ void main() {
                     samples = imageLoad(gbuffers[curr_sample_avg_addr], ipos_prev).ba;
                 } else {
                     direct_specular = texture( 
-                            sampler2D(gbuffer_textures[curr_indirect_specular_hist_addr], 
+                            sampler2D(gbuffer_textures[curr_direct_specular_hist_addr], 
                             samplers[LINEAR_SAMPLER]), fpos_prev);
                     indirect_specular = texture( 
                             sampler2D(gbuffer_textures[curr_indirect_specular_hist_addr], 
@@ -139,7 +139,9 @@ void main() {
                 accept = accept && (!any(isinf(direct_specular)));
                 accept = accept && (!any(isnan(indirect_specular)));
                 accept = accept && (!any(isinf(indirect_specular)));
-                accept = accept && (hist_entity_id == curr_entity_id);
+                
+                accept = accept && (hist_entity_id == curr_entity_id); //TESTING
+                
                 // accept = accept && (dot(curr_normal, hist_normal) > .9); 
                 
 
@@ -209,41 +211,50 @@ void main() {
             antilag_alpha = vec4(0.0);
 	}
 
-    if ((sum_wd > 0.0) && (sum_wi > 0.0)) { /* found sufficiently reliable history information */
-        direct_specular_prev   /= sum_wd;
-        indirect_specular_prev   /= sum_wi;
-        samples_prev /= vec2(sum_wd, sum_wi);
+    vec4 accum_direct_specular;
+    vec4 accum_indirect_specular;
+    vec2 accum_samples;
 
-        // float alpha_direct = (1.0 / MAX_DIRECT_SPECULAR_CUMULATIVE_COUNT);
-        // float alpha_indirect = (1.0 / MAX_INDIRECT_SPECULAR_CUMULATIVE_COUNT);
-        // making direct incredibly sensitive to gradient, since it's most likely to leave ghosting
-		// alpha_direct   = mix(alpha_direct, (1.0 / MIN_DIRECT_SPECULAR_CUMULATIVE_COUNT), antilag_alpha.b); 
-		// alpha_indirect   = mix(alpha_indirect, (1.0 / MIN_INDIRECT_SPECULAR_CUMULATIVE_COUNT), antilag_alpha.a);
-        
-        vec2 samples_alpha = vec2(
-            samples_prev[0]/MAX_DIRECT_SPECULAR_CUMULATIVE_COUNT,
-            samples_prev[1]/MAX_INDIRECT_SPECULAR_CUMULATIVE_COUNT
-        );
-        vec2 alpha = mix(samples_alpha, vec2(0), antilag_alpha.ba);
-        vec4 accum_direct_specular = vec4(mix(direct_specular_curr.rgb, direct_specular_prev.rgb, alpha[0]), 1.0); // note, pass variance as w for bilateral filtering
-        vec4 accum_indirect_specular = vec4(mix(indirect_specular_curr.rgb, indirect_specular_prev.rgb, alpha[1]), 1.0); // note, pass variance as w for bilateral filtering
-        vec2 accum_samples = mix(samples_prev, vec2(0), antilag_alpha.ba);
-
-        imageStore( gbuffers[GLOSSY_DIRECT_ADDR], ipos, accum_direct_specular);
-        imageStore( gbuffers[GLOSSY_INDIRECT_ADDR], ipos, accum_indirect_specular);
-        imageStore( gbuffers[next_direct_specular_hist_addr], ipos, accum_direct_specular );
-        imageStore( gbuffers[next_indirect_specular_hist_addr], ipos, accum_indirect_specular );
-
-        samples_prev[0] = min(samples_prev[0] + 1 + accepted_samples, MAX_DIRECT_SPECULAR_CUMULATIVE_COUNT);
-        samples_prev[1] = min(samples_prev[1] + 1 + accepted_samples, MAX_INDIRECT_SPECULAR_CUMULATIVE_COUNT);
-        imageStore( gbuffers[next_sample_avg_addr], ipos, vec4(sample_count_curr.rg, samples_prev));
-        imageStore( gbuffers[SAMPLE_COUNT_ADDR], ipos, vec4(sample_count_curr.rg, samples_prev));
-    } else {
-        imageStore( gbuffers[GLOSSY_DIRECT_ADDR], ipos, direct_specular_curr);
-        imageStore( gbuffers[GLOSSY_INDIRECT_ADDR], ipos, indirect_specular_curr);
-        imageStore( gbuffers[SAMPLE_COUNT_ADDR], ipos, vec4(sample_count_curr.rg, 1,1));
-        imageStore( gbuffers[next_direct_specular_hist_addr], ipos, direct_specular_curr);
-        imageStore( gbuffers[next_indirect_specular_hist_addr], ipos, indirect_specular_curr);
-        imageStore( gbuffers[next_sample_avg_addr], ipos, vec4(sample_count_curr.rg, 1,1));
+    // direct
+    if (sum_wd > 0.0) 
+    { 
+        direct_specular_prev /= sum_wd;
+        samples_prev[0] /= sum_wd;
+        float samples_alpha = samples_prev[0]/(MAX_DIRECT_SPECULAR_CUMULATIVE_COUNT+1);
+        float alpha = mix(samples_alpha, 0, antilag_alpha.b);
+        accum_direct_specular = vec4(mix(direct_specular_curr.rgb, direct_specular_prev.rgb, alpha), 1.0); // note, pass variance as w for bilateral filtering
+        accum_samples[0] = mix(samples_prev[0], 0, antilag_alpha.b);
+        accum_samples[0] = min(accum_samples[0] + accepted_samples, MAX_DIRECT_SPECULAR_CUMULATIVE_COUNT);
+    } 
+    else 
+    {
+        accum_direct_specular = direct_specular_curr;
+        accum_samples[0] = 1;
     }
+
+    // indirect
+    if (sum_wi > 0.0) 
+    { 
+        indirect_specular_prev /= sum_wi;
+        samples_prev[1] /= sum_wi;
+        float samples_alpha = samples_prev[0]/(MAX_INDIRECT_SPECULAR_CUMULATIVE_COUNT+1);
+        float alpha = mix(samples_alpha, 0, antilag_alpha.a);
+        accum_indirect_specular = vec4(mix(indirect_specular_curr.rgb, indirect_specular_prev.rgb, alpha), 1.0); // note, pass variance as w for bilateral filtering
+        accum_samples[1] = mix(samples_prev[1], 0, antilag_alpha.a);
+        accum_samples[1] = min(accum_samples[1] + accepted_samples, MAX_INDIRECT_SPECULAR_CUMULATIVE_COUNT);
+    } 
+    else 
+    {
+        accum_indirect_specular = indirect_specular_curr;
+        accum_samples[1] = 1;
+    }
+    
+    imageStore( gbuffers[GLOSSY_DIRECT_ADDR], ipos, accum_direct_specular);
+    imageStore( gbuffers[next_direct_specular_hist_addr], ipos, accum_direct_specular);
+
+    imageStore( gbuffers[GLOSSY_INDIRECT_ADDR], ipos, accum_indirect_specular);
+    imageStore( gbuffers[next_indirect_specular_hist_addr], ipos, accum_indirect_specular);
+
+    imageStore( gbuffers[SAMPLE_COUNT_ADDR], ipos, vec4(sample_count_curr.rg, accum_samples));
+    imageStore( gbuffers[next_sample_avg_addr], ipos, vec4(sample_count_curr.rg, accum_samples));
 }

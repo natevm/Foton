@@ -75,11 +75,18 @@ void main() {
         for (y = -RADIUS; y <= RADIUS; ++y) {
             for (x = -RADIUS; x <= RADIUS; ++x) {
                 float weight = norm_weights[y+RADIUS][x+RADIUS] * depth_weights[y+RADIUS][x+RADIUS] * h[y+RADIUS][x+RADIUS];
-                color += texture( 
+                vec4 c = texture( 
                         sampler2D(gbuffer_textures[in_tex_addr], samplers[LINEAR_SAMPLER]), 
                         coords[y+RADIUS][x+RADIUS]
-                ) * weight;
-                weight_sum += weight;
+                );
+                bool accept = true;
+                accept = accept && (!any(isnan(c)));
+				accept = accept && (!any(isinf(c)));
+                
+                if (accept) {
+                    color += c * weight;
+                    weight_sum += weight;
+                }
             }
         }
         color /= weight_sum;

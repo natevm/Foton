@@ -107,8 +107,8 @@ void main() {
 
     float p_sigma_direct = 1. * (1.0 - pow(push.consts.parameter1, .01)) * screen_correction; 
     float p_sigma_indirect = 1.0 * (1.0 - pow(push.consts.parameter2, .01)) * screen_correction; 
-    float r_sigma_direct = mix(100, 0, clamp(push.consts.parameter1, 0, .99));
-    float r_sigma_indirect = mix(100, 0, clamp(push.consts.parameter2, 0, .99));
+    float r_sigma_direct = clamp(push.consts.parameter1, 0, .99);
+    float r_sigma_indirect = clamp(push.consts.parameter2, 0, .99);
     
     p_sigma_direct = ((major_iteration+1) * p_sigma_direct);
     p_sigma_indirect = ((major_iteration+1) * p_sigma_indirect);
@@ -151,8 +151,8 @@ void main() {
 
 
                 // not sure what to set these to...
-                float beta_direct = r_sigma_direct;
-                float beta_indirect = r_sigma_indirect;
+                float beta_direct = (1.0 - r_sigma_direct) * 300;
+                float beta_indirect = (1.0 - r_sigma_indirect) * 500;
                 
                 // lobe sharpness
                 vec4 temp = imageLoad(gbuffers[LOBE_AXIS_SHARPNESS_ADDR], st_full);
@@ -193,8 +193,8 @@ void main() {
                 if (isnan(l_p_indirect)) continue;
 
                 /* Force no blur if these parameters are 0 (kludge for now) */
-                if (r_sigma_direct == 0) wl_direct = ((xx == 0) && (yy == 0)) ? 1.0 : 0.0;
-                if (r_sigma_indirect == 0) wl_indirect = ((xx == 0) && (yy == 0)) ? 1.0 : 0.0;
+                // wl_direct = ((xx == 0) && (yy == 0)) ? r_sigma_direct : 0.0;
+                // wl_indirect = ((xx == 0) && (yy == 0)) ? r_sigma_indirect : 0.0;
                 
                 // if (isnan(l_sigma_direct)) continue;
                 // if (isnan(l_sigma_indirect)) continue;

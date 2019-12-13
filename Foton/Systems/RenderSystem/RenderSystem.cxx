@@ -772,6 +772,33 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 				}
 			}
 
+			/* Fill disocclusions */
+			if (asvgf_enabled && asvgf_variance_estimation_enabled)
+			{
+				for(uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
+					push_constants.target_id = -1;
+					push_constants.camera_id = camera_entity.get_id();
+					push_constants.viewIndex = rp_idx;
+					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
+					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+					
+					uint32_t local_size_x = 16;
+					uint32_t local_size_y = 16;
+
+					uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+					uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+					uint32_t groupZ = 1;
+
+					command_buffer.pushConstants(asvgf_fill_diffuse_holes.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, asvgf_fill_diffuse_holes.pipeline);
+					command_buffer.dispatch(groupX, groupY, groupZ);
+
+					command_buffer.pushConstants(asvgf_fill_specular_holes.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, asvgf_fill_specular_holes.pipeline);
+					command_buffer.dispatch(groupX, groupY, groupZ);
+				}
+			}
+
 			/* Firefly supression */
 			if (enable_median_filter) {
 				for(uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
@@ -808,29 +835,6 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 					command_buffer.dispatch(groupX, groupY, groupZ);
 					push_constants.iteration = 1;
 					command_buffer.pushConstants(asvgf_reconstruct_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-					command_buffer.dispatch(groupX, groupY, groupZ);
-				}
-			}
-
-			/* A-SVGF Estimate Variance */
-			if (asvgf_enabled && asvgf_variance_estimation_enabled)
-			{
-				for(uint32_t rp_idx = 0; rp_idx < num_renderpasses; rp_idx++) {
-					push_constants.target_id = -1;
-					push_constants.camera_id = camera_entity.get_id();
-					push_constants.viewIndex = rp_idx;
-					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
-					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
-					
-					command_buffer.pushConstants(asvgf_estimate_variance.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, asvgf_estimate_variance.pipeline);
-
-					uint32_t local_size_x = 16;
-					uint32_t local_size_y = 16;
-
-					uint32_t groupX = (width + local_size_x - 1) / local_size_x;
-					uint32_t groupY = (height + local_size_y - 1) / local_size_y;
-					uint32_t groupZ = 1;
 					command_buffer.dispatch(groupX, groupY, groupZ);
 				}
 			}
@@ -3218,16 +3222,28 @@ void RenderSystem::setup_compute_pipelines()
 		asvgf_reconstruct_gradient.ready = true;
 	}
 
-	/* ASVGF Estimate Variance */
+	/* Fill Diffuse Disocclusions */
 	{
-		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_5_EstimateVariance/comp.spv"));
-		auto compShaderModule = create_shader_module("asvgf_estimate_variance", compShaderCode);
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_5_FillDiffuseHoles/comp.spv"));
+		auto compShaderModule = create_shader_module("asvgf_fill_diffuse_holes", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        asvgf_estimate_variance.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        asvgf_fill_diffuse_holes.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
-        computeCreateInfo.layout = asvgf_estimate_variance.pipelineLayout;
-        asvgf_estimate_variance.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
-		asvgf_estimate_variance.ready = true;
+        computeCreateInfo.layout = asvgf_fill_diffuse_holes.pipelineLayout;
+        asvgf_fill_diffuse_holes.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		asvgf_fill_diffuse_holes.ready = true;
+	}
+
+	/* Fill Specular Disocclusions */
+	{
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_5_FillSpecularHoles/comp.spv"));
+		auto compShaderModule = create_shader_module("asvgf_fill_specular_holes", compShaderCode);
+		compShaderStageInfo.module = compShaderModule;
+        asvgf_fill_specular_holes.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = asvgf_fill_specular_holes.pipelineLayout;
+        asvgf_fill_specular_holes.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		asvgf_fill_specular_holes.ready = true;
 	}
 }
 
@@ -4307,7 +4323,8 @@ void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffe
 		(svgf_remodulate.ready == false) ||
 		(asvgf_compute_gradient.ready == false) ||
 		(asvgf_reconstruct_gradient.ready == false) ||
-		(asvgf_estimate_variance.ready == false)
+		(asvgf_fill_diffuse_holes.ready == false) ||
+		(asvgf_fill_specular_holes.ready == false)		
 	) return;
 
 	auto key = std::pair<uint32_t, uint32_t>(camera_entity.get_id(), rp_idx);
@@ -4329,7 +4346,8 @@ void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffe
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, svgf_remodulate.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_compute_gradient.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_reconstruct_gradient.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
-	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_estimate_variance.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_fill_diffuse_holes.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, asvgf_fill_specular_holes.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 }
 
 void RenderSystem::bind_raytracing_descriptor_sets(vk::CommandBuffer &command_buffer, Entity &camera_entity, uint32_t rp_idx)

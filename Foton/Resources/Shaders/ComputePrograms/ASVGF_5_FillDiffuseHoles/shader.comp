@@ -1,0 +1,233 @@
+#version 460
+// We're interested in computing the temporal gradient for the current frame i
+// at a forward projected pixel location j.
+
+// This cam be computed by taking the difference between two shading sample 
+// functions, f_[i] - f_[i-1]
+
+// This shading sample function is parameterized by a surface sample G and a 
+// random seed S
+
+// Specificly, the current shading sample function f_[i] is parameterized by the
+// surface sample G from the frame i-1, forward projected to the current frame
+// using motion vectors. It's parameterized by a seed as well, which is 
+// forward projected to the current frame.
+
+// The previous shading sample function f_[i-1] is parameterized by the surface 
+// sample G from the frame i-1 (not forward projected), and by the seed from 
+// the previous frame i-1 (also not forward projected). The result of this 
+// shading sample function is the sample from the previous frame.
+
+// Note that only a subset of the previous samples satisfy the above criteria.
+// specifically, only a subset use reprojected samples.
+
+// In practice, we only care about the luminance of the sample from the previous
+// frame, which is stored alongside the seed.
+
+#define COMPUTE
+
+#include "Foton/Resources/Shaders/Common/Descriptors.hxx"
+#include "Foton/Resources/Shaders/Common/ShaderConstants.hxx"
+#include "Foton/Resources/Shaders/Common/Random.hxx"
+#include "Foton/Resources/Shaders/Common/Utilities.hxx"
+
+layout (local_size_x = 16, local_size_y = 16) in;
+
+#define RADIUS 2
+#define MAX_RAD_WIDTH 5
+
+#if RADIUS == 0
+const float h[1][1] = {
+    {1.0}
+};
+#endif
+
+#if RADIUS == 1
+const float h[3][3] = {
+	{ 1.0 / 16.0, 1.0 / 8.0, 1.0 / 16.0 },
+	{ 1.0 / 8.0,  1.0 / 4.0, 1.0 / 8.0  },
+	{ 1.0 / 16.0, 1.0 / 8.0, 1.0 / 16.0 }
+};
+#endif
+
+#if RADIUS == 2
+const float h[5][5] = {
+    {1.0/256.0, 1.0/64.0, 3.0/128.0, 1.0/64.0, 1.0/256.0},
+    {1.0/64.0,  1.0/16.0, 3.0/32.0,  1.0/16.0, 1.0/64.0},
+    {3.0/128.0, 3.0/32.0, 9.0/64.0,  3.0/32.0, 3.0/128.0},
+    {1.0/64.0,  1.0/16.0, 3.0/32.0,  1.0/16.0, 1.0/64.0},
+    {1.0/256.0, 1.0/64.0, 3.0/128.0, 1.0/64.0, 1.0/256.0}
+};
+#endif
+
+void main()
+{
+	if (int(gl_GlobalInvocationID.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
+	if (int(gl_GlobalInvocationID.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
+	
+	ivec2 path_trace_dims = ivec2(vec2(push.consts.width, push.consts.height) / PATH_TRACE_TILE_SIZE);
+    ivec2 full_dims = ivec2(push.consts.width, push.consts.height);
+	
+	ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
+    const ivec2 ipos_full = ivec2(gl_GlobalInvocationID.xy) * PATH_TRACE_TILE_SIZE;
+
+	const int curr_direct_diffuse_hist_addr     = SVGF_TAA_HISTORY_2_ADDR;
+    const int next_direct_diffuse_hist_addr     = SVGF_TAA_HISTORY_1_ADDR;
+    const int curr_indirect_diffuse_hist_addr   = SVGF_TAA_HISTORY_4_ADDR;
+    const int next_indirect_diffuse_hist_addr   = SVGF_TAA_HISTORY_3_ADDR;
+    const int curr_sample_avg_addr              = SVGF_TAA_HISTORY_6_ADDR;
+    const int next_sample_avg_addr              = SVGF_TAA_HISTORY_5_ADDR;
+
+	vec4 q_samples = imageLoad(gbuffers[SAMPLE_COUNT_ADDR], ipos);
+	int q_eid = int(imageLoad(gbuffers[COARSE_ENTITY_TRI_BARYCENTRIC_ADDR], ipos).z);
+	vec3 q_normal = imageLoad(gbuffers[COARSE_NORMAL_ADDR], ipos).xyz;
+
+	if (q_eid != -1) {		
+		vec4 direct_diffuse = vec4(0.); 
+		vec4 indirect_diffuse = vec4(0.); 
+		vec2 samples = vec2(0.); 
+		vec2 sum_w = vec2(0);
+		vec2 average = vec2(0.0);
+		vec2 variance = vec2(0.0);
+
+		vec2 samples_norm = q_samples.rg / vec2(MAX_DIFFUSE_CUMULATIVE_COUNT);
+		// vec2 curr_step_width = mix(vec2(MAX_RAD_WIDTH), vec2(1), samples_norm);
+		// vec2 curr_step_width = mix(vec2(1), vec2(1), samples_norm);
+
+		// if (all(lessThan(samples_norm, vec2(1.0))))
+		// {
+		bool all_match = true;
+		for(int yy = -RADIUS; yy <= RADIUS; yy++) {
+			for(int xx = -RADIUS; xx <= RADIUS; xx++) {
+				ivec2 p = clamp(ivec2(ipos + vec2(xx, yy)), ivec2(0), path_trace_dims - 1);
+				ivec2 p_full = ivec2(p * PATH_TRACE_TILE_SIZE);
+				vec2 fp = get_filtered_uv(full_dims, vec2(p) / vec2(full_dims));
+
+				/* Compute weight */
+				int p_eid = int(imageLoad(gbuffers[COARSE_ENTITY_TRI_BARYCENTRIC_ADDR], p).z);
+				vec2 p_samples = imageLoad(gbuffers[SAMPLE_COUNT_ADDR], p).rg;
+				vec3 p_normal = imageLoad(gbuffers[COARSE_NORMAL_ADDR], p).xyz;
+				vec4 seed_data = imageLoad(gbuffers[DIFFUSE_SEED_ADDR], p);
+
+				if (p_eid != q_eid) {
+					all_match = false;
+					continue;
+				}
+				if (dot(p_normal, q_normal) < .9) continue;
+				if (int(seed_data.z) != push.consts.frame) continue; // important to not include reprojected values
+
+				vec2 w = vec2(1.0);
+				// w *= (p_samples / vec2(MAX_DIFFUSE_CUMULATIVE_COUNT));
+				// w *= h[yy][xx];//exp(-pow(length(vec2(xx,yy)), 2) / (pow(max(r,1)*.5, 2)));
+				sum_w += w;
+
+				// Important to use nearest here, any interpolation on edges can cause 
+				// ghosting from two objects blurring together
+				vec4 dd_p = imageLoad(gbuffers[DIFFUSE_DIRECT_ADDR], p);
+				vec4 id_p = imageLoad(gbuffers[DIFFUSE_INDIRECT_ADDR], p);
+				vec2 l = imageLoad(gbuffers[LUMINANCE_ADDR], p).rg;
+
+				// vec4 dd_p = texture( 
+				// 			sampler2D(gbuffer_textures[curr_direct_diffuse_hist_addr], 
+				// 			samplers[NEAREST_SAMPLER]), fp);
+				// vec4 id_p = texture( 
+				// 			sampler2D(gbuffer_textures[curr_indirect_diffuse_hist_addr], 
+				// 			samplers[NEAREST_SAMPLER]), fp);
+				// vec2 l 	  = texture( 
+				// 			sampler2D(gbuffer_textures[LUMINANCE_ADDR], 
+				// 			samplers[NEAREST_SAMPLER]), fp).rg;
+
+				bool accept = true;
+				accept = accept && (!any(isnan(dd_p)));
+				accept = accept && (!any(isinf(dd_p)));
+				accept = accept && (!any(isnan(id_p)));
+				accept = accept && (!any(isinf(id_p)));
+				accept = accept && (!any(isnan(l)));
+				accept = accept && (!any(isinf(l)));
+
+				if (!accept) continue;
+				
+
+				// vec4 dg_p = imageLoad(gbuffers[GLOSSY_DIRECT_ADDR], p);
+				// vec4 ig_p = imageLoad(gbuffers[GLOSSY_INDIRECT_ADDR], p);
+				// vec4 dd_p = imageLoad(gbuffers[curr_direct_diffuse_hist_addr], p);
+				// vec4 id_p = imageLoad(gbuffers[curr_indirect_diffuse_hist_addr], p);
+				// vec2 l = imageLoad(gbuffers[LUMINANCE_ADDR], p).rg;
+				
+
+
+				average += l * w;
+				variance += l * l * w;				
+				direct_diffuse.rgb += dd_p.rgb * w[0];
+				indirect_diffuse.rgb += id_p.rgb * w[1];
+				samples += vec2(p_samples.x * w[0], p_samples.y * w[1]);
+				// direct_glossy.rgb += dg_p.rgb * w;
+				// indirect_glossy.rgb += ig_p.rgb * w;				
+				// avg_direct_luminance += l.r;
+				// avg_indirect_luminance += l.g;
+				// avg_luminance_w += 1;
+			}
+		}
+
+		// }
+
+		// if ((sum_w[0] > 0.0) && (sum_w[1] > 0.0)) {
+		// 	average /= sum_w;
+		// 	variance /= sum_w;
+		// 	// moments /= sum_m_w;
+		// 	direct_diffuse.rgb /= sum_w[0];
+		// 	indirect_diffuse.rgb /= sum_w[1];
+		// 	samples /= sum_w;
+		// 	// direct_glossy.rgb /= sum_w;
+		// 	// indirect_glossy.rgb /= sum_w;
+		// 	vec2 variance_temporal = abs(average - variance * variance);
+		// 	imageStore(gbuffers[DIFFUSE_DIRECT_ADDR], ipos, vec4(direct_diffuse.rgb, variance_temporal[0]));
+		// 	imageStore(gbuffers[DIFFUSE_INDIRECT_ADDR], ipos, vec4(indirect_diffuse.rgb, variance_temporal[1]));
+		// 	imageStore(gbuffers[SAMPLE_COUNT_ADDR], ipos, vec4(samples.rg, q_samples.ba));
+		// 	imageStore(gbuffers[next_direct_diffuse_hist_addr], ipos, vec4(direct_diffuse.rgb, variance_temporal[0]));
+		// 	imageStore(gbuffers[next_indirect_diffuse_hist_addr], ipos, vec4(indirect_diffuse.rgb, variance_temporal[1]));
+		// 	imageStore(gbuffers[next_sample_avg_addr], ipos, vec4(samples.rg, q_samples.ba));
+		// 	// imageStore(gbuffers[GLOSSY_DIRECT_ADDR], ipos, vec4(direct_glossy.rgb, variance_temporal.b));
+		// 	// imageStore(gbuffers[GLOSSY_INDIRECT_ADDR], ipos, vec4(indirect_glossy.rgb, variance_temporal.a));
+		// 	// imageStore(gbuffers[VARIANCE_ADDR], ipos, vec4(variance_temporal));
+		// }
+		// else 
+		{
+			// note, variance average broken here... need to check if sum is zero above
+			vec4 variance = imageLoad(gbuffers[LUMINANCE_VARIANCE_ADDR], ipos);
+			vec4 average = imageLoad(gbuffers[LUMINANCE_AVERAGE_ADDR], ipos);
+			vec4 variance_temporal = abs(average - variance * variance);
+
+			vec4 direct_diffuse_curr = imageLoad(gbuffers[DIFFUSE_DIRECT_ADDR], ipos);
+			vec4 indirect_diffuse_curr = imageLoad(gbuffers[DIFFUSE_INDIRECT_ADDR], ipos);
+			direct_diffuse /= sum_w[0];
+			indirect_diffuse /= sum_w[1];
+			direct_diffuse = mix(direct_diffuse_curr, direct_diffuse, (all_match) ? 1.0 - samples_norm[0] : 0.0);
+			indirect_diffuse = mix(indirect_diffuse_curr, indirect_diffuse, (all_match) ? 1.0 - samples_norm[1] : 0.0);
+			// direct_diffuse = mix(direct_diffuse_curr, direct_diffuse, 1.0);
+			// indirect_diffuse = mix(indirect_diffuse_curr, indirect_diffuse, 1.0);
+
+			imageStore(gbuffers[next_direct_diffuse_hist_addr], ipos, vec4(direct_diffuse.rgb, variance_temporal[0]));
+			imageStore(gbuffers[next_indirect_diffuse_hist_addr], ipos, vec4(indirect_diffuse.rgb, variance_temporal[1]));
+
+			// imageStore(gbuffers[DIFFUSE_DIRECT_ADDR], ipos, vec4(direct_diffuse.rgb, variance_temporal[0]));
+			// imageStore(gbuffers[DIFFUSE_INDIRECT_ADDR], ipos, vec4(indirect_diffuse.rgb, variance_temporal[1]));
+
+
+			// q_samples.rg = vec2(MAX_DIFFUSE_CUMULATIVE_COUNT);//
+			//vec2 samples_needed = vec2(MAX_DIFFUSE_CUMULATIVE_COUNT) - q_samples.rg;   samples_needed * .5
+			
+			
+			if ((all_match)) {
+				q_samples.rg = min(q_samples.rg + samples, vec2(MAX_DIFFUSE_CUMULATIVE_COUNT));
+			}
+			imageStore(gbuffers[SAMPLE_COUNT_ADDR], ipos, q_samples);
+			imageStore(gbuffers[next_sample_avg_addr], ipos, q_samples);
+
+			// imageStore(gbuffers[DIFFUSE_DIRECT_ADDR], ipos, vec4(direct_diffuse.rgb, variance_temporal[0]));
+			// imageStore(gbuffers[DIFFUSE_INDIRECT_ADDR], ipos, vec4(indirect_diffuse.rgb, variance_temporal[1]));
+		}
+
+
+	}
+}

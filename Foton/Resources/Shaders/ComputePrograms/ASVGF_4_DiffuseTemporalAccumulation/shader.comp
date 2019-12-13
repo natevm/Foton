@@ -10,9 +10,13 @@
 
 layout (local_size_x = 16, local_size_y = 16) in;
 
-// Tends to blur out details, but makes convergence more stable
+// Tends to blur out details, makes convergence more stable, but also 
+// causes ghosting artifacts 
 // Radius of 0 results in more disocclusions
-#define RADIUS 1
+#define RADIUS 0
+
+// Tricks accumulation into thinking current sample is more accurate than 
+// it actually is. Causes less boiling, but initial artifacts can persist longer
 
 #if RADIUS == 2
 float Coefficients[25] = 
@@ -54,12 +58,12 @@ void main() {
 
     // This temporal accumulation uses two ping pong buffers per accumulated
     // g buffer. These are the current and next gbuffer addreses for each.
-    const int curr_direct_diffuse_hist_addr     = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_1_ADDR : SVGF_TAA_HISTORY_2_ADDR;
-    const int next_direct_diffuse_hist_addr     = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_2_ADDR : SVGF_TAA_HISTORY_1_ADDR;
-    const int curr_indirect_diffuse_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_3_ADDR : SVGF_TAA_HISTORY_4_ADDR;
-    const int next_indirect_diffuse_hist_addr   = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_4_ADDR : SVGF_TAA_HISTORY_3_ADDR;
-    const int curr_sample_avg_addr              = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_5_ADDR : SVGF_TAA_HISTORY_6_ADDR;
-    const int next_sample_avg_addr              = ((push.consts.frame % 2) == 0) ? SVGF_TAA_HISTORY_6_ADDR : SVGF_TAA_HISTORY_5_ADDR;
+    const int curr_direct_diffuse_hist_addr     = (((push.consts.frame % 2) == 0) || is_hole_filling_enabled()) ? SVGF_TAA_HISTORY_1_ADDR : SVGF_TAA_HISTORY_2_ADDR ;
+    const int next_direct_diffuse_hist_addr     = (((push.consts.frame % 2) == 0) || is_hole_filling_enabled()) ? SVGF_TAA_HISTORY_2_ADDR : SVGF_TAA_HISTORY_1_ADDR ;
+    const int curr_indirect_diffuse_hist_addr   = (((push.consts.frame % 2) == 0) || is_hole_filling_enabled()) ? SVGF_TAA_HISTORY_3_ADDR : SVGF_TAA_HISTORY_4_ADDR ;
+    const int next_indirect_diffuse_hist_addr   = (((push.consts.frame % 2) == 0) || is_hole_filling_enabled()) ? SVGF_TAA_HISTORY_4_ADDR : SVGF_TAA_HISTORY_3_ADDR ;
+    const int curr_sample_avg_addr              = (((push.consts.frame % 2) == 0) || is_hole_filling_enabled()) ? SVGF_TAA_HISTORY_5_ADDR : SVGF_TAA_HISTORY_6_ADDR ;
+    const int next_sample_avg_addr              = (((push.consts.frame % 2) == 0) || is_hole_filling_enabled()) ? SVGF_TAA_HISTORY_6_ADDR : SVGF_TAA_HISTORY_5_ADDR ;
 
     // Compute motion vector
     // Note, the w component indicates an invalid motion vector, which forces a reset
@@ -97,14 +101,21 @@ void main() {
         const int r = RADIUS;
         for (int y = -r; y <= r; ++y) {
             for (int x = -r; x <= r; ++x) {
-                ivec2 ipos_prev = ivec2(pos_prev + vec2(x, y));
+                ivec2 ipos_prev = clamp(ivec2(pos_prev + vec2(x, y)), ivec2(0), path_trace_dims - 1);
                 ivec2 ipos_prev_full = ivec2(ipos_prev * PATH_TRACE_TILE_SIZE);
-                vec2 fpos_prev = (pos_prev + vec2(x, y)) / (path_trace_dims * 4);
-                fpos_prev = get_filtered_uv(full_dims, fpos_prev);
+                vec2 fpos_prev = get_filtered_uv(full_dims, (pos_prev + vec2(x, y)) / vec2(full_dims));
                 
+
+                // vec2 fpos_prev = (pos_prev + vec2(x, y)) / (path_trace_dims * 4); // is 4 needed here?
+                // fpos_prev = get_filtered_uv(full_dims, fpos_prev);
+                
+
                 // Load disocclusion gbuffer data
                 vec4 hist_id_data = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR_PREV], ipos_prev_full);
                 vec3 hist_normal = imageLoad(gbuffers[NORMAL_ADDR_PREV], ipos_prev_full).rgb;
+                // ivec2 grad_pos_prev = get_reprojected_pixel(push.consts.frame - 1, ipos_prev);
+                // bool seed_reprojected = false;//all(equal(ipos_prev, grad_pos_prev));
+
 
                 // Load prior gbuffer data to accumulate temporally 
                 vec4 direct_diffuse, indirect_diffuse;
@@ -136,8 +147,8 @@ void main() {
                 accept = accept && (!any(isinf(indirect_diffuse)));
                 accept = accept && (int(hist_id_data.r) == int(curr_id_data.r));
                 accept = accept && (int(hist_id_data.a) == -1);
-                // accept = accept && (dot(curr_normal, hist_normal) > .9); 
-
+                accept = accept && (dot(curr_normal, hist_normal) > .9); 
+                
                 if (accept) {
                     float wd = 1;
                     float wi = 1;
@@ -187,20 +198,21 @@ void main() {
         samples_prev /= vec2(sum_wd, sum_wi);
 
         vec2 samples_alpha = vec2(
-            samples_prev[0]/MAX_DIFFUSE_CUMULATIVE_COUNT,
-            samples_prev[1]/MAX_DIFFUSE_CUMULATIVE_COUNT
+            samples_prev[0]/(MAX_DIFFUSE_CUMULATIVE_COUNT + 1),
+            samples_prev[1]/(MAX_DIFFUSE_CUMULATIVE_COUNT + 1)
         );
         vec2 alpha = mix(samples_alpha, vec2(0), antilag_alpha.rg);
         vec4 accum_direct_diffuse = mix(direct_diffuse_curr, direct_diffuse_prev, alpha[0]);
         vec4 accum_indirect_diffuse = mix(indirect_diffuse_curr, indirect_diffuse_prev, alpha[1]);
-        
+        vec2 accum_samples = mix(samples_prev, vec2(0), antilag_alpha.rg);
+
         imageStore( gbuffers[DIFFUSE_DIRECT_ADDR], ipos, accum_direct_diffuse);
         imageStore( gbuffers[DIFFUSE_INDIRECT_ADDR], ipos, accum_indirect_diffuse);
         imageStore( gbuffers[next_direct_diffuse_hist_addr], ipos, accum_direct_diffuse );
         imageStore( gbuffers[next_indirect_diffuse_hist_addr], ipos, accum_indirect_diffuse );
         
-        samples_prev[0] = min(samples_prev[0] + 1 + accepted_samples, MAX_DIFFUSE_CUMULATIVE_COUNT);
-        samples_prev[1] = min(samples_prev[1] + 1 + accepted_samples, MAX_DIFFUSE_CUMULATIVE_COUNT);
+        samples_prev[0] = min(accum_samples[0] + accepted_samples, MAX_DIFFUSE_CUMULATIVE_COUNT);
+        samples_prev[1] = min(accum_samples[1] + accepted_samples, MAX_DIFFUSE_CUMULATIVE_COUNT);
         imageStore( gbuffers[next_sample_avg_addr], ipos, vec4(samples_prev, sample_count_curr.ba));
         imageStore( gbuffers[SAMPLE_COUNT_ADDR], ipos, vec4(samples_prev, sample_count_curr.ba));
     } else {

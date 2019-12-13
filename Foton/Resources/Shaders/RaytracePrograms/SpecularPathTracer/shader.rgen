@@ -101,7 +101,7 @@ void main()
 
     /* Load primary visibility data from G Buffers */
     vec4 temp; int addr;
-    bool seed_reprojected = reproj_on_screen && all(equal(grad_pt_tile, tile));
+    bool seed_reprojected = reproj_on_screen && all(equal(grad_pt_tile, tile)) && is_gradient_estimation_enabled();;
     ivec2 gbuf_pos = (seed_reprojected) ? ipos_tile_prev : tile;
 
     // Seed G Buffer
@@ -177,14 +177,19 @@ void main()
     vec4 first_albedo = temp;
     
     /* Next, Compute ray origin and direction */
+    // TESTING: Note for specular, the camera shouldn't cause a temporal gradient,
+    // 
     int max_path_depth = int(push.consts.parameter1);
     EntityStruct camera_entity = ebo.entities[push.consts.camera_id];
     CameraStruct camera = cbo.cameras[camera_entity.camera_id];
     TransformStruct camera_transform = tbo.transforms[camera_entity.transform_id];
     int multiview_idx = 0; //push.consts.viewIndex;
     mat4 projinv = camera.multiviews[multiview_idx].projinv;
-    mat4 viewinv = camera_transform.localToWorld * camera.multiviews[multiview_idx].viewinv;
+    mat4 viewinv = (camera_transform.localToWorld * camera.multiviews[multiview_idx].viewinv);
     vec2 pixel_center = vec2(ipos_full.xy) + vec2(random(), random()) * .5;
+    // mat4 viewinv = (seed_reprojected) ? (camera_transform.localToWorld * camera.multiviews[multiview_idx].viewinv) 
+    //                                   : (camera_transform.localToWorldPrev * camera.multiviews[multiview_idx].viewinv);
+    // vec2 pixel_center = vec2(pixel_seed * PATH_TRACE_TILE_SIZE) + vec2(random(), random()) * .5;
 	const vec2 in_uv = pixel_center/vec2(push.consts.width, push.consts.height);
 	vec2 d = in_uv * 2.0 - 1.0; d.y *= -1.0;
     vec4 t = (projinv * vec4(d.x, d.y, 1, 1));
@@ -192,6 +197,13 @@ void main()
     vec3 origin = (viewinv * vec4(0,0,0,1)).xyz;
     vec3 direction = (viewinv * vec4(target, 0)).xyz ;
     direction = normalize(direction);
+
+    if (seed_reprojected) {
+        ivec2 gbuf_pos = (seed_reprojected) ? ipos_tile_prev : tile;
+        direction = imageLoad(gbuffers[COARSE_SPECULAR_CAMERA_DIRECTION_ADDR_PREV], gbuf_pos).xyz;
+    }
+
+    vec3 first_direction = direction;
 
     // Make normal forward facing
     if (dot(direction, first_normal) > 0) first_normal *= -1;
@@ -216,6 +228,8 @@ void main()
     int last_direct_light_entity_id = -2;
     int bounce = 0;
     int transparency_continues = 0;
+    
+    float max_roughness = 0;
     do {
         /* Unpack Data */
         vec3 w_o = -direction;
@@ -234,6 +248,7 @@ void main()
         if ((entity_id >= 0) && (entity_id < max_entities)) entity = ebo.entities[entity_id];
         int material_id = (bounce == 0) ? first_material_id : entity.material_id;
         if ((material_id >= 0) && (material_id < max_materials)) mat = mbo.materials[material_id];
+        int light_id = (bounce == 0) ? first_light_id : entity.light_id;
         if (bounce == 0) {
             mat.base_color = first_albedo;
         } else if (entity.initialized == 1) {
@@ -242,11 +257,20 @@ void main()
             mat.base_color.a = (mask < mat.base_color.a) ? mask : mat.base_color.a;
         }   
 
+        max_roughness = max(mat.roughness, max_roughness);
+
         /* If we hit the sky or a light, stop */
-        if (entity_id == -1) { 
+        if ((entity_id == -1) || light_id != -1) { 
             /* Include lighting from sky as indirect lighting.  */
             if (bounce > 0) {
-                vec3 irradiance = get_environment_color(direction) * push.consts.environment_intensity;
+                vec3 irradiance;
+                if (entity_id == -1) {
+                    irradiance = get_environment_color(direction) * push.consts.environment_intensity;
+                } else {
+                    LightStruct light = lbo.lights[entity.light_id];
+                    // Reduce fireflies by only accounting for direct lights when no hit was diffuse
+                    irradiance = mix(light.color.rgb * light.intensity, vec3(0.0), max_roughness);
+                }
                 specular_radiance += path_throughput * (irradiance);
             }
             break;
@@ -274,19 +298,24 @@ void main()
         Irradiance irradiance;
         if (is_ltc_enabled()) {
             irradiance = sample_direct_light_analytic(mat, backface, /* allow shadows */ true, 
-            /*force_diffuse*/true, /*force_specular*/false, /*force_perfect_reflection*/false, 
+            // /*force_diffuse*/!force_specular, /*force_specular*/force_specular, /*force_perfect_reflection*/false, 
+            /*force_diffuse*/false, /*force_specular*/force_specular, /*force_perfect_reflection*/false, 
             w_p, w_z, w_x, w_y, w_o);
         } else {
             int light_entity_id = -1;
             float diffuse_visibility, specular_visibility, dist;
             vec3 w_l;
             irradiance = sample_direct_light_stochastic(mat, backface, 
-            /*force_diffuse*/true, /*force_specular*/false, /*force_perfect_reflection*/false, 
+            // /*force_diffuse*/!force_specular, /*force_specular*/force_specular, /*force_perfect_reflection*/false, 
+            /*force_diffuse*/false, /*force_specular*/force_specular, /*force_perfect_reflection*/false, 
             w_p, w_z, w_x, w_y, w_o,
             light_entity_id, diffuse_visibility, specular_visibility, w_l, dist);
             irradiance.diffuse *= diffuse_visibility;
             irradiance.specular *= specular_visibility;
         }
+
+        // Reduce fireflies by only accounting for specular irradiance when no hit was diffuse
+        irradiance.specular = mix(irradiance.specular, vec3(0.0), max_roughness);
 
         // If at bounce 0, we don't include diffuse color with diffuse. 
         // That will be multiplied later during compositing and after denoising
@@ -295,11 +324,14 @@ void main()
             curr_specular_radiance = irradiance.specular * specular;
             specular_radiance += path_throughput * curr_specular_radiance;
             direct_specular_radiance = specular_radiance;
-        } else {
+        } 
+        // Ignoring specular radiance here, since it causes caustics which cannot be easily denoised
+        // Ideally, we'll compute caustics some other way
+        else {
             vec3 diffuse = mat.base_color.rgb * (1.f - mat.metallic) * (1.f - mat.transmission);
             vec3 specular = mix(vec3(1.0), mat.base_color.rgb, mat.metallic);
             curr_diffuse_radiance = irradiance.diffuse * diffuse;
-            curr_specular_radiance = irradiance.specular * specular;
+            curr_specular_radiance = irradiance.specular * specular; 
             specular_radiance += path_throughput * (curr_diffuse_radiance + curr_specular_radiance);
         }
         
@@ -312,20 +344,26 @@ void main()
         vec3 bsdf, dbsdf, sbsdf;
         sample_disney_bsdf(mat, backface,
             w_z, w_o, w_x, w_y, 
+            // /*force_diffuse*/!force_specular, /*force_specular*/force_specular, /*force_perfect_reflection*/false, 
             /*force_diffuse*/false, /*force_specular*/force_specular, /*force_perfect_reflection*/false, 
             w_i, pdf, dpdf, spdf, bsdf, dbsdf, sbsdf);
 
         if (pdf < EPSILON || (all(lessThan(bsdf, vec3(EPSILON))))) break;
 
         // /* for denoising, we factor out the diffuse and specular bsdfs for primary hits */
+        // if (bounce == 1) {
+        //     if (spdf > EPSILON && all(greaterThan(sbsdf, vec3(EPSILON))))
+        //         path_throughput *= sbsdf / spdf;
+        //     else
+        //         path_throughput *= 0;
+        //     path_throughput *= (1.0 - (mat.roughness * mat.roughness)); // testing
+        // }
+        // else 
+        path_throughput *= bsdf / pdf;
+
         if (bounce == 1) {
-            if (spdf > EPSILON && all(greaterThan(sbsdf, vec3(EPSILON))))
-                path_throughput *= sbsdf / max(spdf, PDF_CLAMP); 
-            else
-                path_throughput *= 0;
             path_throughput *= (1.0 - (mat.roughness * mat.roughness)); // testing
         }
-        else path_throughput *= bsdf / pdf;
 
         /* Trace a ray through the scene */
         origin = offset_ray(w_p, w_z); direction = w_i;
@@ -449,13 +487,6 @@ void main()
     /* Write to G Buffers */
     vec3 indirect_specular_radiance = specular_radiance - direct_specular_radiance;
 
-    // direct_specular_radiance = vec3(pixel_seed, frame_seed);
-    // indirect_specular_radiance = vec3(pixel_seed, frame_seed);
-
-    // direct_specular_radiance = vec3(first_barycentrics, first_bary_entity_id);
-    // indirect_specular_radiance = vec3(first_barycentrics, first_bary_entity_id);
-
-
     // Specular motion vector
     imageStore(gbuffers[SPECULAR_MOTION_ADDR], tile, vec4(specular_motion, ((first_entity_id == -1) || (reflected_entity_id == -1)) ? 1.0 : 0.0));
     
@@ -469,6 +500,14 @@ void main()
     temp = imageLoad(gbuffers[REFLECTED_ID_ADDR_AND_PREV], tile);
     imageStore(gbuffers[REFLECTED_ID_ADDR_AND_PREV], tile, vec4(reflected_entity_id, temp.r, 0.0, 1.0));
 
+    // direct_specular_radiance = vec3(pixel_seed, frame_seed);
+    // indirect_specular_radiance = vec3(pixel_seed, frame_seed);
+
+    // direct_specular_radiance = vec3(first_barycentrics, first_bary_entity_id);
+    // indirect_specular_radiance = vec3(first_barycentrics, first_bary_entity_id);
+
+    // direct_specular_radiance = indirect_specular_radiance = first_direction;
+
     // Luminance
     temp = imageLoad(gbuffers[LUMINANCE_ADDR], tile);
     imageStore(gbuffers[LUMINANCE_ADDR], tile, vec4(temp.r, 
@@ -477,5 +516,6 @@ void main()
                                                     luminance(indirect_specular_radiance)));
     
     imageStore(gbuffers[COARSE_SPECULAR_ENTITY_TRI_BARYCENTRIC_ADDR], tile, vec4(first_barycentrics, first_bary_entity_id, first_tri_id));
+    imageStore(gbuffers[COARSE_SPECULAR_CAMERA_DIRECTION_ADDR], tile, vec4(first_direction, 1.0));
     imageStore(gbuffers[SPECULAR_SEED_ADDR], tile, vec4(pixel_seed, frame_seed, seed_reprojected));
 }

@@ -73,7 +73,6 @@ void main() {
         color = imageLoad(gbuffers[render_image_idx-1], ipt_up).rgb;   
     }
     else if (
-        ((render_image_idx - 1) == SAMPLE_COUNT_ADDR_PREV) ||      
         ((render_image_idx - 1) == SAMPLE_COUNT_ADDR)        
     ) {
         vec4 temp = imageLoad(gbuffers[render_image_idx-1], ipt);   

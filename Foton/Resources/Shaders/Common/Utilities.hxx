@@ -379,4 +379,14 @@ void unpack_light_struct(
 //     return true;
 // }
 
+
+ivec2 get_reprojected_pixel(int frame, ivec2 ipos) 
+{
+    int grad_rand = frame % (GRADIENT_TILE_SIZE * GRADIENT_TILE_SIZE);
+    ivec2 grad_offset = ivec2(grad_rand / GRADIENT_TILE_SIZE, grad_rand % GRADIENT_TILE_SIZE);
+    ivec2 grad_tile = ivec2(ipos / GRADIENT_TILE_SIZE);
+    ivec2 grad_pt_tile = GRADIENT_TILE_SIZE * grad_tile + grad_offset;
+    return grad_pt_tile;
+}
+
 #endif

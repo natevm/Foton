@@ -270,15 +270,16 @@ bool Vulkan::create_device(set<string> device_extensions, set<string> device_fea
         deviceExtensions.insert(string);
         if (string.compare("VK_NV_ray_tracing") == 0) {
             rayTracingEnabled = true;
+            deviceExtensions.insert(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
         }
     }
     if (surface)
         deviceExtensions.insert(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-    deviceExtensions.insert(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
 
     device_features.insert("shaderUniformBufferArrayDynamicIndexing");
     device_features.insert("shaderSampledImageArrayDynamicIndexing");
     device_features.insert("shaderStorageBufferArrayDynamicIndexing");
+    device_features.insert("shaderStorageImageArrayDynamicIndexing");
     device_features.insert("vertexPipelineStoresAndAtomics");
     device_features.insert("fragmentStoresAndAtomics");
 

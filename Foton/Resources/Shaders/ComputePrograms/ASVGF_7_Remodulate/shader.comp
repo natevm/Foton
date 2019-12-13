@@ -117,8 +117,12 @@ void main() {
 
         vec3 temp;
         float m = disney_diffuse(mat, w_n_f, w_o, w_i, temp) * (1.f - mat.metallic) * (1.f - mat.transmission);
-        float mat_estimator = pow2(1.0 - F)*m*M_PI;
-        float specular_estimator = F + (1.0 - F);
+        float pdf = lambertian_pdf(w_i, w_n_f);
+
+        // m *= M_PI;
+        // float mat_estimator = pow2(1.0 - F)*m*M_PI;
+        float mat_estimator = (m / pdf) * (1.0 - F); //pow2(1.0 - F);
+        float specular_estimator = mix(1.0, F, (mat.roughness * mat.roughness));// + (1.0 - F);
         
         // * (max(mat.metallic, 1.0 - (mat.roughness * mat.roughness)));
         // diffuse_color *= mat_estimator;
@@ -152,6 +156,7 @@ void main() {
     imageStore(gbuffers[DIFFUSE_DIRECT_ADDR], ipos, vec4(diffuse_direct, 1.0));
     imageStore(gbuffers[DIFFUSE_INDIRECT_ADDR], ipos, vec4(diffuse_indirect,1.0));
 
+    // TEMPORARY
     imageStore(gbuffers[GLOSSY_DIRECT_ADDR], ipos, vec4(glossy_direct, 1.0));
     imageStore(gbuffers[GLOSSY_INDIRECT_ADDR], ipos, vec4(glossy_indirect,1.0));
 

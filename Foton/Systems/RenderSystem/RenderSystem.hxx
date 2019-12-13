@@ -338,7 +338,8 @@ namespace Systems
             ComputePipelineResources asvgf_reconstruct_gradient;
             ComputePipelineResources asvgf_diffuse_temporal_accumulation;
             ComputePipelineResources asvgf_specular_temporal_accumulation;
-            ComputePipelineResources asvgf_estimate_variance;
+            ComputePipelineResources asvgf_fill_diffuse_holes;
+            ComputePipelineResources asvgf_fill_specular_holes;
             ComputePipelineResources reconstruct_diffuse;
             ComputePipelineResources reconstruct_glossy;
             ComputePipelineResources progressive_refinement;
