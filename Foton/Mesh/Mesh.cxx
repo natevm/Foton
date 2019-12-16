@@ -1116,7 +1116,7 @@ void Mesh::load_raw(
 	std::vector<Vertex> uniqueVertices;
 
 	/* Don't bin positions as unique when editing, since it's unexpected for a user to lose positions */
-	if (allow_edits && !reading_indices) {
+	if ((allow_edits && !reading_indices) || (!reading_normals)) {
 		uniqueVertices = vertices;
 		for (int i = 0; i < vertices.size(); ++i) {
 			triangle_indices.push_back(i);
@@ -1148,6 +1148,10 @@ void Mesh::load_raw(
 		colors.push_back(v.color);
 		normals.push_back(v.normal);
 		texcoords.push_back(v.texcoord);
+	}
+
+	if (!reading_normals) {
+		compute_smooth_normals(false);
 	}
 
 	cleanup();

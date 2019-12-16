@@ -276,6 +276,7 @@ void CameraPrefab::update_spacemouse()
 
     #ifdef BUILD_SPACEMOUSE
     auto s = SpaceMouse::Get();
+    auto rs = Systems::RenderSystem::Get();
     s->connect_to_window(window_name);
     glm::vec3 t = s->get_translation();
     glm::vec3 r = s->get_rotation();
@@ -283,6 +284,13 @@ void CameraPrefab::update_spacemouse()
     glm::vec3 dx = transform->get_right() * t.x;
     glm::vec3 dy = transform->get_forward() * t.z;
     glm::vec3 dz = transform->get_up() * t.y;
+
+
+    if ((std::abs(r.x) > .00001) || (std::abs(r.y) > .00001) || (std::abs(r.z) > .00001))
+        rs->reset_progressive_refinement();
+            
+    if ((std::abs(t.x) > .00001) || (std::abs(t.y) > .00001) || (std::abs(t.z) > .00001))
+        rs->reset_progressive_refinement();
 
     transform->add_position(dx);
     transform->add_position(dy);

@@ -153,8 +153,8 @@ bool RenderSystem::update_push_constants()
 	push_constants.num_lights = Light::GetNumActiveLights();
     push_constants.frame++;
 
-	if ((!progressive_refinement_enabled) && (push_constants.frame > 1024))
-		push_constants.frame = 0;
+	// if ((!progressive_refinement_enabled) && (push_constants.frame > 1024))
+		// push_constants.frame = 0;
     return true;
 }
 
@@ -797,8 +797,12 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 					uint32_t groupY = (height + local_size_y - 1) / local_size_y;
 					uint32_t groupZ = 1;
 
-					command_buffer.pushConstants(asvgf_fill_diffuse_holes.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
 					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, asvgf_fill_diffuse_holes.pipeline);
+					push_constants.iteration = 0;
+					command_buffer.pushConstants(asvgf_fill_diffuse_holes.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+					command_buffer.dispatch(groupX, groupY, groupZ);
+					push_constants.iteration = 1;
+					command_buffer.pushConstants(asvgf_fill_diffuse_holes.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
 					command_buffer.dispatch(groupX, groupY, groupZ);
 
 					command_buffer.pushConstants(asvgf_fill_specular_holes.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
@@ -823,7 +827,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 					uint32_t groupY = (height + local_size_y - 1) / local_size_y;
 					uint32_t groupZ = 1;
 
-					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, median_5x5.pipeline);
+					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, median_3x3.pipeline);
 					
 					push_constants.parameter1 = DIFFUSE_INDIRECT_ADDR;
 					push_constants.parameter2 = ATROUS_HISTORY_1_ADDR;
