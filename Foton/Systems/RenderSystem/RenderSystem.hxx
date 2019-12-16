@@ -52,6 +52,7 @@ enum RenderSystemOptions : uint32_t {
     ENABLE_ANALYTICAL_AREA_LIGHTS=16,
     ENABLE_BILATERAL_UPSAMPLING=17,
     FORCE_FLAT_REFLECTORS=18,
+    USE_PROCEDURAL_ENVIRONMENT=19,
 };
 
 namespace Systems 
@@ -168,7 +169,11 @@ namespace Systems
             // todo: make this private...
             void create_camera_resources(uint32_t camera_id);
         private:
-            PushConsts push_constants;            
+            PushConsts push_constants;
+            int32_t environment_id = -1;
+            int32_t diffuse_environment_id = -1;
+            int32_t specular_environment_id = -1;
+
             bool using_openvr = false;
             bool using_vr_hidden_area_masks = true;
             bool ray_tracing_enabled = false;
@@ -317,6 +322,7 @@ namespace Systems
             std::map<vk::RenderPass, RasterPipelineResources> raster_vrmask;
 
             RaytracingPipelineResources raytrace_primary_visibility;
+            RaytracingPipelineResources ddgi_path_tracer;
             RaytracingPipelineResources diffuse_path_tracer;
             RaytracingPipelineResources specular_path_tracer;
 
@@ -346,6 +352,7 @@ namespace Systems
             ComputePipelineResources compositing;
             ComputePipelineResources copy_history;
             ComputePipelineResources taa;
+            ComputePipelineResources ddgi_blend;
 
             /* Wraps the vulkan boilerplate for creation of a graphics pipeline */
             void create_raster_pipeline(
@@ -374,7 +381,7 @@ namespace Systems
             
             /* Copies SSBO / texture handles into the texture and component descriptor sets. 
                 Also, allocates the descriptor sets if not yet allocated. */
-            void update_raster_descriptor_sets();
+            void update_global_descriptor_sets();
 
             /* EXPLAIN THIS */
             void update_gbuffer_descriptor_sets(Entity &camera_entity, uint32_t rp_idx);
@@ -387,7 +394,8 @@ namespace Systems
             void bind_raster_primary_visibility_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
             void bind_shadow_map_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
 
-            void bind_compute_descriptor_sets(vk::CommandBuffer &command_buffer, Entity &camera_entity, uint32_t rp_idx);
+            void bind_camera_compute_descriptor_sets(vk::CommandBuffer &command_buffer, Entity &camera_entity, uint32_t rp_idx);
+            bool bind_compute_descriptor_sets(vk::CommandBuffer &command_buffer);
 
             void bind_raytracing_descriptor_sets(vk::CommandBuffer &command_buffer, Entity &camera_entity, uint32_t rp_idx);
 
@@ -552,6 +560,7 @@ namespace Systems
 
             uint32_t currentFrame = 0;
             
+            vk::CommandBuffer compute_command_buffer;
             vk::CommandBuffer bvh_command_buffer;
             vk::CommandBuffer blit_command_buffer;
 
@@ -587,6 +596,7 @@ namespace Systems
             // std::vector<vk::Semaphore> main_command_buffer_semaphores;
             // vk::Fence main_fence;
 
+            bool compute_command_buffer_recorded = false;
             bool bvh_command_buffer_recorded = false;
             bool blit_command_buffer_recorded = false;
             bool blit_command_buffer_presenting = false;
@@ -605,6 +615,7 @@ namespace Systems
             void record_shadow_map_renderpass(Entity &camera_entity, std::vector<std::vector<VisibleEntityInfo>> &visible_entities);
             void record_blit_camera(Entity &camera_entity, std::map<std::string, std::pair<Camera *, uint32_t>> &window_to_cam);
             void record_cameras();
+            void record_compute(bool submit_immediately = false);
             void record_blit_textures();
             void enqueue_render_commands();
             void download_visibility_queries();

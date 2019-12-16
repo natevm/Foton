@@ -15,16 +15,8 @@
 // BRDF Lookup Tables --------------------------------------
 vec2 sampleBRDF(vec3 N, vec3 V, float roughness)
 {
-    if ((push.consts.brdf_lut_id < 0) || (push.consts.brdf_lut_id >= max_textures))
-        return vec2(0.0, 0.0);
-
-    TextureStruct tex = txbo.textures[push.consts.brdf_lut_id];
-
-    if ((tex.sampler_id < 0) || (tex.sampler_id >= max_samplers)) 
-        return vec2(0.0, 0.0);
-
 	return texture( 
-			sampler2D(texture_2Ds[push.consts.brdf_lut_id], samplers[tex.sampler_id]), 
+			sampler2D(BRDF_LUT, samplers[LINEAR_SAMPLER]), 
 			vec2(max(dot(N, V), 0.0), 1.0 - roughness)
 	).rg;
 }
@@ -222,22 +214,24 @@ vec3 getSun(vec3 dir){
 
 vec3 get_environment_color(vec3 dir) {
 	vec3 adjusted = vec3(dir.x, dir.z, dir.y);
-	if (push.consts.environment_id != -1) {
-		TextureStruct tex = txbo.textures[push.consts.environment_id];
+	if (!use_procedural_environment()) 
+    {
+        // TextureStruct tex = txbo.textures[push.consts.environment_id];
 
-		float lod = push.consts.environment_roughness * max(tex.mip_levels, 0.0);
-		float lodf = floor(lod);
-		float lodc = ceil(lod);
-		
-		vec3 a = textureLod(
-			samplerCube(texture_cubes[push.consts.environment_id], samplers[tex.sampler_id]), 
-			adjusted, lodf).rgb;
+        float lod = push.consts.environment_roughness * 10.f;//max(tex.mip_levels, 0.0);
+        float lodf = floor(lod);
+        float lodc = ceil(lod);
+        
+        vec3 a = textureLod(
+            samplerCube(Environment, samplers[LINEAR_SAMPLER]), 
+            adjusted, lodf).rgb;
 
-		vec3 b = textureLod(
-			samplerCube(texture_cubes[push.consts.environment_id], samplers[tex.sampler_id]), 
-			adjusted, lodc).rgb;
+        vec3 b = textureLod(
+            samplerCube(Environment, samplers[LINEAR_SAMPLER]), 
+            adjusted, lodc).rgb;
 
-		return mix(a, b, lod - lodf);
+        return mix(a, b, lod - lodf);
+
 	}
 
     return getSky(adjusted);
@@ -250,36 +244,39 @@ vec3 get_environment_color(vec3 dir) {
 
 vec3 sampleIrradiance(vec3 N)
 {
-    if ((push.consts.diffuse_environment_id < 0 ) || (push.consts.diffuse_environment_id >= max_textures))
-	    return getSky(N.xzy);
+    if (use_procedural_environment()) return getSky(N.xzy);
+    // if ((push.consts.diffuse_environment_id < 0 ) || (push.consts.diffuse_environment_id >= max_textures))
+	    // return getSky(N.xzy);
 
-    TextureStruct tex = txbo.textures[push.consts.diffuse_environment_id];
+    // TextureStruct tex = txbo.textures[push.consts.diffuse_environment_id];
     
-    if ((tex.sampler_id < 0 ) || (tex.sampler_id >= max_samplers))
-        return getSky(N.xzy);
+    // if ((tex.sampler_id < 0 ) || (tex.sampler_id >= max_samplers))
+        // return getSky(N.xzy);
 
     return texture(
-        samplerCube(texture_cubes[push.consts.diffuse_environment_id], samplers[tex.sampler_id]), N.xzy
+        samplerCube(DiffuseEnvironment, samplers[LINEAR_SAMPLER]), N.xzy
     ).rgb;
 }
 
 vec3 getPrefilteredReflection(vec3 R, float roughness)
 {
-	if ((push.consts.specular_environment_id < 0) || (push.consts.specular_environment_id >= max_textures))
+    if (use_procedural_environment()) {
 		return mix(getSky(R.xzy), (push.consts.top_sky_color.rgb + push.consts.bottom_sky_color.rgb) * .5, roughness);
+    }
+	// if ((push.consts.specular_environment_id < 0) || (push.consts.specular_environment_id >= max_textures))
 
-    TextureStruct tex = txbo.textures[push.consts.specular_environment_id];
+    // TextureStruct tex = txbo.textures[push.consts.specular_environment_id];
     
-    float lod = roughness * max(tex.mip_levels - 4, 0.0);
+    float lod = roughness * 10.f;//max(tex.mip_levels - 4, 0.0);
     float lodf = floor(lod);
     float lodc = ceil(lod);
     
     vec3 a = textureLod(
-        samplerCube(texture_cubes[push.consts.specular_environment_id], samplers[tex.sampler_id]), 
+        samplerCube(SpecularEnvironment, samplers[LINEAR_SAMPLER]), 
         R.xzy, lodf).rgb;
 
     vec3 b = textureLod(
-        samplerCube(texture_cubes[push.consts.specular_environment_id], samplers[tex.sampler_id]), 
+        samplerCube(SpecularEnvironment, samplers[LINEAR_SAMPLER]), 
         R.xzy, lodc).rgb;
 
     return mix(a, b, lod - lodf);
@@ -289,8 +286,8 @@ vec3 getPrefilteredReflection(vec3 R, float roughness)
 vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 albedo_mix, vec3 albedo, float metallic, float roughness)
 {    
     /* Need a linear cosine transform lookup table for LTC... */
-    if ((push.consts.ltc_mat_lut_id < 0) || (push.consts.ltc_mat_lut_id >= max_textures) ) return vec3(0.0);
-    if ((push.consts.ltc_amp_lut_id < 0) || (push.consts.ltc_amp_lut_id >= max_textures)) return vec3(0.0);
+    // if ((push.consts.ltc_mat_lut_id < 0) || (push.consts.ltc_mat_lut_id >= max_textures) ) return vec3(0.0);
+    // if ((push.consts.ltc_amp_lut_id < 0) || (push.consts.ltc_amp_lut_id >= max_textures)) return vec3(0.0);
 
     vec3 final_color = vec3(0.0);
     float dotNV = clamp(dot(w_normal, w_view), 0.0, 1.0);
@@ -299,9 +296,9 @@ vec3 get_light_contribution(vec3 w_position, vec3 w_view, vec3 w_normal, vec3 al
     float ndotv = saturate(dotNV);
     vec2 uv = vec2(roughness, sqrt(1.0 - ndotv));    
     uv = uv*LUT_SCALE + LUT_BIAS;
-    vec4 t1 = texture(sampler2D(texture_2Ds[push.consts.ltc_mat_lut_id], samplers[0]), uv); // ltc_1
+    vec4 t1 = texture(sampler2D(LTC_MAT, samplers[0]), uv); // ltc_1
     // t1.w = max(t1.w, .05); // Causes numerical precision issues if too small
-    vec4 t2 = texture(sampler2D(texture_2Ds[push.consts.ltc_amp_lut_id], samplers[0]), uv); // ltc_2
+    vec4 t2 = texture(sampler2D(LTC_AMP, samplers[0]), uv); // ltc_2
     mat3 m_inv = mat3(
         vec3(t1.x, 0, t1.y),
         vec3(  0,  1,    0),
@@ -671,8 +668,8 @@ struct PBRInfo
 
 //     /* Compute direct specular and diffuse contribution from LTC area lights */
 //     vec2 LTC_UV = vec2(clamped_roughness, sqrt(1.0 - NdotV))*LUT_SCALE + LUT_BIAS;
-//     vec4 t1 = texture(sampler2D(texture_2Ds[push.consts.ltc_mat_lut_id], samplers[0]), LTC_UV);
-//     vec4 t2 = texture(sampler2D(texture_2Ds[push.consts.ltc_amp_lut_id], samplers[0]), LTC_UV);
+//     vec4 t1 = texture(sampler2D(LTC_MAT, samplers[0]), LTC_UV);
+//     vec4 t2 = texture(sampler2D(LTC_AMP, samplers[0]), LTC_UV);
 //     mat3 m_inv = mat3(
 //         vec3(t1.x, 0, t1.y),
 //         vec3(  0,  1,    0),

@@ -1,6 +1,7 @@
 #version 460
 
-#define COMPUTE
+#define CAMERA_COMPUTE
+#define INCLUDE_G_BUFFERS
 
 #include "Foton/Resources/Shaders/Common/Descriptors.hxx"
 

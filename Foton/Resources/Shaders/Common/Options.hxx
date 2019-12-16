@@ -20,6 +20,12 @@
 #define ENABLE_ANALYICAL_AREA_LIGHTS 16
 #define ENABLE_BILATERAL_UPSAMPLING 17
 #define FORCE_FLAT_REFLECTORS 18
+#define USE_PROCEDURAL_ENVIRONMENT 19
+
+bool use_procedural_environment()
+{
+    return (push.consts.flags & (1 << USE_PROCEDURAL_ENVIRONMENT)) != 0;
+}
 
 bool is_multiview_enabled()
 {

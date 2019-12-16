@@ -1,6 +1,6 @@
 #version 460
 
-#define COMPUTE
+#define CAMERA_COMPUTE
 
 #include "Foton/Resources/Shaders/Common/Descriptors.hxx"
 #include "Foton/Resources/Shaders/Common/ShaderConstants.hxx"
@@ -13,8 +13,8 @@ layout (local_size_x = 16, local_size_y = 16) in;
 
 void main() {
     /* These are required for shading purposes. Wait until they're ready. */
-    if ((push.consts.ltc_mat_lut_id < 0) || (push.consts.ltc_mat_lut_id >= max_textures)) return;
-    if ((push.consts.ltc_amp_lut_id < 0) || (push.consts.ltc_amp_lut_id >= max_textures)) return;
+    // if ((push.consts.ltc_mat_lut_id < 0) || (push.consts.ltc_mat_lut_id >= max_textures)) return;
+    // if ((push.consts.ltc_amp_lut_id < 0) || (push.consts.ltc_amp_lut_id >= max_textures)) return;
     ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
     vec4 temp;
 

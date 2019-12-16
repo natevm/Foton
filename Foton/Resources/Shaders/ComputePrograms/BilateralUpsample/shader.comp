@@ -1,7 +1,7 @@
 #version 460
 #pragma optionNV (unroll all)
 
-#define COMPUTE
+#define CAMERA_COMPUTE
 
 #include "Foton/Resources/Shaders/Common/Descriptors.hxx"
 #include "Foton/Resources/Shaders/Common/ShaderConstants.hxx"

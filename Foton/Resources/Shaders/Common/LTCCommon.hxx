@@ -469,7 +469,7 @@ vec3 LTC_Evaluate_Rect(
     vec2 uv = vec2(z*0.5 + 0.5, len);
     uv = uv*LUT_SCALE + LUT_BIAS;
     
-    float scale = texture(sampler2D(texture_2Ds[push.consts.ltc_amp_lut_id], samplers[0]), uv).w;
+    float scale = texture(sampler2D(LTC_AMP, samplers[0]), uv).w;
 
     sum = len;//*scale;
     
@@ -676,7 +676,7 @@ vec3 LTC_Evaluate_Disk(
     // use tabulated horizon-clipped sphere
     vec2 uv = vec2(avgDir.z*0.5 + 0.5, formFactor);
     uv = uv*LUT_SCALE + LUT_BIAS;
-    float scale = texture(sampler2D(texture_2Ds[push.consts.ltc_amp_lut_id], samplers[0]), uv).w;
+    float scale = texture(sampler2D(LTC_AMP, samplers[0]), uv).w;
 
     float spec = formFactor*scale;
 

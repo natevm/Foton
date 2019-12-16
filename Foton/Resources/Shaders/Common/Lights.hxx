@@ -403,8 +403,8 @@ Irradiance sample_direct_light_analytic(const in MaterialStruct mat, bool backfa
 
         /* Compute direct specular and diffuse contribution from LTC area lights */
         vec2 LTC_UV = vec2(clamped_roughness, sqrt(1.0 - NdotV))*LUT_SCALE + LUT_BIAS;
-        vec4 t1 = texture(sampler2D(texture_2Ds[push.consts.ltc_mat_lut_id], samplers[0]), LTC_UV);
-        vec4 t2 = texture(sampler2D(texture_2Ds[push.consts.ltc_amp_lut_id], samplers[0]), LTC_UV);
+        vec4 t1 = texture(sampler2D(LTC_MAT, samplers[0]), LTC_UV);
+        vec4 t2 = texture(sampler2D(LTC_AMP, samplers[0]), LTC_UV);
         mat3 m_inv = mat3(
             vec3(t1.x, 0, t1.y),
             vec3(  0,  1,    0),

@@ -200,7 +200,7 @@ class Texture : public StaticFactory
 		void make_samplable(vk::CommandBuffer commandBuffer, 
 			vk::PipelineStageFlags srcStageMask = vk::PipelineStageFlagBits::eAllCommands,
 			vk::PipelineStageFlags dstStageMask = vk::PipelineStageFlagBits::eAllCommands);
-		void make_general(vk::CommandBuffer commandBuffer, 
+		bool make_general(vk::CommandBuffer commandBuffer, 
 			vk::PipelineStageFlags srcStageMask = vk::PipelineStageFlagBits::eAllCommands,
 			vk::PipelineStageFlags dstStageMask = vk::PipelineStageFlagBits::eAllCommands);
 

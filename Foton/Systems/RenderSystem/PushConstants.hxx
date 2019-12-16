@@ -22,12 +22,6 @@ struct PushConsts
 {
     int32_t target_id;
     int32_t camera_id;
-    int32_t brdf_lut_id;
-    int32_t ltc_mat_lut_id;
-    int32_t ltc_amp_lut_id;
-    int32_t environment_id;
-    int32_t diffuse_environment_id;
-    int32_t specular_environment_id;
     int32_t viewIndex;
     // int32_t sobel_tile_id;
     // int32_t ranking_tile_id;
@@ -38,6 +32,13 @@ struct PushConsts
     int32_t flags;
     int32_t num_lights;
     int32_t iteration;
+
+    int32_t ph1;
+    int32_t ph2;
+    int32_t ph3;
+    int32_t ph4;
+    int32_t ph5;
+    int32_t ph6;
     
     float sky_transition;
     float gamma;

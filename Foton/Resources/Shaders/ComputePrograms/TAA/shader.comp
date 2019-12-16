@@ -1,7 +1,8 @@
 #version 460
 #pragma optionNV (unroll all)
 
-// #define COMPUTE
+// #define CAMERA_COMPUTE
+//#define INCLUDE_G_BUFFERS
 
 // #include "Foton/Resources/Shaders/Common/Descriptors.hxx"
 // #include "Foton/Resources/Shaders/Common/ShaderConstants.hxx"
@@ -77,7 +78,8 @@
 // #version 460
 #pragma optionNV (unroll all)
 
-#define COMPUTE
+#define CAMERA_COMPUTE
+#define INCLUDE_G_BUFFERS
 
 #include "Foton/Resources/Shaders/Common/Descriptors.hxx"
 #include "Foton/Resources/Shaders/Common/ShaderConstants.hxx"

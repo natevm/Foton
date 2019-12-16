@@ -23,6 +23,9 @@ set(SHADERS_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/PrimaryVisibility/shader.rgen
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/PrimaryVisibility/shader.rchit
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/PrimaryVisibility/shader.rmiss
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/DDGIPathTracer/shader.rgen
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/DDGIPathTracer/shader.rchit
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/DDGIPathTracer/shader.rmiss
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/DiffusePathTracer/shader.rgen
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/DiffusePathTracer/shader.rchit
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/RaytracePrograms/DiffusePathTracer/shader.rmiss
@@ -53,5 +56,8 @@ set(SHADERS_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/ASVGF_7_Remodulate/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/CopyHistory/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/BilateralUpsample/shader.comp
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/DDGI_Blend/shader.comp
+
     PARENT_SCOPE
 )

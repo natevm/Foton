@@ -491,28 +491,6 @@ void Texture::Initialize()
 {
 	if (IsInitialized()) return;
 
-	creation_mutex = std::make_shared<std::mutex>();
-
-	std::string resource_path = Options::GetResourcePath();
-	CreateFromKTX("DefaultTex2D", resource_path + "/Defaults/missing-texture.ktx");
-	CreateFromKTX("DefaultTexCube", resource_path + "/Defaults/missing-texcube.ktx");
-	CreateFromKTX("DefaultTex3D", resource_path + "/Defaults/missing-volume.ktx");
-
-	// Create the default texture here
-	std::thread t([](){
-		std::string resource_path = Options::GetResourcePath();
-		CreateFromKTX("BRDF", resource_path + "/Defaults/brdf-lut.ktx");
-		CreateFromKTX("LTCMAT", resource_path + "/Defaults/ltc_mat.ktx");
-		CreateFromKTX("LTCAMP", resource_path + "/Defaults/ltc_amp.ktx");
-		CreateFromKTX("RANKINGTILE", resource_path + "/Defaults/rankingTile_128_128_8.ktx");
-		CreateFromKTX("SCRAMBLETILE", resource_path + "/Defaults/scrambleTile_128_128_8.ktx");
-		CreateFromKTX("SOBELTILE", resource_path + "/Defaults/sobelTile.ktx");
-		CreateFromKTX("BLUENOISETILE", resource_path + "/Defaults/BlueNoise.ktx");
-	});
-
-    t.detach();
-	// fatal error here if result is nullptr...
-
 	auto vulkan = Libraries::Vulkan::Get();
 	auto device = vulkan->get_device();
 	if (device == vk::Device())
@@ -521,6 +499,40 @@ void Texture::Initialize()
 	auto physical_device = vulkan->get_physical_device();
 	if (physical_device == vk::PhysicalDevice())
 		throw std::runtime_error( std::string("Invalid vulkan physical device"));
+
+	creation_mutex = std::make_shared<std::mutex>();
+
+	std::string resource_path = Options::GetResourcePath();
+	CreateFromKTX("DefaultTex2D", resource_path + "/Defaults/missing-texture.ktx");
+	CreateFromKTX("DefaultTexCube", resource_path + "/Defaults/missing-texcube.ktx");
+	CreateFromKTX("DefaultTex3D", resource_path + "/Defaults/missing-volume.ktx");
+
+	int width = 32, height = 4, depth = 32;
+	auto ddgi_irradiance = Create2D("DDGI_IRRADIANCE", (width * 6 * 6) * height, depth, true, false, 1, 1);
+	auto ddgi_visibility = Create2D("DDGI_VISIBILITY", (width * 16 * 16) * height, depth, true, false, 1, 1);
+
+	auto buffer = vulkan->begin_one_time_graphics_command();
+	ddgi_irradiance->make_general(buffer);
+	ddgi_visibility->make_general(buffer);
+	vulkan->end_one_time_graphics_command(buffer, "Transition DDGI textures to general");
+	
+	// Create the default texture here
+	std::thread t([](){
+
+		std::string resource_path = Options::GetResourcePath();
+		CreateFromKTX("BRDF", resource_path + "/Defaults/brdf-lut.ktx");
+		CreateFromKTX("LTCMAT", resource_path + "/Defaults/ltc_mat.ktx");
+		CreateFromKTX("LTCAMP", resource_path + "/Defaults/ltc_amp.ktx");
+		// CreateFromKTX("RANKINGTILE", resource_path + "/Defaults/rankingTile_128_128_8.ktx");
+		// CreateFromKTX("SCRAMBLETILE", resource_path + "/Defaults/scrambleTile_128_128_8.ktx");
+		// CreateFromKTX("SOBELTILE", resource_path + "/Defaults/sobelTile.ktx");
+		CreateFromKTX("BLUENOISETILE", resource_path + "/Defaults/BlueNoise.ktx");
+	});
+
+    t.detach();
+	// fatal error here if result is nullptr...
+
+	
 
 	{
 		vk::BufferCreateInfo bufferInfo = {};
@@ -2077,7 +2089,7 @@ void Texture::make_renderable(vk::CommandBuffer commandBuffer, vk::PipelineStage
 	}
 
 	for (uint32_t i = 0; i < this->data.gBuffers.size(); ++i) {
-		if (this->data.gBuffers[i].imageLayout != vk::ImageLayout::eColorAttachmentOptimal)
+		if (this->data.gBuffers[i].image && this->data.gBuffers[i].imageLayout != vk::ImageLayout::eColorAttachmentOptimal)
 		{
 			/* Transition destination image to transfer destination optimal */
 			vk::ImageSubresourceRange subresourceRange;
@@ -2140,7 +2152,7 @@ void Texture::make_samplable(vk::CommandBuffer commandBuffer,
 	}
 
 	for (uint32_t i = 0; i < this->data.gBuffers.size(); ++i) {
-		if (this->data.gBuffers[i].imageLayout != vk::ImageLayout::eShaderReadOnlyOptimal)
+		if (this->data.gBuffers[i].image && this->data.gBuffers[i].imageLayout != vk::ImageLayout::eShaderReadOnlyOptimal)
 		{
 			/* Transition destination image to transfer destination optimal */
 			vk::ImageSubresourceRange subresourceRange;
@@ -2161,11 +2173,14 @@ void Texture::make_samplable(vk::CommandBuffer commandBuffer,
 	}
 }
 
-void Texture::make_general(vk::CommandBuffer commandBuffer, 
+bool Texture::make_general(vk::CommandBuffer commandBuffer, 
 	vk::PipelineStageFlags srcStageMask,
 	vk::PipelineStageFlags dstStageMask)
 {
+	bool already_general = true;
+
 	if (this->data.colorBuffer.imageLayout != vk::ImageLayout::eGeneral) {
+		already_general = false;
 		/* Transition destination image to transfer destination optimal */
 		vk::ImageSubresourceRange subresourceRange;
 		subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
@@ -2184,8 +2199,9 @@ void Texture::make_general(vk::CommandBuffer commandBuffer,
 	}
 
 	for (uint32_t i = 0; i < this->data.gBuffers.size(); ++i) {
-		if (this->data.gBuffers[i].imageLayout != vk::ImageLayout::eGeneral)
+		if (this->data.gBuffers[i].image && this->data.gBuffers[i].imageLayout != vk::ImageLayout::eGeneral)
 		{
+			already_general = false;
 			/* Transition destination image to transfer destination optimal */
 			vk::ImageSubresourceRange subresourceRange;
 			subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
@@ -2203,6 +2219,7 @@ void Texture::make_general(vk::CommandBuffer commandBuffer,
 			this->data.gBuffers[i].imageLayout = vk::ImageLayout::eGeneral;
 		}
 	}
+	return already_general;
 }
 
 void Texture::save_as_ktx(std::string rawfilepath) {

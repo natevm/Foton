@@ -1,0 +1,343 @@
+#version 460
+#extension GL_NV_ray_tracing : require
+#define RAYTRACING
+
+#include "Foton/Resources/Shaders/Common/Descriptors.hxx"
+layout(location = 0) rayPayloadNV HitInfo payload;
+#include "Foton/Resources/Shaders/Common/ShaderCommon.hxx"
+#include "Foton/Resources/Shaders/Common/Options.hxx"
+#include "Foton/Resources/Shaders/Common/ShaderConstants.hxx"
+#include "Foton/Resources/Shaders/Common/OffsetRay.hxx"
+#include "Foton/Resources/Shaders/Common/LTCCommon.hxx"
+#include "Foton/Resources/Shaders/Common/Utilities.hxx"
+#include "Foton/Resources/Shaders/Common/Lights.hxx"
+
+vec3 Uncharted2Tonemap(vec3 x)
+{
+    x = max(x, vec3(0));
+	float A = 0.15;
+	float B = 0.50;
+	float C = 0.10;
+	float D = 0.20;
+	float E_ = 0.02;
+	float F = 0.30;
+	return max(vec3(0.0f), ((x*(A*x+C*B)+D*E_)/(x*(A*x+B)+D*F))-E_/F);
+}
+
+ivec3 get_indices(int mesh_id, int prim_id)
+{
+    ivec3 indices;
+    indices.x = IndexBuffers[mesh_id].indices[3 * prim_id + 0];
+	indices.y = IndexBuffers[mesh_id].indices[3 * prim_id + 1];
+	indices.z = IndexBuffers[mesh_id].indices[3 * prim_id + 2];
+    return indices;
+}
+
+vec4 get_position(int mesh_id, ivec3 indices, vec2 bary) 
+{
+    vec3 barycentrics = vec3(1.0f - bary.x - bary.y, bary.x, bary.y);
+    vec4 P0 = PositionBuffers[mesh_id].positions[indices.x];
+	vec4 P1 = PositionBuffers[mesh_id].positions[indices.y];
+	vec4 P2 = PositionBuffers[mesh_id].positions[indices.z];
+	vec4 P = P0 * barycentrics.x + P1 * barycentrics.y + P2 * barycentrics.z;
+    return P;
+}
+
+vec3 get_normal(int mesh_id, ivec3 indices, vec2 bary) 
+{
+    vec3 barycentrics = vec3(1.0f - bary.x - bary.y, bary.x, bary.y);
+    vec3 N0 = NormalBuffers[mesh_id].normals[indices.x].xyz;
+	vec3 N1 = NormalBuffers[mesh_id].normals[indices.y].xyz;
+	vec3 N2 = NormalBuffers[mesh_id].normals[indices.z].xyz;
+	vec3 N = N0 * barycentrics.x + N1 * barycentrics.y + N2 * barycentrics.z;
+    return N;
+}
+
+vec2 get_uv(int mesh_id, ivec3 indices, vec2 bary) 
+{
+    vec3 barycentrics = vec3(1.0f - bary.x - bary.y, bary.x, bary.y);
+    vec2 UV0 = TexCoordBuffers[mesh_id].texcoords[indices.x].xy;
+	vec2 UV1 = TexCoordBuffers[mesh_id].texcoords[indices.y].xy;
+	vec2 UV2 = TexCoordBuffers[mesh_id].texcoords[indices.z].xy;
+	vec2 UV = UV0 * barycentrics.x + UV1 * barycentrics.y + UV2 * barycentrics.z;
+    return UV;
+}
+
+// 7.3 ms, VRAM 29.9%, L2 27.1%, TEX 18.2%
+void main() 
+{
+    if (int(gl_LaunchIDNV.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
+    if (int(gl_LaunchIDNV.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
+
+    ivec2 tile = ivec2(gl_LaunchIDNV.xy);
+    ivec2 ipos_full = tile * PATH_TRACE_TILE_SIZE;
+    init_random(ivec2(gl_LaunchIDNV.xy), push.consts.frame, 0);
+    
+    // Compute random offset within gradient tile
+    int grad_rand = push.consts.frame % (GRADIENT_TILE_SIZE * GRADIENT_TILE_SIZE);
+    ivec2 grad_offset = ivec2(grad_rand / GRADIENT_TILE_SIZE, grad_rand % GRADIENT_TILE_SIZE);
+    ivec2 grad_tile = ivec2(gl_LaunchIDNV.xy / GRADIENT_TILE_SIZE);
+    ivec2 grad_pt_tile = GRADIENT_TILE_SIZE * grad_tile + grad_offset;
+          
+    // Compute motion vector
+    ivec2 ipos_tile_prev, ipos_full_prev;
+    bool reproj_on_screen = true;
+    {
+        precise vec4 motion_data = imageLoad(gbuffers[DIFFUSE_MOTION_ADDR], ipos_full);
+        precise vec2 v = motion_data.xy * vec2(.5, -.5);
+        precise vec2 iv = v.xy * vec2(push.consts.width, push.consts.height);
+        ipos_tile_prev = ivec2(ipos_full + (iv + MOTION_VECTOR_OFFSET)) / PATH_TRACE_TILE_SIZE;
+        ipos_full_prev = ipos_tile_prev * PATH_TRACE_TILE_SIZE;
+        bvec2 a = greaterThan(ipos_full_prev, vec2(push.consts.width-1, push.consts.height-1));
+        bvec2 b = lessThan(ipos_full_prev, vec2(0.0, 0.0));
+        reproj_on_screen = reproj_on_screen && (!any(bvec2(any(a), any(b))));
+    }
+
+    /* Load primary visibility data from G Buffers */
+    vec4 temp; int addr;
+    bool seed_reprojected = reproj_on_screen && all(equal(grad_pt_tile, tile)) && is_gradient_estimation_enabled();
+    ivec2 gbuf_pos = (seed_reprojected) ? ipos_tile_prev : tile;
+
+    // Seed G Buffer
+    addr = (seed_reprojected) ? DIFFUSE_SEED_ADDR_PREV : DIFFUSE_SEED_ADDR;
+    temp = imageLoad(gbuffers[addr], gbuf_pos);
+    ivec2 pixel_seed = ivec2(temp.xy);
+    int frame_seed = int(temp.z);
+    init_random(pixel_seed, frame_seed, 0);
+
+    // Barycentrics G Buffer
+    gbuf_pos = (seed_reprojected) ? ipos_tile_prev : ipos_full;
+    addr = (seed_reprojected) ? COARSE_ENTITY_TRI_BARYCENTRIC_ADDR_PREV : ENTITY_TRI_BARYCENTRIC_ADDR;
+    temp = imageLoad(gbuffers[addr], gbuf_pos);
+    int first_bary_entity_id = int(temp.b), first_tri_id = int(temp.a);
+    vec2 first_barycentrics = vec2(temp.rg);
+    bool mesh_valid = ((first_bary_entity_id >= 0) && (first_tri_id >= 0));
+
+    vec3 first_bary_normal;
+    vec2 first_bary_uv;
+    vec4 first_bary_position;
+    vec4 first_bary_base_color;
+    int first_bary_material_id, first_bary_transform_id, first_bary_light_id, first_bary_mesh_id;
+    if (seed_reprojected && mesh_valid) 
+    {
+        ivec3 first_indices;
+        TransformStruct first_transform_struct;
+        EntityStruct entity = ebo.entities[first_bary_entity_id];
+        first_bary_mesh_id = entity.mesh_id;
+        first_bary_material_id = entity.material_id;
+        first_bary_transform_id = entity.transform_id;
+        first_bary_light_id = entity.light_id;
+        first_transform_struct = tbo.transforms[entity.transform_id];   
+        first_indices = get_indices(first_bary_mesh_id, first_tri_id);
+        first_bary_position = get_position(first_bary_mesh_id, first_indices, first_barycentrics);
+        first_bary_uv = get_uv(first_bary_mesh_id, first_indices, first_barycentrics);
+        first_bary_normal = get_normal(first_bary_mesh_id, first_indices, first_barycentrics);
+        first_bary_position = first_transform_struct.localToWorld * vec4(first_bary_position.xyz, 1.0);
+        first_bary_normal = normalize(transpose(mat3(first_transform_struct.worldToLocal)) * first_bary_normal);
+        MaterialStruct mat = mbo.materials[first_bary_material_id];
+        first_bary_base_color = getAlbedo(mat, vec4(0.0), first_bary_uv, first_bary_position.xyz);
+        float mask = getAlphaMask(mat, first_bary_uv, first_bary_position.xyz);
+        first_bary_base_color.a = (mask < first_bary_base_color.a) ? mask : first_bary_base_color.a;
+    }
+    
+    // Position G Buffer   
+    if (seed_reprojected) temp = vec4(first_bary_position.xyz, 0);
+    else temp = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos_full);
+    vec3 first_position = temp.xyz;
+    vec3 first_position_ = temp.xyz;
+    float first_dist = 0;//temp.w;
+
+    // Normal G Buffer
+    if (seed_reprojected) temp = vec4(first_bary_normal.xyz, 0);
+    else temp = imageLoad(gbuffers[NORMAL_ADDR], ipos_full);
+    vec3 first_normal = normalize(temp.xyz);
+
+    // Component IDs
+    if (seed_reprojected) temp = vec4(first_bary_entity_id, first_bary_material_id, first_bary_transform_id, first_bary_light_id);
+    else temp = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos_full);
+    int first_entity_id = int(temp.r);
+    int first_material_id = int(temp.g);
+    int first_transform_id = int(temp.b);
+    int first_light_id = int(temp.a);
+
+    // UV G Buffer
+    if (seed_reprojected) temp = vec4(first_bary_uv.xy, 0, 0);
+    else temp = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos_full);
+    vec2 first_uv = temp.xy;
+
+    // Raw albedo
+    if (seed_reprojected) temp = vec4(first_bary_base_color.rgb, 1.0);
+    else temp = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ipos_full);
+    vec4 first_albedo = temp;
+
+    /* Next, Compute ray origin and direction */
+    int max_path_depth = int(push.consts.parameter1);
+    EntityStruct camera_entity = ebo.entities[push.consts.camera_id];
+    CameraStruct camera = cbo.cameras[camera_entity.camera_id];
+    TransformStruct camera_transform = tbo.transforms[camera_entity.transform_id];
+    int multiview_idx = 0; //push.consts.viewIndex;
+    mat4 projinv = camera.multiviews[multiview_idx].projinv;
+    mat4 viewinv = camera_transform.localToWorld * camera.multiviews[multiview_idx].viewinv;
+    vec2 pixel_center = vec2(ipos_full.xy) + vec2(random(), random()) * .5;
+	const vec2 in_uv = pixel_center/vec2(push.consts.width, push.consts.height);
+	vec2 d = in_uv * 2.0 - 1.0; d.y *= -1.0;
+    vec4 t = (projinv * vec4(d.x, d.y, 1, 1));
+    vec3 target = t.xyz / t.w;
+    vec3 origin = (viewinv * vec4(0,0,0,1)).xyz;
+    vec3 direction = (viewinv * vec4(target, 0)).xyz ;
+    direction = normalize(direction);
+    vec3 first_direction = direction;
+
+    // Make normal forward facing
+    if (dot(direction, first_normal) > 0) first_normal *= -1;
+
+    // bad precision in position g buffer... getting lots of self intersections...
+    first_position += first_normal * .01; 
+    
+    /* We'll be computing direct and indirect path traced illumination for glossy and diffuse */
+    vec3 diffuse_radiance = vec3(0.0);
+    vec3 direct_diffuse_radiance = vec3(0.0);
+    vec3 path_throughput = vec3(1.0);
+    int bounce = 0;
+    int transparency_continues = 0;
+    do {
+        /* Mask out any lights which are primarily visible */
+        if (first_light_id != -1) break;
+        
+        /* Unpack Data */
+        vec3 w_o = -direction;
+        vec3 w_p = (bounce == 0) ? first_position : payload.w_p;
+        vec2 uv = (bounce == 0) ? first_uv : payload.uv;
+        vec3 w_x, w_y, w_z;
+        w_z = (bounce == 0) ? first_normal : payload.w_n;
+        bool backface = dot(w_z, w_o) < 0.0;
+        float dist = (bounce == 0) ? first_dist : payload.distance;
+        directionOfAnisotropicity(w_z, w_x, w_y);
+        
+        // Load required scene components
+        EntityStruct entity; MaterialStruct mat; LightStruct light;
+        int entity_id = (bounce == 0) ? first_entity_id : payload.entity_id;
+        if ((entity_id >= 0) && (entity_id < max_entities)) entity = ebo.entities[entity_id];
+        int material_id = (bounce == 0) ? first_material_id : entity.material_id;
+        if ((material_id >= 0) && (material_id < max_materials)) mat = mbo.materials[material_id];
+        int light_id = (bounce == 0) ? first_light_id : entity.light_id;
+        if (bounce == 0) {
+            mat.base_color = first_albedo;
+        } else if (entity.initialized == 1) {
+            mat.base_color = getAlbedo(mat, vec4(0.0), uv, w_p);
+            float mask = getAlphaMask(mat, uv, w_p);
+            mat.base_color.a = (mask < mat.base_color.a) ? mask : mat.base_color.a;
+        }   
+    
+        /* If we hit the sky or a light, stop */
+        if (entity_id == -1) { 
+            /* Include lighting from sky as indirect lighting.  */
+            if (bounce > 0) {
+                vec3 irradiance = get_environment_color(direction) * push.consts.environment_intensity;
+                diffuse_radiance += path_throughput * (irradiance);
+            }
+            break;
+        }
+
+        /* If the object we hit is completely transparent, go through it  */
+        if ((mat.base_color.a < EPSILON) && (transparency_continues < MAX_TRANSPARENCY_CONTINUES)) {
+            transparency_continues++;
+            origin = payload.w_p + EPSILON * direction;
+            continue;
+        }
+
+        /* Do next event estimation */
+        float visibility = 1.0, l_dist;
+        vec3 w_l, curr_diffuse_radiance, curr_specular_radiance;
+        Irradiance irradiance;
+        if (is_ltc_enabled()) {
+            irradiance = sample_direct_light_analytic(mat, backface, /* allow shadows */ true, 
+            /*force_diffuse*/true, /*force_specular*/false, /*force_perfect_reflection*/false, 
+            w_p, w_z, w_x, w_y, w_o);
+        } else {
+            int light_entity_id = -1;
+            float diffuse_visibility, specular_visibility, dist;
+            vec3 w_l;
+            irradiance = sample_direct_light_stochastic(mat, backface, 
+            /*force_diffuse*/true, /*force_specular*/false, /*force_perfect_reflection*/false, 
+            w_p, w_z, w_x, w_y, w_o,
+            light_entity_id, diffuse_visibility, specular_visibility, w_l, dist);
+            irradiance.diffuse *= diffuse_visibility;
+            irradiance.specular *= specular_visibility;
+        }
+
+        // If at bounce 0, we don't include diffuse color with diffuse. 
+        // That will be multiplied later during compositing and after denoising
+
+        // Ignoring specular radiance here, since it causes caustics which cannot be easily denoised
+        // Ideally, we'll compute caustics some other way
+        if (bounce == 0) {
+            vec3 specular = mix(vec3(1.0), mat.base_color.rgb, mat.metallic);
+            curr_diffuse_radiance = irradiance.diffuse;
+            // Need to ignore specular for first hit. Leaves gloss
+            curr_specular_radiance = vec3(0.0);//irradiance.specular * specular;            
+            diffuse_radiance += path_throughput * (curr_diffuse_radiance + curr_specular_radiance);
+            direct_diffuse_radiance = diffuse_radiance;
+        } else {
+            vec3 diffuse = mat.base_color.rgb * (1.f - mat.metallic) * (1.f - mat.transmission);
+            vec3 specular = mix(vec3(1.0), mat.base_color.rgb, mat.metallic);
+            curr_diffuse_radiance = irradiance.diffuse * diffuse;
+            curr_specular_radiance = vec3(0.0);//irradiance.specular * specular;
+            diffuse_radiance += path_throughput * (curr_diffuse_radiance + curr_specular_radiance);
+        }
+        
+        /* Increase bounce count*/
+        bounce++;
+        if (bounce > max_path_depth) break;
+        
+        /* Setup next ray */
+        vec3 w_i; float pdf, dpdf, spdf;
+        vec3 bsdf, dbsdf, sbsdf;
+        sample_disney_bsdf(mat, backface,
+            w_z, w_o, w_x, w_y, 
+            /*force_diffuse*/true, /*force_specular*/false, /*force_perfect_reflection*/false, 
+            w_i, pdf, dpdf, spdf, bsdf, dbsdf, sbsdf);
+
+        if (pdf < EPSILON || (all(lessThan(bsdf, vec3(EPSILON))))) break;
+
+        /* For denoising purposes, we ignore path throughput for the first hit. */
+        if (bounce > 1) path_throughput *= bsdf / pdf;
+
+        /* Trace a ray through the scene */
+        origin = offset_ray(w_p, w_z); direction = w_i;
+        payload.is_shadow_ray = false;
+        traceNV(topLevelAS, gl_RayFlagsNoneNV, 0xff, 0, 0, 0, origin, TMIN, direction, TMAX, 0);
+    } while (bounce <= max_path_depth);
+
+    /* Write to G Buffers */
+    vec3 indirect_diffuse_radiance = diffuse_radiance - direct_diffuse_radiance;
+    
+    
+    // direct_diffuse_radiance = vec3(pixel_seed, frame_seed);
+    // indirect_diffuse_radiance = vec3(pixel_seed, frame_seed);
+
+    // direct_diffuse_radiance = first_normal;
+    // indirect_diffuse_radiance = first_normal;
+
+    // Direct Diffuse
+    imageStore(gbuffers[DIFFUSE_DIRECT_ADDR], tile, vec4(direct_diffuse_radiance, 1.0));
+
+    // Indirect Diffuse
+    imageStore(gbuffers[DIFFUSE_INDIRECT_ADDR], tile, vec4(indirect_diffuse_radiance, 1.0));
+
+    // Luminance
+    imageStore(gbuffers[LUMINANCE_ADDR], tile, vec4(luminance(direct_diffuse_radiance), 
+                                                    luminance(indirect_diffuse_radiance), 
+                                                    0.0,
+                                                    0.0));
+    // imageStore(gbuffers[LUMINANCE_ADDR], tile, vec4(luminance(first_normal), 
+    //                                                 luminance(first_normal), 
+    //                                                 0.0,
+    //                                                 0.0));
+
+    // Coarse data for upsampling
+    imageStore(gbuffers[COARSE_NORMAL_ADDR], tile, vec4(first_normal, 1.0));
+    imageStore(gbuffers[COARSE_POSITION_DEPTH_ADDR], tile, vec4(first_position_, first_dist));
+    imageStore(gbuffers[COARSE_ENTITY_TRI_BARYCENTRIC_ADDR], tile, vec4(first_barycentrics, first_bary_entity_id, first_tri_id));
+    imageStore(gbuffers[DIFFUSE_SEED_ADDR], tile, vec4(pixel_seed, frame_seed, seed_reprojected));
+}

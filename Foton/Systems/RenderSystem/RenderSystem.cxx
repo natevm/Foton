@@ -88,12 +88,6 @@ bool RenderSystem::initialize()
     push_constants.environment_intensity = 1.0f;
     push_constants.target_id = -1;
     push_constants.camera_id = -1;
-    push_constants.brdf_lut_id = -1;
-    push_constants.ltc_mat_lut_id = -1;
-    push_constants.ltc_amp_lut_id = -1;
-    push_constants.environment_id = -1;
-    push_constants.diffuse_environment_id = -1;
-    push_constants.specular_environment_id = -1;
     push_constants.viewIndex = -1;
 
     push_constants.flags = 0;
@@ -120,38 +114,51 @@ bool RenderSystem::initialize()
 
 bool RenderSystem::update_push_constants()
 {
-    /* Find lookup tables */
-    Texture* brdf = nullptr;
-    Texture* ltc_mat = nullptr;
-    Texture* ltc_amp = nullptr;
+    // /* Find lookup tables */
+    // Texture* brdf = nullptr;
+    // Texture* ltc_mat = nullptr;
+    // Texture* ltc_amp = nullptr;
 
-    Texture* sobel = nullptr;
-    Texture* ranking = nullptr;
-    Texture* scramble = nullptr;
+	// // todo: remove
+    // Texture* sobel = nullptr;
+    // Texture* ranking = nullptr;
+    // Texture* scramble = nullptr;
 
-    try {
-        brdf = Texture::Get("BRDF");
-        ltc_mat = Texture::Get("LTCMAT");
-        ltc_amp = Texture::Get("LTCAMP");
-        ranking = Texture::Get("RANKINGTILE");
-        scramble = Texture::Get("SCRAMBLETILE");
-        sobel = Texture::Get("SOBELTILE");
-    } catch (...) {}
-    if ((!brdf) || (!ltc_mat) || (!ltc_amp) || (!sobel) || (!ranking) || (!scramble)) return false;
+    // Texture* ddgi_irradiance = nullptr;
+    // Texture* ddgi_visibility = nullptr;
+
+    // try {
+    //     brdf = Texture::Get("BRDF");
+    //     ltc_mat = Texture::Get("LTCMAT");
+    //     ltc_amp = Texture::Get("LTCAMP");
+    //     ranking = Texture::Get("RANKINGTILE");
+    //     scramble = Texture::Get("SCRAMBLETILE");
+    //     sobel = Texture::Get("SOBELTILE");
+
+	// 	ddgi_irradiance = Texture::Get("DDGI_IRRADIANCE");
+	// 	ddgi_visibility = Texture::Get("DDGI_VISIBILITY");
+    // } catch (...) {}
+    // if ((!brdf) || (!ltc_mat) || (!ltc_amp) || (!sobel) || (!ranking) || (!scramble)) return false;
 
     /* Update some push constants */
-    auto brdf_id = brdf->get_id();
-    auto ltc_mat_id = ltc_mat->get_id();
-    auto ltc_amp_id = ltc_amp->get_id();
-    push_constants.brdf_lut_id = brdf_id;
-    push_constants.ltc_mat_lut_id = ltc_mat_id;
-    push_constants.ltc_amp_lut_id = ltc_amp_id;
+    // auto brdf_id = brdf->get_id();
+    // auto ltc_mat_id = ltc_mat->get_id();
+    // auto ltc_amp_id = ltc_amp->get_id();
+    // push_constants.brdf_lut_id = brdf_id;
+    // push_constants.ltc_mat_lut_id = ltc_mat_id;
+    // push_constants.ltc_amp_lut_id = ltc_amp_id;
     // push_constants.sobel_tile_id = sobel->get_id();
     // push_constants.ranking_tile_id = ranking->get_id();
     // push_constants.scramble_tile_id = scramble->get_id();
     push_constants.time = (float) glfwGetTime();
 	push_constants.num_lights = Light::GetNumActiveLights();
     push_constants.frame++;
+
+	if (environment_id == -1) {
+		push_constants.flags |= (1 << RenderSystemOptions::USE_PROCEDURAL_ENVIRONMENT);
+	} else {
+		push_constants.flags &= ~(1 << RenderSystemOptions::USE_PROCEDURAL_ENVIRONMENT);
+	}
 
 	// if ((!progressive_refinement_enabled) && (push_constants.frame > 1024))
 		// push_constants.frame = 0;
@@ -642,7 +649,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 					push_constants.camera_id = camera_entity.get_id();
 					push_constants.viewIndex = rp_idx;
 					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
-					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+					bind_camera_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 					
 					command_buffer.pushConstants(asvgf_compute_gradient.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
 					command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, asvgf_compute_gradient.pipeline);
@@ -666,7 +673,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 			// 		push_constants.camera_id = camera_entity.get_id();
 			// 		push_constants.viewIndex = rp_idx;
 			// 		push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
-			// 		bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+			// 		bind_camera_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 
 			// 		uint32_t local_size_x = 16;
 			// 		uint32_t local_size_y = 16;
@@ -706,7 +713,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 					push_constants.camera_id = camera_entity.get_id();
 					push_constants.viewIndex = rp_idx;
 					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
-					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+					bind_camera_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 
 					uint32_t local_size_x = 16;
 					uint32_t local_size_y = 16;
@@ -734,7 +741,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 					push_constants.camera_id = camera_entity.get_id();
 					push_constants.viewIndex = rp_idx;
 					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
-					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+					bind_camera_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 					
 					uint32_t local_size_x = 16;
 					uint32_t local_size_y = 16;
@@ -761,7 +768,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
 					push_constants.parameter1 = this->asvgf_specular_gradient_influence;
 					push_constants.parameter2 = this->force_nearest_temporal_sampling_on;
-					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+					bind_camera_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 					
 					uint32_t local_size_x = 16;
 					uint32_t local_size_y = 16;
@@ -788,7 +795,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 					push_constants.camera_id = camera_entity.get_id();
 					push_constants.viewIndex = rp_idx;
 					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
-					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+					bind_camera_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 					
 					uint32_t local_size_x = 16;
 					uint32_t local_size_y = 16;
@@ -818,7 +825,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 					push_constants.camera_id = camera_entity.get_id();
 					push_constants.viewIndex = rp_idx;
 					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
-					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+					bind_camera_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 
 					uint32_t local_size_x = 16;
 					uint32_t local_size_y = 16;
@@ -859,7 +866,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 					push_constants.camera_id = camera_entity.get_id();
 					push_constants.viewIndex = rp_idx;
 					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
-					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+					bind_camera_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 
 					uint32_t local_size_x = 16;
 					uint32_t local_size_y = 16;
@@ -885,7 +892,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 					push_constants.camera_id = camera_entity.get_id();
 					push_constants.viewIndex = rp_idx;
 					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
-					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+					bind_camera_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 
 					uint32_t local_size_x = 16;
 					uint32_t local_size_y = 16;
@@ -914,7 +921,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 					push_constants.camera_id = camera_entity.get_id();
 					push_constants.viewIndex = rp_idx;
 					push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
-					bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+					bind_camera_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 
 					uint32_t local_size_x = 16;
 					uint32_t local_size_y = 16;
@@ -992,7 +999,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 				push_constants.camera_id = camera_entity.get_id();
 				push_constants.viewIndex = rp_idx;
 				push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
-				bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+				bind_camera_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 
 
 				command_buffer.pushConstants(svgf_remodulate.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
@@ -1017,7 +1024,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 				push_constants.camera_id = camera_entity.get_id();
 				push_constants.viewIndex = rp_idx;
 				push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
-				bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+				bind_camera_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 
 				command_buffer.pushConstants(deferred_final.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
 				command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, deferred_final.pipeline);
@@ -1041,7 +1048,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 				(push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)): 
 				(push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
 			push_constants.parameter1 = (float)gbuffer_override_idx;
-			bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+			bind_camera_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 
 
 			command_buffer.pushConstants(compositing.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
@@ -1065,7 +1072,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 				(push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)): 
 				(push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
 			push_constants.parameter1 = (float)gbuffer_override_idx;
-			bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+			bind_camera_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 
 
 			command_buffer.pushConstants(copy_history.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
@@ -1088,7 +1095,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 				push_constants.camera_id = camera_entity.get_id();
 				push_constants.viewIndex = rp_idx;
 				push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
-				bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+				bind_camera_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 
 				if (progressive_refinement_enabled) {
 					command_buffer.pushConstants(progressive_refinement.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
@@ -1120,7 +1127,7 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 				push_constants.flags = (!camera->should_use_multiview()) ? 
 					(push_constants.flags | RenderSystemOptions::RASTERIZE_MULTIVIEW): 
 					(push_constants.flags & ~RenderSystemOptions::RASTERIZE_MULTIVIEW); 
-				bind_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
+				bind_camera_compute_descriptor_sets(command_buffer, camera_entity, rp_idx);
 
 				uint32_t local_size_x = 16;
 				uint32_t local_size_y = 16;
@@ -1192,7 +1199,7 @@ void RenderSystem::record_cameras()
     auto device = vulkan->get_device();
 
 	/* Update global descriptor sets */
-	update_raster_descriptor_sets();
+	update_global_descriptor_sets();
 	if (vulkan->is_ray_tracing_enabled())
 		update_raytracing_descriptor_sets(topAS);
 
@@ -1304,6 +1311,47 @@ void RenderSystem::record_cameras()
 	ms_per_record_raytrace_pass = ms_per_raytrace;
 	ms_per_record_raster_pass = ms_per_raster;
 	ms_per_record_compute_pass = ms_per_compute;
+}
+
+void RenderSystem::record_compute(bool submit_immediately)
+{
+	auto vulkan = Libraries::Vulkan::Get();
+	if (!vulkan->is_initialized()) throw std::runtime_error("Error: vulkan is not initialized");
+
+	auto dldi = vulkan->get_dldi();
+	auto device = vulkan->get_device();
+	if (!device) 
+		throw std::runtime_error("Error: vulkan device not initialized");
+
+	Texture* ddgiIrradiance = nullptr;
+	Texture* ddgiVisibility = nullptr;
+	try {
+		ddgiIrradiance = Texture::Get("DDGI_IRRADIANCE");
+        ddgiVisibility = Texture::Get("DDGI_VISIBILITY");
+	} catch (...) {}
+
+	if (ddgiIrradiance == nullptr) return;
+	if (ddgiVisibility == nullptr) return;
+	
+	update_global_descriptor_sets();
+
+	vk::CommandBufferBeginInfo beginInfo;
+	beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+	compute_command_buffer.begin(beginInfo);
+
+	bool descriptors_bound = bind_compute_descriptor_sets(compute_command_buffer);
+	if (descriptors_bound) {
+		
+
+	}
+
+	if (submit_immediately)
+		vulkan->end_one_time_graphics_command_immediately(compute_command_buffer, "general compute commands", false);
+	else
+	{
+		compute_command_buffer.end();
+		compute_command_buffer_recorded = true;
+	}
 }
 
 void RenderSystem::record_build_top_level_bvh(bool submit_immediately)
@@ -1528,6 +1576,8 @@ void RenderSystem::record_render_commands()
 		record_build_top_level_bvh();
 	}
 
+	record_compute();
+
     if (Material::IsInitialized()) {
 		bool result = false;
 		{
@@ -1649,6 +1699,20 @@ void RenderSystem::enqueue_render_commands() {
 		last_level = current_level;
         current_level = std::vector<std::shared_ptr<ComputeNode>>();
 		level_idx++;
+    }
+
+	/* Next, record global compute commands (if any) */
+	if (compute_command_buffer_recorded) {
+        auto node = std::make_shared<ComputeNode>();
+        node->level = level_idx;
+        node->queue_idx = 0;
+        node->command_buffer = compute_command_buffer;
+		current_level.push_back(node);
+		compute_graph.push_back(current_level);
+		last_level = current_level;
+        current_level = std::vector<std::shared_ptr<ComputeNode>>();
+		level_idx++;
+		compute_command_buffer_recorded = false;
     }
 
 	/* Now, enqueue camera passes */
@@ -1887,7 +1951,10 @@ void RenderSystem::release_vulkan_resources()
     if (!vulkan_resources_created) return;
 
     /* Release vulkan resources */
-    device.freeCommandBuffers(vulkan->get_graphics_command_pool(), {blit_command_buffer});
+    device.freeCommandBuffers(vulkan->get_graphics_command_pool(), {compute_command_buffer});
+    compute_command_buffer = vk::CommandBuffer();
+	
+	device.freeCommandBuffers(vulkan->get_graphics_command_pool(), {blit_command_buffer});
     blit_command_buffer = vk::CommandBuffer();
 
 	device.freeCommandBuffers(vulkan->get_graphics_command_pool(), {bvh_command_buffer});
@@ -1977,7 +2044,7 @@ void RenderSystem::allocate_vulkan_resources()
 	create_descriptor_pools();
 	create_vertex_input_binding_descriptions();
 	create_vertex_attribute_descriptions();
-	update_raster_descriptor_sets();
+	update_global_descriptor_sets();
 
     setup_compute_pipelines();
 	if (vulkan->is_ray_tracing_enabled()) {
@@ -1993,6 +2060,7 @@ void RenderSystem::allocate_vulkan_resources()
     vk::SemaphoreCreateInfo semaphoreInfo;
     vk::FenceCreateInfo fenceInfo;
     
+    compute_command_buffer = device.allocateCommandBuffers(mainCmdAllocInfo)[0];
     bvh_command_buffer = device.allocateCommandBuffers(mainCmdAllocInfo)[0];
     blit_command_buffer = device.allocateCommandBuffers(mainCmdAllocInfo)[0];
 
@@ -2635,7 +2703,7 @@ void RenderSystem::setup_raytracing_pipelines()
 	auto rayTracingProps = vulkan->get_physical_device_ray_tracing_properties();
 
 	/* RAY TRACING PIPELINES */
-		{
+	{
 		raytrace_primary_visibility = RaytracingPipelineResources();
 
 		/* RAY GEN SHADERS */
@@ -2752,6 +2820,125 @@ void RenderSystem::setup_raytracing_pipelines()
 		device.unmapMemory(raytrace_primary_visibility.shaderBindingTableMemory);
 
 		raytrace_primary_visibility.ready = true;
+	}
+
+	{
+		ddgi_path_tracer = RaytracingPipelineResources();
+
+		/* RAY GEN SHADERS */
+		std::string ResourcePath = Options::GetResourcePath();
+		auto raygenShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracePrograms/DDGIPathTracer/rgen.spv"));
+		auto raychitShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracePrograms/DDGIPathTracer/rchit.spv"));
+		auto raymissShaderCode = readFile(ResourcePath + std::string("/Shaders/RaytracePrograms/DDGIPathTracer/rmiss.spv"));
+		
+		/* Create shader modules */
+		auto raygenShaderModule = create_shader_module("ddgi_path_tracer_gen", raygenShaderCode);
+		auto raychitShaderModule = create_shader_module("ddgi_path_tracer_chit", raychitShaderCode);
+		auto raymissShaderModule = create_shader_module("ddgi_path_tracer_miss", raymissShaderCode);
+
+		/* Info for shader stages */
+		vk::PipelineShaderStageCreateInfo raygenShaderStageInfo;
+		raygenShaderStageInfo.stage = vk::ShaderStageFlagBits::eRaygenNV;
+		raygenShaderStageInfo.module = raygenShaderModule;
+		raygenShaderStageInfo.pName = "main"; 
+
+		vk::PipelineShaderStageCreateInfo raymissShaderStageInfo;
+		raymissShaderStageInfo.stage = vk::ShaderStageFlagBits::eMissNV;
+		raymissShaderStageInfo.module = raymissShaderModule;
+		raymissShaderStageInfo.pName = "main"; 
+
+		vk::PipelineShaderStageCreateInfo raychitShaderStageInfo;
+		raychitShaderStageInfo.stage = vk::ShaderStageFlagBits::eClosestHitNV;
+		raychitShaderStageInfo.module = raychitShaderModule;
+		raychitShaderStageInfo.pName = "main"; 
+
+		std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = { raygenShaderStageInfo, raymissShaderStageInfo, raychitShaderStageInfo};
+		
+		vk::PushConstantRange range;
+		range.offset = 0;
+		range.size = sizeof(PushConsts);
+		range.stageFlags = vk::ShaderStageFlagBits::eAll;
+
+		std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout, 
+			positionsDescriptorSetLayout, normalsDescriptorSetLayout, colorsDescriptorSetLayout, texcoordsDescriptorSetLayout, indexDescriptorSetLayout,
+			raytracingDescriptorSetLayout };
+		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+
+		pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)layouts.size();
+		pipelineLayoutCreateInfo.pSetLayouts = layouts.data();
+		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+		pipelineLayoutCreateInfo.pPushConstantRanges = &range;
+		
+		ddgi_path_tracer.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+
+		std::vector<vk::RayTracingShaderGroupCreateInfoNV> shaderGroups;
+		
+		// Ray gen group
+		vk::RayTracingShaderGroupCreateInfoNV rayGenGroupInfo;
+		rayGenGroupInfo.type = vk::RayTracingShaderGroupTypeNV::eGeneral;
+		rayGenGroupInfo.generalShader = 0;
+		rayGenGroupInfo.closestHitShader = VK_SHADER_UNUSED_NV;
+		rayGenGroupInfo.anyHitShader = VK_SHADER_UNUSED_NV;
+		rayGenGroupInfo.intersectionShader = VK_SHADER_UNUSED_NV;
+		shaderGroups.push_back(rayGenGroupInfo);
+		
+		// Miss group
+		vk::RayTracingShaderGroupCreateInfoNV rayMissGroupInfo;
+		rayMissGroupInfo.type = vk::RayTracingShaderGroupTypeNV::eGeneral;
+		rayMissGroupInfo.generalShader = 1;
+		rayMissGroupInfo.closestHitShader = VK_SHADER_UNUSED_NV;
+		rayMissGroupInfo.anyHitShader = VK_SHADER_UNUSED_NV;
+		rayMissGroupInfo.intersectionShader = VK_SHADER_UNUSED_NV;
+		shaderGroups.push_back(rayMissGroupInfo);
+		
+		// Intersection group
+		vk::RayTracingShaderGroupCreateInfoNV rayCHitGroupInfo; //VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_NV
+		rayCHitGroupInfo.type = vk::RayTracingShaderGroupTypeNV::eTrianglesHitGroup;
+		rayCHitGroupInfo.generalShader = VK_SHADER_UNUSED_NV;
+		rayCHitGroupInfo.closestHitShader = 2;
+		rayCHitGroupInfo.anyHitShader = VK_SHADER_UNUSED_NV;
+		rayCHitGroupInfo.intersectionShader = VK_SHADER_UNUSED_NV;
+		shaderGroups.push_back(rayCHitGroupInfo);
+
+		vk::RayTracingPipelineCreateInfoNV rayPipelineInfo;
+		rayPipelineInfo.stageCount = (uint32_t) shaderStages.size();
+		rayPipelineInfo.pStages = shaderStages.data();
+		rayPipelineInfo.groupCount = (uint32_t) shaderGroups.size();
+		rayPipelineInfo.pGroups = shaderGroups.data();
+		rayPipelineInfo.maxRecursionDepth = vulkan->get_physical_device_ray_tracing_properties().maxRecursionDepth;
+		rayPipelineInfo.layout = ddgi_path_tracer.pipelineLayout;
+		rayPipelineInfo.basePipelineHandle = vk::Pipeline();
+		rayPipelineInfo.basePipelineIndex = 0;
+
+		ddgi_path_tracer.pipeline = device.createRayTracingPipelinesNV(vk::PipelineCache(), 
+			{rayPipelineInfo}, nullptr, dldi)[0];
+
+		const uint32_t groupNum = 3; // 1 group is listed in pGroupNumbers in VkRayTracingPipelineCreateInfoNV
+		const uint32_t shaderBindingTableSize = rayTracingProps.shaderGroupHandleSize * groupNum;
+
+		/* Create binding table buffer */
+		vk::BufferCreateInfo bufferInfo;
+		bufferInfo.size = shaderBindingTableSize;
+		bufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+		bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+		ddgi_path_tracer.shaderBindingTable = device.createBuffer(bufferInfo);
+
+		/* Create memory for binding table */
+		vk::MemoryRequirements memRequirements = device.getBufferMemoryRequirements(ddgi_path_tracer.shaderBindingTable);
+		vk::MemoryAllocateInfo allocInfo;
+		allocInfo.allocationSize = memRequirements.size;
+		allocInfo.memoryTypeIndex = vulkan->find_memory_type(memRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible);
+		ddgi_path_tracer.shaderBindingTableMemory = device.allocateMemory(allocInfo);
+
+		/* Bind buffer to memeory */
+		device.bindBufferMemory(ddgi_path_tracer.shaderBindingTable, ddgi_path_tracer.shaderBindingTableMemory, 0);
+
+		/* Map the binding table, then fill with shader group handles */
+		void* mappedMemory = device.mapMemory(ddgi_path_tracer.shaderBindingTableMemory, 0, shaderBindingTableSize, vk::MemoryMapFlags());
+		device.getRayTracingShaderGroupHandlesNV(ddgi_path_tracer.pipeline, 0, groupNum, shaderBindingTableSize, mappedMemory, dldi);
+		device.unmapMemory(ddgi_path_tracer.shaderBindingTableMemory);
+
+		ddgi_path_tracer.ready = true;
 	}
 
 	{
@@ -3009,21 +3196,46 @@ void RenderSystem::setup_compute_pipelines()
 	compShaderStageInfo.stage = vk::ShaderStageFlagBits::eCompute;
 	compShaderStageInfo.pName = "main";
 
-    std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout };
-	vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
-	pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-	pipelineLayoutCreateInfo.pPushConstantRanges = &range;
-	pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)layouts.size();
-	pipelineLayoutCreateInfo.pSetLayouts = layouts.data();
+    std::vector<vk::DescriptorSetLayout> cameraComputeLayouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout };
+	vk::PipelineLayoutCreateInfo cameraComputeCreateInfo;
+	cameraComputeCreateInfo.pushConstantRangeCount = 1;
+	cameraComputeCreateInfo.pPushConstantRanges = &range;
+	cameraComputeCreateInfo.setLayoutCount = (uint32_t)cameraComputeLayouts.size();
+	cameraComputeCreateInfo.pSetLayouts = cameraComputeLayouts.data();
+
+    std::vector<vk::DescriptorSetLayout> globalComputeLayouts = { componentDescriptorSetLayout, textureDescriptorSetLayout };
+	vk::PipelineLayoutCreateInfo globalComputeCreateInfo;
+	globalComputeCreateInfo.pushConstantRangeCount = 1;
+	globalComputeCreateInfo.pPushConstantRanges = &range;
+	globalComputeCreateInfo.setLayoutCount = (uint32_t)globalComputeLayouts.size();
+	globalComputeCreateInfo.pSetLayouts = globalComputeLayouts.data();
 
     vk::ComputePipelineCreateInfo computeCreateInfo;
+
+	
+	// GLOBAL COMPUTE SHADERS
+
+	/* DDGI Blend */
+	{
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/DDGI_Blend/comp.spv"));
+		auto compShaderModule = create_shader_module("ddgi_blend", compShaderCode);
+		compShaderStageInfo.module = compShaderModule;
+        ddgi_blend.pipelineLayout = device.createPipelineLayout(globalComputeCreateInfo);
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = ddgi_blend.pipelineLayout;
+        ddgi_blend.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		ddgi_blend.ready = true;
+	}
+
+
+	// PER CAMERA FX COMPUTE SHADERS
     
 	/* ------ Deferred Final Pass  ------ */
     {
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/DeferredFinal/comp.spv"));
 		auto compShaderModule = create_shader_module("deferred_final", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        deferred_final.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        deferred_final.pipelineLayout = device.createPipelineLayout(cameraComputeCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = deferred_final.pipelineLayout;
         deferred_final.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
@@ -3035,7 +3247,7 @@ void RenderSystem::setup_compute_pipelines()
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/EdgeDetect/comp.spv"));
 		auto compShaderModule = create_shader_module("edge_detect", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        edgedetect.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        edgedetect.pipelineLayout = device.createPipelineLayout(cameraComputeCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = edgedetect.pipelineLayout;
         edgedetect.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
@@ -3047,7 +3259,7 @@ void RenderSystem::setup_compute_pipelines()
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ProgressiveRefinement/comp.spv"));
 		auto compShaderModule = create_shader_module("progressive_refinement", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        progressive_refinement.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        progressive_refinement.pipelineLayout = device.createPipelineLayout(cameraComputeCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = progressive_refinement.pipelineLayout;
         progressive_refinement.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
@@ -3059,7 +3271,7 @@ void RenderSystem::setup_compute_pipelines()
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/Compositing/comp.spv"));
 		auto compShaderModule = create_shader_module("compositing", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        compositing.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        compositing.pipelineLayout = device.createPipelineLayout(cameraComputeCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = compositing.pipelineLayout;
         compositing.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
@@ -3071,7 +3283,7 @@ void RenderSystem::setup_compute_pipelines()
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/CopyHistory/comp.spv"));
 		auto compShaderModule = create_shader_module("copy_history", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        copy_history.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        copy_history.pipelineLayout = device.createPipelineLayout(cameraComputeCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = copy_history.pipelineLayout;
         copy_history.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
@@ -3083,7 +3295,7 @@ void RenderSystem::setup_compute_pipelines()
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/VSM/GaussianBlurX/comp.spv"));
 		auto compShaderModule = create_shader_module("gaussian_x", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        gaussian_x.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        gaussian_x.pipelineLayout = device.createPipelineLayout(cameraComputeCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = gaussian_x.pipelineLayout;
         gaussian_x.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
@@ -3095,7 +3307,7 @@ void RenderSystem::setup_compute_pipelines()
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/VSM/GaussianBlurY/comp.spv"));
 		auto compShaderModule = create_shader_module("gaussian_y", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        gaussian_y.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        gaussian_y.pipelineLayout = device.createPipelineLayout(cameraComputeCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = gaussian_y.pipelineLayout;
         gaussian_y.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
@@ -3107,7 +3319,7 @@ void RenderSystem::setup_compute_pipelines()
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/Median3x3/comp.spv"));
 		auto compShaderModule = create_shader_module("median_3x3", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        median_3x3.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        median_3x3.pipelineLayout = device.createPipelineLayout(cameraComputeCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = median_3x3.pipelineLayout;
         median_3x3.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
@@ -3119,7 +3331,7 @@ void RenderSystem::setup_compute_pipelines()
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/Median5x5/comp.spv"));
 		auto compShaderModule = create_shader_module("median_5x5", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        median_5x5.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        median_5x5.pipelineLayout = device.createPipelineLayout(cameraComputeCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = median_5x5.pipelineLayout;
         median_5x5.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
@@ -3131,7 +3343,7 @@ void RenderSystem::setup_compute_pipelines()
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/BilateralUpsample/comp.spv"));
 		auto compShaderModule = create_shader_module("bilateral_upsample", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        bilateral_upsample.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        bilateral_upsample.pipelineLayout = device.createPipelineLayout(cameraComputeCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = bilateral_upsample.pipelineLayout;
         bilateral_upsample.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
@@ -3143,7 +3355,7 @@ void RenderSystem::setup_compute_pipelines()
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/TAA/comp.spv"));
 		auto compShaderModule = create_shader_module("taa", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        taa.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        taa.pipelineLayout = device.createPipelineLayout(cameraComputeCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = taa.pipelineLayout;
         taa.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
@@ -3155,7 +3367,7 @@ void RenderSystem::setup_compute_pipelines()
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_4_DiffuseTemporalAccumulation/comp.spv"));
 		auto compShaderModule = create_shader_module("asvgf_diffuse_temporal_accumulation", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        asvgf_diffuse_temporal_accumulation.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        asvgf_diffuse_temporal_accumulation.pipelineLayout = device.createPipelineLayout(cameraComputeCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = asvgf_diffuse_temporal_accumulation.pipelineLayout;
         asvgf_diffuse_temporal_accumulation.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
@@ -3167,7 +3379,7 @@ void RenderSystem::setup_compute_pipelines()
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_4_SpecularTemporalAccumulation/comp.spv"));
 		auto compShaderModule = create_shader_module("asvgf_specular_temporal_accumulation", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        asvgf_specular_temporal_accumulation.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        asvgf_specular_temporal_accumulation.pipelineLayout = device.createPipelineLayout(cameraComputeCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = asvgf_specular_temporal_accumulation.pipelineLayout;
         asvgf_specular_temporal_accumulation.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
@@ -3179,7 +3391,7 @@ void RenderSystem::setup_compute_pipelines()
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_6_ReconstructDiffuse/comp.spv"));
 		auto compShaderModule = create_shader_module("reconstruct_diffuse", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        reconstruct_diffuse.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        reconstruct_diffuse.pipelineLayout = device.createPipelineLayout(cameraComputeCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = reconstruct_diffuse.pipelineLayout;
         reconstruct_diffuse.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
@@ -3191,7 +3403,7 @@ void RenderSystem::setup_compute_pipelines()
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_6_ReconstructGlossy/comp.spv"));
 		auto compShaderModule = create_shader_module("reconstruct_glossy", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        reconstruct_glossy.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        reconstruct_glossy.pipelineLayout = device.createPipelineLayout(cameraComputeCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = reconstruct_glossy.pipelineLayout;
         reconstruct_glossy.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
@@ -3203,7 +3415,7 @@ void RenderSystem::setup_compute_pipelines()
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_7_Remodulate/comp.spv"));
 		auto compShaderModule = create_shader_module("svgf_remodulate", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        svgf_remodulate.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        svgf_remodulate.pipelineLayout = device.createPipelineLayout(cameraComputeCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = svgf_remodulate.pipelineLayout;
         svgf_remodulate.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
@@ -3215,7 +3427,7 @@ void RenderSystem::setup_compute_pipelines()
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_2_ComputeGradientAndMoments/comp.spv"));
 		auto compShaderModule = create_shader_module("asvgf_compute_gradient", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        asvgf_compute_gradient.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        asvgf_compute_gradient.pipelineLayout = device.createPipelineLayout(cameraComputeCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = asvgf_compute_gradient.pipelineLayout;
         asvgf_compute_gradient.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
@@ -3227,7 +3439,7 @@ void RenderSystem::setup_compute_pipelines()
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_3_ReconstructGradientAndMoments/comp.spv"));
 		auto compShaderModule = create_shader_module("asvgf_reconstruct_gradient", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        asvgf_reconstruct_gradient.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        asvgf_reconstruct_gradient.pipelineLayout = device.createPipelineLayout(cameraComputeCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = asvgf_reconstruct_gradient.pipelineLayout;
         asvgf_reconstruct_gradient.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
@@ -3239,7 +3451,7 @@ void RenderSystem::setup_compute_pipelines()
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_5_FillDiffuseHoles/comp.spv"));
 		auto compShaderModule = create_shader_module("asvgf_fill_diffuse_holes", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        asvgf_fill_diffuse_holes.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        asvgf_fill_diffuse_holes.pipelineLayout = device.createPipelineLayout(cameraComputeCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = asvgf_fill_diffuse_holes.pipelineLayout;
         asvgf_fill_diffuse_holes.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
@@ -3251,7 +3463,7 @@ void RenderSystem::setup_compute_pipelines()
 		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/ASVGF_5_FillSpecularHoles/comp.spv"));
 		auto compShaderModule = create_shader_module("asvgf_fill_specular_holes", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        asvgf_fill_specular_holes.pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+        asvgf_fill_specular_holes.pipelineLayout = device.createPipelineLayout(cameraComputeCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
         computeCreateInfo.layout = asvgf_fill_specular_holes.pipelineLayout;
         asvgf_fill_specular_holes.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
@@ -3392,9 +3604,83 @@ void RenderSystem::create_descriptor_set_layouts()
 		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 	blueNoiseBinding.pImmutableSamplers = 0;
 
-	std::array<vk::DescriptorSetLayoutBinding, 6> textureBindings = {
+	// BRDF LUT
+	vk::DescriptorSetLayoutBinding brdfLUTBinding;
+	brdfLUTBinding.descriptorCount = 1;
+	brdfLUTBinding.binding = 6;
+	brdfLUTBinding.descriptorType = vk::DescriptorType::eSampledImage;
+	brdfLUTBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
+	brdfLUTBinding.pImmutableSamplers = 0;
+
+	// LTC MAT
+	vk::DescriptorSetLayoutBinding ltcMatBinding;
+	ltcMatBinding.descriptorCount = 1;
+	ltcMatBinding.binding = 7;
+	ltcMatBinding.descriptorType = vk::DescriptorType::eSampledImage;
+	ltcMatBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
+	ltcMatBinding.pImmutableSamplers = 0;
+
+	// LTC AMP
+	vk::DescriptorSetLayoutBinding ltcAmpBinding;
+	ltcAmpBinding.descriptorCount = 1;
+	ltcAmpBinding.binding = 8;
+	ltcAmpBinding.descriptorType = vk::DescriptorType::eSampledImage;
+	ltcAmpBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
+	ltcAmpBinding.pImmutableSamplers = 0;
+
+	// Environment
+	vk::DescriptorSetLayoutBinding environmentBinding;
+	environmentBinding.descriptorCount = 1;
+	environmentBinding.binding = 9;
+	environmentBinding.descriptorType = vk::DescriptorType::eSampledImage;
+	environmentBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
+	environmentBinding.pImmutableSamplers = 0;
+
+	// Specular Environment
+	vk::DescriptorSetLayoutBinding specularEnvironmentBinding;
+	specularEnvironmentBinding.descriptorCount = 1;
+	specularEnvironmentBinding.binding = 10;
+	specularEnvironmentBinding.descriptorType = vk::DescriptorType::eSampledImage;
+	specularEnvironmentBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
+	specularEnvironmentBinding.pImmutableSamplers = 0;
+
+	// Diffuse Environment
+	vk::DescriptorSetLayoutBinding diffuseEnvironmentBinding;
+	diffuseEnvironmentBinding.descriptorCount = 1;
+	diffuseEnvironmentBinding.binding = 11;
+	diffuseEnvironmentBinding.descriptorType = vk::DescriptorType::eSampledImage;
+	diffuseEnvironmentBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
+	diffuseEnvironmentBinding.pImmutableSamplers = 0;
+
+	// DDGI Irradiance Tile
+	vk::DescriptorSetLayoutBinding ddgiIrradianceBinding;
+	ddgiIrradianceBinding.descriptorCount = 1;
+	ddgiIrradianceBinding.binding = 12;
+	ddgiIrradianceBinding.descriptorType = vk::DescriptorType::eStorageImage;
+	ddgiIrradianceBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
+	ddgiIrradianceBinding.pImmutableSamplers = 0;
+
+	// DDGI Visibility Tile
+	vk::DescriptorSetLayoutBinding ddgiVisibilityBinding;
+	ddgiVisibilityBinding.descriptorCount = 1;
+	ddgiVisibilityBinding.binding = 13;
+	ddgiVisibilityBinding.descriptorType = vk::DescriptorType::eStorageImage;
+	ddgiVisibilityBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
+	ddgiVisibilityBinding.pImmutableSamplers = 0;
+
+	std::array<vk::DescriptorSetLayoutBinding, 14> textureBindings = {
 		txboLayoutBinding, samplerBinding, texture2DsBinding, textureCubesBinding, 
-		texture3DsBinding, blueNoiseBinding 
+		texture3DsBinding, blueNoiseBinding, brdfLUTBinding, ltcMatBinding, ltcAmpBinding, 
+		environmentBinding, specularEnvironmentBinding, diffuseEnvironmentBinding,
+		ddgiIrradianceBinding, ddgiVisibilityBinding
 	};
 	vk::DescriptorSetLayoutCreateInfo textureLayoutInfo;
 	textureLayoutInfo.bindingCount = (uint32_t)textureBindings.size();
@@ -3699,7 +3985,7 @@ void RenderSystem::create_descriptor_pools()
 	}
 }
 
-void RenderSystem::update_raster_descriptor_sets()
+void RenderSystem::update_global_descriptor_sets()
 {
 	if (  (componentDescriptorPool == vk::DescriptorPool()) || (textureDescriptorPool == vk::DescriptorPool())) return;
 	auto vulkan = Libraries::Vulkan::Get();
@@ -3824,7 +4110,7 @@ void RenderSystem::update_raster_descriptor_sets()
 	
 	/* ------ Texture Descriptor Set  ------ */
 	vk::DescriptorSetLayout textureLayouts[] = { textureDescriptorSetLayout };
-	std::array<vk::WriteDescriptorSet, 6> textureDescriptorWrites = {};
+	std::array<vk::WriteDescriptorSet, 14> textureDescriptorWrites = {};
 	
 	if (textureDescriptorSet == vk::DescriptorSet())
 	{
@@ -3843,21 +4129,40 @@ void RenderSystem::update_raster_descriptor_sets()
 	auto texture3DLayouts = Texture::GetLayouts(vk::ImageViewType::e3D);
 	auto texture3DViews = Texture::GetImageViews(vk::ImageViewType::e3D);
 	auto samplers = Texture::GetSamplers();
+	
 	Texture* blueNoiseTile = nullptr;
+	Texture* brdfLUT = nullptr;
+	Texture* ltcMat = nullptr;
+	Texture* ltcAmp = nullptr;
+	Texture* environment = nullptr;
+	Texture* specularEnvironment = nullptr;
+	Texture* diffuseEnvironment = nullptr;
+	Texture* ddgiIrradiance = nullptr;
+	Texture* ddgiVisibility = nullptr;
 	try {
-        // brdf = Texture::Get("BRDF");
-        // ltc_mat = Texture::Get("LTCMAT");
-        // ltc_amp = Texture::Get("LTCAMP");
-        // ranking = Texture::Get("RANKINGTILE");
-        // scramble = Texture::Get("SCRAMBLETILE");
-        // sobel = Texture::Get("SOBELTILE");
 		blueNoiseTile = Texture::Get("BLUENOISETILE");
+        brdfLUT = Texture::Get("BRDF");
+        ltcMat = Texture::Get("LTCMAT");
+        ltcAmp = Texture::Get("LTCAMP");
+        environment = (environment_id != -1) ? Texture::Get(environment_id) : Texture::Get("DefaultTexCube");
+        specularEnvironment = (specular_environment_id != -1) ? Texture::Get(specular_environment_id) : Texture::Get("DefaultTexCube");
+        diffuseEnvironment = (diffuse_environment_id != -1) ? Texture::Get(diffuse_environment_id) : Texture::Get("DefaultTexCube");
+		ddgiIrradiance = Texture::Get("DDGI_IRRADIANCE");
+        ddgiVisibility = Texture::Get("DDGI_VISIBILITY");
     } catch (...) {}
 
 	if (texture3DLayouts.size() <= 0) return;
 	if (texture2DLayouts.size() <= 0) return;
 	if (textureCubeLayouts.size() <= 0) return;
 	if (blueNoiseTile == nullptr) return;
+	if (brdfLUT == nullptr) return;
+	if (ltcMat == nullptr) return;
+	if (ltcAmp == nullptr) return;
+	if (environment == nullptr) return;
+	if (specularEnvironment == nullptr) return;
+	if (diffuseEnvironment == nullptr) return;
+	if (ddgiIrradiance == nullptr) return;
+	if (ddgiVisibility == nullptr) return;
 	
 
 	// Texture SSBO
@@ -3949,7 +4254,111 @@ void RenderSystem::update_raster_descriptor_sets()
 	textureDescriptorWrites[5].descriptorType = vk::DescriptorType::eSampledImage;
 	textureDescriptorWrites[5].descriptorCount = 1;
 	textureDescriptorWrites[5].pImageInfo = &blueNoiseTileDescriptorInfo;
+
+	// BRDF LUT
+	vk::DescriptorImageInfo brdfLUTDescriptorInfo;
+	brdfLUTDescriptorInfo.sampler = nullptr;
+	brdfLUTDescriptorInfo.imageLayout = brdfLUT->get_color_image_layout();
+	brdfLUTDescriptorInfo.imageView = brdfLUT->get_color_image_view();
 	
+	textureDescriptorWrites[6].dstSet = textureDescriptorSet;
+	textureDescriptorWrites[6].dstBinding = 6;
+	textureDescriptorWrites[6].dstArrayElement = 0;
+	textureDescriptorWrites[6].descriptorType = vk::DescriptorType::eSampledImage;
+	textureDescriptorWrites[6].descriptorCount = 1;
+	textureDescriptorWrites[6].pImageInfo = &brdfLUTDescriptorInfo;
+
+	// LTC Mat
+	vk::DescriptorImageInfo ltcMatDescriptorInfo;
+	ltcMatDescriptorInfo.sampler = nullptr;
+	ltcMatDescriptorInfo.imageLayout = ltcMat->get_color_image_layout();
+	ltcMatDescriptorInfo.imageView = ltcMat->get_color_image_view();
+	
+	textureDescriptorWrites[7].dstSet = textureDescriptorSet;
+	textureDescriptorWrites[7].dstBinding = 7;
+	textureDescriptorWrites[7].dstArrayElement = 0;
+	textureDescriptorWrites[7].descriptorType = vk::DescriptorType::eSampledImage;
+	textureDescriptorWrites[7].descriptorCount = 1;
+	textureDescriptorWrites[7].pImageInfo = &ltcMatDescriptorInfo;
+
+	// LTC Amp
+	vk::DescriptorImageInfo ltcAmpDescriptorInfo;
+	ltcAmpDescriptorInfo.sampler = nullptr;
+	ltcAmpDescriptorInfo.imageLayout = ltcAmp->get_color_image_layout();
+	ltcAmpDescriptorInfo.imageView = ltcAmp->get_color_image_view();
+	
+	textureDescriptorWrites[8].dstSet = textureDescriptorSet;
+	textureDescriptorWrites[8].dstBinding = 8;
+	textureDescriptorWrites[8].dstArrayElement = 0;
+	textureDescriptorWrites[8].descriptorType = vk::DescriptorType::eSampledImage;
+	textureDescriptorWrites[8].descriptorCount = 1;
+	textureDescriptorWrites[8].pImageInfo = &ltcAmpDescriptorInfo;
+
+	// Environment
+	vk::DescriptorImageInfo environmentDescriptorInfo;
+	environmentDescriptorInfo.sampler = nullptr;
+	environmentDescriptorInfo.imageLayout = environment->get_color_image_layout();
+	environmentDescriptorInfo.imageView = environment->get_color_image_view();
+	
+	textureDescriptorWrites[9].dstSet = textureDescriptorSet;
+	textureDescriptorWrites[9].dstBinding = 9;
+	textureDescriptorWrites[9].dstArrayElement = 0;
+	textureDescriptorWrites[9].descriptorType = vk::DescriptorType::eSampledImage;
+	textureDescriptorWrites[9].descriptorCount = 1;
+	textureDescriptorWrites[9].pImageInfo = &environmentDescriptorInfo;
+
+	// Diffuse Environment
+	vk::DescriptorImageInfo diffuseEnvironmentDescriptorInfo;
+	diffuseEnvironmentDescriptorInfo.sampler = nullptr;
+	diffuseEnvironmentDescriptorInfo.imageLayout = diffuseEnvironment->get_color_image_layout();
+	diffuseEnvironmentDescriptorInfo.imageView = diffuseEnvironment->get_color_image_view();
+	
+	textureDescriptorWrites[10].dstSet = textureDescriptorSet;
+	textureDescriptorWrites[10].dstBinding = 10;
+	textureDescriptorWrites[10].dstArrayElement = 0;
+	textureDescriptorWrites[10].descriptorType = vk::DescriptorType::eSampledImage;
+	textureDescriptorWrites[10].descriptorCount = 1;
+	textureDescriptorWrites[10].pImageInfo = &diffuseEnvironmentDescriptorInfo;
+
+	// Specular Environment
+	vk::DescriptorImageInfo specularEnvironmentDescriptorInfo;
+	specularEnvironmentDescriptorInfo.sampler = nullptr;
+	specularEnvironmentDescriptorInfo.imageLayout = specularEnvironment->get_color_image_layout();
+	specularEnvironmentDescriptorInfo.imageView = specularEnvironment->get_color_image_view();
+	
+	textureDescriptorWrites[11].dstSet = textureDescriptorSet;
+	textureDescriptorWrites[11].dstBinding = 11;
+	textureDescriptorWrites[11].dstArrayElement = 0;
+	textureDescriptorWrites[11].descriptorType = vk::DescriptorType::eSampledImage;
+	textureDescriptorWrites[11].descriptorCount = 1;
+	textureDescriptorWrites[11].pImageInfo = &specularEnvironmentDescriptorInfo;
+	
+	// DDGI Irradiance
+	vk::DescriptorImageInfo ddgiIrradianceDescriptorInfo;
+	ddgiIrradianceDescriptorInfo.sampler = nullptr;
+	ddgiIrradianceDescriptorInfo.imageLayout = ddgiIrradiance->get_color_image_layout();
+	ddgiIrradianceDescriptorInfo.imageView = ddgiIrradiance->get_color_image_view();
+	
+	textureDescriptorWrites[12].dstSet = textureDescriptorSet;
+	textureDescriptorWrites[12].dstBinding = 12;
+	textureDescriptorWrites[12].dstArrayElement = 0;
+	textureDescriptorWrites[12].descriptorType = vk::DescriptorType::eStorageImage;
+	textureDescriptorWrites[12].descriptorCount = 1;
+	textureDescriptorWrites[12].pImageInfo = &ddgiIrradianceDescriptorInfo;
+	
+	// DDGI Visibility
+	vk::DescriptorImageInfo ddgiVisibilityDescriptorInfo;
+	ddgiVisibilityDescriptorInfo.sampler = nullptr;
+	ddgiVisibilityDescriptorInfo.imageLayout = ddgiVisibility->get_color_image_layout();
+	ddgiVisibilityDescriptorInfo.imageView = ddgiVisibility->get_color_image_view();
+	
+	textureDescriptorWrites[13].dstSet = textureDescriptorSet;
+	textureDescriptorWrites[13].dstBinding = 13;
+	textureDescriptorWrites[13].dstArrayElement = 0;
+	textureDescriptorWrites[13].descriptorType = vk::DescriptorType::eStorageImage;
+	textureDescriptorWrites[13].descriptorCount = 1;
+	textureDescriptorWrites[13].pImageInfo = &ddgiVisibilityDescriptorInfo;
+
 	device.updateDescriptorSets((uint32_t)textureDescriptorWrites.size(), textureDescriptorWrites.data(), 0, nullptr);
 
 	if (vulkan->is_ray_tracing_enabled()) {
@@ -4316,7 +4725,21 @@ void RenderSystem::bind_raster_primary_visibility_descriptor_sets(vk::CommandBuf
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, skybox[render_pass].pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 }
 
-void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffer, Entity &camera_entity, uint32_t rp_idx)
+bool RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffer)
+{
+	if (
+		(ddgi_blend.ready == false)
+	) return false;
+
+	if (!componentDescriptorSet) return false;
+	if (!textureDescriptorSet) return false;
+
+	std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet};
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, ddgi_blend.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	return true;
+}
+
+void RenderSystem::bind_camera_compute_descriptor_sets(vk::CommandBuffer &command_buffer, Entity &camera_entity, uint32_t rp_idx)
 {
 	if (
 		(edgedetect.ready == false) || 
@@ -4336,7 +4759,7 @@ void RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffe
 		(asvgf_compute_gradient.ready == false) ||
 		(asvgf_reconstruct_gradient.ready == false) ||
 		(asvgf_fill_diffuse_holes.ready == false) ||
-		(asvgf_fill_specular_holes.ready == false)		
+		(asvgf_fill_specular_holes.ready == false)
 	) return;
 
 	auto key = std::pair<uint32_t, uint32_t>(camera_entity.get_id(), rp_idx);
@@ -4366,6 +4789,7 @@ void RenderSystem::bind_raytracing_descriptor_sets(vk::CommandBuffer &command_bu
 {
 	if (
 		(raytrace_primary_visibility.ready == false) ||
+		(ddgi_path_tracer.ready == false) ||
 		(diffuse_path_tracer.ready == false) ||
 		(specular_path_tracer.ready == false)
 	) return;
@@ -4375,6 +4799,7 @@ void RenderSystem::bind_raytracing_descriptor_sets(vk::CommandBuffer &command_bu
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, raytrace_primary_visibility.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, diffuse_path_tracer.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, specular_path_tracer.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, ddgi_path_tracer.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 }
 
 void RenderSystem::draw_entity(
@@ -4484,17 +4909,17 @@ void RenderSystem::reset_bound_material()
 /* SETS */
 void RenderSystem::set_gamma(float gamma) { this->push_constants.gamma = gamma; }
 void RenderSystem::set_exposure(float exposure) { this->push_constants.exposure = exposure; }
-void RenderSystem::set_environment_map(int32_t id) { this->push_constants.environment_id = id; }
-void RenderSystem::set_environment_map(Texture *texture) { this->push_constants.environment_id = texture->get_id(); }
+void RenderSystem::set_environment_map(int32_t id) { this->environment_id = id; }
+void RenderSystem::set_environment_map(Texture *texture) { this->environment_id = texture->get_id(); }
 void RenderSystem::set_environment_roughness(float roughness) { this->push_constants.environment_roughness = roughness; }
 void RenderSystem::set_environment_intensity(float intensity) { this->push_constants.environment_intensity = intensity; }
-void RenderSystem::clear_environment_map() { this->push_constants.environment_id = -1; }
-void RenderSystem::set_irradiance_map(int32_t id) { this->push_constants.specular_environment_id = id; }
-void RenderSystem::set_irradiance_map(Texture *texture) { this->push_constants.specular_environment_id = texture->get_id(); }
-void RenderSystem::clear_irradiance_map() { this->push_constants.specular_environment_id = -1; }
-void RenderSystem::set_diffuse_map(int32_t id) { this->push_constants.diffuse_environment_id = id; }
-void RenderSystem::set_diffuse_map(Texture *texture) { this->push_constants.diffuse_environment_id = texture->get_id(); }
-void RenderSystem::clear_diffuse_map() { this->push_constants.diffuse_environment_id = -1; }
+void RenderSystem::clear_environment_map() { this->environment_id = -1; }
+void RenderSystem::set_irradiance_map(int32_t id) { this->specular_environment_id = id; }
+void RenderSystem::set_irradiance_map(Texture *texture) { this->specular_environment_id = texture->get_id(); }
+void RenderSystem::clear_irradiance_map() { this->specular_environment_id = -1; }
+void RenderSystem::set_diffuse_map(int32_t id) { this->diffuse_environment_id = id; }
+void RenderSystem::set_diffuse_map(Texture *texture) { this->diffuse_environment_id = texture->get_id(); }
+void RenderSystem::clear_diffuse_map() { this->diffuse_environment_id = -1; }
 void RenderSystem::set_top_sky_color(glm::vec3 color) { push_constants.top_sky_color = glm::vec4(color.r, color.g, color.b, 1.0); }
 void RenderSystem::set_bottom_sky_color(glm::vec3 color) { push_constants.bottom_sky_color = glm::vec4(color.r, color.g, color.b, 1.0); }
 void RenderSystem::set_top_sky_color(float r, float g, float b) { set_top_sky_color(glm::vec4(r, g, b, 1.0)); }

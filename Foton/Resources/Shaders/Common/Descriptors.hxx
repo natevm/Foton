@@ -46,6 +46,14 @@ layout(set = 1, binding = 2) uniform texture2D texture_2Ds[];
 layout(set = 1, binding = 3) uniform textureCube texture_cubes[];
 layout(set = 1, binding = 4) uniform texture3D texture_3Ds[];
 layout(set = 1, binding = 5) uniform texture3D BlueNoiseTile;
+layout(set = 1, binding = 6) uniform texture2D BRDF_LUT;
+layout(set = 1, binding = 7) uniform texture2D LTC_MAT;
+layout(set = 1, binding = 8) uniform texture2D LTC_AMP;
+layout(set = 1, binding = 9) uniform textureCube Environment;
+layout(set = 1, binding = 10) uniform textureCube SpecularEnvironment;
+layout(set = 1, binding = 11) uniform textureCube DiffuseEnvironment;
+layout(set = 1, binding = 12, rgba32f) uniform image2D DDGI_IRRADIANCE;
+layout(set = 1, binding = 13, rgba32f) uniform image2D DDGI_VISIBILITY;
 
 /* Push Constants */
 layout(std430, push_constant) uniform PushConstants {
@@ -71,7 +79,7 @@ layout(location = POSITION_DEPTH_ADDR) out vec4 outMoments;
 #endif
 
 /* Raytracer/compute can also write to the above, but via gbuffers directly */
-#if defined  RAYTRACING || defined COMPUTE
+#if defined RAYTRACING || defined CAMERA_COMPUTE
 layout(set = 2, binding = 0, rgba32f) uniform image2D render_image;
 layout(set = 2, binding = 1, rgba32f) uniform image2D gbuffers[60];
 layout(set = 2, binding = 2) uniform texture2D gbuffer_textures[60];
@@ -144,40 +152,3 @@ struct HitInfo {
     int mesh;
     vec2 barycentrics;
 };
-
-#if defined  RAYTRACING || defined COMPUTE
-
-// TODO: remove this function
-void unpack_gbuffer_data(in ivec2 tile, in ivec2 offset, out ivec2 ipos, out bool seed_found, out vec3 w_position, out float depth, out vec3 w_normal, 
-    out int entity_id, out ivec2 pixel_seed, out int frame_seed, out vec3 albedo, out vec2 uv)
-{
-    vec4 temp;
-    ipos = tile * PATH_TRACE_TILE_SIZE + offset;
-
-    // Seed / Luminance G Buffer
-    temp = imageLoad(gbuffers[DIFFUSE_SEED_ADDR], ipos);
-    pixel_seed = ivec2(temp.xy);
-    frame_seed = int(temp.z);
-
-    // Position G Buffer 
-    temp = imageLoad(gbuffers[POSITION_DEPTH_ADDR], ipos);
-    w_position = temp.xyz;
-    depth = temp.w;
-
-    // Normal G Buffer
-    temp = imageLoad(gbuffers[NORMAL_ADDR], ipos);
-    w_normal = normalize(temp.xyz);
-
-    // ID G Buffer
-    temp = imageLoad(gbuffers[ENTITY_MATERIAL_TRANSFORM_LIGHT_ADDR], ipos);
-    entity_id = int(temp.r);
-
-    // UV G Buffer
-    temp = imageLoad(gbuffers[UV_METALLIC_ROUGHESS_ADDR], ipos);
-    uv = temp.xy;
-
-    // Raw albedo
-    temp = imageLoad(gbuffers[DIFFUSE_COLOR_ADDR], ipos);
-    albedo = temp.xyz;
-}
-#endif
