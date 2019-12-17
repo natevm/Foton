@@ -21,6 +21,30 @@ precision highp float;
 #include "Foton/Texture/TextureStruct.hxx"
 #include "Foton/Mesh/MeshStruct.hxx"
 
+/* All shader types use texture and component descriptor sets */
+#define COMPONENT_SET 0
+#define TEXTURE_SET 1
+
+/* Both compute and raster descriptor sets use the GBuffer descriptor set */
+/* Ray tracing to camera gbuffers requires vertex descriptor sets to follow the gbuffer descriptor set */
+/* Global ray tracing shaders not specific to a camera don't have the gbuffer descriptor set  */
+#ifndef GLOBAL_RAYTRACING
+    #define GBUFFER_SET 2
+    #define POSITION_SET 3
+    #define NORMAL_SET 4
+    #define COLOR_SET 5
+    #define TEXCOORD_SET 6
+    #define INDEX_SET 7
+    #define AS_SET 8
+#else 
+    #define POSITION_SET 2
+    #define NORMAL_SET 3
+    #define COLOR_SET 4
+    #define TEXCOORD_SET 5
+    #define INDEX_SET 6
+    #define AS_SET 7
+#endif
+
 /* Specialization constants */
 layout (constant_id = 0) const int max_entities = MAX_ENTITIES;
 layout (constant_id = 1) const int max_materials = MAX_MATERIALS;
@@ -32,29 +56,29 @@ layout (constant_id = 6) const int max_samplers = MAX_SAMPLERS;
 layout (constant_id = 7) const int max_meshes = MAX_MESHES;
 
 /* Descriptor Sets */
-layout(std430, set = 0, binding = 0) readonly buffer EntitySSBO     { EntityStruct entities[]; } ebo;
-layout(std430, set = 0, binding = 1) readonly buffer TransformSSBO  { TransformStruct transforms[]; } tbo;
-layout(std430, set = 0, binding = 2) readonly buffer CameraSSBO     { CameraStruct cameras[]; } cbo;
-layout(std430, set = 0, binding = 3) readonly buffer MaterialSSBO   { MaterialStruct materials[]; } mbo;
-layout(std430, set = 0, binding = 4) readonly buffer LightSSBO      { LightStruct lights[]; } lbo;
-layout(std430, set = 0, binding = 5) readonly buffer MeshSSBO       { MeshStruct meshes[]; } mesh_ssbo;
-layout(std430, set = 0, binding = 6) readonly buffer LightIDBuffer  { int lightIDs[]; } lidbo;
+layout(std430, set = COMPONENT_SET, binding = 0) readonly buffer EntitySSBO     { EntityStruct entities[]; } ebo;
+layout(std430, set = COMPONENT_SET, binding = 1) readonly buffer TransformSSBO  { TransformStruct transforms[]; } tbo;
+layout(std430, set = COMPONENT_SET, binding = 2) readonly buffer CameraSSBO     { CameraStruct cameras[]; } cbo;
+layout(std430, set = COMPONENT_SET, binding = 3) readonly buffer MaterialSSBO   { MaterialStruct materials[]; } mbo;
+layout(std430, set = COMPONENT_SET, binding = 4) readonly buffer LightSSBO      { LightStruct lights[]; } lbo;
+layout(std430, set = COMPONENT_SET, binding = 5) readonly buffer MeshSSBO       { MeshStruct meshes[]; } mesh_ssbo;
+layout(std430, set = COMPONENT_SET, binding = 6) readonly buffer LightIDBuffer  { int lightIDs[]; } lidbo;
 
-layout(std430, set = 1, binding = 0) readonly buffer TextureSSBO    { TextureStruct textures[]; } txbo;
-layout(set = 1, binding = 1) uniform sampler samplers[];
-layout(set = 1, binding = 2) uniform texture2D texture_2Ds[];
-layout(set = 1, binding = 3) uniform textureCube texture_cubes[];
-layout(set = 1, binding = 4) uniform texture3D texture_3Ds[];
-layout(set = 1, binding = 5) uniform texture3D BlueNoiseTile;
-layout(set = 1, binding = 6) uniform texture2D BRDF_LUT;
-layout(set = 1, binding = 7) uniform texture2D LTC_MAT;
-layout(set = 1, binding = 8) uniform texture2D LTC_AMP;
-layout(set = 1, binding = 9) uniform textureCube Environment;
-layout(set = 1, binding = 10) uniform textureCube SpecularEnvironment;
-layout(set = 1, binding = 11) uniform textureCube DiffuseEnvironment;
-layout(set = 1, binding = 12, rgba32f) uniform image2D DDGI_IRRADIANCE;
-layout(set = 1, binding = 13, rgba32f) uniform image2D DDGI_VISIBILITY;
-layout(set = 1, binding = 14, rgba32f) uniform image2D DDGI_GBUFFER;
+layout(std430, set = TEXTURE_SET, binding = 0) readonly buffer TextureSSBO    { TextureStruct textures[]; } txbo;
+layout(set = TEXTURE_SET, binding = 1) uniform sampler samplers[];
+layout(set = TEXTURE_SET, binding = 2) uniform texture2D texture_2Ds[];
+layout(set = TEXTURE_SET, binding = 3) uniform textureCube texture_cubes[];
+layout(set = TEXTURE_SET, binding = 4) uniform texture3D texture_3Ds[];
+layout(set = TEXTURE_SET, binding = 5) uniform texture3D BlueNoiseTile;
+layout(set = TEXTURE_SET, binding = 6) uniform texture2D BRDF_LUT;
+layout(set = TEXTURE_SET, binding = 7) uniform texture2D LTC_MAT;
+layout(set = TEXTURE_SET, binding = 8) uniform texture2D LTC_AMP;
+layout(set = TEXTURE_SET, binding = 9) uniform textureCube Environment;
+layout(set = TEXTURE_SET, binding = 10) uniform textureCube SpecularEnvironment;
+layout(set = TEXTURE_SET, binding = 11) uniform textureCube DiffuseEnvironment;
+layout(set = TEXTURE_SET, binding = 12, rgba32f) uniform image2D DDGI_IRRADIANCE;
+layout(set = TEXTURE_SET, binding = 13, rgba32f) uniform image2D DDGI_VISIBILITY;
+layout(set = TEXTURE_SET, binding = 14, rgba32f) uniform image2D DDGI_GBUFFER;
 
 /* Push Constants */
 layout(std430, push_constant) uniform PushConstants {
@@ -80,35 +104,35 @@ layout(location = POSITION_DEPTH_ADDR) out vec4 outMoments;
 #endif
 
 /* Raytracer/compute can also write to the above, but via gbuffers directly */
-#if defined RAYTRACING || defined CAMERA_COMPUTE
-layout(set = 2, binding = 0, rgba32f) uniform image2D render_image;
-layout(set = 2, binding = 1, rgba32f) uniform image2D gbuffers[60];
-layout(set = 2, binding = 2) uniform texture2D gbuffer_textures[60];
+#if defined CAMERA_RAYTRACING || defined CAMERA_COMPUTE
+layout(set = GBUFFER_SET, binding = 0, rgba32f) uniform image2D render_image;
+layout(set = GBUFFER_SET, binding = 1, rgba32f) uniform image2D gbuffers[60];
+layout(set = GBUFFER_SET, binding = 2) uniform texture2D gbuffer_textures[60];
 #endif
 
 /* NV Ray tracing needs access to vert data and acceleration structure  */
-#ifdef RAYTRACING
-layout(set = 3, binding = 0, std430) readonly buffer PositionBuffer {
+#if defined CAMERA_RAYTRACING || defined GLOBAL_RAYTRACING
+layout(set = POSITION_SET, binding = 0, std430) readonly buffer PositionBuffer {
     vec4 positions[];
 } PositionBuffers[];
 
-layout(set = 4, binding = 0, std430) readonly buffer NormalBuffer {
+layout(set = NORMAL_SET, binding = 0, std430) readonly buffer NormalBuffer {
     vec4 normals[];
 } NormalBuffers[];
 
-layout(set = 5, binding = 0, std430) readonly buffer ColorBuffer {
+layout(set = COLOR_SET, binding = 0, std430) readonly buffer ColorBuffer {
     vec4 colors[];
 } ColorBuffers[];
 
-layout(set = 6, binding = 0, std430) readonly buffer TexCoordBuffer {
+layout(set = TEXCOORD_SET, binding = 0, std430) readonly buffer TexCoordBuffer {
     vec2 texcoords[];
 } TexCoordBuffers[];
 
-layout(set = 7, binding = 0, std430) readonly buffer IndexBuffer {
+layout(set = INDEX_SET, binding = 0, std430) readonly buffer IndexBuffer {
     int indices[];
 } IndexBuffers[];
 
-layout(set = 8, binding = 0) uniform accelerationStructureNV topLevelAS;
+layout(set = AS_SET, binding = 0) uniform accelerationStructureNV topLevelAS;
 #endif
 
 struct SurfaceInteraction

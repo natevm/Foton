@@ -1335,58 +1335,80 @@ void RenderSystem::record_compute(bool submit_immediately)
 	beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
 	compute_command_buffer.begin(beginInfo);
 
-	bool descriptors_bound = bind_compute_descriptor_sets(compute_command_buffer);
-	if (descriptors_bound) {		
-		// Note, irradiance lut has 6x6 texels per probe, 
-		// visibility lut has 16x16 texels per probe
+	// Only need to bind these once
+	bool descriptors_bound = bind_global_compute_descriptor_sets(compute_command_buffer);
+	if (vulkan->is_ray_tracing_enabled()) {
 
-		// Blend DDGI Irradiance
-		{
+		descriptors_bound &= bind_global_ray_tracing_descriptor_sets(compute_command_buffer);
+
+		auto rayTracingProps = vulkan->get_physical_device_ray_tracing_properties();
+
+		push_constants.target_id = -1;
+		push_constants.camera_id = -1;
+		push_constants.viewIndex = 0;
+
+		if (descriptors_bound) {		
+			// Trace DDGI rays
+			{
+				int width = ddgiGBuffer->get_width();
+				int height = ddgiGBuffer->get_height();
+				push_constants.width = width;
+				push_constants.height = height;
+				compute_command_buffer.pushConstants(ddgi_path_tracer.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+				compute_command_buffer.bindPipeline(vk::PipelineBindPoint::eRayTracingNV, ddgi_path_tracer.pipeline);
+
+				compute_command_buffer.traceRaysNV(
+					ddgi_path_tracer.shaderBindingTable, 0,
+					ddgi_path_tracer.shaderBindingTable, 1 * rayTracingProps.shaderGroupHandleSize, rayTracingProps.shaderGroupHandleSize,
+					ddgi_path_tracer.shaderBindingTable, 2 * rayTracingProps.shaderGroupHandleSize, rayTracingProps.shaderGroupHandleSize,
+					vk::Buffer(), 0, 0,
+					width, height, 1,
+					dldi
+				);
+			}
+
 			// Note, irradiance lut has 6x6 texels per probe, 
 			// visibility lut has 16x16 texels per probe
+			// Blend DDGI Irradiance
+			{
+				// Note, irradiance lut has 6x6 texels per probe, 
+				// visibility lut has 16x16 texels per probe
 
-			int width = ddgiIrradiance->get_width();
-			int height = ddgiIrradiance->get_height();
+				int width = ddgiIrradiance->get_width();
+				int height = ddgiIrradiance->get_height();
+				push_constants.width = width;
+				push_constants.height = height;			
+				compute_command_buffer.pushConstants(ddgi_blend_irradiance.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+				compute_command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, ddgi_blend_irradiance.pipeline);
 
-			push_constants.target_id = -1;
-			push_constants.camera_id = -1;
-			push_constants.viewIndex = 0;
-			// bind_compute_descriptor_sets(compute_command_buffer);
-			
-			compute_command_buffer.pushConstants(ddgi_blend_irradiance.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-			compute_command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, ddgi_blend_irradiance.pipeline);
+				uint32_t local_size_x = 16;
+				uint32_t local_size_y = 16;
 
-			uint32_t local_size_x = 16;
-			uint32_t local_size_y = 16;
+				uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+				uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+				uint32_t groupZ = 1;
+				compute_command_buffer.dispatch(groupX, groupY, groupZ);
+			}
 
-			uint32_t groupX = (width + local_size_x - 1) / local_size_x;
-			uint32_t groupY = (height + local_size_y - 1) / local_size_y;
-			uint32_t groupZ = 1;
-			compute_command_buffer.dispatch(groupX, groupY, groupZ);
+			// Blend DDGI Visibility
+			{
+				int width = ddgiVisibility->get_width();
+				int height = ddgiVisibility->get_height();
+				push_constants.width = width;
+				push_constants.height = height;
+				compute_command_buffer.pushConstants(ddgi_blend_visibility.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+				compute_command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, ddgi_blend_visibility.pipeline);
+
+				uint32_t local_size_x = 16;
+				uint32_t local_size_y = 16;
+
+				uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+				uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+				uint32_t groupZ = 1;
+				compute_command_buffer.dispatch(groupX, groupY, groupZ);
+			}
+
 		}
-
-		// Blend DDGI Visibility
-		{
-			int width = ddgiVisibility->get_width();
-			int height = ddgiVisibility->get_height();
-
-			push_constants.target_id = -1;
-			push_constants.camera_id = -1;
-			push_constants.viewIndex = 0;
-			// bind_compute_descriptor_sets(compute_command_buffer);
-			
-			compute_command_buffer.pushConstants(ddgi_blend_visibility.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
-			compute_command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, ddgi_blend_visibility.pipeline);
-
-			uint32_t local_size_x = 16;
-			uint32_t local_size_y = 16;
-
-			uint32_t groupX = (width + local_size_x - 1) / local_size_x;
-			uint32_t groupY = (height + local_size_y - 1) / local_size_y;
-			uint32_t groupZ = 1;
-			compute_command_buffer.dispatch(groupX, groupY, groupZ);
-		}
-
 	}
 
 	if (submit_immediately)
@@ -2910,7 +2932,7 @@ void RenderSystem::setup_raytracing_pipelines()
 		range.size = sizeof(PushConsts);
 		range.stageFlags = vk::ShaderStageFlagBits::eAll;
 
-		std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, gbufferDescriptorSetLayout, 
+		std::vector<vk::DescriptorSetLayout> layouts = { componentDescriptorSetLayout, textureDescriptorSetLayout, 
 			positionsDescriptorSetLayout, normalsDescriptorSetLayout, colorsDescriptorSetLayout, texcoordsDescriptorSetLayout, indexDescriptorSetLayout,
 			raytracingDescriptorSetLayout };
 		vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
@@ -4813,7 +4835,7 @@ void RenderSystem::bind_raster_primary_visibility_descriptor_sets(vk::CommandBuf
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, skybox[render_pass].pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 }
 
-bool RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffer)
+bool RenderSystem::bind_global_compute_descriptor_sets(vk::CommandBuffer &command_buffer)
 {
 	if (
 		(ddgi_blend_irradiance.ready == false) ||
@@ -4827,6 +4849,15 @@ bool RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffe
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, ddgi_blend_irradiance.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, ddgi_blend_visibility.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	return true;
+}
+
+bool RenderSystem::bind_global_ray_tracing_descriptor_sets(vk::CommandBuffer &command_buffer)
+{
+	if (ddgi_path_tracer.ready == false)
+		return false;
+	
+	std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet, positionsDescriptorSet, normalsDescriptorSet, colorsDescriptorSet, texcoordsDescriptorSet, indexDescriptorSet, raytracingDescriptorSet};
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, ddgi_path_tracer.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 }
 
 void RenderSystem::bind_camera_compute_descriptor_sets(vk::CommandBuffer &command_buffer, Entity &camera_entity, uint32_t rp_idx)
@@ -4879,7 +4910,6 @@ void RenderSystem::bind_raytracing_descriptor_sets(vk::CommandBuffer &command_bu
 {
 	if (
 		(raytrace_primary_visibility.ready == false) ||
-		(ddgi_path_tracer.ready == false) ||
 		(diffuse_path_tracer.ready == false) ||
 		(specular_path_tracer.ready == false)
 	) return;
@@ -4889,7 +4919,6 @@ void RenderSystem::bind_raytracing_descriptor_sets(vk::CommandBuffer &command_bu
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, raytrace_primary_visibility.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, diffuse_path_tracer.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, specular_path_tracer.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
-	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, ddgi_path_tracer.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 }
 
 void RenderSystem::draw_entity(

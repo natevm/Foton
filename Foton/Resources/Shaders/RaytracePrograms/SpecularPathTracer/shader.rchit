@@ -1,7 +1,7 @@
 #version 460
 #extension GL_NV_ray_tracing : require
 #extension GL_EXT_nonuniform_qualifier : enable
-#define RAYTRACING
+#define CAMERA_RAYTRACING
 
 
 #include "Foton/Resources/Shaders/Common/Descriptors.hxx"

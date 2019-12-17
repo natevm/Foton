@@ -396,7 +396,8 @@ namespace Systems
             void bind_shadow_map_descriptor_sets(vk::CommandBuffer &command_buffer, vk::RenderPass &render_pass);
 
             void bind_camera_compute_descriptor_sets(vk::CommandBuffer &command_buffer, Entity &camera_entity, uint32_t rp_idx);
-            bool bind_compute_descriptor_sets(vk::CommandBuffer &command_buffer);
+            bool bind_global_compute_descriptor_sets(vk::CommandBuffer &command_buffer);
+            bool bind_global_ray_tracing_descriptor_sets(vk::CommandBuffer &command_buffer);
 
             void bind_raytracing_descriptor_sets(vk::CommandBuffer &command_buffer, Entity &camera_entity, uint32_t rp_idx);
 

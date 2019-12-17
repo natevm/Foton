@@ -1,6 +1,6 @@
 #version 460
 #extension GL_NV_ray_tracing : require
-#define RAYTRACING
+#define GLOBAL_RAYTRACING
 
 #include "Foton/Resources/Shaders/Common/Descriptors.hxx"
 

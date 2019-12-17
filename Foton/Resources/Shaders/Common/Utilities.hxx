@@ -261,7 +261,7 @@ float getTransmissionRoughness(inout MaterialStruct material)
 // See http://www.thetenthplanet.de/archives/1180
 vec3 perturbNormal(inout MaterialStruct material, vec3 w_position, vec3 w_normal, vec2 uv, vec3 m_position)
 {
-    #if !defined(RAYTRACING) && !defined(CAMERA_COMPUTE) && !defined(COMPUTE)
+    #if !defined(CAMERA_RAYTRACING) && !defined(GLOBAL_RAYTRACING) && !defined(CAMERA_COMPUTE) && !defined(COMPUTE)
     w_normal = normalize(w_normal);
 	vec3 tangentNormal = sample_texture_2D(vec4(w_normal.xyz, 0.0), material.bump_texture_id, uv, m_position).xyz;// texture(normalMap, inUV).xyz * 2.0 - 1.0;
     if (w_normal == tangentNormal) return w_normal;

@@ -161,7 +161,7 @@ struct Irradiance {
     vec3 diffuse;
 };
 
-#ifdef RAYTRACING
+#if defined(CAMERA_RAYTRACING) || defined(GLOBAL_RAYTRACING)
 
 Irradiance sample_direct_light_stochastic (
     const in MaterialStruct mat, 
@@ -587,7 +587,7 @@ Irradiance sample_direct_light_analytic(const in MaterialStruct mat, bool backfa
             continue;
         }
 
-        #ifdef RAYTRACING
+        #if defined(CAMERA_RAYTRACING) || defined(GLOBAL_RAYTRACING)
         {
             // compute shadow
             float diffuse_visibility = 0.0;           
