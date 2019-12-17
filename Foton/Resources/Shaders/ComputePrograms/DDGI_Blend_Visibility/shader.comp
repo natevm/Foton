@@ -1,0 +1,20 @@
+#version 460
+
+#define COMPUTE
+
+#include "Foton/Resources/Shaders/Common/Descriptors.hxx"
+
+layout (local_size_x = 16, local_size_y = 16) in;
+
+void main() {
+    ivec2 gid = ivec2(gl_GlobalInvocationID.xy);
+
+    ivec2 tile = gid / ivec2(16);
+    ivec2 idx = gid % ivec2(16);
+
+    if (any(equal(idx, ivec2(0))) || any(equal(idx, ivec2(15)))) {
+        imageStore(DDGI_VISIBILITY, gid, vec4(0.0, 0.0, 0.0, 0.0));
+    } else {
+        imageStore(DDGI_VISIBILITY, gid, vec4( vec3(max(idx.x / 16.f, idx.y / 16.f)) , 1.0));
+    }  
+}

@@ -53,27 +53,55 @@ void main() {
 
         color = diffuse + glossy + transmission + emission + environment;        
     }
+    // DDGI Irradiance
+    else if (
+        (render_image_idx == 1)
+    ) {
+        int width = 32;
+        int height = 4;
+        int depth = 32;
+
+        ivec2 pos = ivec2((ipos / vec2(push.consts.width, push.consts.height)) * vec2((width * 6) * height, depth * 6));
+        vec4 temp = imageLoad(DDGI_IRRADIANCE, pos);   
+        color = vec3(
+            temp.rgb
+        );
+    }
+    // DDGI Visibility
+    else if (
+        (render_image_idx == 2)
+    ) {
+        int width = 32;
+        int height = 4;
+        int depth = 32;
+
+        ivec2 pos = ivec2((ipos / vec2(push.consts.width, push.consts.height)) * vec2((width * 16) * height, depth * 16));
+        vec4 temp = imageLoad(DDGI_VISIBILITY, pos);   
+        color = vec3(
+            temp.rgb
+        );
+    }
     // GBuffer override for debugging
     else if ( 
-        ((render_image_idx - 1) == DIFFUSE_DIRECT_ADDR) ||
-        ((render_image_idx - 1) == DIFFUSE_INDIRECT_ADDR) ||
-        ((render_image_idx - 1) == DIFFUSE_SEED_ADDR) ||
-        // ((render_image_idx - 1) == DIFFUSE_SEED_ADDR_PREV) ||
-        ((render_image_idx - 1) == SPECULAR_SEED_ADDR) ||
-        ((render_image_idx - 1) == SPECULAR_SEED_ADDR_PREV) ||
-        ((render_image_idx - 1) == SPECULAR_MOTION_ADDR) ||
-        ((render_image_idx - 1) == SPECULAR_MOTION_ADDR_PREV) ||
-        ((render_image_idx - 1) == GLOSSY_DIRECT_ADDR) ||
-        ((render_image_idx - 1) == GLOSSY_INDIRECT_ADDR) ||
-        ((render_image_idx - 1) == LUMINANCE_ADDR) ||
-        ((render_image_idx - 1) == LUMINANCE_ADDR_PREV) ||
-        ((render_image_idx - 1) == EMISSION_ADDR) ||
-        ((render_image_idx - 1) == ENVIRONMENT_ADDR)
+        ((render_image_idx - 3) == DIFFUSE_DIRECT_ADDR) ||
+        ((render_image_idx - 3) == DIFFUSE_INDIRECT_ADDR) ||
+        ((render_image_idx - 3) == DIFFUSE_SEED_ADDR) ||
+        // ((render_image_idx - 3) == DIFFUSE_SEED_ADDR_PREV) ||
+        ((render_image_idx - 3) == SPECULAR_SEED_ADDR) ||
+        ((render_image_idx - 3) == SPECULAR_SEED_ADDR_PREV) ||
+        ((render_image_idx - 3) == SPECULAR_MOTION_ADDR) ||
+        ((render_image_idx - 3) == SPECULAR_MOTION_ADDR_PREV) ||
+        ((render_image_idx - 3) == GLOSSY_DIRECT_ADDR) ||
+        ((render_image_idx - 3) == GLOSSY_INDIRECT_ADDR) ||
+        ((render_image_idx - 3) == LUMINANCE_ADDR) ||
+        ((render_image_idx - 3) == LUMINANCE_ADDR_PREV) ||
+        ((render_image_idx - 3) == EMISSION_ADDR) ||
+        ((render_image_idx - 3) == ENVIRONMENT_ADDR)
     ) {
         color = imageLoad(gbuffers[render_image_idx-1], ipt_up).rgb;   
     }
     else if (
-        ((render_image_idx - 1) == SAMPLE_COUNT_ADDR)        
+        ((render_image_idx - 3) == SAMPLE_COUNT_ADDR)        
     ) {
         vec4 temp = imageLoad(gbuffers[render_image_idx-1], ipt);   
         color = vec3(
@@ -81,26 +109,26 @@ void main() {
         );
     }
     else if (
-        ((render_image_idx - 1) == NORMAL_ADDR)
+        ((render_image_idx - 3) == NORMAL_ADDR)
     ) {
         vec4 temp = imageLoad(gbuffers[render_image_idx-1], ipt_up);   
         color = vec3(temp.w);
     }
     else if ( 
-        ((render_image_idx - 1) == TEMPORAL_GRADIENT_ADDR)
+        ((render_image_idx - 3) == TEMPORAL_GRADIENT_ADDR)
     ) {
         vec4 temp = imageLoad(gbuffers[render_image_idx-1], igt);
         color = vec3(max(temp.r, temp.g), 0.0, max(temp.b, temp.a));
     }
     else if (
-        ((render_image_idx - 1) == LUMINANCE_AVERAGE_ADDR) ||
-        ((render_image_idx - 1) == LUMINANCE_VARIANCE_ADDR) ||
-        ((render_image_idx - 1) == LUMINANCE_MAX_ADDR)
+        ((render_image_idx - 3) == LUMINANCE_AVERAGE_ADDR) ||
+        ((render_image_idx - 3) == LUMINANCE_VARIANCE_ADDR) ||
+        ((render_image_idx - 3) == LUMINANCE_MAX_ADDR)
     ) {
-        color = imageLoad(gbuffers[render_image_idx-1], igt).rgb;
+        color = imageLoad(gbuffers[render_image_idx - 3], igt).rgb;
     }
     else {
-        color = imageLoad(gbuffers[render_image_idx-1], ipos).rgb;   
+        color = imageLoad(gbuffers[render_image_idx - 3], ipos).rgb;   
     }
 
     /* Tone mapping */

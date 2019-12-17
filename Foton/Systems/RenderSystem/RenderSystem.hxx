@@ -352,7 +352,8 @@ namespace Systems
             ComputePipelineResources compositing;
             ComputePipelineResources copy_history;
             ComputePipelineResources taa;
-            ComputePipelineResources ddgi_blend;
+            ComputePipelineResources ddgi_blend_irradiance;
+            ComputePipelineResources ddgi_blend_visibility;
 
             /* Wraps the vulkan boilerplate for creation of a graphics pipeline */
             void create_raster_pipeline(

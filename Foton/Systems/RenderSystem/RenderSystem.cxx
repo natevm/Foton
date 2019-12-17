@@ -1198,11 +1198,6 @@ void RenderSystem::record_cameras()
     auto vulkan = Vulkan::Get();
     auto device = vulkan->get_device();
 
-	/* Update global descriptor sets */
-	update_global_descriptor_sets();
-	if (vulkan->is_ray_tracing_enabled())
-		update_raytracing_descriptor_sets(topAS);
-
     /* Get window to camera mapping */
     auto glfw = GLFW::Get();
     auto window_to_cam = glfw->get_window_to_camera_map();
@@ -1332,16 +1327,63 @@ void RenderSystem::record_compute(bool submit_immediately)
 
 	if (ddgiIrradiance == nullptr) return;
 	if (ddgiVisibility == nullptr) return;
-	
-	update_global_descriptor_sets();
 
 	vk::CommandBufferBeginInfo beginInfo;
 	beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
 	compute_command_buffer.begin(beginInfo);
 
 	bool descriptors_bound = bind_compute_descriptor_sets(compute_command_buffer);
-	if (descriptors_bound) {
-		
+	if (descriptors_bound) {		
+		// Note, irradiance lut has 6x6 texels per probe, 
+		// visibility lut has 16x16 texels per probe
+
+		// Blend DDGI Irradiance
+		{
+			// Note, irradiance lut has 6x6 texels per probe, 
+			// visibility lut has 16x16 texels per probe
+
+			int width = ddgiIrradiance->get_width();
+			int height = ddgiIrradiance->get_height();
+
+			push_constants.target_id = -1;
+			push_constants.camera_id = -1;
+			push_constants.viewIndex = 0;
+			bind_compute_descriptor_sets(compute_command_buffer);
+			
+			compute_command_buffer.pushConstants(ddgi_blend_irradiance.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+			compute_command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, ddgi_blend_irradiance.pipeline);
+
+			uint32_t local_size_x = 16;
+			uint32_t local_size_y = 16;
+
+			uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+			uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+			uint32_t groupZ = 1;
+			compute_command_buffer.dispatch(groupX, groupY, groupZ);
+		}
+
+		// Blend DDGI Visibility
+		{
+
+			int width = ddgiVisibility->get_width();
+			int height = ddgiVisibility->get_height();
+
+			push_constants.target_id = -1;
+			push_constants.camera_id = -1;
+			push_constants.viewIndex = 0;
+			bind_compute_descriptor_sets(compute_command_buffer);
+			
+			compute_command_buffer.pushConstants(ddgi_blend_visibility.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
+			compute_command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, ddgi_blend_visibility.pipeline);
+
+			uint32_t local_size_x = 16;
+			uint32_t local_size_y = 16;
+
+			uint32_t groupX = (width + local_size_x - 1) / local_size_x;
+			uint32_t groupY = (height + local_size_y - 1) / local_size_y;
+			uint32_t groupZ = 1;
+			compute_command_buffer.dispatch(groupX, groupY, groupZ);
+		}
 
 	}
 
@@ -1576,7 +1618,6 @@ void RenderSystem::record_render_commands()
 		record_build_top_level_bvh();
 	}
 
-	record_compute();
 
     if (Material::IsInitialized()) {
 		bool result = false;
@@ -1590,7 +1631,15 @@ void RenderSystem::record_render_commands()
 
         if (result == true) {
 			float last_time = (float) glfwGetTime();
-            record_cameras();
+			/* Update global descriptor sets */
+			update_global_descriptor_sets();
+			if (vulkan->is_ray_tracing_enabled())
+				update_raytracing_descriptor_sets(topAS);
+			
+			record_compute();
+            
+			record_cameras();
+			
 			float current_time = (float) glfwGetTime();
 			ms_per_record_cameras = (float) (current_time - last_time) * 1000.f;
         }
@@ -3215,16 +3264,28 @@ void RenderSystem::setup_compute_pipelines()
 	
 	// GLOBAL COMPUTE SHADERS
 
-	/* DDGI Blend */
+	/* DDGI Blend Irradiance*/
 	{
-		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/DDGI_Blend/comp.spv"));
-		auto compShaderModule = create_shader_module("ddgi_blend", compShaderCode);
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/DDGI_Blend_Irradiance/comp.spv"));
+		auto compShaderModule = create_shader_module("ddgi_blend_irradiance", compShaderCode);
 		compShaderStageInfo.module = compShaderModule;
-        ddgi_blend.pipelineLayout = device.createPipelineLayout(globalComputeCreateInfo);
+        ddgi_blend_irradiance.pipelineLayout = device.createPipelineLayout(globalComputeCreateInfo);
         computeCreateInfo.stage = compShaderStageInfo;
-        computeCreateInfo.layout = ddgi_blend.pipelineLayout;
-        ddgi_blend.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
-		ddgi_blend.ready = true;
+        computeCreateInfo.layout = ddgi_blend_irradiance.pipelineLayout;
+        ddgi_blend_irradiance.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		ddgi_blend_irradiance.ready = true;
+	}
+
+	/* DDGI Blend Visibility */
+	{
+		auto compShaderCode = readFile(ResourcePath + std::string("/Shaders/ComputePrograms/DDGI_Blend_Visibility/comp.spv"));
+		auto compShaderModule = create_shader_module("ddgi_blend_visibility", compShaderCode);
+		compShaderStageInfo.module = compShaderModule;
+        ddgi_blend_visibility.pipelineLayout = device.createPipelineLayout(globalComputeCreateInfo);
+        computeCreateInfo.stage = compShaderStageInfo;
+        computeCreateInfo.layout = ddgi_blend_visibility.pipelineLayout;
+        ddgi_blend_visibility.pipeline = device.createComputePipeline(vk::PipelineCache(), computeCreateInfo);
+		ddgi_blend_visibility.ready = true;
 	}
 
 
@@ -4728,14 +4789,16 @@ void RenderSystem::bind_raster_primary_visibility_descriptor_sets(vk::CommandBuf
 bool RenderSystem::bind_compute_descriptor_sets(vk::CommandBuffer &command_buffer)
 {
 	if (
-		(ddgi_blend.ready == false)
+		(ddgi_blend_irradiance.ready == false) ||
+		(ddgi_blend_visibility.ready == false)
 	) return false;
 
 	if (!componentDescriptorSet) return false;
 	if (!textureDescriptorSet) return false;
 
 	std::vector<vk::DescriptorSet> descriptorSets = {componentDescriptorSet, textureDescriptorSet};
-	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, ddgi_blend.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, ddgi_blend_irradiance.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
+	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, ddgi_blend_visibility.pipelineLayout, 0, (uint32_t)descriptorSets.size(), descriptorSets.data(), 0, nullptr);
 	return true;
 }
 
@@ -5240,8 +5303,11 @@ void RenderSystem::show_albedo(bool enable)
 
 void RenderSystem::show_gbuffer(uint32_t idx)
 {
-	// NOTE: final render image shows up as gbuffer 0, leading to MAX_G_BUFFERS + 1 buffers
-	gbuffer_override_idx=std::min(idx, (uint32_t)MAX_G_BUFFERS);
+	// NOTE: final render image shows up as gbuffer 0, 
+	// ddgi irradiance shows as 1, 
+	// ddgi visibility shows as 2, 
+	// leading to MAX_G_BUFFERS + 3 buffers
+	gbuffer_override_idx=std::min(idx, (uint32_t)MAX_G_BUFFERS + 2);
 }
 
 void RenderSystem::reset_progressive_refinement() {

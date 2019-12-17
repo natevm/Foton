@@ -57,7 +57,8 @@ set(SHADERS_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/CopyHistory/shader.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/BilateralUpsample/shader.comp
 
-    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/DDGI_Blend/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/DDGI_Blend_Irradiance/shader.comp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Shaders/ComputePrograms/DDGI_Blend_Visibility/shader.comp
 
     PARENT_SCOPE
 )
