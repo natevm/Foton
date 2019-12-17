@@ -508,8 +508,10 @@ void Texture::Initialize()
 	CreateFromKTX("DefaultTex3D", resource_path + "/Defaults/missing-volume.ktx");
 
 	int width = 32, height = 4, depth = 32;
-	auto ddgi_irradiance = Create2D("DDGI_IRRADIANCE", (width * 6) * height, depth * 6, true, false, 1, 1);
-	auto ddgi_visibility = Create2D("DDGI_VISIBILITY", (width * 16) * height, depth * 16, true, false, 1, 1);
+	// 10 by 10 irradiance tiles, where inner 8 by 8 tile holds data and ring is gutter
+	auto ddgi_irradiance = Create2D("DDGI_IRRADIANCE", (width * 10) * height, depth * 10, true, false, 1, 1);
+	// 18 by 18 irradiance tiles, where inner 16 by 16 tile holds data and ring is gutter
+	auto ddgi_visibility = Create2D("DDGI_VISIBILITY", (width * 18) * height, depth * 18, true, false, 1, 1);
 
 	auto buffer = vulkan->begin_one_time_graphics_command();
 	ddgi_irradiance->make_general(buffer);
