@@ -507,15 +507,18 @@ void Texture::Initialize()
 	CreateFromKTX("DefaultTexCube", resource_path + "/Defaults/missing-texcube.ktx");
 	CreateFromKTX("DefaultTex3D", resource_path + "/Defaults/missing-volume.ktx");
 
-	int width = 32, height = 4, depth = 32;
+	int width = 32, height = 4, depth = 32, rays_per_probe = 64;
 	// 10 by 10 irradiance tiles, where inner 8 by 8 tile holds data and ring is gutter
 	auto ddgi_irradiance = Create2D("DDGI_IRRADIANCE", (width * 10) * height, depth * 10, true, false, 1, 1);
 	// 18 by 18 irradiance tiles, where inner 16 by 16 tile holds data and ring is gutter
 	auto ddgi_visibility = Create2D("DDGI_VISIBILITY", (width * 18) * height, depth * 18, true, false, 1, 1);
+	// texture which we'll store results from ddgi ray trace
+	auto ddgi_gbuffer = Create2D("DDGI_GBUFFER", rays_per_probe, width * depth * height, true, false, 1, 1);
 
 	auto buffer = vulkan->begin_one_time_graphics_command();
 	ddgi_irradiance->make_general(buffer);
 	ddgi_visibility->make_general(buffer);
+	ddgi_gbuffer->make_general(buffer);
 	vulkan->end_one_time_graphics_command(buffer, "Transition DDGI textures to general");
 	
 	// Create the default texture here

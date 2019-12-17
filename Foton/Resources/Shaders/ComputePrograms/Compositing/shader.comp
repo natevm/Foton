@@ -81,27 +81,40 @@ void main() {
             temp.rgb
         );
     }
+    // DDGI GBuffer
+    else if (
+        (render_image_idx == 3)
+    ) {
+        int rays_per_probe = 64;
+        int num_probes = 32 * 32 * 4;
+        
+        ivec2 pos = ivec2((ipos / vec2(push.consts.width, push.consts.height)) * vec2(rays_per_probe, num_probes));
+        vec4 temp = imageLoad(DDGI_GBUFFER, pos);   
+        color = vec3(
+            temp.rgb
+        );
+    }
     // GBuffer override for debugging
     else if ( 
-        ((render_image_idx - 3) == DIFFUSE_DIRECT_ADDR) ||
-        ((render_image_idx - 3) == DIFFUSE_INDIRECT_ADDR) ||
-        ((render_image_idx - 3) == DIFFUSE_SEED_ADDR) ||
-        // ((render_image_idx - 3) == DIFFUSE_SEED_ADDR_PREV) ||
-        ((render_image_idx - 3) == SPECULAR_SEED_ADDR) ||
-        ((render_image_idx - 3) == SPECULAR_SEED_ADDR_PREV) ||
-        ((render_image_idx - 3) == SPECULAR_MOTION_ADDR) ||
-        ((render_image_idx - 3) == SPECULAR_MOTION_ADDR_PREV) ||
-        ((render_image_idx - 3) == GLOSSY_DIRECT_ADDR) ||
-        ((render_image_idx - 3) == GLOSSY_INDIRECT_ADDR) ||
-        ((render_image_idx - 3) == LUMINANCE_ADDR) ||
-        ((render_image_idx - 3) == LUMINANCE_ADDR_PREV) ||
-        ((render_image_idx - 3) == EMISSION_ADDR) ||
-        ((render_image_idx - 3) == ENVIRONMENT_ADDR)
+        ((render_image_idx - 4) == DIFFUSE_DIRECT_ADDR) ||
+        ((render_image_idx - 4) == DIFFUSE_INDIRECT_ADDR) ||
+        ((render_image_idx - 4) == DIFFUSE_SEED_ADDR) ||
+        // ((render_image_idx - 4) == DIFFUSE_SEED_ADDR_PREV) ||
+        ((render_image_idx - 4) == SPECULAR_SEED_ADDR) ||
+        ((render_image_idx - 4) == SPECULAR_SEED_ADDR_PREV) ||
+        ((render_image_idx - 4) == SPECULAR_MOTION_ADDR) ||
+        ((render_image_idx - 4) == SPECULAR_MOTION_ADDR_PREV) ||
+        ((render_image_idx - 4) == GLOSSY_DIRECT_ADDR) ||
+        ((render_image_idx - 4) == GLOSSY_INDIRECT_ADDR) ||
+        ((render_image_idx - 4) == LUMINANCE_ADDR) ||
+        ((render_image_idx - 4) == LUMINANCE_ADDR_PREV) ||
+        ((render_image_idx - 4) == EMISSION_ADDR) ||
+        ((render_image_idx - 4) == ENVIRONMENT_ADDR)
     ) {
         color = imageLoad(gbuffers[render_image_idx-1], ipt_up).rgb;   
     }
     else if (
-        ((render_image_idx - 3) == SAMPLE_COUNT_ADDR)        
+        ((render_image_idx - 4) == SAMPLE_COUNT_ADDR)        
     ) {
         vec4 temp = imageLoad(gbuffers[render_image_idx-1], ipt);   
         color = vec3(
@@ -109,26 +122,26 @@ void main() {
         );
     }
     else if (
-        ((render_image_idx - 3) == NORMAL_ADDR)
+        ((render_image_idx - 4) == NORMAL_ADDR)
     ) {
         vec4 temp = imageLoad(gbuffers[render_image_idx-1], ipt_up);   
         color = vec3(temp.w);
     }
     else if ( 
-        ((render_image_idx - 3) == TEMPORAL_GRADIENT_ADDR)
+        ((render_image_idx - 4) == TEMPORAL_GRADIENT_ADDR)
     ) {
         vec4 temp = imageLoad(gbuffers[render_image_idx-1], igt);
         color = vec3(max(temp.r, temp.g), 0.0, max(temp.b, temp.a));
     }
     else if (
-        ((render_image_idx - 3) == LUMINANCE_AVERAGE_ADDR) ||
-        ((render_image_idx - 3) == LUMINANCE_VARIANCE_ADDR) ||
-        ((render_image_idx - 3) == LUMINANCE_MAX_ADDR)
+        ((render_image_idx - 4) == LUMINANCE_AVERAGE_ADDR) ||
+        ((render_image_idx - 4) == LUMINANCE_VARIANCE_ADDR) ||
+        ((render_image_idx - 4) == LUMINANCE_MAX_ADDR)
     ) {
-        color = imageLoad(gbuffers[render_image_idx - 3], igt).rgb;
+        color = imageLoad(gbuffers[render_image_idx - 4], igt).rgb;
     }
     else {
-        color = imageLoad(gbuffers[render_image_idx - 3], ipos).rgb;   
+        color = imageLoad(gbuffers[render_image_idx - 4], ipos).rgb;   
     }
 
     /* Tone mapping */

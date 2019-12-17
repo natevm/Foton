@@ -1320,13 +1320,16 @@ void RenderSystem::record_compute(bool submit_immediately)
 
 	Texture* ddgiIrradiance = nullptr;
 	Texture* ddgiVisibility = nullptr;
+	Texture* ddgiGBuffer = nullptr;
 	try {
 		ddgiIrradiance = Texture::Get("DDGI_IRRADIANCE");
         ddgiVisibility = Texture::Get("DDGI_VISIBILITY");
+        ddgiGBuffer = Texture::Get("DDGI_GBUFFER");
 	} catch (...) {}
 
 	if (ddgiIrradiance == nullptr) return;
 	if (ddgiVisibility == nullptr) return;
+	if (ddgiGBuffer == nullptr) return;
 
 	vk::CommandBufferBeginInfo beginInfo;
 	beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
@@ -1348,7 +1351,7 @@ void RenderSystem::record_compute(bool submit_immediately)
 			push_constants.target_id = -1;
 			push_constants.camera_id = -1;
 			push_constants.viewIndex = 0;
-			bind_compute_descriptor_sets(compute_command_buffer);
+			// bind_compute_descriptor_sets(compute_command_buffer);
 			
 			compute_command_buffer.pushConstants(ddgi_blend_irradiance.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
 			compute_command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, ddgi_blend_irradiance.pipeline);
@@ -1364,14 +1367,13 @@ void RenderSystem::record_compute(bool submit_immediately)
 
 		// Blend DDGI Visibility
 		{
-
 			int width = ddgiVisibility->get_width();
 			int height = ddgiVisibility->get_height();
 
 			push_constants.target_id = -1;
 			push_constants.camera_id = -1;
 			push_constants.viewIndex = 0;
-			bind_compute_descriptor_sets(compute_command_buffer);
+			// bind_compute_descriptor_sets(compute_command_buffer);
 			
 			compute_command_buffer.pushConstants(ddgi_blend_visibility.pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushConsts), &push_constants);
 			compute_command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, ddgi_blend_visibility.pipeline);
@@ -3737,11 +3739,20 @@ void RenderSystem::create_descriptor_set_layouts()
 		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 	ddgiVisibilityBinding.pImmutableSamplers = 0;
 
-	std::array<vk::DescriptorSetLayoutBinding, 14> textureBindings = {
+	// DDGI GBuffer Tile
+	vk::DescriptorSetLayoutBinding ddgiGBufferBinding;
+	ddgiGBufferBinding.descriptorCount = 1;
+	ddgiGBufferBinding.binding = 14;
+	ddgiGBufferBinding.descriptorType = vk::DescriptorType::eStorageImage;
+	ddgiGBufferBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
+	ddgiGBufferBinding.pImmutableSamplers = 0;
+
+	std::array<vk::DescriptorSetLayoutBinding, 15> textureBindings = {
 		txboLayoutBinding, samplerBinding, texture2DsBinding, textureCubesBinding, 
 		texture3DsBinding, blueNoiseBinding, brdfLUTBinding, ltcMatBinding, ltcAmpBinding, 
 		environmentBinding, specularEnvironmentBinding, diffuseEnvironmentBinding,
-		ddgiIrradianceBinding, ddgiVisibilityBinding
+		ddgiIrradianceBinding, ddgiVisibilityBinding, ddgiGBufferBinding
 	};
 	vk::DescriptorSetLayoutCreateInfo textureLayoutInfo;
 	textureLayoutInfo.bindingCount = (uint32_t)textureBindings.size();
@@ -4171,7 +4182,7 @@ void RenderSystem::update_global_descriptor_sets()
 	
 	/* ------ Texture Descriptor Set  ------ */
 	vk::DescriptorSetLayout textureLayouts[] = { textureDescriptorSetLayout };
-	std::array<vk::WriteDescriptorSet, 14> textureDescriptorWrites = {};
+	std::array<vk::WriteDescriptorSet, 15> textureDescriptorWrites = {};
 	
 	if (textureDescriptorSet == vk::DescriptorSet())
 	{
@@ -4200,6 +4211,7 @@ void RenderSystem::update_global_descriptor_sets()
 	Texture* diffuseEnvironment = nullptr;
 	Texture* ddgiIrradiance = nullptr;
 	Texture* ddgiVisibility = nullptr;
+	Texture* ddgiGBuffer = nullptr;
 	try {
 		blueNoiseTile = Texture::Get("BLUENOISETILE");
         brdfLUT = Texture::Get("BRDF");
@@ -4210,6 +4222,7 @@ void RenderSystem::update_global_descriptor_sets()
         diffuseEnvironment = (diffuse_environment_id != -1) ? Texture::Get(diffuse_environment_id) : Texture::Get("DefaultTexCube");
 		ddgiIrradiance = Texture::Get("DDGI_IRRADIANCE");
         ddgiVisibility = Texture::Get("DDGI_VISIBILITY");
+        ddgiGBuffer = Texture::Get("DDGI_GBUFFER");
     } catch (...) {}
 
 	if (texture3DLayouts.size() <= 0) return;
@@ -4224,6 +4237,7 @@ void RenderSystem::update_global_descriptor_sets()
 	if (diffuseEnvironment == nullptr) return;
 	if (ddgiIrradiance == nullptr) return;
 	if (ddgiVisibility == nullptr) return;
+	if (ddgiGBuffer == nullptr) return;
 	
 
 	// Texture SSBO
@@ -4419,6 +4433,19 @@ void RenderSystem::update_global_descriptor_sets()
 	textureDescriptorWrites[13].descriptorType = vk::DescriptorType::eStorageImage;
 	textureDescriptorWrites[13].descriptorCount = 1;
 	textureDescriptorWrites[13].pImageInfo = &ddgiVisibilityDescriptorInfo;
+
+	// DDGI GBuffer
+	vk::DescriptorImageInfo ddgiGBufferDescriptorInfo;
+	ddgiGBufferDescriptorInfo.sampler = nullptr;
+	ddgiGBufferDescriptorInfo.imageLayout = ddgiGBuffer->get_color_image_layout();
+	ddgiGBufferDescriptorInfo.imageView = ddgiGBuffer->get_color_image_view();
+	
+	textureDescriptorWrites[14].dstSet = textureDescriptorSet;
+	textureDescriptorWrites[14].dstBinding = 14;
+	textureDescriptorWrites[14].dstArrayElement = 0;
+	textureDescriptorWrites[14].descriptorType = vk::DescriptorType::eStorageImage;
+	textureDescriptorWrites[14].descriptorCount = 1;
+	textureDescriptorWrites[14].pImageInfo = &ddgiGBufferDescriptorInfo;
 
 	device.updateDescriptorSets((uint32_t)textureDescriptorWrites.size(), textureDescriptorWrites.data(), 0, nullptr);
 
@@ -5306,8 +5333,9 @@ void RenderSystem::show_gbuffer(uint32_t idx)
 	// NOTE: final render image shows up as gbuffer 0, 
 	// ddgi irradiance shows as 1, 
 	// ddgi visibility shows as 2, 
-	// leading to MAX_G_BUFFERS + 3 buffers
-	gbuffer_override_idx=std::min(idx, (uint32_t)MAX_G_BUFFERS + 2);
+	// ddgi gbuffer shows as 3, 
+	// leading to MAX_G_BUFFERS + 4 buffers
+	gbuffer_override_idx=std::min(idx, (uint32_t)MAX_G_BUFFERS + 3);
 }
 
 void RenderSystem::reset_progressive_refinement() {
