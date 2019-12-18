@@ -3,19 +3,97 @@
 #define COMPUTE
 
 #include "Foton/Resources/Shaders/Common/Descriptors.hxx"
+#include "Foton/Resources/Shaders/Common/Octahedral.hxx"
 
 layout (local_size_x = 16, local_size_y = 16) in;
 
+int probeID(ivec2 gid, int irradianceSide, int irradianceProbeTextureWidth) {
+    int probeWithBorderSide = irradianceSide + 2;
+    int probesPerSide = (irradianceProbeTextureWidth - 2) / probeWithBorderSide;
+    return int(gid.x / probeWithBorderSide) + probesPerSide * int(gid.y / probeWithBorderSide);
+}
+
+// Compute normalized oct coord, mapping top left of top left pixel to (-1,-1)
+vec2 normalizedOctCoord(ivec2 gid, int irradianceSide) {
+    int probeWithBorderSide = irradianceSide + 2;
+    vec2 octFragCoord = ivec2((gid.x - 2) % probeWithBorderSide, (gid.y - 2) % probeWithBorderSide);
+    // Add back the half pixel to get pixel center normalized coordinates
+    return (vec2(octFragCoord) + vec2(0.5f))*(2.0f / float(irradianceSide)) - vec2(1.0f, 1.0f);
+}
+
 void main() {
     ivec2 gid = ivec2(gl_GlobalInvocationID.xy);
+    ivec3 probeCount = ivec3(8, 8, 8);
+    vec3 bbmin = vec3(push.consts.ph1, push.consts.ph2, push.consts.ph3);
+    vec3 bbmax = vec3(push.consts.ph4, push.consts.ph5, push.consts.ph6);
+    int raysPerProbe = 64;
+    int irradianceSide = 8;
+    int irradianceProbeTextureWidth = push.consts.width;
+    int relativeProbeID = probeID(
+        gid, irradianceSide, irradianceProbeTextureWidth);
 
-    ivec2 tile = gid / ivec2(10);
-    ivec2 idx = gid % ivec2(10);
-    ivec2 i = idx - ivec2(1);
-
-    if (any(equal(idx, ivec2(0))) || any(equal(idx, ivec2(9)))) {
+    if (relativeProbeID == -1) {
         imageStore(DDGI_IRRADIANCE, gid, vec4(0.0, 0.0, 0.0, 0.0));
-    } else {
-        imageStore(DDGI_IRRADIANCE, gid, vec4(i.x / 8.f, i.y / 8.f, 1.0, 1.0));
-    }  
+        return;
+    } 
+    // else 
+    // {
+    //     imageStore(DDGI_IRRADIANCE, gid, vec4(1.0, 0.0, 0.0, 1.0));
+    // }
+
+    vec4 result = vec4(0.f);
+    const float energyConservation = 0.95;
+    const float epsilon = 1e-6;
+    float maxDistance = length((bbmax - bbmin) / vec3(probeCount)) * 1.5f;
+
+    // For each ray
+	for (int r = 0; r < raysPerProbe; ++r) {
+		ivec2 C = ivec2(r, relativeProbeID);
+
+		vec3 rayDirection     = imageLoad(DDGI_GBUFFERS[2], C).xyz;
+        vec3 rayHitRadiance   = imageLoad(DDGI_GBUFFERS[0], C).xyz * energyConservation;
+		vec3 rayHitLocation   = imageLoad(DDGI_GBUFFERS[3], C).xyz;
+
+        vec3 probeLocation    = imageLoad(DDGI_GBUFFERS[1], C).xyz;
+        // Will be zero on a miss
+		vec3 rayHitNormal     = imageLoad(DDGI_GBUFFERS[4], C).xyz;
+
+        rayHitLocation += rayHitNormal * 0.01f;
+
+		float rayProbeDistance = min(maxDistance, length(probeLocation - rayHitLocation));
+        
+        // Detect misses and force depth
+		if (dot(rayHitNormal, rayHitNormal) < epsilon) {
+            rayProbeDistance = maxDistance;
+        }
+
+        vec3 texelDirection = octDecode(normalizedOctCoord(gid, irradianceSide));
+
+// #if OUTPUT_IRRADIANCE
+        float weight = max(0.0, dot(texelDirection, rayDirection));
+// #else
+        // float weight = pow(max(0.0, dot(texelDirection, rayDirection)), depthSharpness);
+// #endif
+        if (weight >= epsilon) {
+            // Storing the sum of the weights in alpha temporarily
+// #               if OUTPUT_IRRADIANCE
+            result += vec4(rayHitRadiance * weight, weight);
+// #               else
+//             result += vec4(rayProbeDistance * weight,
+//                 square(rayProbeDistance) * weight,
+//                 0.0,
+//                 weight);
+// #               endif
+        }
+		
+	}
+
+    if (result.w > epsilon) {
+        result.xyz /= result.w;
+        // result.w = 1.0f - hysteresis;
+        result.w = 1.f;
+    } // if nonzero
+
+    // todo, blend results with previous
+    imageStore(DDGI_IRRADIANCE, gid, result);
 }

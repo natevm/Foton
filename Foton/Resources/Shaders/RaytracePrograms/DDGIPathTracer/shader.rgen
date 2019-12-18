@@ -10,45 +10,80 @@ layout(location = 0) rayPayloadNV HitInfo payload;
 #include "Foton/Resources/Shaders/Common/OffsetRay.hxx"
 
 
+vec3 sphericalFibonacci(float i, float n) {
+    const float PHI = sqrt(5) * 0.5 + 0.5;
+#   define madfrac(A, B) ((A)*(B)-floor((A)*(B)))
+    float phi = 2.0 * M_PI * madfrac(i, PHI - 1);
+    float cosTheta = 1.0 - (2.0 * i + 1.0) * (1.0 / n);
+    float sinTheta = sqrt(saturate(1.0 - cosTheta * cosTheta));
+
+    return vec3(
+        cos(phi) * sinTheta,
+        sin(phi) * sinTheta,
+        cosTheta);
+
+#   undef madfrac
+}
+
+vec3 probeLocation(int index, vec3 bbmin, vec3 bbmax, ivec3 num_probes) {
+    int x = index % num_probes.x;
+    int remainder1 = index / num_probes.x;
+
+    int y = remainder1 % num_probes.y;
+    int remainder2 = remainder1 / num_probes.y;
+
+    int z = remainder2 % num_probes.z;
+    
+    ivec3 probe_coords = ivec3(x,y,z); 
+    vec3 norm_probe_coords = probe_coords / vec3(num_probes);
+    return mix(bbmin, bbmax, norm_probe_coords);
+}
+
 void main() 
 {
-    int num_x_probes = 32;
-    int num_y_probes = 32;
-    int num_z_probes = 4;
+    int num_rays_per_probe = 64;
+    ivec3 probeCount = ivec3(8, 8, 8);
 
     vec3 bbmin = vec3(push.consts.ph1, push.consts.ph2, push.consts.ph3);
     vec3 bbmax = vec3(push.consts.ph4, push.consts.ph5, push.consts.ph6);
 
     ivec2 gid = ivec2(gl_LaunchIDNV.xy);
-    vec2 ngid = vec2(gid) / vec2(push.consts.width, push.consts.height);
-    ivec2 pid = ivec2(ngid * vec2(num_x_probes - 1, num_y_probes - 1));
 
-    vec3 origin = mix(bbmin, bbmax, vec3(ngid, .5));
-    vec3 direction = vec3(0.0, 0.0, -1.0);
+    int rayID = gid.x;
+    int probeID = gid.y;
+
+    // This value should be on the order of the normal bias.
+    const float rayMinDistance = 0.08;
+
+    vec3 origin = probeLocation(probeID, bbmin, bbmax, probeCount);
+    vec3 direction = sphericalFibonacci(rayID, num_rays_per_probe);
 
     // Trace the ray 
+    // TODO: TAKE TRANSPARENCY INTO ACCOUNT?
     payload.is_shadow_ray = false;
     payload.entity_id = -1;
     traceNV(topLevelAS, gl_RayFlagsNoneNV, 0xff, 0, 0, 0, origin, TMIN, direction, TMAX, 0);
 
-    vec3 albedo = vec3(0.f);
-    
+    vec3 probe_irradiance = vec3(0.f);
+    vec3 path_throughput = vec3(1.f); // Might need this later...
+    float dist = INFINITY;
+
+    vec3 w_p = direction * INFINITY;
+    vec3 w_z = vec3(0.);
+
     /* If we hit the sky... */
     if (payload.entity_id < 0  || payload.entity_id >= MAX_ENTITIES) {
-        albedo = get_environment_color(direction);
+        probe_irradiance = get_environment_color(direction) * push.consts.environment_intensity;
     }
-    else {
-        // int probe_id = gid.y;
-        // int ray_id = gid.x;
-        
+    else {        
         /* Unpack Data */
         vec3 w_o = -direction;
-        vec3 w_p = payload.w_p;
+        w_p = payload.w_p;
         vec2 uv = payload.uv;
-        vec3 w_x, w_y, w_z;
+        vec3 w_x, w_y;
         w_z = payload.w_n;
         bool backface = dot(w_z, w_o) < 0.0;
-        float dist = payload.distance;
+        dist = payload.distance;
 
         // Load entity components
         EntityStruct entity; MaterialStruct mat; LightStruct light;
@@ -63,10 +98,33 @@ void main()
             mat.base_color.a = (mask < mat.base_color.a) ? mask : mat.base_color.a;
         }   
 
-        albedo = mat.base_color.rgb;
+        /* Do next event estimation */
+        float visibility = 1.0, l_dist;
+        vec3 w_l, curr_diffuse_radiance, curr_specular_radiance;
+        Irradiance irradiance;
+        irradiance = sample_direct_light_analytic(mat, backface, /* allow shadows */ true, 
+            /*force_diffuse*/true, /*force_specular*/false, /*force_perfect_reflection*/false, 
+            w_p, w_z, w_x, w_y, w_o);
+
+        // TODO: look up probe at hit position to retrieve GI
+
+        // If at bounce 0, we don't include diffuse color with diffuse. 
+        // Just computing irradiance for this probe.
+
+        // FILTER OUT CAUSTICS HERE?
+        vec3 diffuse = mat.base_color.rgb * (1.f - mat.metallic) * (1.f - mat.transmission);
+        vec3 specular = mix(vec3(1.0), mat.base_color.rgb, mat.metallic);
+        curr_diffuse_radiance = irradiance.diffuse * diffuse;
+        curr_specular_radiance = irradiance.specular * specular;            
+        probe_irradiance += path_throughput * (curr_diffuse_radiance + curr_specular_radiance);
+        // direct_diffuse_radiance = diffuse_radiance;
     }
 
-    imageStore(DDGI_GBUFFER, gid, vec4(albedo, 1.0));
+    imageStore(DDGI_GBUFFERS[0], gid, vec4(probe_irradiance, 1.0));
+    imageStore(DDGI_GBUFFERS[1], gid, vec4(origin, 1.0));
+    imageStore(DDGI_GBUFFERS[2], gid, vec4(direction, 1.0));
+    imageStore(DDGI_GBUFFERS[3], gid, vec4(w_p, 1.0));
+    imageStore(DDGI_GBUFFERS[4], gid, vec4(w_z, 1.0));
 
     // /* Next, Compute ray origin and direction */
     // init_random(ivec2(gl_LaunchIDNV.xy), push.consts.frame, 0);
