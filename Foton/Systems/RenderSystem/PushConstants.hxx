@@ -33,12 +33,12 @@ struct PushConsts
     int32_t num_lights;
     int32_t iteration;
 
-    int32_t ph1;
-    int32_t ph2;
-    int32_t ph3;
-    int32_t ph4;
-    int32_t ph5;
-    int32_t ph6;
+    float ph1;
+    float ph2;
+    float ph3;
+    float ph4;
+    float ph5;
+    float ph6;
     
     float sky_transition;
     float gamma;

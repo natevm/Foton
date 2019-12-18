@@ -584,6 +584,8 @@ namespace Systems
             vk::AccelerationStructureNV topAS;
             vk::DeviceMemory topASMemory;
             uint64_t topASHandle;
+            glm::vec3 bbmin = vec3(0.f);
+            glm::vec3 bbmax = vec3(0.f);
 
             vk::DeviceMemory accelerationStructureBuildScratchMemory;
             vk::Buffer accelerationStructureBuildScratchBuffer;

@@ -162,6 +162,38 @@ bool RenderSystem::update_push_constants()
 
 	// if ((!progressive_refinement_enabled) && (push_constants.frame > 1024))
 		// push_constants.frame = 0;
+
+	/* Compute World Bounds */
+	bbmin = glm::vec3(std::numeric_limits<float>::max());
+	bbmax = glm::vec3(std::numeric_limits<float>::lowest());
+
+	auto entities = Entity::GetFront();
+	auto skybox = Entity::Get("Skybox");
+	for (uint32_t eid = 0; eid < Entity::GetCount(); ++eid) {
+
+		if (!entities[eid].get_mesh()) continue;
+		if (!entities[eid].get_transform()) continue;
+		if (entities[eid].get_id() == skybox->get_id()) continue;
+		auto local_to_world = entities[eid].get_transform()->get_local_to_world_matrix();
+		auto bbcorner_min = entities[eid].get_mesh()->get_min_aabb_corner();
+		auto bbcorner_max = entities[eid].get_mesh()->get_max_aabb_corner();
+
+		for (uint32_t x = 0; x < 2; ++x) {
+			for (uint32_t y = 0; y < 2; ++y) {
+				for (uint32_t z = 0; z < 2; ++z) {
+					glm::vec3 v = glm::vec3(
+						(x == 0) ? bbcorner_min.x : bbcorner_max.x,
+						(y == 0) ? bbcorner_min.y : bbcorner_max.y,
+						(z == 0) ? bbcorner_min.z : bbcorner_max.z
+					);
+					v = glm::vec3(local_to_world * glm::vec4(v, 1.0));
+					bbmin = glm::min(v, bbmin);
+					bbmax = glm::max(v, bbmax);
+				}
+			}
+		}
+	}
+
     return true;
 }
 
@@ -1347,6 +1379,13 @@ void RenderSystem::record_compute(bool submit_immediately)
 		push_constants.camera_id = -1;
 		push_constants.viewIndex = 0;
 
+		push_constants.ph1 = bbmin.x;
+		push_constants.ph2 = bbmin.y;
+		push_constants.ph3 = bbmin.z;
+		push_constants.ph4 = bbmax.x;
+		push_constants.ph5 = bbmax.y;
+		push_constants.ph6 = bbmax.z;
+		
 		if (descriptors_bound) {		
 			// Trace DDGI rays
 			{
