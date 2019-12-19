@@ -9,6 +9,18 @@ layout(location = 0) rayPayloadNV HitInfo payload;
 #include "Foton/Resources/Shaders/Common/ShaderConstants.hxx"
 #include "Foton/Resources/Shaders/Common/OffsetRay.hxx"
 
+mat4 rotationMatrix(vec3 axis, float angle)
+{
+    axis = normalize(axis);
+    float s = sin(angle);
+    float c = cos(angle);
+    float oc = 1.0 - c;
+    
+    return mat4(oc * axis.x * axis.x + c,           oc * axis.x * axis.y - axis.z * s,  oc * axis.z * axis.x + axis.y * s,  0.0,
+                oc * axis.x * axis.y + axis.z * s,  oc * axis.y * axis.y + c,           oc * axis.y * axis.z - axis.x * s,  0.0,
+                oc * axis.z * axis.x - axis.y * s,  oc * axis.y * axis.z + axis.x * s,  oc * axis.z * axis.z + c,           0.0,
+                0.0,                                0.0,                                0.0,                                1.0);
+}
 
 vec3 sphericalFibonacci(float i, float n) {
     const float PHI = sqrt(5) * 0.5 + 0.5;
@@ -42,12 +54,13 @@ vec3 probeLocation(int index, vec3 bbmin, vec3 bbmax, ivec3 num_probes) {
 void main() 
 {
     int num_rays_per_probe = 64;
-    ivec3 probeCount = ivec3(8, 8, 8);
+    ivec3 probeCount = ivec3(32, 32, 32);
 
     vec3 bbmin = vec3(push.consts.ph1, push.consts.ph2, push.consts.ph3);
     vec3 bbmax = vec3(push.consts.ph4, push.consts.ph5, push.consts.ph6);
 
     ivec2 gid = ivec2(gl_LaunchIDNV.xy);
+    init_random(ivec2(gl_LaunchIDNV.xy), push.consts.frame, 0);
 
     int rayID = gid.x;
     int probeID = gid.y;
@@ -55,8 +68,9 @@ void main()
     // This value should be on the order of the normal bias.
     const float rayMinDistance = 0.08;
 
+    mat4 random_rotation = rotationMatrix(normalize(vec3(random(), random(), random())), random() * 2.f * M_PI);
     vec3 origin = probeLocation(probeID, bbmin, bbmax, probeCount);
-    vec3 direction = sphericalFibonacci(rayID, num_rays_per_probe);
+    vec3 direction = mat3(random_rotation) * sphericalFibonacci(rayID, num_rays_per_probe);
 
     // Trace the ray 
     // TODO: TAKE TRANSPARENCY INTO ACCOUNT?
@@ -113,7 +127,7 @@ void main()
 
         // FILTER OUT CAUSTICS HERE?
         vec3 diffuse = mat.base_color.rgb * (1.f - mat.metallic) * (1.f - mat.transmission);
-        vec3 specular = mix(vec3(1.0), mat.base_color.rgb, mat.metallic);
+        vec3 specular = vec3(0.0f);//mix(vec3(1.0), mat.base_color.rgb, mat.metallic);
         curr_diffuse_radiance = irradiance.diffuse * diffuse;
         curr_specular_radiance = irradiance.specular * specular;            
         probe_irradiance += path_throughput * (curr_diffuse_radiance + curr_specular_radiance);

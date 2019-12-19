@@ -630,6 +630,14 @@ void RenderSystem::record_post_compute_pass(Entity &camera_entity)
 				push_constants.width = texture->get_width();
 				push_constants.height = texture->get_height();
 				push_constants.flags = (!camera->should_use_multiview()) ? (push_constants.flags | (1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)) : (push_constants.flags & ~(1 << RenderSystemOptions::RASTERIZE_MULTIVIEW)); 
+				
+				push_constants.ph1 = bbmin.x;
+				push_constants.ph2 = bbmin.y;
+				push_constants.ph3 = bbmin.z;
+				push_constants.ph4 = bbmax.x;
+				push_constants.ph5 = bbmax.y;
+				push_constants.ph6 = bbmax.z;
+
 				push_constants.parameter1 = (float)this->max_bounces;
 				push_constants.parameter2 = this->test_param;
 				
@@ -3782,10 +3790,28 @@ void RenderSystem::create_descriptor_set_layouts()
 		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 	diffuseEnvironmentBinding.pImmutableSamplers = 0;
 
+	// DDGI Irradiance Texture Tile
+	vk::DescriptorSetLayoutBinding ddgiIrradianceTexBinding;
+    ddgiIrradianceTexBinding.binding = 12;
+    ddgiIrradianceTexBinding.descriptorType = vk::DescriptorType::eSampledImage;
+    ddgiIrradianceTexBinding.descriptorCount = 1;
+    ddgiIrradianceTexBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
+    ddgiIrradianceTexBinding.pImmutableSamplers = nullptr;
+
+	// DDGI Visibility Texture Tile
+	vk::DescriptorSetLayoutBinding ddgiVisibilityTexBinding;
+    ddgiVisibilityTexBinding.binding = 13;
+    ddgiVisibilityTexBinding.descriptorType = vk::DescriptorType::eSampledImage;
+    ddgiVisibilityTexBinding.descriptorCount = 1;
+    ddgiVisibilityTexBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
+		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
+    ddgiVisibilityTexBinding.pImmutableSamplers = nullptr;
+
 	// DDGI Irradiance Tile
 	vk::DescriptorSetLayoutBinding ddgiIrradianceBinding;
 	ddgiIrradianceBinding.descriptorCount = 1;
-	ddgiIrradianceBinding.binding = 12;
+	ddgiIrradianceBinding.binding = 14;
 	ddgiIrradianceBinding.descriptorType = vk::DescriptorType::eStorageImage;
 	ddgiIrradianceBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
 		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
@@ -3794,7 +3820,7 @@ void RenderSystem::create_descriptor_set_layouts()
 	// DDGI Visibility Tile
 	vk::DescriptorSetLayoutBinding ddgiVisibilityBinding;
 	ddgiVisibilityBinding.descriptorCount = 1;
-	ddgiVisibilityBinding.binding = 13;
+	ddgiVisibilityBinding.binding = 15;
 	ddgiVisibilityBinding.descriptorType = vk::DescriptorType::eStorageImage;
 	ddgiVisibilityBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
 		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
@@ -3803,17 +3829,18 @@ void RenderSystem::create_descriptor_set_layouts()
 	// DDGI GBuffer Tiles
 	vk::DescriptorSetLayoutBinding ddgiGBufferBinding;
 	ddgiGBufferBinding.descriptorCount = 5;
-	ddgiGBufferBinding.binding = 14;
+	ddgiGBufferBinding.binding = 16;
 	ddgiGBufferBinding.descriptorType = vk::DescriptorType::eStorageImage;
 	ddgiGBufferBinding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute 
 		| vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV;
 	ddgiGBufferBinding.pImmutableSamplers = 0;
 
-	std::array<vk::DescriptorSetLayoutBinding, 15> textureBindings = {
+	std::array<vk::DescriptorSetLayoutBinding, 17> textureBindings = {
 		txboLayoutBinding, samplerBinding, texture2DsBinding, textureCubesBinding, 
 		texture3DsBinding, blueNoiseBinding, brdfLUTBinding, ltcMatBinding, ltcAmpBinding, 
 		environmentBinding, specularEnvironmentBinding, diffuseEnvironmentBinding,
-		ddgiIrradianceBinding, ddgiVisibilityBinding, ddgiGBufferBinding
+		ddgiIrradianceTexBinding, ddgiVisibilityTexBinding,
+		ddgiIrradianceBinding, ddgiVisibilityBinding, ddgiGBufferBinding,
 	};
 	vk::DescriptorSetLayoutCreateInfo textureLayoutInfo;
 	textureLayoutInfo.bindingCount = (uint32_t)textureBindings.size();
@@ -4243,7 +4270,7 @@ void RenderSystem::update_global_descriptor_sets()
 	
 	/* ------ Texture Descriptor Set  ------ */
 	vk::DescriptorSetLayout textureLayouts[] = { textureDescriptorSetLayout };
-	std::array<vk::WriteDescriptorSet, 15> textureDescriptorWrites = {};
+	std::array<vk::WriteDescriptorSet, 17> textureDescriptorWrites = {};
 	
 	if (textureDescriptorSet == vk::DescriptorSet())
 	{
@@ -4469,18 +4496,44 @@ void RenderSystem::update_global_descriptor_sets()
 	textureDescriptorWrites[11].descriptorCount = 1;
 	textureDescriptorWrites[11].pImageInfo = &specularEnvironmentDescriptorInfo;
 	
+	// DDGI Irradiance (Texture)
+	vk::DescriptorImageInfo ddgiIrradianceTexDescriptorInfo;
+	ddgiIrradianceTexDescriptorInfo.sampler = nullptr;
+	ddgiIrradianceTexDescriptorInfo.imageLayout = ddgiIrradiance->get_color_image_layout();
+	ddgiIrradianceTexDescriptorInfo.imageView = ddgiIrradiance->get_color_image_view();
+	
+	textureDescriptorWrites[12].dstSet = textureDescriptorSet;
+	textureDescriptorWrites[12].dstBinding = 12;
+	textureDescriptorWrites[12].dstArrayElement = 0;
+	textureDescriptorWrites[12].descriptorType = vk::DescriptorType::eSampledImage;
+	textureDescriptorWrites[12].descriptorCount = 1;
+	textureDescriptorWrites[12].pImageInfo = &ddgiIrradianceTexDescriptorInfo;
+
+	// DDGI Irradiance (Texture)
+	vk::DescriptorImageInfo ddgiVisibilityTexDescriptorInfo;
+	ddgiVisibilityTexDescriptorInfo.sampler = nullptr;
+	ddgiVisibilityTexDescriptorInfo.imageLayout = ddgiVisibility->get_color_image_layout();
+	ddgiVisibilityTexDescriptorInfo.imageView = ddgiVisibility->get_color_image_view();
+	
+	textureDescriptorWrites[13].dstSet = textureDescriptorSet;
+	textureDescriptorWrites[13].dstBinding = 13;
+	textureDescriptorWrites[13].dstArrayElement = 0;
+	textureDescriptorWrites[13].descriptorType = vk::DescriptorType::eSampledImage;
+	textureDescriptorWrites[13].descriptorCount = 1;
+	textureDescriptorWrites[13].pImageInfo = &ddgiVisibilityTexDescriptorInfo;
+
 	// DDGI Irradiance
 	vk::DescriptorImageInfo ddgiIrradianceDescriptorInfo;
 	ddgiIrradianceDescriptorInfo.sampler = nullptr;
 	ddgiIrradianceDescriptorInfo.imageLayout = ddgiIrradiance->get_color_image_layout();
 	ddgiIrradianceDescriptorInfo.imageView = ddgiIrradiance->get_color_image_view();
 	
-	textureDescriptorWrites[12].dstSet = textureDescriptorSet;
-	textureDescriptorWrites[12].dstBinding = 12;
-	textureDescriptorWrites[12].dstArrayElement = 0;
-	textureDescriptorWrites[12].descriptorType = vk::DescriptorType::eStorageImage;
-	textureDescriptorWrites[12].descriptorCount = 1;
-	textureDescriptorWrites[12].pImageInfo = &ddgiIrradianceDescriptorInfo;
+	textureDescriptorWrites[14].dstSet = textureDescriptorSet;
+	textureDescriptorWrites[14].dstBinding = 14;
+	textureDescriptorWrites[14].dstArrayElement = 0;
+	textureDescriptorWrites[14].descriptorType = vk::DescriptorType::eStorageImage;
+	textureDescriptorWrites[14].descriptorCount = 1;
+	textureDescriptorWrites[14].pImageInfo = &ddgiIrradianceDescriptorInfo;
 	
 	// DDGI Visibility
 	vk::DescriptorImageInfo ddgiVisibilityDescriptorInfo;
@@ -4488,12 +4541,12 @@ void RenderSystem::update_global_descriptor_sets()
 	ddgiVisibilityDescriptorInfo.imageLayout = ddgiVisibility->get_color_image_layout();
 	ddgiVisibilityDescriptorInfo.imageView = ddgiVisibility->get_color_image_view();
 	
-	textureDescriptorWrites[13].dstSet = textureDescriptorSet;
-	textureDescriptorWrites[13].dstBinding = 13;
-	textureDescriptorWrites[13].dstArrayElement = 0;
-	textureDescriptorWrites[13].descriptorType = vk::DescriptorType::eStorageImage;
-	textureDescriptorWrites[13].descriptorCount = 1;
-	textureDescriptorWrites[13].pImageInfo = &ddgiVisibilityDescriptorInfo;
+	textureDescriptorWrites[15].dstSet = textureDescriptorSet;
+	textureDescriptorWrites[15].dstBinding = 15;
+	textureDescriptorWrites[15].dstArrayElement = 0;
+	textureDescriptorWrites[15].descriptorType = vk::DescriptorType::eStorageImage;
+	textureDescriptorWrites[15].descriptorCount = 1;
+	textureDescriptorWrites[15].pImageInfo = &ddgiVisibilityDescriptorInfo;
 
 	// DDGI GBuffers
 	vk::DescriptorImageInfo ddgiGBufferDescriptorInfos[5];
@@ -4504,12 +4557,13 @@ void RenderSystem::update_global_descriptor_sets()
 		ddgiGBufferDescriptorInfos[i].imageView = ddgiGBuffers->get_color_image_view_layers()[i];
 	}
 
-	textureDescriptorWrites[14].dstSet = textureDescriptorSet;
-	textureDescriptorWrites[14].dstBinding = 14;
-	textureDescriptorWrites[14].dstArrayElement = 0;
-	textureDescriptorWrites[14].descriptorType = vk::DescriptorType::eStorageImage;
-	textureDescriptorWrites[14].descriptorCount = 5;
-	textureDescriptorWrites[14].pImageInfo = ddgiGBufferDescriptorInfos;
+	textureDescriptorWrites[16].dstSet = textureDescriptorSet;
+	textureDescriptorWrites[16].dstBinding = 16;
+	textureDescriptorWrites[16].dstArrayElement = 0;
+	textureDescriptorWrites[16].descriptorType = vk::DescriptorType::eStorageImage;
+	textureDescriptorWrites[16].descriptorCount = 5;
+	textureDescriptorWrites[16].pImageInfo = ddgiGBufferDescriptorInfos;
+
 
 	device.updateDescriptorSets((uint32_t)textureDescriptorWrites.size(), textureDescriptorWrites.data(), 0, nullptr);
 

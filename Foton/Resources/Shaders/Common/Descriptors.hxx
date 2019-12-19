@@ -76,9 +76,11 @@ layout(set = TEXTURE_SET, binding = 8) uniform texture2D LTC_AMP;
 layout(set = TEXTURE_SET, binding = 9) uniform textureCube Environment;
 layout(set = TEXTURE_SET, binding = 10) uniform textureCube SpecularEnvironment;
 layout(set = TEXTURE_SET, binding = 11) uniform textureCube DiffuseEnvironment;
-layout(set = TEXTURE_SET, binding = 12, rgba32f) uniform image2D DDGI_IRRADIANCE;
-layout(set = TEXTURE_SET, binding = 13, rgba32f) uniform image2D DDGI_VISIBILITY;
-layout(set = TEXTURE_SET, binding = 14, rgba32f) uniform image2D DDGI_GBUFFERS[5];
+layout(set = TEXTURE_SET, binding = 12) uniform texture2D DDGI_IRRADIANCE_TEXTURE;
+layout(set = TEXTURE_SET, binding = 13) uniform texture2D DDGI_VISIBILITY_TEXTURE;
+layout(set = TEXTURE_SET, binding = 14, rgba32f) uniform image2D DDGI_IRRADIANCE;
+layout(set = TEXTURE_SET, binding = 15, rgba32f) uniform image2D DDGI_VISIBILITY;
+layout(set = TEXTURE_SET, binding = 16, rgba32f) uniform image2D DDGI_GBUFFERS[5];
 
 /* Push Constants */
 layout(std430, push_constant) uniform PushConstants {

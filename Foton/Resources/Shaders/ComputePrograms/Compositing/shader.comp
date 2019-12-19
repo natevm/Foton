@@ -22,7 +22,7 @@ vec3 Uncharted2Tonemap(vec3 x)
 }
 
 void main() {
-    ivec3 probeCounts = ivec3(8, 8, 8);
+    ivec3 probeCounts = ivec3(32, 32, 32);
     int render_image_idx = int(push.consts.parameter1); 
 
     ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
@@ -87,7 +87,7 @@ void main() {
         (render_image_idx < 3 + 5)
     ) {
         int rays_per_probe = 64;
-        int num_probes = 32 * 32 * 4;
+        int num_probes = 32 * 32 * 32;
         
         ivec2 pos = ivec2((ipos / vec2(push.consts.width, push.consts.height)) * vec2(rays_per_probe, num_probes));
         vec4 temp = imageLoad(DDGI_GBUFFERS[render_image_idx - 3], pos);   

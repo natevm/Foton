@@ -4,6 +4,7 @@
 
 #include "Foton/Resources/Shaders/Common/Descriptors.hxx"
 #include "Foton/Resources/Shaders/Common/Octahedral.hxx"
+#include "Foton/Resources/Shaders/Common/Utilities.hxx"
 
 layout (local_size_x = 16, local_size_y = 16) in;
 
@@ -21,11 +22,9 @@ vec2 normalizedOctCoord(ivec2 gid, int depthSide) {
     return (vec2(octFragCoord) + vec2(0.5f))*(2.0f / float(depthSide)) - vec2(1.0f, 1.0f);
 }
 
-float square(float x) { return x * x; }
-
 void main() {
     ivec2 gid = ivec2(gl_GlobalInvocationID.xy);
-    ivec3 probeCount = ivec3(8, 8, 8);
+    ivec3 probeCount = ivec3(32, 32, 32);
     vec3 bbmin = vec3(push.consts.ph1, push.consts.ph2, push.consts.ph3);
     vec3 bbmax = vec3(push.consts.ph4, push.consts.ph5, push.consts.ph6);
     int raysPerProbe = 64;
@@ -99,5 +98,9 @@ void main() {
     } // if nonzero
 
     // todo, blend results with previous
+    vec4 temp = imageLoad(DDGI_VISIBILITY, gid);
+    if (!any(isnan(temp))) {
+        result = mix(result, temp, .99f);
+    }
     imageStore(DDGI_VISIBILITY, gid, result);
 }

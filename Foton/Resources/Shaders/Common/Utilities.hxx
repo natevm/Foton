@@ -13,6 +13,12 @@ float pow2(float x) {
     return x*x;
 }
 
+float pow3(float x) { 
+    return x*x*x;
+}
+
+float square(float x) { return x * x; }
+
 float luminance(const in vec3 c) {
 	return 0.2126f * c.r + 0.7152f * c.g + 0.0722f * c.b;
 }

@@ -507,7 +507,7 @@ void Texture::Initialize()
 	CreateFromKTX("DefaultTexCube", resource_path + "/Defaults/missing-texcube.ktx");
 	CreateFromKTX("DefaultTex3D", resource_path + "/Defaults/missing-volume.ktx");
 
-	glm::ivec3 probeCounts = glm::ivec3(8, 8, 8);
+	glm::ivec3 probeCounts = glm::ivec3(32, 32, 32);
 	const int irradianceSide = 8;
     const int depthSide = 16;
 	const int raysPerProbe = 64;

@@ -12,6 +12,9 @@ layout(location = 0) rayPayloadNV HitInfo payload;
 #include "Foton/Resources/Shaders/Common/Utilities.hxx"
 #include "Foton/Resources/Shaders/Common/Lights.hxx"
 
+#include "Foton/Resources/Shaders/Common/Octahedral.hxx"
+
+
 vec3 Uncharted2Tonemap(vec3 x)
 {
     x = max(x, vec3(0));
@@ -63,9 +66,35 @@ vec2 get_uv(int mesh_id, ivec3 indices, vec2 bary)
     return UV;
 }
 
+
+vec2 textureCoordFromDirection(vec3 dir, int probeIndex, int fullTextureWidth, int fullTextureHeight, int probeSideLength) {
+    vec2 normalizedOctCoord = octEncode(normalize(dir));
+    vec2 normalizedOctCoordZeroOne = (normalizedOctCoord + vec2(1.0f)) * 0.5f;
+
+    // Length of a probe side, plus one pixel on each edge for the border
+    float probeWithBorderSide = float(probeSideLength) + 2.0f;
+
+    vec2 octCoordNormalizedToTextureDimensions = (normalizedOctCoordZeroOne * float(probeSideLength)) / vec2(fullTextureWidth, fullTextureHeight);
+
+    int probesPerRow = (fullTextureWidth - 2) / int(probeWithBorderSide);
+
+    // Add (2,2) back to texCoord within larger texture. Compensates for 1 pix 
+    // border around texture and further 1 pix border around top left probe.
+    // vec2 probeTopLeftPosition = vec2(mod(probeIndex, probesPerRow) * probeWithBorderSide,
+    vec2 probeTopLeftPosition = vec2((probeIndex % probesPerRow) * probeWithBorderSide,
+        (probeIndex / probesPerRow) * probeWithBorderSide) + vec2(2.0f, 2.0f);
+
+    vec2 normalizedProbeTopLeftPosition = vec2(probeTopLeftPosition) / vec2(fullTextureWidth, fullTextureHeight);
+
+    return vec2(normalizedProbeTopLeftPosition + octCoordNormalizedToTextureDimensions);
+}
+
+
 // 7.3 ms, VRAM 29.9%, L2 27.1%, TEX 18.2%
 void main() 
 {
+    bool use_ddgi = true;
+
     if (int(gl_LaunchIDNV.x * PATH_TRACE_TILE_SIZE) >= push.consts.width) return;
     if (int(gl_LaunchIDNV.y * PATH_TRACE_TILE_SIZE) >= push.consts.height) return;
 
@@ -288,7 +317,7 @@ void main()
         
         /* Increase bounce count*/
         bounce++;
-        if (bounce > max_path_depth) break;
+        if ((bounce > max_path_depth) || (use_ddgi == true)) break;
         
         /* Setup next ray */
         vec3 w_i; float pdf, dpdf, spdf;
@@ -309,8 +338,171 @@ void main()
         traceNV(topLevelAS, gl_RayFlagsNoneNV, 0xff, 0, 0, 0, origin, TMIN, direction, TMAX, 0);
     } while (bounce <= max_path_depth);
 
+    vec3 ddgi_indirect_radiance = vec3(0.f);
+    // Use irradiance probes to compute indirect illumination
+    if (use_ddgi) {
+        /** How much should the probes count when shading *themselves*? 1.0 preserves
+            energy perfectly. Lower numbers compensate for small leaks/precision by avoiding
+            recursive energy explosion. */
+        const float energyPreservation = 0.85f;
+
+        vec3 bbmin = vec3(push.consts.ph1, push.consts.ph2, push.consts.ph3);
+        vec3 bbmax = vec3(push.consts.ph4, push.consts.ph5, push.consts.ph6);
+        ivec3 probeCounts = ivec3(32, 32, 32);
+        vec3 probeStep = vec3((bbmax-bbmin)/vec3(probeCounts));
+        
+        const int irradianceSide = 8;
+        const int irradianceWidth = (irradianceSide + 2) * probeCounts.x * probeCounts.y + 2;
+        const int irradianceHeight = (irradianceSide + 2) * probeCounts.z + 2;
+
+        const int depthSide = 16;
+        const int depthWidth = (depthSide + 2) * probeCounts.x * probeCounts.y + 2;
+        const int depthHeight = (depthSide + 2) * probeCounts.z + 2;
+
+        // float normalBias = 0.08;
+        float normalBias = 0.0;
+        vec3 wsPosition = first_position;
+        vec3 wsN = first_normal;
+        vec3 w_o = -first_direction;
+
+        // ivec3 baseGridCoord = baseGridCoord(wsPosition);
+        ivec3 baseGridCoord = clamp(ivec3(vec3((wsPosition - bbmin/*L.probeStartPosition*/) / /*L.*/probeStep)),
+                                    ivec3(0, 0, 0), 
+                                    ivec3(/*L.*/probeCounts) - ivec3(1, 1, 1));
+        vec3 norm_probe_coords = baseGridCoord / vec3(probeCounts);
+        vec3 baseProbePos = mix(bbmin, bbmax, norm_probe_coords);//gridCoordToPosition(baseGridCoord);
+        vec3 sumIrradiance = vec3(0);
+        float sumWeight = 0.0;
+
+        // alpha is how far from the floor(currentVertex) position. on [0, 1] for each axis.
+        vec3 alpha = clamp((wsPosition - baseProbePos) / /*irradianceFieldSurface.*/probeStep, vec3(0), vec3(1));
+
+        // Iterate over adjacent probe cage
+        for (int i = 0; i < 8; ++i) {
+            // Compute the offset grid coord and clamp to the probe grid boundary
+            // Offset = 0 or 1 along each axis
+            ivec3 offset = ivec3(i, i >> 1, i >> 2) & ivec3(1);
+            ivec3 probeGridCoord = clamp(baseGridCoord + offset, ivec3(0), ivec3(probeCounts - 1));
+            // int p = gridCoordToProbeIndex(irradianceFieldSurface, probeGridCoord);
+            int p = (probeGridCoord.x) + (probeGridCoord.y * probeCounts.x) + (probeGridCoord.z * probeCounts.x * probeCounts.y);
+
+            // Make cosine falloff in tangent plane with respect to the angle from the surface to the probe so that we never
+            // test a probe that is *behind* the surface.
+            // It doesn't have to be cosine, but that is efficient to compute and we must clip to the tangent plane.
+            // Point3 probePos = gridCoordToPosition(irradianceFieldSurface, probeGridCoord);
+            vec3 norm_probe_grid_coords = probeGridCoord / vec3(probeCounts);
+            vec3 probePos = mix(bbmin, bbmax, norm_probe_coords);
+
+            // Bias the position at which visibility is computed; this
+            // avoids performing a shadow test *at* a surface, which is a
+            // dangerous location because that is exactly the line between
+            // shadowed and unshadowed. If the normal bias is too small,
+            // there will be light and dark leaks. If it is too large,
+            // then samples can pass through thin occluders to the other
+            // side (this can only happen if there are MULTIPLE occluders
+            // near each other, a wall surface won't pass through itself.)
+            vec3 probeToPoint = wsPosition - probePos + (wsN + 3.0 * w_o) * normalBias;
+            vec3 dir = normalize(-probeToPoint);
+
+            // Compute the trilinear weights based on the grid cell vertex to smoothly
+            // transition between probes. Avoid ever going entirely to zero because that
+            // will cause problems at the border probes. This isn't really a lerp. 
+            // We're using 1-a when offset = 0 and a when offset = 1.
+            vec3 trilinear = mix(1.0 - alpha, alpha, offset);
+            float weight = 1.0;
+
+            // Clamp all of the multiplies. We can't let the weight go to zero because then it would be 
+            // possible for *all* weights to be equally low and get normalized
+            // up to 1/n. We want to distinguish between weights that are 
+            // low because of different factors.
+
+            // Smooth backface test
+            {
+                // Computed without the biasing applied to the "dir" variable. 
+                // This test can cause reflection-map looking errors in the image
+                // (stuff looks shiny) if the transition is poor.
+                vec3 trueDirectionToProbe = normalize(probePos - wsPosition);
+
+                // The naive soft backface weight would ignore a probe when
+                // it is behind the surface. That's good for walls. But for small details inside of a
+                // room, the normals on the details might rule out all of the probes that have mutual
+                // visibility to the point. So, we instead use a "wrap shading" test below inspired by
+                // NPR work.
+                // weight *= max(0.0001, dot(trueDirectionToProbe, wsN));
+
+                // The small offset at the end reduces the "going to zero" impact
+                // where this is really close to exactly opposite
+                weight *= square(max(0.0001, (dot(trueDirectionToProbe, wsN) + 1.0) * 0.5)) + 0.2;
+            }
+
+            // Moment visibility test
+            {
+                vec2 texCoord = textureCoordFromDirection(-dir,
+                    p,
+                    depthWidth,
+                    depthHeight,
+                    depthSide);
+
+                float distToProbe = length(probeToPoint);
+
+                vec2 temp = texture(sampler2D(DDGI_VISIBILITY_TEXTURE, samplers[LINEAR_SAMPLER]), texCoord).rg;
+                float mean = temp.x;
+                float variance = abs(square(temp.x) - temp.y);
+
+                // http://www.punkuser.net/vsm/vsm_paper.pdf; equation 5
+                // Need the max in the denominator because biasing can cause a negative displacement
+                float chebyshevWeight = variance / (variance + square(max(distToProbe - mean, 0.0)));
+                    
+                // Increase contrast in the weight 
+                chebyshevWeight = max(pow3(chebyshevWeight), 0.0);
+
+                weight *= (distToProbe <= mean) ? 1.0 : chebyshevWeight;
+            }
+
+
+            // Avoid zero weight
+            weight = max(0.000001, weight);
+                    
+            vec3 irradianceDir = wsN;
+
+            vec2 texCoord = textureCoordFromDirection(normalize(irradianceDir),
+                p,
+                irradianceWidth,
+                irradianceHeight,
+                irradianceSide);
+
+            vec3 probeIrradiance = texture(sampler2D(DDGI_IRRADIANCE_TEXTURE, samplers[LINEAR_SAMPLER]), texCoord).rgb;
+
+            // A tiny bit of light is really visible due to log perception, so
+            // crush tiny weights but keep the curve continuous. This must be done
+            // before the trilinear weights, because those should be preserved.
+            const float crushThreshold = 0.2;
+            if (weight < crushThreshold) {
+                weight *= weight * weight * (1.0 / square(crushThreshold)); 
+            }
+
+            // Trilinear weights
+            weight *= trilinear.x * trilinear.y * trilinear.z;
+
+            // Weight in a more-perceptual brightness space instead of radiance space.
+            // This softens the transitions between probes with respect to translation.
+            // It makes little difference most of the time, but when there are radical transitions
+            // between probes this helps soften the ramp.
+            #if LINEAR_BLENDING == 0
+                probeIrradiance = sqrt(probeIrradiance);
+            #endif
+            
+            sumIrradiance += weight * probeIrradiance;
+            sumWeight += weight;
+        }
+    
+        vec3 netIrradiance = sumIrradiance / sumWeight;
+        netIrradiance *= energyPreservation;
+        ddgi_indirect_radiance = 0.5 * M_PI * netIrradiance;
+    }
+
     /* Write to G Buffers */
-    vec3 indirect_diffuse_radiance = diffuse_radiance - direct_diffuse_radiance;
+    vec3 indirect_diffuse_radiance = (use_ddgi) ? ddgi_indirect_radiance : diffuse_radiance - direct_diffuse_radiance;
     
     
     // direct_diffuse_radiance = vec3(pixel_seed, frame_seed);
